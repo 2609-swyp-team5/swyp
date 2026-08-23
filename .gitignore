@@ -48,6 +48,7 @@ HELP.md
 # Java 컴파일 및 빌드 실행 결과
 *.class
 *.jar
+!**/gradle/wrapper/gradle-wrapper.jar
 *.war
 *.ear
 
