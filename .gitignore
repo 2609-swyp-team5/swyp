@@ -1,0 +1,80 @@
+# ==========================================
+# 운영체제 및 시스템 생성 임시 파일
+# ==========================================
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ==========================================
+# IDE 및 에디터 개인 설정
+# ==========================================
+# IntelliJ
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# Visual Studio Code
+.vscode/
+!.vscode/extensions.json
+*.code-workspace
+
+# Eclipse
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache/
+bin/
+
+# ==========================================
+# 백엔드
+# ==========================================
+.gradle/
+build/
+HELP.md
+
+# Java 컴파일 및 빌드 실행 결과
+*.class
+*.jar
+*.war
+*.ear
+
+# ==========================================
+# 프론트엔드
+# ==========================================
+node_modules/
+.pnpm-store/
+
+# 프론트엔드 빌드 배포 결과
+dist/
+dist-ssr/
+
+# npm / yarn / pnpm 실행 및 에러 로그 파일
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 코드 스타일 검사 및 도구
+.eslintcache
+.stylelintcache
+.node_repl_history
+
+# ==========================================
+# 보안
+# ==========================================
+**/.env
+*.zip

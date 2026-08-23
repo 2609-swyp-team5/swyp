@@ -1,0 +1,64 @@
+# ==========================================
+# 기본 설정
+# ==========================================
+* text=auto
+
+# ==========================================
+# 실행 스크립트
+# ==========================================
+# Linux/macOS
+/gradlew text eol=lf
+*.sh text eol=lf
+
+# Windows
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# ==========================================
+# 소스 코드 및 설정 파일
+# ==========================================
+# Java / Spring
+*.java text eol=lf
+*.properties text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# React / Frontend
+*.js text eol=lf
+*.jsx text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.html text eol=lf
+
+# ==========================================
+# 문서 설정
+# ==========================================
+*.md text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+
+# ==========================================
+# 바이너리 파일 (줄바꿈 변환 대상에서 제외)
+# ==========================================
+
+# Java 빌드 및 실행 파일
+*.jar binary
+*.war binary
+*.class binary
+
+# 이미지 파일
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
+
+# 압축 및 문서 파일
+*.zip binary
+*.tar binary
+*.gz binary
+*.pdf binary

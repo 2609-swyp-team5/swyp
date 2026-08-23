@@ -1,0 +1,119 @@
+stages:
+  - test
+  - build
+# 배포 연동 후 deploy 항목 주석 해제
+#  - deploy
+
+# ==========================================
+# Backend
+# ==========================================
+backend-test:
+  stage: test
+  image: eclipse-temurin:21-jdk
+  cache:
+    key: gradle-cache
+    paths:
+      - backend/.gradle/caches/
+      - backend/.gradle/wrapper/
+  script:
+    - cd backend
+    - chmod +x gradlew
+    - ./gradlew test
+  rules:
+    - changes:
+        - backend/**/*
+
+backend-build:
+  stage: build
+  image: eclipse-temurin:21-jdk
+  script:
+    - cd backend
+    - chmod +x gradlew
+    - ./gradlew build -x test
+  artifacts:
+    paths:
+      - backend/build/libs/*.jar
+    expire_in: 1 week
+  rules:
+    - changes:
+        - backend/**/*
+      when: on_success
+
+#backend-deploy:
+#  stage: deploy
+#  image: alpine:latest
+#  before_script:
+#    # SSH 접속용 패키지 설치 및 키 설정
+#    - apk add --no-cache openssh-client rsync
+#    - eval $(ssh-agent -s)
+#    - echo "$EC2_SSH_KEY" | tr -d '\r' | ssh-add -
+#    - mkdir -p ~/.ssh
+#    - chmod 700 ~/.ssh
+#    - ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts
+#  script:
+#    # 1. 빌드된 jar 파일 서버로 전송
+#    - scp backend/build/libs/app.jar $EC2_USER@$EC2_HOST:/home/$EC2_USER/app.jar
+#    # 2. 서버에서 기존 프로세스 종료 후 새로 실행
+#    - ssh $EC2_USER@$EC2_HOST "nohup java -jar /home/$EC2_USER/app.jar > /dev/null 2>&1 &"
+#  rules:
+#    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE != "schedule"
+#      changes:
+#        - backend/**/*
+
+# ==========================================
+# 2. Frontend
+# ==========================================
+frontend-test:
+  stage: test
+  image: node:24-alpine
+  cache:
+    key: node-modules
+    paths:
+      - frontend/node_modules/
+  script:
+    - cd frontend
+    - npm ci
+    # 1. 타입 검사
+    - npx tsc --noEmit
+    # 2. 코드 스타일 및 린트 검사
+    - npm run lint
+    # 3. 단위 테스트 (test 설정 후 주석 해제)
+    # - npm run test
+  rules:
+    - changes:
+        - frontend/**/*
+
+frontend-build:
+  stage: build
+  image: node:24-alpine
+  cache:
+    key: node-modules
+    paths:
+      - frontend/node_modules/
+  script:
+    - cd frontend
+    - npm ci
+    - npm run build
+  artifacts:
+    paths:
+      - frontend/dist/
+    expire_in: 1 week
+  rules:
+    - changes:
+        - frontend/**/*
+      when: on_success
+
+#frontend-deploy:
+#  stage: deploy
+#  image: node:20-alpine
+#  script:
+#    - cd frontend
+#    # Vercel 배포
+#    - npm install -g vercel
+#    - vercel pull --yes --environment=production --token=$VERCEL_TOKEN
+#    - vercel build --prod --token=$VERCEL_TOKEN
+#    - vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
+#  rules:
+#    - if: $CI_COMMIT_BRANCH == "main"
+#      changes:
+#        - frontend/**/*
