@@ -108,6 +108,7 @@ frontend-test:
       - frontend/.npm/
 
   script:
+    - if [ ! -d "frontend" ]; then echo "Frontend not found. Skip"; exit 0; fi
     - cd frontend
     - npm ci --cache .npm --prefer-offline
     - npx tsc --noEmit
