@@ -1,9 +1,20 @@
+workflow:
+  rules:
+    # Merge Request 이벤트 발생 시 파이프라인 실행
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+    # 이미 MR이 열려있는 브랜치의 중복 브랜치 파이프라인 실행 차단
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    # MR이 없는 일반 브랜치에 push될 때만 실행
+    - if: $CI_COMMIT_BRANCH
+
 stages:
   - test
   - build
-# 배포 연동 후 deploy 항목 주석 해제
-#  - deploy
+  - deploy
 
+variables:
+  GRADLE_USER_HOME: "$CI_PROJECT_DIR/backend/.gradle"
 # ==========================================
 # Backend
 # ==========================================
@@ -11,14 +22,19 @@ backend-test:
   stage: test
   image: eclipse-temurin:21-jdk
   cache:
-    key: gradle-cache
+    key:
+      files:
+        - backend/gradle/wrapper/gradle-wrapper.properties
+        - backend/build.gradle.kts
     paths:
       - backend/.gradle/caches/
       - backend/.gradle/wrapper/
+
   script:
     - cd backend
     - chmod +x gradlew
     - ./gradlew test
+
   rules:
     - changes:
         - backend/**/*
@@ -26,22 +42,39 @@ backend-test:
 backend-build:
   stage: build
   image: eclipse-temurin:21-jdk
+  needs:
+    - backend-test
+
+  cache:
+    key:
+      files:
+        - backend/gradle/wrapper/gradle-wrapper.properties
+        - backend/build.gradle.kts
+    paths:
+      - backend/.gradle/caches/
+      - backend/.gradle/wrapper/
+
   script:
     - cd backend
     - chmod +x gradlew
     - ./gradlew build -x test
+
   artifacts:
     paths:
-      - backend/build/libs/*.jar
+      - backend/build/libs/app.jar
     expire_in: 1 week
+
   rules:
     - changes:
         - backend/**/*
-      when: on_success
 
+# 백엔드 배포 연동 후 주석 해제
 #backend-deploy:
 #  stage: deploy
 #  image: alpine:latest
+#  needs:
+#    - backend-build
+
 #  before_script:
 #    # SSH 접속용 패키지 설치 및 키 설정
 #    - apk add --no-cache openssh-client rsync
@@ -50,35 +83,38 @@ backend-build:
 #    - mkdir -p ~/.ssh
 #    - chmod 700 ~/.ssh
 #    - ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts
+
 #  script:
-#    # 1. 빌드된 jar 파일 서버로 전송
 #    - scp backend/build/libs/app.jar $EC2_USER@$EC2_HOST:/home/$EC2_USER/app.jar
-#    # 2. 서버에서 기존 프로세스 종료 후 새로 실행
 #    - ssh $EC2_USER@$EC2_HOST "nohup java -jar /home/$EC2_USER/app.jar > /dev/null 2>&1 &"
+
 #  rules:
 #    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE != "schedule"
 #      changes:
 #        - backend/**/*
 
 # ==========================================
-# 2. Frontend
+# Frontend
 # ==========================================
 frontend-test:
   stage: test
   image: node:24-alpine
+
   cache:
-    key: node-modules
+    key:
+      files:
+        - frontend/package-lock.json
     paths:
-      - frontend/node_modules/
+      - frontend/.npm/
+
   script:
     - cd frontend
-    - npm ci
-    # 1. 타입 검사
+    - npm ci --cache .npm --prefer-offline
     - npx tsc --noEmit
-    # 2. 코드 스타일 및 린트 검사
     - npm run lint
-    # 3. 단위 테스트 (test 설정 후 주석 해제)
+    # test 설정 후 주석 해제
     # - npm run test
+
   rules:
     - changes:
         - frontend/**/*
@@ -86,34 +122,44 @@ frontend-test:
 frontend-build:
   stage: build
   image: node:24-alpine
+  needs:
+    - frontend-test
+
   cache:
-    key: node-modules
+    key:
+      files:
+        - frontend/package-lock.json
     paths:
-      - frontend/node_modules/
+      - frontend/.npm/
+
   script:
     - cd frontend
-    - npm ci
+    - npm ci --cache .npm --prefer-offline
     - npm run build
+
   artifacts:
     paths:
       - frontend/dist/
     expire_in: 1 week
+
   rules:
     - changes:
         - frontend/**/*
-      when: on_success
 
-#frontend-deploy:
-#  stage: deploy
-#  image: node:20-alpine
-#  script:
-#    - cd frontend
-#    # Vercel 배포
-#    - npm install -g vercel
-#    - vercel pull --yes --environment=production --token=$VERCEL_TOKEN
-#    - vercel build --prod --token=$VERCEL_TOKEN
-#    - vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
-#  rules:
-#    - if: $CI_COMMIT_BRANCH == "main"
-#      changes:
-#        - frontend/**/*
+frontend-deploy:
+  stage: deploy
+  image: node:24-alpine
+  needs:
+    - frontend-build
+
+  script:
+    - cd frontend
+    - npm install -g vercel
+    - vercel pull --yes --environment=production --token=$VERCEL_TOKEN
+    - vercel build --prod --token=$VERCEL_TOKEN
+    - vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
+
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes:
+        - frontend/**/*

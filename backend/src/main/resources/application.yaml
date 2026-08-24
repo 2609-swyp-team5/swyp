@@ -1,3 +1,124 @@
+# ==========================================
+# 공통
+# ==========================================
 spring:
-  application:
-    name: backend
+  profiles:
+    active: local
+
+# JPA 공통 설정
+  jpa:
+    open-in-view: false # DB 커넥션 고갈 방지
+    properties:
+      hibernate:
+        format_sql: true
+        default_batch_fetch_size: 100 # IN절 한 번에 가져오는 개수
+        jdbc:
+          time_zone: Asia/Seoul
+# Redis 설정 (사용시 주석 해제)
+#  data:
+#    redis:
+#      host: ${REDIS_HOST:localhost}
+#      port: ${REDIS_PORT:6379}
+
+# Kafka 설정 (사용시 주석 해제)
+#  kafka:
+#    bootstrap-servers: ${KAFKA_SERVER:localhost:9092}
+
+# JWT 설정
+jwt:
+  secret: ${JWT_SECRET:bG9jYWwtc2VjcmV0LWtleS1tdXN0LWJlLWF0LWxlYXN0LTMyLWJ5dGVzLWxvbmctZm9yLWhzMjU2}
+  access-token-expiration: 3600000       # 1시간
+  refresh-token-expiration: 1209600000   # 14일
+
+# 스웨거 설정
+springdoc:
+  swagger-ui:
+    path: /swagger
+    groups-order: desc
+    operations-sorter: method
+    disable-swagger-default-url: true
+  api-docs:
+    path: /docs
+---
+# ==========================================
+# 로컬 개발
+# ==========================================
+spring:
+  config:
+    activate:
+      on-profile: local
+
+# 데이터베이스 설정
+  datasource:
+    driver-class-name: ${DB_DRIVER_CLASS_NAME:org.h2.Driver}
+    url: ${DB_URL:jdbc:h2:mem:swyp;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
+
+# JPA 설정
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        highlight_sql: true
+# H2 로컬 DB 설정
+  h2:
+    console:
+      path: /h2-console
+      enabled: true
+
+# 개발 로깅 설정
+logging:
+  level:
+    com.swyp.team5: debug
+    org.hibernate.SQL: debug
+    org.hibernate.orm.jdbc.bind: trace
+
+# 스프링 엑츄에이터 설정
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health, info, metrics, prometheus"
+  endpoint:
+    health:
+      show-details: always
+
+---
+# ==========================================
+# 운영 환경
+# ==========================================
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+# 데이터베이스 설정
+  datasource:
+    driver-class-name: ${DB_DRIVER_CLASS_NAME}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+# JPA 설정
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+# 운영 로깅 설정
+logging:
+  level:
+    root: info
+    com.swyp.team5: info
+
+# 스프링 엑츄에이터 설정
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health"
+  endpoint:
+    health:
+      show-details: never
