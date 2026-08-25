@@ -17,15 +17,18 @@ Desktop.ini
 # IDE 및 에디터 개인 설정
 # ==========================================
 # IntelliJ
-.idea/
+**/.idea/*
+!**/.idea/codeStyles/
+!**/.idea/codeStyles/**
 *.iws
 *.iml
 *.ipr
 out/
 
 # Visual Studio Code
-.vscode/
+.vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
 *.code-workspace
 
 # Eclipse
