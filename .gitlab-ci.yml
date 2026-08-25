@@ -33,7 +33,7 @@ backend-test:
   script:
     - cd backend
     - chmod +x gradlew
-    - ./gradlew test
+    - ./gradlew spotlessCheck test
 
   rules:
     - changes:
@@ -67,6 +67,49 @@ backend-build:
   rules:
     - changes:
         - backend/**/*
+
+# ==========================================
+# Claude 코드 리뷰 연동 후 주석해제 예정
+# ==========================================
+#claude-code-review:
+#  stage: test
+#  image: node:24-alpine
+#  variables:
+#    GIT_DEPTH: "0"
+#  rules:
+#    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+#
+#  before_script:
+#    - apk add --no-cache git curl jq
+#    - npm install -g @anthropic-ai/claude-code
+#
+#  script:
+#    - git fetch origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+#    - export DIFF_RANGE="origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}...HEAD"
+#    - |
+#      claude -p "이 GitLab Merge Request의 변경 사항을 코드 리뷰해줘.
+#      'git diff ${DIFF_RANGE}' 명령으로 변경된 내용을 직접 확인하고, 필요하면 관련 파일을 열어서 문맥을 파악해.
+#      버그 가능성, 재사용/단순화, 성능 이슈 위주로만 지적하고 사소한 스타일 지적은 하지 마.
+#      지적할 때는 파일 경로와 줄 번호를 함께 표시해.
+#      문제를 찾지 못했으면 다른 말 없이 '특별한 문제를 발견하지 못했습니다.'라고만 답해.
+#      반드시 한국어 마크다운으로만 답하고, 그 외 다른 설명은 하지 마." \
+#      --allowedTools "Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(git show:*)" \
+#      --output-format text > review.md
+#    - |
+#      jq -Rs '{body: ("🤖 **Claude 코드 리뷰**\n\n" + .)}' review.md > note.json
+#      curl --fail --request POST \
+#        --header "PRIVATE-TOKEN: ${GITLAB_REVIEW_TOKEN}" \
+#        --header "Content-Type: application/json" \
+#        --data @note.json \
+#        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes"
+#
+#  artifacts:
+#    paths:
+#      - review.md
+#    expire_in: 1 week
+#    when: always
+#
+#  allow_failure: true
 
 # 백엔드 배포 연동 후 주석 해제
 #backend-deploy:
@@ -112,6 +155,7 @@ frontend-test:
     - npm ci --cache .npm --prefer-offline
     - npx tsc --noEmit
     - npm run lint
+    - npm run format:check
     # test 설정 후 주석 해제
     # - npm run test
 
