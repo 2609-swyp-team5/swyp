@@ -93,7 +93,7 @@ code-review:
       지적할 때는 파일 경로와 줄 번호(diff 상의 위치 기준)를 함께 표시해.
       diff만으로는 판단이 어려운 부분은 가정임을 명시해.
       문제를 찾지 못했으면 다른 말 없이 '특별한 문제를 발견하지 못했습니다.'라고만 답해.
-      반드시 한국어 마크다운으로만 답하고, 그 외 다른 설명은 하지 마."
+      답변은 반드시 존댓말을 사용하여 한국어 마크다운으로만 답하고, 그 외 다른 설명은 하지 마."
     - |
       jq -n --arg model "$GROQ_MODEL" --arg prompt "$REVIEW_PROMPT" --rawfile diff diff_truncated.txt \
         '{model: $model, max_completion_tokens: 2048, messages: [{role: "user", content: ($prompt + "\n\n```diff\n" + $diff + "\n```")}]}' \
