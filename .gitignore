@@ -64,7 +64,8 @@ node_modules/
 # 프론트엔드 빌드 배포 결과
 dist/
 dist-ssr/
-
+.npm
+docs/
 # npm / yarn / pnpm 실행 및 에러 로그 파일
 *.log
 npm-debug.log*
