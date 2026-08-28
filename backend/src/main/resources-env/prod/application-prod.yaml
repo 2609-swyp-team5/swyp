@@ -1,0 +1,47 @@
+# ==========================================
+# 운영 환경
+# ------------------------------------------
+# 민감 정보는 하드코딩하지 않고 배포 환경변수로 주입한다.
+# ==========================================
+spring:
+# 데이터베이스 설정
+  datasource:
+    driver-class-name: ${DB_DRIVER_CLASS_NAME}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+# JPA 설정
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+# Redis 설정 (사용시 주석 해제)
+#  data:
+#    redis:
+#      host: ${REDIS_HOST}
+#      port: ${REDIS_PORT}
+
+# Kafka 설정 (사용시 주석 해제)
+#  kafka:
+#    bootstrap-servers: ${KAFKA_SERVER}
+
+# 운영 로깅 설정
+logging:
+  level:
+    root: info
+    com.swyp.team5: info
+
+# 스프링 엑츄에이터 설정
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health"
+  endpoint:
+    health:
+      show-details: never
+
+# CORS 설정
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS}

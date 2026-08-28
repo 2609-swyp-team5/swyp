@@ -14,6 +14,16 @@ java {
 	}
 }
 
+sourceSets {
+	main {
+		resources {
+			srcDir("src/main/resources-env/local")
+			srcDir("src/main/resources-env/dev")
+			srcDir("src/main/resources-env/prod")
+		}
+	}
+}
+
 repositories {
 	mavenCentral()
 }
