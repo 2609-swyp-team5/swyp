@@ -17,7 +17,16 @@
   },
 
   "[java]": {
-    "editor.tabSize": 4,
-    "editor.defaultFormatter": "richardwillis.vscode-spotless-gradle"
+    "editor.tabSize": 4
+  },
+
+  "emeraldwalk.runonsave": {
+    "commands": [
+      {
+        "match": "backend[\\\\/]src[\\\\/].*\\.java$",
+        "isAsync": true,
+        "cmd": "\"${workspaceFolder}\\backend\\gradlew.bat\" -p \"${workspaceFolder}\\backend\" spotlessApply -q"
+      }
+    ]
   }
 }
