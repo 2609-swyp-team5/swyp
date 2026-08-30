@@ -72,8 +72,10 @@ tasks.withType<Test> {
 spotless {
 	java {
 		target("src/**/*.java")
+        encoding("UTF-8")
 		palantirJavaFormat()
 		removeUnusedImports()
+        importOrder("java", "jakarta", "lombok", "org.springframework", "")
 		trimTrailingWhitespace()
 		endWithNewline()
 	}

@@ -2,7 +2,7 @@
   "recommendations": [
     "esbenp.prettier-vscode",
     "dbaeumer.vscode-eslint",
-    "richardwillis.vscode-spotless-gradle",
+    "emeraldwalk.runonsave",
     "editorconfig.editorconfig"
   ]
 }
