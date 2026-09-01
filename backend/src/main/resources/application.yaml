@@ -24,6 +24,33 @@ spring:
 #  kafka:
 #    bootstrap-servers: ${KAFKA_SERVER:localhost:9092}
 
+# 파일 스토리지 설정
+cloud:
+  storage:
+    provider: ${STORAGE_PROVIDER:R2} # 사용할 스토리지 전략 (R2, LOCAL, NAVER, S3)
+  local-storage:
+    base-directory: ${LOCAL_STORAGE_DIR:uploads} # 로컬 디스크 저장 경로 (LOCAL 전략 사용 시)
+    base-url: ${LOCAL_STORAGE_BASE_URL:http://localhost:8080} # 업로드 파일 다운로드 URL의 호스트
+  r2: # Cloud Flare R2
+    endpoint: ${R2_ENDPOINT:}
+    access-key: ${R2_ACCESS_KEY:}
+    secret-key: ${R2_SECRET_KEY:}
+    bucket: ${R2_BUCKET:}
+    public-base-url: ${R2_PUBLIC_BASE_URL:}
+  naver: # 네이버 클라우드 Object Storage
+    endpoint: ${NAVER_STORAGE_ENDPOINT:}
+    region: ${NAVER_STORAGE_REGION:}
+    access-key: ${NAVER_STORAGE_ACCESS_KEY:}
+    secret-key: ${NAVER_STORAGE_SECRET_KEY:}
+    bucket: ${NAVER_STORAGE_BUCKET:}
+    public-base-url: ${NAVER_STORAGE_PUBLIC_BASE_URL:}
+  s3: # AWS S3
+    region: ${AWS_S3_REGION:}
+    access-key: ${AWS_S3_ACCESS_KEY:}
+    secret-key: ${AWS_S3_SECRET_KEY:}
+    bucket: ${AWS_S3_BUCKET:}
+    public-base-url: ${AWS_S3_PUBLIC_BASE_URL:}
+
 # JWT 설정
 jwt:
   secret: ${JWT_SECRET:bG9jYWwtc2VjcmV0LWtleS1tdXN0LWJlLWF0LWxlYXN0LTMyLWJ5dGVzLWxvbmctZm9yLWhzMjU2}

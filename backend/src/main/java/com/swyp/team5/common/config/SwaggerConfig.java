@@ -1,4 +1,4 @@
-package com.swyp.team5.config;
+package com.swyp.team5.common.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

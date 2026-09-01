@@ -15,6 +15,7 @@ stages:
 
 variables:
   GRADLE_USER_HOME: "$CI_PROJECT_DIR/backend/.gradle"
+  TZ: "Asia/Seoul"
 # ==========================================
 # Backend
 # ==========================================
@@ -69,9 +70,10 @@ backend-build:
         - backend/**/*
 
 # ==========================================
-# Claude 코드 리뷰 연동 후 주석해제 예정
+# Gemini 코드 리뷰 연동 후 주석해제 예정
+# 필요 CI/CD 변수: GEMINI_API_KEY, GITLAB_REVIEW_TOKEN (api scope PAT)
 # ==========================================
-#claude-code-review:
+#code-review:
 #  stage: test
 #  image: node:24-alpine
 #  variables:
@@ -81,22 +83,20 @@ backend-build:
 #
 #  before_script:
 #    - apk add --no-cache git curl jq
-#    - npm install -g @anthropic-ai/claude-code
+#    - npm install -g @google/gemini-cli
 #
 #  script:
 #    - git fetch origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
 #    - export DIFF_RANGE="origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}...HEAD"
 #    - |
-#      claude -p "이 GitLab Merge Request의 변경 사항을 코드 리뷰해줘.
+#      gemini --yolo --prompt "이 GitLab Merge Request의 변경 사항을 코드 리뷰해줘.
 #      'git diff ${DIFF_RANGE}' 명령으로 변경된 내용을 직접 확인하고, 필요하면 관련 파일을 열어서 문맥을 파악해.
 #      버그 가능성, 재사용/단순화, 성능 이슈 위주로만 지적하고 사소한 스타일 지적은 하지 마.
 #      지적할 때는 파일 경로와 줄 번호를 함께 표시해.
 #      문제를 찾지 못했으면 다른 말 없이 '특별한 문제를 발견하지 못했습니다.'라고만 답해.
-#      반드시 한국어 마크다운으로만 답하고, 그 외 다른 설명은 하지 마." \
-#      --allowedTools "Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(git show:*)" \
-#      --output-format text > review.md
+#      반드시 한국어 마크다운으로만 답하고, 그 외 다른 설명은 하지 마." > review.md
 #    - |
-#      jq -Rs '{body: ("🤖 **Claude 코드 리뷰**\n\n" + .)}' review.md > note.json
+#      jq -Rs '{body: ("**코드 리뷰**\n\n" + .)}' review.md > note.json
 #      curl --fail --request POST \
 #        --header "PRIVATE-TOKEN: ${GITLAB_REVIEW_TOKEN}" \
 #        --header "Content-Type: application/json" \

@@ -26,6 +26,13 @@ dependencies {
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.0")
 
 	// ==========================================
+	// 파일 스토리지 (Cloudflare R2, S3 호환)
+	// ==========================================
+	implementation(platform("software.amazon.awssdk:bom:2.29.52"))
+	implementation("software.amazon.awssdk:s3")
+	implementation("software.amazon.awssdk:apache-client")
+
+	// ==========================================
 	// 데이터베이스, ORM
 	// ==========================================
 	implementation("org.springframework.boot:spring-boot-h2console")

@@ -48,6 +48,9 @@ bin/
 build/
 HELP.md
 
+# 로컬 디스크 스토리지 전략(LocalStorageStrategy) 업로드 파일
+backend/uploads/
+
 # Java 컴파일 및 빌드 실행 결과
 *.class
 *.jar
