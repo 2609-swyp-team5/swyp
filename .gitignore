@@ -81,11 +81,25 @@ pnpm-debug.log*
 .stylelintcache
 .node_repl_history
 
+# Next.js 빌드 산출물 및 자동 생성 파일
+.next/
+next-env.d.ts
+*.tsbuildinfo
+.vercel
+coverage/
+
 # ==========================================
 # 보안
 # ==========================================
-**/.env
+**/.env*
 *.zip
 
 
 docs/
+
+# ==========================================
+# 로컬 개발 전용 파일
+# ==========================================
+.mcp.json
+PROGRESS.md
+CLAUDE.md
