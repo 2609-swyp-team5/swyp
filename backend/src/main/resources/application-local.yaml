@@ -1,0 +1,46 @@
+# ==========================================
+# 로컬 개발
+# ==========================================
+spring:
+# 데이터베이스 설정
+  datasource:
+    driver-class-name: ${DB_DRIVER_CLASS_NAME:org.h2.Driver}
+    url: ${DB_URL:jdbc:h2:mem:swyp;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
+
+# JPA 설정
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        highlight_sql: true
+# H2 로컬 DB 설정
+  h2:
+    console:
+      path: /h2-console
+      enabled: true
+
+# JWT 설정 (로컬 개발용 기본 시크릿, 운영에서는 절대 사용 금지)
+jwt:
+  secret: ${JWT_SECRET:bG9jYWwtc2VjcmV0LWtleS1tdXN0LWJlLWF0LWxlYXN0LTMyLWJ5dGVzLWxvbmctZm9yLWhzMjU2}
+  refresh-secret: ${JWT_REFRESH_SECRET:aG9jYWwtc2VjcmV0LWtleS1tdXN0LWJlLWF0LWxlYXN0LTMyLWJ5dGVzLWxvbmctZm9yLWhzMjU1}
+
+# 개발 로깅 설정
+logging:
+  level:
+    com.swyp.team5: debug
+    org.hibernate.SQL: debug
+    org.hibernate.orm.jdbc.bind: trace
+
+# 스프링 엑츄에이터 설정
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health, info, metrics, prometheus"
+  endpoint:
+    health:
+      show-details: always

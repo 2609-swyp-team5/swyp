@@ -8,4 +8,7 @@ RUN ./gradlew bootJar -x test
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 COPY --from=builder /app/build/libs/*.jar app.jar
+# 컨테이너 실행 시 프로파일 미지정으로 인해 local(H2) 설정으로 뜨는 사고 방지
+# 필요 시 -e SPRING_PROFILES_ACTIVE=dev 등으로 재정의
+ENV SPRING_PROFILES_ACTIVE=prod
 ENTRYPOINT ["java", "-jar", "app.jar"]

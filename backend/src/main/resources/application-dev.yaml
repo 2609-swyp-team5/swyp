@@ -1,0 +1,41 @@
+# ==========================================
+# 개발 서버
+# ==========================================
+spring:
+# 데이터베이스 설정 (실 DB, 환경변수로 주입)
+  datasource:
+    driver-class-name: ${DB_DRIVER_CLASS_NAME}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+# JPA 설정 (개발 편의를 위해 local과 동일하게 완화)
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        highlight_sql: true
+
+# JWT 설정 (환경변수로 필수 주입)
+jwt:
+  secret: ${JWT_SECRET}
+  refresh-secret: ${JWT_REFRESH_SECRET}
+
+# 개발 로깅 설정
+logging:
+  level:
+    com.swyp.team5: debug
+    org.hibernate.SQL: debug
+    org.hibernate.orm.jdbc.bind: trace
+
+# 스프링 엑츄에이터 설정
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health, info, metrics, prometheus"
+  endpoint:
+    health:
+      show-details: always
