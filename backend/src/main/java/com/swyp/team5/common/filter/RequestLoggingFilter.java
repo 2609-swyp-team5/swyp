@@ -3,17 +3,19 @@ package com.swyp.team5.common.filter;
 import java.io.IOException;
 import java.util.UUID;
 
-import org.slf4j.MDC;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 
 @Slf4j
 @Component
@@ -36,7 +38,12 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
         } finally {
             long duration = System.currentTimeMillis() - startTime;
-            log.info("<<< {} {} - {} ({}ms)", request.getMethod(), request.getRequestURI(), response.getStatus(), duration);
+            log.info(
+                    "<<< {} {} - {} ({}ms)",
+                    request.getMethod(),
+                    request.getRequestURI(),
+                    response.getStatus(),
+                    duration);
             MDC.remove(TRACE_ID_MDC_KEY);
         }
     }
