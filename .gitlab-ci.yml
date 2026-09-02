@@ -70,46 +70,69 @@ backend-build:
         - backend/**/*
 
 # ==========================================
-# Gemini 코드 리뷰 연동 후 주석해제 예정
+# Gemini 코드 리뷰
 # 필요 CI/CD 변수: GEMINI_API_KEY, GITLAB_REVIEW_TOKEN (api scope PAT)
 # ==========================================
-#code-review:
-#  stage: test
-#  image: node:24-alpine
-#  variables:
-#    GIT_DEPTH: "0"
-#  rules:
-#    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-#
-#  before_script:
-#    - apk add --no-cache git curl jq
-#    - npm install -g @google/gemini-cli
-#
-#  script:
-#    - git fetch origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
-#    - export DIFF_RANGE="origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}...HEAD"
-#    - |
-#      gemini --yolo --prompt "이 GitLab Merge Request의 변경 사항을 코드 리뷰해줘.
-#      'git diff ${DIFF_RANGE}' 명령으로 변경된 내용을 직접 확인하고, 필요하면 관련 파일을 열어서 문맥을 파악해.
-#      버그 가능성, 재사용/단순화, 성능 이슈 위주로만 지적하고 사소한 스타일 지적은 하지 마.
-#      지적할 때는 파일 경로와 줄 번호를 함께 표시해.
-#      문제를 찾지 못했으면 다른 말 없이 '특별한 문제를 발견하지 못했습니다.'라고만 답해.
-#      반드시 한국어 마크다운으로만 답하고, 그 외 다른 설명은 하지 마." > review.md
-#    - |
-#      jq -Rs '{body: ("**코드 리뷰**\n\n" + .)}' review.md > note.json
-#      curl --fail --request POST \
-#        --header "PRIVATE-TOKEN: ${GITLAB_REVIEW_TOKEN}" \
-#        --header "Content-Type: application/json" \
-#        --data @note.json \
-#        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes"
-#
-#  artifacts:
-#    paths:
-#      - review.md
-#    expire_in: 1 week
-#    when: always
-#
-#  allow_failure: true
+code-review:
+  stage: test
+  image: node:24-alpine
+  variables:
+    GIT_DEPTH: "0"
+    GEMINI_MODEL: "gemini-flash-lite-latest"
+    MAX_DIFF_LINES: "1500"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+  before_script:
+    - apk add --no-cache git curl jq
+    - npm install -g @google/gemini-cli
+
+  script:
+    - git fetch origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+    - git diff "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}...HEAD" > diff.txt
+    - |
+      DIFF_LINES=$(wc -l < diff.txt)
+      if [ "$DIFF_LINES" -eq 0 ]; then
+        echo "변경된 내용이 없어 코드 리뷰를 건너뜁니다."
+      elif [ "$DIFF_LINES" -gt "$MAX_DIFF_LINES" ]; then
+        echo "diff가 ${DIFF_LINES}줄로 너무 커서(최대 ${MAX_DIFF_LINES}줄) 자동 리뷰를 생략했습니다. 직접 리뷰를 진행해 주세요." > review.md
+      else
+        if ! cat diff.txt | gemini --yolo --skip-trust --model "$GEMINI_MODEL" --prompt "아래는 GitLab Merge Request의 git diff 내용이다.
+      이 텍스트만 보고 리뷰하고, 다른 파일을 열거나 셸 명령을 실행하지 마.
+      버그 가능성, 재사용/단순화, 성능 이슈 위주로만 지적하고 사소한 스타일 지적은 하지 마.
+      지적할 때는 파일 경로와 줄 번호를 함께 표시해.
+
+      다음 톤앤매너 지침을 반드시 지켜서 작성해.
+      - 모든 문장은 상호 존중을 바탕으로 존댓말(해요체/하십시오체)을 사용해.
+      - '고치세요' 같은 명령조 대신 '~해 주세요', '~하면 어떨까요?', '~해 보시는 건 어떨까요?' 같은 제안형 문장을 사용해.
+      - 주어는 작성자가 아니라 코드나 로직에 둬. 예를 들어 '왜 이렇게 하셨나요?' 대신 '이 로직은 ~한 우려가 있어 보입니다'처럼 표현해.
+      - 단순 취향 차이로 변경을 요청하지 말고, 성능, 가독성, 예외 처리 등 변경이 필요한 객관적인 근거를 함께 제시해.
+      - 잘 작성된 부분이나 좋은 아이디어가 있으면 적극적으로 칭찬하고 감사를 표현해.
+
+      지적할 문제가 없으면 '특별한 문제를 발견하지 못했습니다.'라는 문장과, 위 톤앤매너를 지킨 짧은 칭찬 한두 문장만 덧붙여.
+      '코드 리뷰' 같은 제목이나 헤더 없이 본문 내용부터 바로 시작해.
+      반드시 한국어 마크다운으로만 답하고, 그 외 다른 설명은 하지 마." > review.md; then
+          echo "Gemini API 호출에 실패해 자동 리뷰를 생략했습니다. (일시적 서비스 장애일 수 있습니다)" > review.md
+        fi
+      fi
+    - |
+      if [ -f review.md ]; then
+        jq -Rs '{body: ("**코드 리뷰**\n\n" + .)}' review.md > note.json
+        curl --fail --request POST \
+          --header "PRIVATE-TOKEN: ${GITLAB_REVIEW_TOKEN}" \
+          --header "Content-Type: application/json" \
+          --data @note.json \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes"
+      fi
+
+  artifacts:
+    paths:
+      - review.md
+      - diff.txt
+    expire_in: 1 week
+    when: always
+
+  allow_failure: true
 
 # 백엔드 배포 연동 후 주석 해제
 #backend-deploy:
@@ -129,7 +152,7 @@ backend-build:
 
 #  script:
 #    - scp backend/build/libs/app.jar $EC2_USER@$EC2_HOST:/home/$EC2_USER/app.jar
-#    - ssh $EC2_USER@$EC2_HOST "nohup java -jar /home/$EC2_USER/app.jar > /dev/null 2>&1 &"
+#    - ssh $EC2_USER@$EC2_HOST "nohup java -Dspring.profiles.active=prod -jar /home/$EC2_USER/app.jar > /dev/null 2>&1 &"
 
 #  rules:
 #    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE != "schedule"

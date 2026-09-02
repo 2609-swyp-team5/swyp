@@ -1,0 +1,38 @@
+# ==========================================
+# 운영 환경
+# ==========================================
+spring:
+# 데이터베이스 설정
+  datasource:
+    driver-class-name: ${DB_DRIVER_CLASS_NAME}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+# JPA 설정
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+# JWT 설정 (환경변수로 필수 주입)
+jwt:
+  secret: ${JWT_SECRET}
+  refresh-secret: ${JWT_REFRESH_SECRET}
+
+# 운영 로깅 설정
+logging:
+  file:
+    path: ${LOG_PATH:./logs}
+  level:
+    root: info
+    com.swyp.team5: info
+
+# 스프링 엑츄에이터 설정
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health"
+  endpoint:
+    health:
+      show-details: never
