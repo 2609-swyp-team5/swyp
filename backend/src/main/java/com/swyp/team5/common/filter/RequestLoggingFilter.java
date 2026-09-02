@@ -2,6 +2,7 @@ package com.swyp.team5.common.filter;
 
 import java.io.IOException;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -23,7 +24,9 @@ import org.slf4j.MDC;
 public class RequestLoggingFilter extends OncePerRequestFilter {
 
     private static final String TRACE_ID_HEADER = "X-Request-Id";
-    private static final String TRACE_ID_MDC_KEY = "traceId";
+    public static final String TRACE_ID_MDC_KEY = "traceId";
+    private static final Pattern TRACE_ID_PATTERN =
+            Pattern.compile("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -50,6 +53,8 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
 
     private String resolveTraceId(HttpServletRequest request) {
         String traceId = request.getHeader(TRACE_ID_HEADER);
-        return (traceId == null || traceId.isBlank()) ? UUID.randomUUID().toString() : traceId;
+        return (traceId != null && TRACE_ID_PATTERN.matcher(traceId).matches())
+                ? traceId
+                : UUID.randomUUID().toString();
     }
 }
