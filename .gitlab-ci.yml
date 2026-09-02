@@ -78,6 +78,8 @@ code-review:
   image: node:24-alpine
   variables:
     GIT_DEPTH: "0"
+    GEMINI_MODEL: "gemini-flash-latest"
+    MAX_DIFF_LINES: "1500"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
@@ -89,7 +91,11 @@ code-review:
     - git fetch origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
     - git diff "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}...HEAD" > diff.txt
     - |
-      cat diff.txt | gemini --yolo --skip-trust --prompt "아래는 GitLab Merge Request의 git diff 내용이다.
+      DIFF_LINES=$(wc -l < diff.txt)
+      if [ "$DIFF_LINES" -gt "$MAX_DIFF_LINES" ]; then
+        echo "diff가 ${DIFF_LINES}줄로 너무 커서(최대 ${MAX_DIFF_LINES}줄) 자동 리뷰를 생략했습니다. 직접 리뷰를 진행해 주세요." > review.md
+      else
+        cat diff.txt | gemini --yolo --skip-trust --model "$GEMINI_MODEL" --prompt "아래는 GitLab Merge Request의 git diff 내용이다.
       이 텍스트만 보고 리뷰하고, 다른 파일을 열거나 셸 명령을 실행하지 마.
       버그 가능성, 재사용/단순화, 성능 이슈 위주로만 지적하고 사소한 스타일 지적은 하지 마.
       지적할 때는 파일 경로와 줄 번호를 함께 표시해.
@@ -103,6 +109,7 @@ code-review:
 
       지적할 문제가 없으면 '특별한 문제를 발견하지 못했습니다.'라는 문장과, 위 톤앤매너를 지킨 짧은 칭찬 한두 문장만 덧붙여.
       반드시 한국어 마크다운으로만 답하고, 그 외 다른 설명은 하지 마." > review.md
+      fi
     - |
       jq -Rs '{body: ("**코드 리뷰**\n\n" + .)}' review.md > note.json
       curl --fail --request POST \
