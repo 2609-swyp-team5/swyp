@@ -21,7 +21,7 @@
 |----------|------------------------------------------|
 | Frontend | [링크](https://app.haru-dev.me/)         |
 | Backend  | [링크](https://api.haru-dev.me/)         |
-| API 문서 | [링크](https://app.haru-dev.me/api-docs) |
+| API 문서 | [링크](https://api.haru-dev.me/api-docs) |
 
 ## 프로젝트 기간
 
