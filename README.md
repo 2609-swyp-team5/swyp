@@ -15,13 +15,13 @@
 
 [예시 화면명] — 주요 화면 캡처나 데모 GIF 추가
 
-## 배포 링크
+## 배포 링크 (임시로 변경될 수 있음)
 
-| 구분     | URL                                   |
-|----------|---------------------------------------|
-| Frontend | [링크](https://swyp-three.vercel.app) |
-| Backend  | [링크](https://swyp-three.vercel.app) |
-| API 문서 | [링크](https://swyp-three.vercel.app) |
+| 구분     | URL                                      |
+|----------|------------------------------------------|
+| Frontend | [링크](https://app.haru-dev.me/)         |
+| Backend  | [링크](https://api.haru-dev.me/)         |
+| API 문서 | [링크](https://api.haru-dev.me/api-docs) |
 
 ## 프로젝트 기간
 
