@@ -1,19 +1,7 @@
 services:
   # ------------------------------------------
-  # PostgreSQL
+  # PostgreSQL: Neon(클라우드)을 사용하므로 로컬 컨테이너 없음. .env의 DB_URL 참고
   # ------------------------------------------
-  postgres:
-    image: postgres:16-alpine
-    container_name: local-postgres
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_DB: swyp
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: local-pgadmin
@@ -22,8 +10,9 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
       PGADMIN_DEFAULT_PASSWORD: admin
-    depends_on:
-      - postgres
+    volumes:
+      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
+      - pgadmin_data:/var/lib/pgadmin
 
   # ------------------------------------------
   # Redis
@@ -80,6 +69,6 @@ services:
       - kafka
 
 volumes:
-  postgres_data:
+  pgadmin_data:
   redis_data:
   redis_insight_data:

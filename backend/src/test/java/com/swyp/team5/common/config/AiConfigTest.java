@@ -21,6 +21,7 @@ import org.springframework.boot.http.client.autoconfigure.HttpClientAutoConfigur
 import org.springframework.boot.restclient.autoconfigure.RestClientAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -30,7 +31,12 @@ class AiConfigTest {
 
     private static final Logger logger = LoggerFactory.getLogger(AiConfigTest.class);
 
-    private static final Map<String, String> ENV = loadEnv();
+    private static Map<String, String> ENV;
+
+    @BeforeAll
+    static void loadEnvironment() throws IOException {
+        ENV = loadEnv();
+    }
 
     private final ApplicationContextRunner mockContextRunner = new ApplicationContextRunner()
             .withUserConfiguration(AiConfig.class)
@@ -113,28 +119,24 @@ class AiConfigTest {
         return value == null || value.isBlank();
     }
 
-    private static Map<String, String> loadEnv() {
+    private static Map<String, String> loadEnv() throws IOException {
         Map<String, String> env = new HashMap<>();
         Path envFile = Path.of(System.getProperty("user.dir"), ".env");
         if (!Files.exists(envFile)) {
             return env;
         }
-        try {
-            for (String line : Files.readAllLines(envFile)) {
-                String trimmed = line.trim();
-                if (trimmed.isEmpty() || trimmed.startsWith("#")) {
-                    continue;
-                }
-                int separatorIndex = trimmed.indexOf('=');
-                if (separatorIndex < 0) {
-                    continue;
-                }
-                env.put(
-                        trimmed.substring(0, separatorIndex).trim(),
-                        stripQuotes(trimmed.substring(separatorIndex + 1).trim()));
+        for (String line : Files.readAllLines(envFile)) {
+            String trimmed = line.trim();
+            if (trimmed.isEmpty() || trimmed.startsWith("#")) {
+                continue;
             }
-        } catch (IOException e) {
-            throw new IllegalStateException(".env 파일을 읽을 수 없습니다.", e);
+            int separatorIndex = trimmed.indexOf('=');
+            if (separatorIndex < 0) {
+                continue;
+            }
+            env.put(
+                    trimmed.substring(0, separatorIndex).trim(),
+                    stripQuotes(trimmed.substring(separatorIndex + 1).trim()));
         }
         return env;
     }
