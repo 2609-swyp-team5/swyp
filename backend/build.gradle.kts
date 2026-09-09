@@ -26,6 +26,13 @@ dependencies {
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.0")
 
 	// ==========================================
+	// AI 모델 연동 (Gemini, GPT)
+	// ==========================================
+	implementation(platform("org.springframework.ai:spring-ai-bom:2.0.0"))
+	implementation("org.springframework.ai:spring-ai-starter-model-openai")
+	implementation("org.springframework.ai:spring-ai-starter-model-google-genai")
+
+	// ==========================================
 	// 파일 스토리지 (Cloudflare R2, S3 호환)
 	// ==========================================
 	implementation(platform("software.amazon.awssdk:bom:2.29.52"))
@@ -72,8 +79,66 @@ dependencies {
 
 }
 
+// .env를 파싱해 환경변수로 주입
+fun loadDotenv(): Map<String, String> {
+	val envFile = file(".env")
+	if (!envFile.exists()) {
+		return emptyMap()
+	}
+	return envFile.readLines()
+		.map { it.trim() }
+		.filter { it.isNotEmpty() && !it.startsWith("#") }
+		.mapNotNull { line ->
+			val separatorIndex = line.indexOf('=')
+			if (separatorIndex < 0) {
+				return@mapNotNull null
+			}
+			val key = line.substring(0, separatorIndex).trim()
+			var value = line.substring(separatorIndex + 1).trim()
+			if (value.length >= 2 &&
+				((value.startsWith("\"") && value.endsWith("\"")) || (value.startsWith("'") && value.endsWith("'")))
+			) {
+				value = value.substring(1, value.length - 1)
+			}
+			key to value
+		}
+		.toMap()
+}
+
+val dotenv = loadDotenv().filterKeys { System.getenv(it) == null }
+
 tasks.withType<Test> {
 	useJUnitPlatform()
+	environment(dotenv)
+
+    testLogging {
+        // 테스트 실행 시 콘솔에 로그를 출력하도록 설정
+        showStandardStreams = true
+    }
+}
+
+tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
+	environment(dotenv)
+}
+
+tasks.named<Test>("test") {
+	// 외부 API를 호출하는 테스트여서 응답속도 지연, 비용문제로 기본 테스트 호출에서 제외함
+    // AI 테스트는 아래와 같이 integrationTest 테스트로 진행
+    // ./gradlew integrationTest --rerun-tasks --info
+	useJUnitPlatform {
+		excludeTags("ai-test")
+	}
+}
+
+tasks.register<Test>("integrationTest") {
+
+	description = "외부 API 연동이 필요한 통합 테스트입니다."
+    useJUnitPlatform {
+		includeTags("ai-test")
+	}
+	testClassesDirs = sourceSets["test"].output.classesDirs
+	classpath = sourceSets["test"].runtimeClasspath
+	shouldRunAfter(tasks.named("test"))
 }
 
 spotless {
