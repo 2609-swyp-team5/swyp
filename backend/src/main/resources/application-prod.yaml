@@ -14,7 +14,7 @@ spring:
     hibernate:
       ddl-auto: validate
 
-# JWT 설정 (환경변수로 필수 주입)
+# JWT 설정
 jwt:
   secret: ${JWT_SECRET}
   refresh-secret: ${JWT_REFRESH_SECRET}

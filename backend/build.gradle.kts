@@ -40,13 +40,14 @@ dependencies {
 	implementation("software.amazon.awssdk:apache-client")
 
 	// ==========================================
-	// 데이터베이스, ORM
+	// 데이터베이스, ORM, 마이그레이션
 	// ==========================================
-	implementation("org.springframework.boot:spring-boot-h2console")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-data-redis")
-	runtimeOnly("com.h2database:h2")
+	implementation("org.springframework.boot:spring-boot-starter-flyway")
+	implementation("org.flywaydb:flyway-database-postgresql")
 	runtimeOnly("org.postgresql:postgresql")
+	testRuntimeOnly("com.h2database:h2")
 	// ==========================================
 	// 보안, 검증
 	// ==========================================
@@ -110,6 +111,8 @@ val dotenv = loadDotenv().filterKeys { System.getenv(it) == null }
 tasks.withType<Test> {
 	useJUnitPlatform()
 	environment(dotenv)
+	// 자동화 테스트는 Neon(local 프로필)이 아니라 격리된 H2 인메모리 DB(test 프로필)로 실행
+	systemProperty("spring.profiles.active", "test")
 
     testLogging {
         // 테스트 실행 시 콘솔에 로그를 출력하도록 설정

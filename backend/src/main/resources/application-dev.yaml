@@ -2,23 +2,23 @@
 # 개발 서버
 # ==========================================
 spring:
-# 데이터베이스 설정 (실 DB, 환경변수로 주입)
+# 데이터베이스 설정
   datasource:
     driver-class-name: ${DB_DRIVER_CLASS_NAME}
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
 
-# JPA 설정 (개발 편의를 위해 local과 동일하게 완화)
+# JPA 설정
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: true
     properties:
       hibernate:
         highlight_sql: true
 
-# JWT 설정 (환경변수로 필수 주입)
+# JWT 설정
 jwt:
   secret: ${JWT_SECRET}
   refresh-secret: ${JWT_REFRESH_SECRET}
