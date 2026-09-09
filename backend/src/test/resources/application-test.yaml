@@ -1,10 +1,6 @@
 # ==========================================
-# 자동화 테스트 (H2 인메모리)
+# 테스트 환경
 # ==========================================
-# Neon(local 프로필)에 연결하지 않고, 네트워크 없이 격리된 상태로 빠르게 실행하기 위한 프로필.
-# ./gradlew test는 spring.profiles.active=test로 고정 실행됨 (build.gradle.kts 참고).
-# 아직 Flyway 마이그레이션 파일이 없어 Flyway는 끄고, 스키마는 Hibernate가 엔티티 기준으로 매번
-# 새로 생성/삭제(create-drop)함. 마이그레이션이 추가되면 다시 validate + Flyway 활성화로 전환할 것.
 spring:
   datasource:
     driver-class-name: org.h2.Driver

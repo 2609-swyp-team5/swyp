@@ -17,7 +17,6 @@ spring:
     properties:
       hibernate:
         highlight_sql: true
-        format_sql: true
 
 # JWT 설정
 jwt:
