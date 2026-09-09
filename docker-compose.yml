@@ -10,6 +10,9 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
       PGADMIN_DEFAULT_PASSWORD: admin
+    volumes:
+      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
+      - pgadmin_data:/var/lib/pgadmin
 
   # ------------------------------------------
   # Redis
@@ -66,5 +69,6 @@ services:
       - kafka
 
 volumes:
+  pgadmin_data:
   redis_data:
   redis_insight_data:

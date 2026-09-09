@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Neon (local)",
+      "Group": "Servers",
+      "Host": "ep-quiet-hall-a1hcuniu-pooler.ap-southeast-1.aws.neon.tech",
+      "Port": 5432,
+      "MaintenanceDB": "swyp-local",
+      "Username": "swyp_local_owner",
+      "SSLMode": "require",
+      "Comment": "Neon PostgreSQL - local 프로필 (.env의 DB_URL 참고)"
+    }
+  }
+}
