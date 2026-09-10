@@ -154,6 +154,13 @@ spotless {
 		trimTrailingWhitespace()
 		endWithNewline()
 	}
+	sql {
+		target("src/main/resources/db/migration/**/*.sql")
+		encoding("UTF-8")
+		dbeaver()
+		trimTrailingWhitespace()
+		endWithNewline()
+	}
 }
 
 tasks.named("check") {
