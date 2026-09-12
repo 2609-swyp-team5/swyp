@@ -22,14 +22,14 @@ import com.swyp.team5.auth.error.InactiveMemberException;
 import com.swyp.team5.auth.error.InvalidCredentialsException;
 import com.swyp.team5.auth.error.InvalidTokenException;
 import com.swyp.team5.auth.error.UnsupportedSocialProviderException;
+import com.swyp.team5.auth.social.SocialLoginStrategy;
 import com.swyp.team5.common.passport.JwtTokenProvider;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.entity.MemberStatus;
+import com.swyp.team5.member.entity.Social;
+import com.swyp.team5.member.entity.SocialProvider;
 import com.swyp.team5.member.repository.MemberRepository;
-import com.swyp.team5.social.entity.Social;
-import com.swyp.team5.social.entity.SocialProvider;
-import com.swyp.team5.social.repository.SocialRepository;
-import com.swyp.team5.social.strategy.SocialLoginStrategy;
+import com.swyp.team5.member.repository.SocialRepository;
 
 @Service
 public class AuthService {

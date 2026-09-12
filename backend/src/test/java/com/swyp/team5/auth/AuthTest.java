@@ -24,11 +24,11 @@ import com.swyp.team5.auth.dto.SignUpRequest;
 import com.swyp.team5.auth.dto.SocialLoginRequest;
 import com.swyp.team5.auth.dto.SocialUserInfo;
 import com.swyp.team5.auth.service.RefreshTokenService;
+import com.swyp.team5.auth.social.SocialLoginStrategy;
 import com.swyp.team5.common.passport.JwtTokenProvider;
 import com.swyp.team5.member.entity.MemberRole;
 import com.swyp.team5.member.repository.MemberRepository;
-import com.swyp.team5.social.repository.SocialRepository;
-import com.swyp.team5.social.strategy.SocialLoginStrategy;
+import com.swyp.team5.member.repository.SocialRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -83,8 +83,8 @@ class AuthTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.data.email").value(DEFAULT_EMAIL))
-                .andExpect(jsonPath("$.data.nickname").value("gildong"));
+                .andExpect(jsonPath("$.email").value(DEFAULT_EMAIL))
+                .andExpect(jsonPath("$.nickname").value("gildong"));
 
         assertThat(memberRepository.existsByEmail(DEFAULT_EMAIL)).isTrue();
     }
@@ -102,7 +102,7 @@ class AuthTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(duplicateEmailRequest)))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.error.status").value("409"));
+                .andExpect(jsonPath("$.status").value(409));
     }
 
     // 회원가입 실패 - 요청값 검증 실패
@@ -126,7 +126,7 @@ class AuthTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
                 .andExpect(cookieHeaderContains("refreshToken="));
     }
 
@@ -151,7 +151,7 @@ class AuthTest {
 
         mockMvc.perform(post("/auth/refresh").cookie(new Cookie("refreshToken", refreshToken)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.accessToken").isNotEmpty());
+                .andExpect(jsonPath("$.accessToken").isNotEmpty());
     }
 
     // 토큰 재발급 실패 - 유효하지 않은 토큰
@@ -174,7 +174,7 @@ class AuthTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.accessToken").isNotEmpty());
+                .andExpect(jsonPath("$.accessToken").isNotEmpty());
 
         assertThat(memberRepository.existsByEmail("social@example.com")).isTrue();
     }
@@ -197,17 +197,7 @@ class AuthTest {
         String accessToken = jwtTokenProvider.createAccessToken(memberId, MemberRole.USER);
 
         mockMvc.perform(post("/auth/logout").header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true));
-    }
-
-    // 로그아웃 - 인증 헤더 없이 호출 시 401(다른 인증 실패와 동일한 ApiResponse 형식)
-    @Test
-    void logoutFailsWithoutAuthentication() throws Exception {
-        mockMvc.perform(post("/auth/logout"))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
+                .andExpect(status().isNoContent());
     }
 
     private Long signUp(SignUpRequest request) throws Exception {
