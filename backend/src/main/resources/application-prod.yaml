@@ -16,8 +16,8 @@ spring:
 
 # JWT 설정
 jwt:
-  secret: ${JWT_SECRET}
-  refresh-secret: ${JWT_REFRESH_SECRET}
+  secret: ${JWT_ACCESS_SECRET_KEY}
+  refresh-secret: ${JWT_REFRESH_SECRET_KEY}
 
 # 운영 로깅 설정
 logging:
