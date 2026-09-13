@@ -29,7 +29,7 @@ import com.swyp.team5.auth.error.UnsupportedSocialProviderException;
 import com.swyp.team5.auth.service.AuthService;
 import com.swyp.team5.common.passport.JwtProperties;
 import com.swyp.team5.common.passport.PrincipalMember;
-import com.swyp.team5.member.entity.SocialProvider;
+import com.swyp.team5.social.entity.SocialProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
