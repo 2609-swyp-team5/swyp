@@ -17,10 +17,11 @@ import com.swyp.team5.common.passport.JsonAuthenticationEntryPoint;
 import com.swyp.team5.common.passport.JwtAuthenticationFilter;
 import com.swyp.team5.common.passport.JwtProperties;
 import com.swyp.team5.social.strategy.KakaoProperties;
+import com.swyp.team5.social.strategy.NaverLoginProperties;
 
 /** JWT 기반 stateless 인증 설정. Access Token은 Authorization 헤더, Refresh Token은 httpOnly 쿠키로 검증한다. */
 @Configuration
-@EnableConfigurationProperties({JwtProperties.class, KakaoProperties.class})
+@EnableConfigurationProperties({JwtProperties.class, KakaoProperties.class, NaverLoginProperties.class})
 @RequiredArgsConstructor
 public class SecurityConfig {
 
