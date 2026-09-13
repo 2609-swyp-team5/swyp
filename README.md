@@ -18,7 +18,7 @@
 ## 배포 링크 (임시로 변경될 수 있음)
 
 | 구분     | URL                                      |
-|----------|------------------------------------------|
+| -------- | ---------------------------------------- |
 | Frontend | [링크](https://app.haru-dev.me/)         |
 | Backend  | [링크](https://api.haru-dev.me/)         |
 | API 문서 | [링크](https://api.haru-dev.me/api-docs) |
@@ -32,29 +32,32 @@
 **스위프 15기 5팀**
 
 | 이름   | 역할     |
-|--------|----------| 
-| 한다현 | Design   | 
-| 이흥준 | Backend  | 
-| 지근영 | Backend  | 
+| ------ | -------- |
+| 한다현 | Design   |
+| 이흥준 | Backend  |
+| 지근영 | Backend  |
 | 신지훈 | Frontend |
-| 김의현 | Frontend | 
+| 김의현 | Frontend |
 
 ## 기술 스택
 
 **Backend**
-- Java 21, Spring Boot 4.1.1 (Web MVC, Security, Validation, Actuator)
-- Spring Data JPA + PostgreSQL(운영) / H2(로컬)
+
+- Java 21, Spring Boot 4.1.1
+- Spring Data JPA + PostgreSQL
 - Spring Data Redis
-- Cloudflare R2 / AWS S3 / 네이버 클라우드 Object Storage
+- Cloudflare R2
 - springdoc-openapi (Swagger UI)
 - Gradle (Kotlin DSL), Spotless
 
 **Frontend**
+
 - Next.js 16 (App Router), React 19
 - TypeScript, Tailwind CSS 4
 - ESLint, Prettier
 
 **Infra**
+
 - Docker Compose: PostgreSQL, pgAdmin, Redis, RedisInsight, Kafka, Kafka UI
 - GitLab CI/CD: 테스트 → 빌드 → 배포, Gemini 기반 MR 자동 코드 리뷰
 
@@ -90,4 +93,3 @@ Merge Request가 열리면 다음이 자동 실행됩니다.
 - `backend-test` / `backend-build`: `backend/**` 변경 시 테스트와 빌드
 - `frontend-test` / `frontend-build`: `frontend/**` 변경 시 타입 체크, 린트, 포맷 검사와 빌드
 - `code-review`: Gemini CLI 기반 자동 코드 리뷰를 MR 코멘트로 등록
-
