@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.swyp.team5.common.common.ApiResponse;
 import com.swyp.team5.file.dto.FileUploadResponse;
 import com.swyp.team5.file.service.FileStorageService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,41 +35,41 @@ public class FileController {
 
     @Operation(summary = "파일 업로드")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<FileUploadResponse> upload(
+    public ResponseEntity<ApiResponse<FileUploadResponse>> upload(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "directory", required = false) String directory) {
         FileUploadResponse response = fileStorageService.upload(file, directory);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
     }
 
     @Operation(summary = "파일 다운로드 URL(Presigned URL) 발급")
     @GetMapping("/presigned-url")
-    public ResponseEntity<String> getPresignedUrl(
+    public ResponseEntity<ApiResponse<String>> getPresignedUrl(
             @RequestParam("key") String key,
             @RequestParam(value = "expirationSeconds", required = false) Long expirationSeconds) {
         Duration expiration =
                 Duration.ofSeconds(expirationSeconds != null ? expirationSeconds : DEFAULT_URL_EXPIRATION_SECONDS);
         String url = fileStorageService.getPresignedUrl(key, expiration);
-        return ResponseEntity.ok(url);
+        return ResponseEntity.ok(ApiResponse.success(url));
     }
 
     @Operation(summary = "파일 삭제")
     @DeleteMapping
-    public ResponseEntity<Void> delete(@RequestParam("key") String key) {
+    public ResponseEntity<ApiResponse<Void>> delete(@RequestParam("key") String key) {
         fileStorageService.delete(key);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.<Void>success(null));
     }
 
     @Operation(summary = "파일 일괄 삭제")
     @DeleteMapping("/batch")
-    public ResponseEntity<Void> deleteAll(@RequestBody List<String> keys) {
+    public ResponseEntity<ApiResponse<Void>> deleteAll(@RequestBody List<String> keys) {
         fileStorageService.deleteAll(keys);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.<Void>success(null));
     }
 
     @Operation(summary = "파일 존재 여부 확인")
     @GetMapping("/exists")
-    public ResponseEntity<Boolean> exists(@RequestParam("key") String key) {
-        return ResponseEntity.ok(fileStorageService.exists(key));
+    public ResponseEntity<ApiResponse<Boolean>> exists(@RequestParam("key") String key) {
+        return ResponseEntity.ok(ApiResponse.success(fileStorageService.exists(key)));
     }
 }

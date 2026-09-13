@@ -13,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import com.swyp.team5.common.passport.JsonAuthenticationEntryPoint;
 import com.swyp.team5.common.passport.JwtAuthenticationFilter;
 import com.swyp.team5.common.passport.JwtProperties;
 
@@ -36,10 +37,13 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    private final JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exception -> exception.authenticationEntryPoint(jsonAuthenticationEntryPoint))
                 .authorizeHttpRequests(auth -> auth.requestMatchers(PERMIT_ALL_PATTERNS)
                         .permitAll()
                         .anyRequest()
