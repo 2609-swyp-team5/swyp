@@ -8,7 +8,7 @@ if (!baseURL?.trim()) {
     );
 }
 
-export const apiClient = axios.create({
+export const api = axios.create({
     baseURL,
     timeout: 10_000,
     withCredentials: true,
