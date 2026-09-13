@@ -98,7 +98,6 @@ playwright-report/
 !**/.env.example
 *.zip
 
-
 /docs/
 
 # ==========================================

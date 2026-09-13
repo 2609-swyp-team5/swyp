@@ -12,7 +12,6 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.CookieValue;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,12 +24,10 @@ import com.swyp.team5.auth.dto.SignUpRequest;
 import com.swyp.team5.auth.dto.SignUpResponse;
 import com.swyp.team5.auth.dto.SocialLoginRequest;
 import com.swyp.team5.auth.dto.TokenResponse;
-import com.swyp.team5.auth.error.UnsupportedSocialProviderException;
 import com.swyp.team5.auth.service.AuthService;
 import com.swyp.team5.common.common.ApiResponse;
 import com.swyp.team5.common.passport.JwtProperties;
 import com.swyp.team5.common.passport.PrincipalMember;
-import com.swyp.team5.social.entity.SocialProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
@@ -61,19 +58,10 @@ public class AuthController {
     }
 
     @Operation(summary = "소셜 로그인")
-    @PostMapping("/social/{provider}")
-    public ResponseEntity<ApiResponse<TokenResponse>> loginWithSocial(
-            @PathVariable String provider, @Valid @RequestBody SocialLoginRequest request) {
-        AuthResult tokens = authService.loginWithSocial(resolveProvider(provider), request);
+    @PostMapping("/social/login")
+    public ResponseEntity<ApiResponse<TokenResponse>> loginWithSocial(@Valid @RequestBody SocialLoginRequest request) {
+        AuthResult tokens = authService.loginWithSocial(request.provider(), request);
         return responseWithRefreshTokenCookie(tokens, TokenResponse::new);
-    }
-
-    private SocialProvider resolveProvider(String provider) {
-        try {
-            return SocialProvider.valueOf(provider.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new UnsupportedSocialProviderException(provider);
-        }
     }
 
     @Operation(summary = "토큰 재발급")
