@@ -1,4 +1,7 @@
 .next
+coverage
+test-results
+playwright-report
 node_modules
 build
 out
