@@ -3,15 +3,21 @@
 # ==========================================
 spring:
   datasource:
-    driver-class-name: org.h2.Driver
-    url: jdbc:h2:mem:swyp;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    username: sa
-    password:
+    driver-class-name: ${TEST_DB_DRIVER_CLASS_NAME}
+    url: ${TEST_DB_URL}
+    username: ${TEST_DB_USERNAME}
+    password: ${TEST_DB_PASSWORD}
 
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: validate
     show-sql: true
 
   flyway:
-    enabled: false
+    enabled: true
+    clean-disabled: false
+
+# JWT 설정
+jwt:
+  secret: ${TEST_JWT_SECRET}
+  refresh-secret: ${TEST_JWT_REFRESH_SECRET}
