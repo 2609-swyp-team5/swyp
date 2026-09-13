@@ -18,7 +18,7 @@
 ## 배포 링크 (임시로 변경될 수 있음)
 
 | 구분     | URL                                      |
-|----------|------------------------------------------|
+| -------- | ---------------------------------------- |
 | Frontend | [링크](https://app.haru-dev.me/)         |
 | Backend  | [링크](https://api.haru-dev.me/)         |
 | API 문서 | [링크](https://api.haru-dev.me/api-docs) |
@@ -32,29 +32,34 @@
 **스위프 15기 5팀**
 
 | 이름   | 역할     |
-|--------|----------| 
-| 한다현 | Design   | 
-| 이흥준 | Backend  | 
-| 지근영 | Backend  | 
+| ------ | -------- |
+| 한다현 | Design   |
+| 이흥준 | Backend  |
+| 지근영 | Backend  |
 | 신지훈 | Frontend |
-| 김의현 | Frontend | 
+| 김의현 | Frontend |
 
 ## 기술 스택
 
 **Backend**
-- Java 21, Spring Boot 4.1.1 (Web MVC, Security, Validation, Actuator)
-- Spring Data JPA + PostgreSQL(운영) / H2(로컬)
+
+- Java 21, Spring Boot 4.1.1
+- Spring Data JPA + PostgreSQL
 - Spring Data Redis
-- Cloudflare R2 / AWS S3 / 네이버 클라우드 Object Storage
+- Cloudflare R2
 - springdoc-openapi (Swagger UI)
 - Gradle (Kotlin DSL), Spotless
 
 **Frontend**
+
 - Next.js 16 (App Router), React 19
 - TypeScript, Tailwind CSS 4
 - ESLint, Prettier
+- Vitest, React Testing Library, MSW
+- Playwright
 
 **Infra**
+
 - Docker Compose: PostgreSQL, pgAdmin, Redis, RedisInsight, Kafka, Kafka UI
 - GitLab CI/CD: 테스트 → 빌드 → 배포, Gemini 기반 MR 자동 코드 리뷰
 
@@ -76,18 +81,46 @@
 │   └── Dockerfile
 ├── frontend/                 # Next.js 애플리케이션
 │   ├── app/                  # App Router 페이지
+│   ├── tests/                # 공용 단위·컴포넌트 테스트 설정과 mock
+│   ├── e2e/                  # Playwright E2E 테스트
+│   ├── docs/
+│   │   └── testing-guide.md  # 프론트엔드 테스트 가이드
+│   ├── vitest.config.ts      # Vitest 설정
+│   ├── playwright.config.ts  # Playwright 설정
 │   ├── public/
 │   └── package.json
-├── docs/                     # 설계 문서, 컨벤션, 가이드
 ├── docker-compose.yml        # 로컬 개발용 인프라(PostgreSQL, Redis, Kafka 등)
 └── .gitlab-ci.yml            # CI/CD 파이프라인 정의
 ```
+
+## 테스트
+
+프론트엔드 테스트는 `frontend/`에서 실행합니다.
+
+```bash
+cd frontend
+
+# 개발 중 watch 모드
+npm run test
+
+# 단위·컴포넌트 테스트 전체 1회 실행
+npm run test:run
+
+# 특정 테스트 파일만 실행
+npm run test:run -- app/page.test.tsx
+
+# E2E 테스트 실행
+npm run test:e2e
+```
+
+단위·컴포넌트 테스트는 Vitest와 React Testing Library를 사용하고, API mocking에는 MSW를 사용합니다. E2E 테스트는 Playwright로 회원가입·로그인·결제·알림 등 핵심 사용자 흐름을 우선 검증합니다. 자세한 규칙은 [`frontend/docs/testing-guide.md`](frontend/docs/testing-guide.md)를 참고해 주세요.
 
 ## CI/CD
 
 Merge Request가 열리면 다음이 자동 실행됩니다.
 
 - `backend-test` / `backend-build`: `backend/**` 변경 시 테스트와 빌드
-- `frontend-test` / `frontend-build`: `frontend/**` 변경 시 타입 체크, 린트, 포맷 검사와 빌드
+- `frontend-test`: `frontend/**` 변경 시 타입 체크, 린트, 포맷 검사와 단위·컴포넌트 테스트
+- `frontend-e2e`: `frontend/**` 변경 시 Playwright E2E 테스트
+- `frontend-build`: `frontend/**` 변경 시 Next.js 빌드
 - `code-review`: Gemini CLI 기반 자동 코드 리뷰를 MR 코멘트로 등록
-

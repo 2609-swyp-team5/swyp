@@ -40,6 +40,7 @@ out/
 .springBeans
 .sts4-cache/
 bin/
+http/
 
 # ==========================================
 # 백엔드
@@ -87,6 +88,8 @@ next-env.d.ts
 *.tsbuildinfo
 .vercel
 coverage/
+test-results/
+playwright-report/
 
 # ==========================================
 # 보안
@@ -96,7 +99,7 @@ coverage/
 *.zip
 
 
-docs/
+/docs/
 
 # ==========================================
 # 로컬 개발 전용 파일

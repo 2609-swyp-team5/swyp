@@ -19,9 +19,14 @@ variables:
 # ==========================================
 # Backend
 # ==========================================
+# 필요 CI/CD 변수(GitLab 프로젝트 설정에 masked로 등록): TEST_DB_DRIVER_CLASS_NAME,
+# TEST_DB_URL, TEST_DB_USERNAME, TEST_DB_PASSWORD (Neon swyp-test 브랜치 접속 정보),
+# TEST_JWT_SECRET, TEST_JWT_REFRESH_SECRET (테스트 전용 JWT 서명 키)
+# resource_group: 여러 MR 파이프라인이 동시에 같은 swyp-test 브랜치를 Flyway clean하지 않도록 직렬화
 backend-test:
   stage: test
   image: eclipse-temurin:21-jdk
+  resource_group: swyp-test-db
   cache:
     key:
       files:
@@ -63,7 +68,7 @@ backend-build:
   artifacts:
     paths:
       - backend/build/libs/app.jar
-    expire_in: 1 week
+    expire_in: 3 days
 
   rules:
     - changes:
@@ -71,7 +76,7 @@ backend-build:
 
 # ==========================================
 # Gemini 코드 리뷰
-# 필요 CI/CD 변수: GEMINI_API_KEY, GITLAB_REVIEW_TOKEN (api scope PAT)
+# 필요 CI/CD 변수: GEMINI_API_KEY, GITLAB_REVIEW_TOKEN (api 권한 필요)
 # ==========================================
 code-review:
   stage: test
@@ -79,7 +84,7 @@ code-review:
   variables:
     GIT_DEPTH: "0"
     GEMINI_MODEL: "gemini-flash-lite-latest"
-    MAX_DIFF_LINES: "1500"
+    MAX_DIFF_LINES: "3000"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
@@ -138,7 +143,7 @@ code-review:
     paths:
       - review.md
       - diff.txt
-    expire_in: 1 week
+    expire_in: 3 days
     when: always
 
   allow_failure: true
@@ -188,12 +193,40 @@ frontend-test:
     - npx tsc --noEmit
     - npm run lint
     - npm run format:check
-    # test 설정 후 주석 해제
-    # - npm run test
+    - npm run test:run
 
   rules:
     - exists:
         - frontend/**/*
+      changes:
+        - frontend/**/*
+
+frontend-e2e:
+  stage: test
+  image: mcr.microsoft.com/playwright:v1.63.0-noble
+
+  cache:
+    key:
+      files:
+        - frontend/package-lock.json
+    paths:
+      - frontend/.npm/
+
+  script:
+    - cd frontend
+    - npm ci --cache .npm --prefer-offline
+    - npm run test:e2e
+
+  artifacts:
+    when: always
+    paths:
+      - frontend/playwright-report/
+      - frontend/test-results/
+    expire_in: 3 days
+
+  rules:
+    - exists:
+        - frontend/package.json
       changes:
         - frontend/**/*
 
@@ -218,30 +251,10 @@ frontend-build:
   artifacts:
     paths:
       - frontend/dist/
-    expire_in: 1 week
+    expire_in: 3 days
 
   rules:
     - exists:
-        - frontend/package.json
-      changes:
-        - frontend/**/*
-
-frontend-deploy:
-  stage: deploy
-  image: node:24-alpine
-  needs:
-    - frontend-build
-
-  script:
-    - cd frontend
-    - npm install -g vercel
-    - vercel pull --yes --environment=production --token=$VERCEL_TOKEN
-    - vercel build --prod --token=$VERCEL_TOKEN
-    - vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
-
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main"
-      exists:
         - frontend/package.json
       changes:
         - frontend/**/*

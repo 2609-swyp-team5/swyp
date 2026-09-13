@@ -47,12 +47,15 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-flyway")
 	implementation("org.flywaydb:flyway-database-postgresql")
 	runtimeOnly("org.postgresql:postgresql")
-	testRuntimeOnly("com.h2database:h2")
 	// ==========================================
 	// 보안, 검증
 	// ==========================================
 	implementation("org.springframework.boot:spring-boot-starter-security")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
+	implementation("io.jsonwebtoken:jjwt-api:0.12.6")
+	runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.6")
+	runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.6")
+	implementation("com.google.api-client:google-api-client:2.7.2") // 구글 ID Token 검증(소셜 로그인)
 
 	// ==========================================
 	// 모니터링
@@ -111,7 +114,7 @@ val dotenv = loadDotenv().filterKeys { System.getenv(it) == null }
 tasks.withType<Test> {
 	useJUnitPlatform()
 	environment(dotenv)
-	// 자동화 테스트는 Neon(local 프로필)이 아니라 격리된 H2 인메모리 DB(test 프로필)로 실행
+	// 자동화 테스트는 local(swyp-local)과 분리된 Neon 테스트 전용 브랜치(test 프로필)로 실행
 	systemProperty("spring.profiles.active", "test")
 
     testLogging {

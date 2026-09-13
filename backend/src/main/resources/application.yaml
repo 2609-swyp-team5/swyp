@@ -20,11 +20,11 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
-# Redis 설정 (사용시 주석 해제)
-#  data:
-#    redis:
-#      host: ${REDIS_HOST:localhost}
-#      port: ${REDIS_PORT:6379}
+# Redis 설정 (Refresh Token 저장용)
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
 # Kafka 설정 (사용시 주석 해제)
 #  kafka:
@@ -86,8 +86,12 @@ cloud:
 
 # JWT 설정 (secret/refresh-secret은 profile별 파일에서 설정)
 jwt:
-  access-token-expires: 30m
-  refresh-token-expires: 14d
+  access-token-expires: ${JWT_ACCESS_TOKEN_EXPIRES:30m}
+  refresh-token-expires: ${JWT_REFRESH_TOKEN_EXPIRES:14d}
+
+# 구글 소셜 로그인 설정 (프론트에서 전달한 ID Token 검증용)
+google:
+  client-id: ${GOOGLE_CLIENT_ID:}
 
 # 스웨거 설정
 springdoc:
