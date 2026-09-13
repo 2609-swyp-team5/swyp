@@ -1,4 +1,4 @@
-package com.swyp.team5.member.entity;
+package com.swyp.team5.social.entity;
 
 import java.time.LocalDateTime;
 
@@ -18,6 +18,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import com.swyp.team5.member.entity.Member;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 

@@ -1,7 +1,7 @@
-package com.swyp.team5.auth.social;
+package com.swyp.team5.social.strategy;
 
 import com.swyp.team5.auth.dto.SocialUserInfo;
-import com.swyp.team5.member.entity.SocialProvider;
+import com.swyp.team5.social.entity.SocialProvider;
 
 /** 소셜 로그인 provider별 토큰 검증 전략. provider 추가 시 이 인터페이스 구현체만 추가 */
 public interface SocialLoginStrategy {

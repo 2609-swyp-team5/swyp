@@ -1,4 +1,4 @@
-package com.swyp.team5.member.entity;
+package com.swyp.team5.social.entity;
 
 public enum SocialProvider {
     GOOGLE,
