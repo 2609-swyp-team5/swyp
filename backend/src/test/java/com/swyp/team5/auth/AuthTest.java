@@ -27,6 +27,7 @@ import com.swyp.team5.auth.service.RefreshTokenService;
 import com.swyp.team5.common.passport.JwtTokenProvider;
 import com.swyp.team5.member.entity.MemberRole;
 import com.swyp.team5.member.repository.MemberRepository;
+import com.swyp.team5.social.entity.SocialProvider;
 import com.swyp.team5.social.repository.SocialRepository;
 import com.swyp.team5.social.strategy.SocialLoginStrategy;
 import org.junit.jupiter.api.BeforeEach;
@@ -168,9 +169,9 @@ class AuthTest {
         // 스파이의 실제 verify()는 구글 서버 통신이 필요해 when(...)으로 스텁하면 실제 메소드가 먼저 호출되어 버린다.
         // 실제 호출 없이 스텁만 걸리도록 doReturn().when(...) 형태를 사용한다.
         Mockito.doReturn(userInfo).when(googleLoginStrategy).verify("id-token");
-        SocialLoginRequest request = new SocialLoginRequest("id-token");
+        SocialLoginRequest request = new SocialLoginRequest(SocialProvider.GOOGLE, "id-token");
 
-        mockMvc.perform(post("/auth/social/google")
+        mockMvc.perform(post("/auth/social/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -182,9 +183,9 @@ class AuthTest {
     // 소셜 로그인 실패 - 지원하지 않는 provider
     @Test
     void socialLoginFailsWhenProviderUnsupported() throws Exception {
-        SocialLoginRequest request = new SocialLoginRequest("id-token");
+        SocialLoginRequest request = new SocialLoginRequest(SocialProvider.NAVER, "id-token");
 
-        mockMvc.perform(post("/auth/social/naver")
+        mockMvc.perform(post("/auth/social/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());

@@ -184,7 +184,7 @@ class AuthServiceTest {
     // 소셜 로그인 성공 - 기존 연결된 계정
     @Test
     void socialLoginSucceedsWithExistingLinkedAccount() {
-        SocialLoginRequest request = new SocialLoginRequest("id-token");
+        SocialLoginRequest request = new SocialLoginRequest(SocialProvider.GOOGLE, "id-token");
         SocialUserInfo userInfo = new SocialUserInfo("google-sub-1", "test@example.com", "홍길동", null);
         Member member = Member.ofSocialSignUp(userInfo.email(), userInfo.name(), userInfo.name(), null);
         setId(member, 1L);
@@ -205,7 +205,7 @@ class AuthServiceTest {
     // 소셜 로그인 성공 - 최초 로그인, 기존 이메일 계정에 연동
     @Test
     void socialLoginSucceedsWithFirstLoginLinkedToExistingEmailAccount() {
-        SocialLoginRequest request = new SocialLoginRequest("id-token");
+        SocialLoginRequest request = new SocialLoginRequest(SocialProvider.GOOGLE, "id-token");
         SocialUserInfo userInfo = new SocialUserInfo("google-sub-2", "test@example.com", "홍길동", null);
         Member existingMember = Member.ofLocalSignUp(
                 userInfo.email(), "01012345678", "encoded-password", "홍길동", "gildong", DEFAULT_PROFILE_IMAGE_URL);
@@ -229,7 +229,7 @@ class AuthServiceTest {
     // 소셜 로그인 성공 - 최초 로그인, 신규 회원가입
     @Test
     void socialLoginSucceedsWithFirstLoginNewSignUp() {
-        SocialLoginRequest request = new SocialLoginRequest("id-token");
+        SocialLoginRequest request = new SocialLoginRequest(SocialProvider.GOOGLE, "id-token");
         SocialUserInfo userInfo = new SocialUserInfo("google-sub-3", "new@example.com", "새싹", "https://picture");
 
         when(googleLoginStrategy.verify(request.token())).thenReturn(userInfo);
@@ -254,7 +254,7 @@ class AuthServiceTest {
     // 소셜 로그인 실패 - 유효하지 않은 토큰
     @Test
     void socialLoginFailsWhenTokenInvalid() {
-        SocialLoginRequest request = new SocialLoginRequest("invalid-id-token");
+        SocialLoginRequest request = new SocialLoginRequest(SocialProvider.GOOGLE, "invalid-id-token");
         when(googleLoginStrategy.verify(request.token())).thenThrow(new InvalidSocialTokenException("invalid"));
 
         assertThatThrownBy(() -> authService.loginWithSocial(SocialProvider.GOOGLE, request))
@@ -264,7 +264,7 @@ class AuthServiceTest {
     // 소셜 로그인 실패 - 지원하지 않는 provider
     @Test
     void socialLoginFailsWhenProviderUnsupported() {
-        SocialLoginRequest request = new SocialLoginRequest("id-token");
+        SocialLoginRequest request = new SocialLoginRequest(SocialProvider.NAVER, "id-token");
 
         assertThatThrownBy(() -> authService.loginWithSocial(SocialProvider.NAVER, request))
                 .isInstanceOf(UnsupportedSocialProviderException.class);
