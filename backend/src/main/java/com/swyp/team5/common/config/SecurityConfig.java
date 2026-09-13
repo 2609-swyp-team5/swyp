@@ -16,10 +16,11 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import com.swyp.team5.common.passport.JsonAuthenticationEntryPoint;
 import com.swyp.team5.common.passport.JwtAuthenticationFilter;
 import com.swyp.team5.common.passport.JwtProperties;
+import com.swyp.team5.social.strategy.KakaoProperties;
 
 /** JWT 기반 stateless 인증 설정. Access Token은 Authorization 헤더, Refresh Token은 httpOnly 쿠키로 검증한다. */
 @Configuration
-@EnableConfigurationProperties(JwtProperties.class)
+@EnableConfigurationProperties({JwtProperties.class, KakaoProperties.class})
 @RequiredArgsConstructor
 public class SecurityConfig {
 
