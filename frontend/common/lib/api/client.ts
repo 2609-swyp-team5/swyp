@@ -11,4 +11,5 @@ if (!baseURL?.trim()) {
 export const apiClient = axios.create({
     baseURL,
     timeout: 10_000,
+    withCredentials: true,
 });

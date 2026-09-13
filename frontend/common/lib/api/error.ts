@@ -1,10 +1,8 @@
 import { isAxiosError } from "axios";
 
-export interface ApiErrorResponse {
-    status: number;
-    message: string;
-    traceId: string | null;
-}
+import type { ApiErrorResponse } from "./types";
+
+export type { ApiErrorResponse } from "./types";
 
 export function getApiErrorMessage(error: unknown): string {
     if (!isAxiosError<ApiErrorResponse>(error)) {
