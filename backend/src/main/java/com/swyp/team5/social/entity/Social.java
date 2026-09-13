@@ -33,7 +33,6 @@ public class Social {
     @Column(name = "social_id")
     private Long id;
 
-    // provider 값 목록이 아직 확정되지 않아 DB 컬럼은 VARCHAR(네이티브 enum 아님)
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     private SocialProvider provider;
