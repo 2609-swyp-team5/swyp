@@ -94,7 +94,7 @@ code-review:
 
   script:
     - git fetch origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
-    - git diff -U10 "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}...HEAD" > diff.txt
+    - git diff -U10 "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}...HEAD" -- . ':(exclude)**/package-lock.json' > diff.txt
     - |
       DIFF_LINES=$(wc -l < diff.txt)
       if [ "$DIFF_LINES" -eq 0 ]; then
