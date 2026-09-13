@@ -84,7 +84,7 @@ code-review:
   variables:
     GIT_DEPTH: "0"
     GEMINI_MODEL: "gemini-flash-lite-latest"
-    MAX_DIFF_LINES: "1500"
+    MAX_DIFF_LINES: "3000"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
