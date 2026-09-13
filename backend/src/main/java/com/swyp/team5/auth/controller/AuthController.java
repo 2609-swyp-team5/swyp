@@ -27,6 +27,7 @@ import com.swyp.team5.auth.dto.SocialLoginRequest;
 import com.swyp.team5.auth.dto.TokenResponse;
 import com.swyp.team5.auth.error.UnsupportedSocialProviderException;
 import com.swyp.team5.auth.service.AuthService;
+import com.swyp.team5.common.common.ApiResponse;
 import com.swyp.team5.common.passport.JwtProperties;
 import com.swyp.team5.common.passport.PrincipalMember;
 import com.swyp.team5.social.entity.SocialProvider;
@@ -48,20 +49,20 @@ public class AuthController {
 
     @Operation(summary = "회원가입")
     @PostMapping("/signup")
-    public ResponseEntity<SignUpResponse> signUp(@Valid @RequestBody SignUpRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(authService.signUp(request));
+    public ResponseEntity<ApiResponse<SignUpResponse>> signUp(@Valid @RequestBody SignUpRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(authService.signUp(request)));
     }
 
     @Operation(summary = "로그인")
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
         AuthResult tokens = authService.login(request);
         return responseWithRefreshTokenCookie(tokens, LoginResponse::new);
     }
 
     @Operation(summary = "소셜 로그인")
     @PostMapping("/social/{provider}")
-    public ResponseEntity<TokenResponse> loginWithSocial(
+    public ResponseEntity<ApiResponse<TokenResponse>> loginWithSocial(
             @PathVariable String provider, @Valid @RequestBody SocialLoginRequest request) {
         AuthResult tokens = authService.loginWithSocial(resolveProvider(provider), request);
         return responseWithRefreshTokenCookie(tokens, TokenResponse::new);
@@ -77,7 +78,7 @@ public class AuthController {
 
     @Operation(summary = "토큰 재발급")
     @PostMapping("/refresh")
-    public ResponseEntity<TokenResponse> refresh(
+    public ResponseEntity<ApiResponse<TokenResponse>> refresh(
             @CookieValue(value = REFRESH_TOKEN_COOKIE, required = false) String refreshToken) {
         AuthResult tokens = authService.refresh(refreshToken);
         return responseWithRefreshTokenCookie(tokens, TokenResponse::new);
@@ -85,20 +86,20 @@ public class AuthController {
 
     @Operation(summary = "로그아웃")
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@AuthenticationPrincipal PrincipalMember principal) {
+    public ResponseEntity<ApiResponse<Void>> logout(@AuthenticationPrincipal PrincipalMember principal) {
         authService.logout(principal.memberId());
-        return ResponseEntity.noContent()
+        return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, expiredRefreshTokenCookie().toString())
-                .build();
+                .body(ApiResponse.<Void>success("성공적으로 로그아웃되었습니다.", null));
     }
 
-    private <T> ResponseEntity<T> responseWithRefreshTokenCookie(
+    private <T> ResponseEntity<ApiResponse<T>> responseWithRefreshTokenCookie(
             AuthResult tokens, Function<String, T> responseFactory) {
         return ResponseEntity.ok()
                 .header(
                         HttpHeaders.SET_COOKIE,
                         refreshTokenCookie(tokens.refreshToken()).toString())
-                .body(responseFactory.apply(tokens.accessToken()));
+                .body(ApiResponse.success(responseFactory.apply(tokens.accessToken())));
     }
 
     private ResponseCookie refreshTokenCookie(String refreshToken) {
