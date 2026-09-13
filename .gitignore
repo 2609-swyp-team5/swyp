@@ -88,6 +88,8 @@ next-env.d.ts
 *.tsbuildinfo
 .vercel
 coverage/
+test-results/
+playwright-report/
 
 # ==========================================
 # 보안
@@ -95,9 +97,6 @@ coverage/
 **/.env*
 !**/.env.example
 *.zip
-
-
-docs/
 
 # ==========================================
 # 로컬 개발 전용 파일

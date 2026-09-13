@@ -94,7 +94,7 @@ code-review:
 
   script:
     - git fetch origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
-    - git diff -U10 "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}...HEAD" > diff.txt
+    - git diff -U10 "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}...HEAD" -- . ':(exclude)**/package-lock.json' > diff.txt
     - |
       DIFF_LINES=$(wc -l < diff.txt)
       if [ "$DIFF_LINES" -eq 0 ]; then
@@ -193,12 +193,40 @@ frontend-test:
     - npx tsc --noEmit
     - npm run lint
     - npm run format:check
-    # test 설정 후 주석 해제
-    # - npm run test
+    - npm run test:run
 
   rules:
     - exists:
         - frontend/**/*
+      changes:
+        - frontend/**/*
+
+frontend-e2e:
+  stage: test
+  image: mcr.microsoft.com/playwright:v1.63.0-noble
+
+  cache:
+    key:
+      files:
+        - frontend/package-lock.json
+    paths:
+      - frontend/.npm/
+
+  script:
+    - cd frontend
+    - npm ci --cache .npm --prefer-offline
+    - npm run test:e2e
+
+  artifacts:
+    when: always
+    paths:
+      - frontend/playwright-report/
+      - frontend/test-results/
+    expire_in: 3 days
+
+  rules:
+    - exists:
+        - frontend/package.json
       changes:
         - frontend/**/*
 
