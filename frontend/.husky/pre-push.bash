@@ -18,24 +18,27 @@ while read -r local_ref local_oid remote_ref remote_oid; do
         base_oid=$remote_oid
     fi
 
-    frontend_changed_files=$(git diff --name-only --diff-filter=ACMR "$base_oid" "$local_oid" -- frontend/ \
-        | sed -n 's#^frontend/##p')
+    frontend_changed_files=()
+    while IFS= read -r -d '' changed_file; do
+        frontend_changed_files+=("${changed_file#frontend/}")
+    done < <(
+        git diff --name-only -z --diff-filter=ACMR "$base_oid" "$local_oid" -- frontend/
+    )
 
-    if [ -z "$frontend_changed_files" ]; then
+    if [ "${#frontend_changed_files[@]}" -eq 0 ]; then
         continue
     fi
 
     npm --prefix frontend run typecheck
 
     changed_files=()
-    while IFS= read -r changed_file; do
-        if [ -n "$changed_file" ]; then
-            changed_files+=("$changed_file")
-        fi
-    done < <(
-        printf '%s\n' "$frontend_changed_files" \
-            | grep -E '\.(js|mjs|cjs|ts|tsx)$' || true
-    )
+    for changed_file in "${frontend_changed_files[@]}"; do
+        case "$changed_file" in
+            *.js|*.mjs|*.cjs|*.ts|*.tsx)
+                changed_files+=("$changed_file")
+                ;;
+        esac
+    done
 
     if [ "${#changed_files[@]}" -gt 0 ]; then
         (
