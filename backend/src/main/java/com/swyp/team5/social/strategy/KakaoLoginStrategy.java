@@ -8,6 +8,7 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 import com.swyp.team5.auth.dto.SocialUserInfo;
 import com.swyp.team5.auth.error.InvalidSocialTokenException;
@@ -69,8 +70,12 @@ public class KakaoLoginStrategy implements SocialLoginStrategy {
                     .body(form)
                     .retrieve()
                     .body(KakaoTokenResponse.class);
+        } catch (RestClientResponseException e) {
+            // 인가 코드 만료인지 redirect_uri 불일치인지는 응답 본문에만 나온다. e.getMessage() 로는 구분할 수 없다.
+            log.warn("카카오 토큰 교환 실패: status={}, body={}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new InvalidSocialTokenException("유효하지 않은 카카오 인가 코드입니다.");
         } catch (RestClientException e) {
-            log.warn("카카오 토큰 교환 실패: {}", e.getMessage());
+            log.warn("카카오 토큰 교환 실패(통신 오류)", e);
             throw new InvalidSocialTokenException("유효하지 않은 카카오 인가 코드입니다.");
         }
 
@@ -89,8 +94,12 @@ public class KakaoLoginStrategy implements SocialLoginStrategy {
                     .header("Authorization", "Bearer " + accessToken)
                     .retrieve()
                     .body(KakaoUserResponse.class);
+        } catch (RestClientResponseException e) {
+            // 토큰 만료인지 권한 부족인지는 응답 본문에만 나온다.
+            log.warn("카카오 사용자 정보 조회 실패: status={}, body={}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new InvalidSocialTokenException("카카오 사용자 정보를 가져오지 못했습니다.");
         } catch (RestClientException e) {
-            log.warn("카카오 사용자 정보 조회 실패: {}", e.getMessage());
+            log.warn("카카오 사용자 정보 조회 실패(통신 오류)", e);
             throw new InvalidSocialTokenException("카카오 사용자 정보를 가져오지 못했습니다.");
         }
 

@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import com.swyp.team5.auth.dto.SocialUserInfo;
@@ -63,8 +64,12 @@ public class NaverLoginStrategy implements SocialLoginStrategy {
         NaverTokenResponse response;
         try {
             response = restClient.get().uri(uri).retrieve().body(NaverTokenResponse.class);
+        } catch (RestClientResponseException e) {
+            // 인가 코드 만료인지 state 불일치인지는 응답 본문에만 나온다. e.getMessage() 로는 구분할 수 없다.
+            log.warn("네이버 토큰 교환 실패: status={}, body={}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new InvalidSocialTokenException("유효하지 않은 네이버 인가 코드입니다.");
         } catch (RestClientException e) {
-            log.warn("네이버 토큰 교환 실패: {}", e.getMessage());
+            log.warn("네이버 토큰 교환 실패(통신 오류)", e);
             throw new InvalidSocialTokenException("유효하지 않은 네이버 인가 코드입니다.");
         }
 
@@ -88,8 +93,12 @@ public class NaverLoginStrategy implements SocialLoginStrategy {
                     .header("Authorization", "Bearer " + accessToken)
                     .retrieve()
                     .body(NaverUserResponse.class);
+        } catch (RestClientResponseException e) {
+            // 토큰 만료인지 권한 부족인지는 응답 본문에만 나온다.
+            log.warn("네이버 사용자 정보 조회 실패: status={}, body={}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new InvalidSocialTokenException("네이버 사용자 정보를 가져오지 못했습니다.");
         } catch (RestClientException e) {
-            log.warn("네이버 사용자 정보 조회 실패: {}", e.getMessage());
+            log.warn("네이버 사용자 정보 조회 실패(통신 오류)", e);
             throw new InvalidSocialTokenException("네이버 사용자 정보를 가져오지 못했습니다.");
         }
 
