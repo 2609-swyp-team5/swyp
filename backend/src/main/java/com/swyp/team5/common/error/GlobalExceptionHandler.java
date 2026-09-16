@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -71,6 +72,17 @@ public class GlobalExceptionHandler {
                 .toList();
         log.warn("요청 검증 실패: {}", details);
         return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", "입력값이 올바르지 않습니다.", details);
+    }
+
+    /**
+     * 요청 본문 자체를 읽지 못한 경우. JSON 문법 오류이거나, enum 필드에 정의되지 않은 값이 온 경우다.
+     *
+     * <p>예외 메시지에는 파서 내부 정보가 들어 있어 그대로 내려주지 않고 로그로만 남긴다.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnreadableRequestBody(HttpMessageNotReadableException e) {
+        log.warn("요청 본문을 읽을 수 없습니다: {}", e.getMessage());
+        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", "요청 본문의 형식이 올바르지 않습니다.");
     }
 
     @ExceptionHandler(Exception.class)

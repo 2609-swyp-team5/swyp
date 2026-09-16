@@ -32,7 +32,8 @@ public class Member {
     @Column(name = "member_id")
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    // 카카오의 경우 메일을 가져올수 없어서 필수값 제외하겠습니다.
+    @Column(unique = true)
     private String email;
 
     @Column
