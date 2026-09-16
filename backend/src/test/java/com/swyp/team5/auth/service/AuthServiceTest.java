@@ -203,7 +203,7 @@ class AuthServiceTest {
                 .thenReturn("access-token");
         when(jwtTokenProvider.createRefreshToken(member.getId())).thenReturn("refresh-token");
 
-        AuthResult tokens = authService.loginWithSocial(SocialProvider.GOOGLE, request);
+        AuthResult tokens = authService.loginWithSocial(request);
 
         assertThat(tokens.accessToken()).isEqualTo("access-token");
     }
@@ -225,7 +225,7 @@ class AuthServiceTest {
                 .thenReturn("access-token");
         when(jwtTokenProvider.createRefreshToken(existingMember.getId())).thenReturn("refresh-token");
 
-        AuthResult tokens = authService.loginWithSocial(SocialProvider.GOOGLE, request);
+        AuthResult tokens = authService.loginWithSocial(request);
 
         assertThat(tokens.accessToken()).isEqualTo("access-token");
         verify(socialRepository).save(any(Social.class));
@@ -250,7 +250,7 @@ class AuthServiceTest {
         when(jwtTokenProvider.createAccessToken(eq(3L), any())).thenReturn("access-token");
         when(jwtTokenProvider.createRefreshToken(3L)).thenReturn("refresh-token");
 
-        AuthResult tokens = authService.loginWithSocial(SocialProvider.GOOGLE, request);
+        AuthResult tokens = authService.loginWithSocial(request);
 
         assertThat(tokens.accessToken()).isEqualTo("access-token");
         verify(memberRepository).save(any(Member.class));
@@ -263,8 +263,7 @@ class AuthServiceTest {
         SocialLoginRequest request = new SocialLoginRequest(SocialProvider.GOOGLE, "invalid-id-token");
         when(googleLoginStrategy.verify(request.token())).thenThrow(new InvalidSocialTokenException("invalid"));
 
-        assertThatThrownBy(() -> authService.loginWithSocial(SocialProvider.GOOGLE, request))
-                .isInstanceOf(InvalidSocialTokenException.class);
+        assertThatThrownBy(() -> authService.loginWithSocial(request)).isInstanceOf(InvalidSocialTokenException.class);
     }
 
     // 소셜 로그인 실패 - 지원하지 않는 provider
@@ -272,7 +271,7 @@ class AuthServiceTest {
     void socialLoginFailsWhenProviderUnsupported() {
         SocialLoginRequest request = new SocialLoginRequest(SocialProvider.NAVER, "id-token");
 
-        assertThatThrownBy(() -> authService.loginWithSocial(SocialProvider.NAVER, request))
+        assertThatThrownBy(() -> authService.loginWithSocial(request))
                 .isInstanceOf(UnsupportedSocialProviderException.class);
     }
 

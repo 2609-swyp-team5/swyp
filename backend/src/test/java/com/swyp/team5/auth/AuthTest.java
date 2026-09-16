@@ -187,11 +187,13 @@ class AuthTest {
     // 소셜 로그인 실패 - 지원하지 않는 provider
     @Test
     void socialLoginFailsWhenProviderUnsupported() throws Exception {
-        SocialLoginRequest request = new SocialLoginRequest(SocialProvider.NAVER, "id-token");
+        // GOOGLE/KAKAO/NAVER 가 모두 구현돼 SocialProvider 에 없는 값을 보낸다.
+        String body = """
+                {"provider": "APPLE", "token": "id-token"}""";
 
         mockMvc.perform(post("/auth/social/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content(body))
                 .andExpect(status().isBadRequest());
     }
 
