@@ -15,16 +15,9 @@ services:
       - pgadmin_data:/var/lib/pgadmin
 
   # ------------------------------------------
-  # Redis
+  # Redis: Upstash(클라우드)를 사용하므로 로컬 컨테이너 없음. .env의 REDIS_HOST 등 참고
+  # redis-insight에서 Upstash 인스턴스(host/port/password, TLS 활성화)를 직접 연결해서 사용
   # ------------------------------------------
-  redis:
-    image: redis:7-alpine
-    container_name: local-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-
   redis-insight:
     image: redis/redisinsight:latest
     container_name: local-redis-insight
@@ -32,8 +25,6 @@ services:
       - "5540:5540"
     volumes:
       - redis_insight_data:/data
-    depends_on:
-      - redis
 
   # ------------------------------------------
   # Kafka
@@ -70,5 +61,4 @@ services:
 
 volumes:
   pgadmin_data:
-  redis_data:
   redis_insight_data:
