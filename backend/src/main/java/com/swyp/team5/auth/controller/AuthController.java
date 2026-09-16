@@ -74,8 +74,8 @@ public class AuthController {
 
     @Operation(summary = "로그아웃")
     @PostMapping("/logout")
-    public ResponseEntity<ApiResponse<Void>> logout(@AuthenticationPrincipal PrincipalMember principal) {
-        authService.logout(principal.memberId());
+    public ResponseEntity<ApiResponse<Void>> logout(@AuthenticationPrincipal PrincipalMember currentMember) {
+        authService.logout(currentMember.memberId());
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, expiredRefreshTokenCookie().toString())
                 .body(ApiResponse.<Void>success("성공적으로 로그아웃되었습니다.", null));

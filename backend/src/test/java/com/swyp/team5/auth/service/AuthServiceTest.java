@@ -29,6 +29,8 @@ import com.swyp.team5.auth.error.InvalidTokenException;
 import com.swyp.team5.auth.error.UnsupportedSocialProviderException;
 import com.swyp.team5.common.passport.JwtTokenProvider;
 import com.swyp.team5.member.entity.Member;
+import com.swyp.team5.member.entity.MemberRole;
+import com.swyp.team5.member.entity.MemberStatus;
 import com.swyp.team5.member.repository.MemberRepository;
 import com.swyp.team5.social.entity.Social;
 import com.swyp.team5.social.entity.SocialProvider;
@@ -99,6 +101,10 @@ class AuthServiceTest {
 
         assertThat(response.email()).isEqualTo(request.email());
         assertThat(response.nickname()).isEqualTo(request.nickname());
+        assertThat(response.name()).isEqualTo(request.name());
+        assertThat(response.phone()).isEqualTo(request.phone());
+        assertThat(response.role()).isEqualTo(MemberRole.USER);
+        assertThat(response.status()).isEqualTo(MemberStatus.ACTIVE);
     }
 
     // 회원가입 실패 - 이메일 중복
