@@ -36,6 +36,9 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 
+/**
+ * 상품(중고 물건) 엔티티. 판매자가 등록한 물건 한 건을 나타내며, 이미지·태그와 함께 관리된다.
+ */
 @Entity
 @Table(name = "products")
 @Getter
@@ -139,6 +142,14 @@ public class Product {
         this.preferredTradeRegion = preferredTradeRegion;
     }
 
+    /**
+     * 신규 상품을 생성한다. 이미지는 전달된 순서대로 {@code image_order}가 부여되고, 태그는 전달된
+     * {@link Tag} 집합이 그대로 연결된다.
+     *
+     * @param imageUrls 이미 업로드된 이미지 URL 목록(등록 순서대로 저장)
+     * @param tags 연결할 태그 목록
+     * @return 생성된 상품
+     */
     public static Product create(
             Member member,
             Category category,
@@ -171,10 +182,20 @@ public class Product {
         return product;
     }
 
+    /**
+     * 이 상품이 주어진 회원에 의해 등록된 상품인지 확인한다.
+     *
+     * @param memberId 확인할 회원 ID
+     * @return 이 상품을 등록한 회원이면 {@code true}
+     */
     public boolean isRegisteredBy(Long memberId) {
         return this.member.getId().equals(memberId);
     }
 
+    /**
+     * 상품 정보를 전달된 값으로 전체 갱신한다. 이미지·태그는 이 메소드로 갱신되지 않으므로
+     * {@link #addImages}/{@link #clearImages}, {@link #addTags}/{@link #clearTags}를 별도로 호출해야 한다.
+     */
     public void update(
             Category category,
             String title,
@@ -200,14 +221,25 @@ public class Product {
         this.preferredTradeRegion = preferredTradeRegion;
     }
 
+    /**
+     * 상품 게시 상태를 변경한다.
+     *
+     * @param status 변경할 상태
+     */
     public void changeStatus(ProductStatus status) {
         this.status = status;
     }
 
+    /** 등록된 이미지를 모두 제거한다. */
     public void clearImages() {
         this.images.clear();
     }
 
+    /**
+     * 이미지를 순서대로 추가한다. {@code imageUrls}가 {@code null}이면 아무 동작도 하지 않는다.
+     *
+     * @param imageUrls 추가할 이미지 URL 목록(순서대로 {@code image_order} 1부터 부여)
+     */
     public void addImages(List<String> imageUrls) {
         if (imageUrls == null) {
             return;
@@ -222,10 +254,16 @@ public class Product {
         addImages(imageUrls);
     }
 
+    /** 연결된 태그를 모두 제거한다. */
     public void clearTags() {
         this.tags.clear();
     }
 
+    /**
+     * 태그를 추가한다. {@code tags}가 {@code null}이면 아무 동작도 하지 않는다.
+     *
+     * @param tags 추가할 태그 목록
+     */
     public void addTags(Set<Tag> tags) {
         if (tags == null) {
             return;

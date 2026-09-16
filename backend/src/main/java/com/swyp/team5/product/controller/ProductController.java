@@ -42,6 +42,13 @@ public class ProductController {
 
     private final ProductService productService;
 
+    /**
+     * 상품을 직접 등록한다.
+     *
+     * @param currentMember 인증된 요청자
+     * @param request 등록 요청 바디
+     * @return 201 Created + 등록된 상품
+     */
     @Operation(summary = "상품 등록")
     @PostMapping
     public ResponseEntity<ApiResponse<ProductResponse>> create(
@@ -50,6 +57,13 @@ public class ProductController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
     }
 
+    /**
+     * 상품 사진을 업로드하면 AI(Gemini)가 상품 정보를 분석해 자동으로 등록한다.
+     *
+     * @param currentMember 인증된 요청자
+     * @param images 분석할 상품 이미지 목록
+     * @return 201 Created + 등록된 상품
+     */
     @Operation(summary = "상품 이미지 AI 등록", description = "상품 사진을 업로드하면 AI(Gemini)가 상품 정보를 분석해 자동으로 등록한다.")
     @PostMapping(value = "/analyze", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<ProductResponse>> createFromImages(
@@ -59,12 +73,27 @@ public class ProductController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
     }
 
+    /**
+     * 상품 상세 정보를 조회한다.
+     *
+     * @param productId 조회할 상품 ID
+     * @return 200 OK + 상품 상세 정보
+     */
     @Operation(summary = "상품 상세 조회")
     @GetMapping("/{productId}")
     public ResponseEntity<ApiResponse<ProductResponse>> getProduct(@PathVariable Long productId) {
         return ResponseEntity.ok(ApiResponse.success(productService.getProduct(productId)));
     }
 
+    /**
+     * 상품 목록을 커서 기반으로 조회한다(정렬은 {@code id} 내림차순 고정).
+     *
+     * @param categoryId 카테고리 필터(선택)
+     * @param status 상태 필터(선택)
+     * @param cursor 이전 페이지 마지막 상품의 {@code id}(선택, 첫 페이지는 생략)
+     * @param size 페이지 크기(기본 20)
+     * @return 200 OK + 커서 페이지 응답
+     */
     // 커서 기반 페이징 적용
     @Operation(summary = "상품 목록 조회")
     @GetMapping
@@ -76,6 +105,14 @@ public class ProductController {
         return ResponseEntity.ok(ApiResponse.success(productService.getProducts(categoryId, status, cursor, size)));
     }
 
+    /**
+     * 상품 정보를 수정한다. 본인이 등록한 상품만 수정할 수 있다.
+     *
+     * @param currentMember 인증된 요청자
+     * @param productId 수정할 상품 ID
+     * @param request 수정 요청 바디
+     * @return 200 OK + 수정된 상품
+     */
     @Operation(summary = "상품 수정")
     @PatchMapping("/{productId}")
     public ResponseEntity<ApiResponse<ProductResponse>> update(
@@ -86,6 +123,14 @@ public class ProductController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    /**
+     * 상품 게시 상태만 변경한다. 본인이 등록한 상품만 변경할 수 있다.
+     *
+     * @param currentMember 인증된 요청자
+     * @param productId 상태를 변경할 상품 ID
+     * @param request 변경할 상태를 담은 요청 바디
+     * @return 200 OK + 변경된 상품
+     */
     @Operation(summary = "상품 상태 변경")
     @PatchMapping("/{productId}/status")
     public ResponseEntity<ApiResponse<ProductResponse>> updateStatus(
@@ -96,6 +141,13 @@ public class ProductController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    /**
+     * 상품을 삭제한다. 본인이 등록한 상품만 삭제할 수 있다.
+     *
+     * @param currentMember 인증된 요청자
+     * @param productId 삭제할 상품 ID
+     * @return 200 OK
+     */
     @Operation(summary = "상품 삭제")
     @DeleteMapping("/{productId}")
     public ResponseEntity<ApiResponse<Void>> delete(

@@ -50,11 +50,7 @@ import com.swyp.team5.tag.repository.TagRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/**
- * 상품(Product) 관련 통합 테스트.
- * 컨트롤러~서비스~레포지토리 전체 흐름을 검증한다.
- * 외부 인프라(Redis, 파일 스토리지, Gemini AI)는 MockitoBean으로 대체한다.
- */
+// 상품 관련 통합 테스트.
 @SpringBootTest
 @AutoConfigureMockMvc
 class ProductTest {

@@ -19,6 +19,10 @@ import com.swyp.team5.category.error.CategoryNotFoundException;
 import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.product.dto.ProductAiAnalysisResult;
 
+/**
+ * 상품 이미지를 Gemini에 전달해 상품 정보(제목/설명/카테고리/상태 등급/결함 여부/태그)를
+ * 자동으로 추론하는 서비스.
+ */
 @Service
 public class ProductAiService {
 
@@ -43,6 +47,15 @@ public class ProductAiService {
         this.categoryRepository = categoryRepository;
     }
 
+    /**
+     * 상품 이미지들을 분석해 상품 정보를 추론한다. 등록된 카테고리가 하나도 없으면 AI 호출 전에
+     * 즉시 실패하며, AI가 반환한 {@code categoryId}도 실제 존재 여부를 검증한다.
+     *
+     * @param images 분석할 상품 이미지 목록
+     * @return AI가 추론한 상품 정보
+     * @throws CategoryNotFoundException 등록된 카테고리가 없거나, AI가 반환한 카테고리가 존재하지
+     *     않는 경우
+     */
     public ProductAiAnalysisResult analyze(List<MultipartFile> images) {
         List<Category> categories = categoryRepository.findAllByOrderByIdAsc();
         if (categories.isEmpty()) {
