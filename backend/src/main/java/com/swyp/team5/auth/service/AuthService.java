@@ -79,7 +79,14 @@ public class AuthService {
                 defaultProfileImageUrl);
         Member saveMember = memberRepository.save(member);
 
-        return new SignUpResponse(saveMember.getId(), saveMember.getEmail(), saveMember.getNickname());
+        return new SignUpResponse(
+                saveMember.getId(),
+                saveMember.getEmail(),
+                saveMember.getNickname(),
+                saveMember.getName(),
+                saveMember.getPhone(),
+                saveMember.getRole(),
+                saveMember.getStatus());
     }
 
     @Transactional(readOnly = true)

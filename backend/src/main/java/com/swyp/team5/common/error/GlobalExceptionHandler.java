@@ -19,10 +19,13 @@ import com.swyp.team5.auth.error.InvalidCredentialsException;
 import com.swyp.team5.auth.error.InvalidSocialTokenException;
 import com.swyp.team5.auth.error.InvalidTokenException;
 import com.swyp.team5.auth.error.UnsupportedSocialProviderException;
+import com.swyp.team5.category.error.CategoryNotFoundException;
 import com.swyp.team5.common.common.ApiError;
 import com.swyp.team5.common.common.ApiResponse;
 import com.swyp.team5.common.common.ErrorDetail;
 import com.swyp.team5.file.error.FileStorageException;
+import com.swyp.team5.product.error.ProductAccessDeniedException;
+import com.swyp.team5.product.error.ProductNotFoundException;
 
 @Slf4j
 @RestControllerAdvice
@@ -57,6 +60,18 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleUnsupportedSocialProvider(UnsupportedSocialProviderException e) {
         log.warn("지원하지 않는 소셜 로그인 provider: {}", e.getMessage());
         return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
+    }
+
+    @ExceptionHandler({ProductNotFoundException.class, CategoryNotFoundException.class})
+    public ResponseEntity<ApiResponse<Void>> handleNotFound(RuntimeException e) {
+        log.warn("리소스를 찾을 수 없음: {}", e.getMessage());
+        return errorResponse(HttpStatus.NOT_FOUND, "NOT_FOUND", e.getMessage());
+    }
+
+    @ExceptionHandler(ProductAccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleProductAccessDenied(ProductAccessDeniedException e) {
+        log.warn("상품 접근 권한 없음: {}", e.getMessage());
+        return errorResponse(HttpStatus.FORBIDDEN, "FORBIDDEN", e.getMessage());
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

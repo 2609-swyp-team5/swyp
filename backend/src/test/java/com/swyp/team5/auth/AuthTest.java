@@ -85,7 +85,11 @@ class AuthTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.email").value(DEFAULT_EMAIL))
-                .andExpect(jsonPath("$.data.nickname").value("gildong"));
+                .andExpect(jsonPath("$.data.nickname").value("gildong"))
+                .andExpect(jsonPath("$.data.name").value("홍길동"))
+                .andExpect(jsonPath("$.data.phone").value("01012345678"))
+                .andExpect(jsonPath("$.data.role").value("USER"))
+                .andExpect(jsonPath("$.data.status").value("ACTIVE"));
 
         assertThat(memberRepository.existsByEmail(DEFAULT_EMAIL)).isTrue();
     }
