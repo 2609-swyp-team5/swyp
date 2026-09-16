@@ -178,7 +178,7 @@ public class ProductService {
     @Transactional
     public ProductResponse update(Long memberId, Long productId, ProductUpdateRequest request) {
         Product product = getProductOrThrow(productId);
-        validateOwner(product, memberId);
+        validateRegisteredBy(product, memberId);
         Category category = getCategoryOrThrow(request.categoryId());
 
         product.update(
@@ -217,7 +217,7 @@ public class ProductService {
     @Transactional
     public ProductResponse updateStatus(Long memberId, Long productId, ProductStatus status) {
         Product product = getProductOrThrow(productId);
-        validateOwner(product, memberId);
+        validateRegisteredBy(product, memberId);
 
         product.changeStatus(status);
 
@@ -235,7 +235,7 @@ public class ProductService {
     @Transactional
     public void delete(Long memberId, Long productId) {
         Product product = getProductOrThrow(productId);
-        validateOwner(product, memberId);
+        validateRegisteredBy(product, memberId);
         productRepository.delete(product);
     }
 
@@ -281,7 +281,7 @@ public class ProductService {
      * @param memberId 요청한 회원 ID
      * @throws ProductAccessDeniedException 본인이 등록한 상품이 아닌 경우
      */
-    private void validateOwner(Product product, Long memberId) {
+    private void validateRegisteredBy(Product product, Long memberId) {
         if (!product.isRegisteredBy(memberId)) {
             throw new ProductAccessDeniedException(product.getId());
         }
