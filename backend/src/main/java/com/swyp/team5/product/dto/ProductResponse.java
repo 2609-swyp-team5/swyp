@@ -3,6 +3,7 @@ package com.swyp.team5.product.dto;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.swyp.team5.category.dto.CategoryResponse;
 import com.swyp.team5.product.entity.DeliveryType;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
@@ -15,8 +16,7 @@ public record ProductResponse(
         Long id, // 상품 ID
         Long memberId, // 판매자(등록자) 회원 ID
         String nickname, // 판매자 닉네임
-        Long categoryId, // 카테고리 ID
-        String categoryName, // 카테고리명
+        CategoryResponse category, // 카테고리 정보
         String title, // 상품 제목
         String description, // 상품 설명
         Long price, // 판매 희망가
@@ -37,8 +37,7 @@ public record ProductResponse(
                 product.getId(),
                 product.getMember().getId(),
                 product.getMember().getNickname(),
-                product.getCategory().getId(),
-                product.getCategory().getName(),
+                CategoryResponse.from(product.getCategory()),
                 product.getTitle(),
                 product.getDescription(),
                 product.getPrice(),

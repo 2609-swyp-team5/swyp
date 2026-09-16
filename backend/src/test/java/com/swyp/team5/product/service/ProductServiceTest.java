@@ -102,7 +102,7 @@ class ProductServiceTest {
 
         assertThat(response.title()).isEqualTo("아이폰 13");
         assertThat(response.memberId()).isEqualTo(1L);
-        assertThat(response.categoryId()).isEqualTo(category.getId());
+        assertThat(response.category().id()).isEqualTo(category.getId());
         assertThat(response.imageUrls()).containsExactly("https://image.example.com/1.png");
         assertThat(response.status()).isEqualTo(ProductStatus.ON_SALE);
     }
@@ -182,7 +182,7 @@ class ProductServiceTest {
 
         assertThat(response.title()).isEqualTo("아이폰 13");
         assertThat(response.description()).isEqualTo("AI가 분석한 설명");
-        assertThat(response.categoryId()).isEqualTo(category.getId());
+        assertThat(response.category().id()).isEqualTo(category.getId());
         assertThat(response.condition()).isEqualTo(ProductCondition.A);
         assertThat(response.price()).isEqualTo(0L);
         assertThat(response.tradeMethod()).isEqualTo(TradeMethod.DIRECT);

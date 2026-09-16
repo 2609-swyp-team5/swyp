@@ -113,7 +113,7 @@ class ProductTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.title").value("아이폰 13"))
                 .andExpect(jsonPath("$.data.memberId").value(sellerId))
-                .andExpect(jsonPath("$.data.categoryId").value(category.getId()))
+                .andExpect(jsonPath("$.data.category.id").value(category.getId()))
                 .andExpect(jsonPath("$.data.status").value("ON_SALE"));
 
         assertThat(productRepository.count()).isEqualTo(1);
@@ -195,7 +195,7 @@ class ProductTest {
         mockMvc.perform(get("/products/{id}", productId).header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id").value(productId))
-                .andExpect(jsonPath("$.data.categoryName").value(category.getName()));
+                .andExpect(jsonPath("$.data.category.name").value(category.getName()));
     }
 
     // 상품 상세 조회 실패 - 존재하지 않는 상품
