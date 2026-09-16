@@ -63,37 +63,39 @@ for (const phone of [signupRequest.phone, null]) {
         await expect(page.getByLabel("이메일", { exact: true })).toBeDisabled();
         releaseResponse();
         await expect(page.getByRole("status")).toHaveText("회원가입이 완료되었습니다.");
-        await expect(page.locator("form")).toHaveCount(0);
+        await expect(page.locator("form")).toHaveCount(1);
+        await expect(page.getByLabel("이메일", { exact: true })).toHaveValue("");
         expect(pageErrors).toEqual([]);
     });
 }
 
-test("prevents requests for missing or invalid signup fields", async ({ page }) => {
-    const requests: string[] = [];
+test("forwards the form without client-side validation", async ({ page }) => {
+    let requestBody: unknown;
     await page.route("**/auth/signup", async (route) => {
-        requests.push(route.request().url());
-        await route.abort();
+        requestBody = route.request().postDataJSON();
+        await route.fulfill({
+            status: 400,
+            json: {
+                success: false,
+                message: "입력값이 올바르지 않습니다.",
+                data: null,
+                error: { status: "400", code: "INVALID_INPUT_VALUE", details: null },
+            },
+        });
     });
     await page.goto("/signup");
-    const submit = page.getByRole("button", { name: "회원가입", exact: true });
-    await submit.click();
-    await expect(page.locator("#email:invalid")).toBeVisible();
+    await page.getByRole("button", { name: "회원가입", exact: true }).click();
 
-    await fillRequiredFields(page);
-    await page.getByLabel("비밀번호", { exact: true }).fill("12345678");
-    await submit.click();
-    await expect(page.locator("#password:invalid")).toBeVisible();
-
-    await page.getByLabel("비밀번호", { exact: true }).fill(signupRequest.password);
-    await page.getByLabel("휴대폰 번호 (선택)", { exact: true }).fill("02012345678");
-    await submit.click();
-    await expect(page.locator("#phone:invalid")).toBeVisible();
-
-    await page.getByLabel("휴대폰 번호 (선택)", { exact: true }).clear();
-    await page.getByLabel("이름", { exact: true }).fill("   ");
-    await submit.click();
-    await expect(page.locator("#name:invalid")).toBeVisible();
-    expect(requests).toEqual([]);
+    await expect(page.getByRole("main").getByRole("alert")).toHaveText(
+        "입력값이 올바르지 않습니다.",
+    );
+    expect(requestBody).toEqual({
+        name: "",
+        nickname: "",
+        phone: null,
+        email: "",
+        password: "",
+    });
 });
 
 test("shows the backend signup error and allows correcting the form", async ({ page }) => {

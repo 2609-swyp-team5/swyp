@@ -43,27 +43,27 @@ test("submits email and password and displays a successful login response", asyn
     expect(await page.evaluate(() => [localStorage.length, sessionStorage.length])).toEqual([0, 0]);
 });
 
-test("blocks missing credentials and an invalid email before calling the API", async ({ page }) => {
-    const requests: string[] = [];
+test("forwards the form without client-side validation", async ({ page }) => {
+    let requestBody: unknown;
     await page.route("**/auth/login", async (route) => {
-        requests.push(route.request().url());
-        await route.abort();
+        requestBody = route.request().postDataJSON();
+        await route.fulfill({
+            status: 401,
+            json: {
+                success: false,
+                message: "이메일 또는 비밀번호가 일치하지 않습니다.",
+                data: null,
+                error: { status: "401", code: "UNAUTHORIZED", details: null },
+            },
+        });
     });
     await page.goto("/login");
-    const submit = page.getByRole("button", { name: "로그인", exact: true });
-    await submit.click();
-    await expect(page.locator("#email:invalid")).toBeVisible();
+    await page.getByRole("button", { name: "로그인", exact: true }).click();
 
-    await fillLoginForm(page);
-    await page.getByLabel("이메일", { exact: true }).fill("invalid-email");
-    await submit.click();
-    await expect(page.locator("#email:invalid")).toBeVisible();
-
-    await page.getByLabel("이메일", { exact: true }).fill(loginRequest.email);
-    await page.getByLabel("비밀번호", { exact: true }).fill("   ");
-    await submit.click();
-    await expect(page.locator("#password:invalid")).toBeVisible();
-    expect(requests).toEqual([]);
+    await expect(page.getByRole("main").getByRole("alert")).toHaveText(
+        "이메일 또는 비밀번호가 일치하지 않습니다.",
+    );
+    expect(requestBody).toEqual({ email: "", password: "" });
 });
 
 test("displays the backend login error and allows retrying", async ({ page }) => {
