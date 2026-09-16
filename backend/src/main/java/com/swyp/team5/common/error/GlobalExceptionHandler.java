@@ -80,12 +80,6 @@ public class GlobalExceptionHandler {
         return errorResponse(HttpStatus.CONFLICT, "CONFLICT", "이미 사용 중인 값입니다.");
     }
 
-    @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ApiResponse<Void>> handleMessageNotReadable(HttpMessageNotReadableException e) {
-        log.warn("요청 본문을 읽을 수 없음: {}", e.getMessage());
-        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", "요청 본문의 형식이 올바르지 않습니다.");
-    }
-
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleInvalidRequestBody(MethodArgumentNotValidException e) {
         List<ErrorDetail> details = e.getBindingResult().getFieldErrors().stream()
