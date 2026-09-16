@@ -1,6 +1,8 @@
 services:
   # ------------------------------------------
-  # PostgreSQL: Neon(클라우드)을 사용하므로 로컬 컨테이너 없음. .env의 DB_URL 참고
+  # PostgreSQL
+  # DB는 클라우드 사용으로 도커 없이 사용합니다.
+  # 도커 환경으로 pgadmin(GUI)만 사용합니다.
   # ------------------------------------------
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -15,8 +17,8 @@ services:
       - pgadmin_data:/var/lib/pgadmin
 
   # ------------------------------------------
-  # Redis: Upstash(클라우드)를 사용하므로 로컬 컨테이너 없음. .env의 REDIS_HOST 등 참고
-  # redis-insight에서 Upstash 인스턴스(host/port/password, TLS 활성화)를 직접 연결해서 사용
+  # Redis: 클라우드 사용으로 컨테이너 제외했습니다.
+  # pgadmin과 같이 redis-insight만 필요한 경우 도커로 사용합니다.
   # ------------------------------------------
   redis-insight:
     image: redis/redisinsight:latest
@@ -48,6 +50,9 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
 
+  # ------------------------------------------
+  # Kafka GUI
+  # ------------------------------------------
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: local-kafka-ui
