@@ -84,7 +84,8 @@
 │   ├── tests/                # 공용 단위·컴포넌트 테스트 설정과 mock
 │   ├── e2e/                  # Playwright E2E 테스트
 │   ├── docs/
-│   │   └── testing-guide.md  # 프론트엔드 테스트 가이드
+│   │   ├── frontend-convention.md  # 프론트엔드 코드 컨벤션
+│   │   └── testing-guide.md        # 프론트엔드 테스트 가이드
 │   ├── vitest.config.ts      # Vitest 설정
 │   ├── playwright.config.ts  # Playwright 설정
 │   ├── public/
@@ -113,7 +114,7 @@ npm run test:run -- app/page.test.tsx
 npm run test:e2e
 ```
 
-단위·컴포넌트 테스트는 Vitest와 React Testing Library를 사용하고, API mocking에는 MSW를 사용합니다. E2E 테스트는 Playwright로 회원가입·로그인·결제·알림 등 핵심 사용자 흐름을 우선 검증합니다. 자세한 규칙은 [`frontend/docs/testing-guide.md`](frontend/docs/testing-guide.md)를 참고해 주세요.
+단위·컴포넌트 테스트는 Vitest와 React Testing Library를 사용하고, API mocking에는 MSW를 사용합니다. E2E 테스트는 Playwright로 회원가입·로그인·결제·알림 등 핵심 사용자 흐름을 우선 검증합니다. 코드 구조와 네이밍은 [`frontend/docs/frontend-convention.md`](frontend/docs/frontend-convention.md), 테스트 작성법은 [`frontend/docs/testing-guide.md`](frontend/docs/testing-guide.md)를 참고해 주세요.
 
 ## CI/CD
 

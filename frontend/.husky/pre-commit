@@ -1,0 +1,13 @@
+#!/bin/sh
+
+set -e
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+if git diff --cached --quiet -- frontend/; then
+    exit 0
+fi
+
+cd frontend
+npx --no-install lint-staged
