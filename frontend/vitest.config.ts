@@ -19,6 +19,7 @@ export default defineConfig({
                 "**/*.d.ts",
                 "**/node_modules/**",
                 "**/.next/**",
+                "**/.husky/**",
                 "**/e2e/**",
                 "**/tests/**",
             ],

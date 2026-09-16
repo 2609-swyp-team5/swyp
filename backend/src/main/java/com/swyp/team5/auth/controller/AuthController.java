@@ -60,7 +60,7 @@ public class AuthController {
     @Operation(summary = "소셜 로그인")
     @PostMapping("/social/login")
     public ResponseEntity<ApiResponse<TokenResponse>> loginWithSocial(@Valid @RequestBody SocialLoginRequest request) {
-        AuthResult tokens = authService.loginWithSocial(request.provider(), request);
+        AuthResult tokens = authService.loginWithSocial(request);
         return responseWithRefreshTokenCookie(tokens, TokenResponse::new);
     }
 

@@ -1,0 +1,19 @@
+#!/bin/sh
+
+set -e
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+if git diff --cached --quiet -- frontend/; then
+    exit 0
+fi
+
+commit_msg_file="$1"
+case "$commit_msg_file" in
+    /*) ;;
+    *) commit_msg_file="$repo_root/$commit_msg_file" ;;
+esac
+
+cd frontend
+npx --no-install commitlint --edit "$commit_msg_file"
