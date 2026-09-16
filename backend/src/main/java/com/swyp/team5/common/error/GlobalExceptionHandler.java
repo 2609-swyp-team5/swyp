@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -18,10 +19,13 @@ import com.swyp.team5.auth.error.InvalidCredentialsException;
 import com.swyp.team5.auth.error.InvalidSocialTokenException;
 import com.swyp.team5.auth.error.InvalidTokenException;
 import com.swyp.team5.auth.error.UnsupportedSocialProviderException;
+import com.swyp.team5.category.error.CategoryNotFoundException;
 import com.swyp.team5.common.common.ApiError;
 import com.swyp.team5.common.common.ApiResponse;
 import com.swyp.team5.common.common.ErrorDetail;
 import com.swyp.team5.file.error.FileStorageException;
+import com.swyp.team5.product.error.ProductAccessDeniedException;
+import com.swyp.team5.product.error.ProductNotFoundException;
 
 @Slf4j
 @RestControllerAdvice
@@ -58,10 +62,28 @@ public class GlobalExceptionHandler {
         return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
     }
 
+    @ExceptionHandler({ProductNotFoundException.class, CategoryNotFoundException.class})
+    public ResponseEntity<ApiResponse<Void>> handleNotFound(RuntimeException e) {
+        log.warn("리소스를 찾을 수 없음: {}", e.getMessage());
+        return errorResponse(HttpStatus.NOT_FOUND, "NOT_FOUND", e.getMessage());
+    }
+
+    @ExceptionHandler(ProductAccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleProductAccessDenied(ProductAccessDeniedException e) {
+        log.warn("상품 접근 권한 없음: {}", e.getMessage());
+        return errorResponse(HttpStatus.FORBIDDEN, "FORBIDDEN", e.getMessage());
+    }
+
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolation(DataIntegrityViolationException e) {
         log.warn("데이터 무결성 제약 위반: {}", e.getMessage());
         return errorResponse(HttpStatus.CONFLICT, "CONFLICT", "이미 사용 중인 값입니다.");
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMessageNotReadable(HttpMessageNotReadableException e) {
+        log.warn("요청 본문을 읽을 수 없음: {}", e.getMessage());
+        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", "요청 본문의 형식이 올바르지 않습니다.");
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
