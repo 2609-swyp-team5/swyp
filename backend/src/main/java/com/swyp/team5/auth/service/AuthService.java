@@ -109,7 +109,8 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthResult loginWithSocial(SocialProvider provider, SocialLoginRequest request) {
+    public AuthResult loginWithSocial(SocialLoginRequest request) {
+        SocialProvider provider = request.provider();
         SocialLoginStrategy strategy = socialLoginStrategies.get(provider);
         if (strategy == null) {
             throw new UnsupportedSocialProviderException(provider.name());
