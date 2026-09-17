@@ -45,6 +45,9 @@ backend-test:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
         - backend/**/*
+    - if: $CI_PIPELINE_SOURCE == "push"
+      changes:
+        - backend/**/*
 
 backend-build:
   stage: build
@@ -73,6 +76,9 @@ backend-build:
 
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - backend/**/*
+    - if: $CI_PIPELINE_SOURCE == "push"
       changes:
         - backend/**/*
 
@@ -203,6 +209,11 @@ frontend-test:
         - frontend/**/*
       changes:
         - frontend/**/*
+    - if: $CI_PIPELINE_SOURCE == "push"
+      exists:
+        - frontend/**/*
+      changes:
+        - frontend/**/*
 
 frontend-e2e:
   stage: test
@@ -233,6 +244,11 @@ frontend-e2e:
         - frontend/package.json
       changes:
         - frontend/**/*
+    - if: $CI_PIPELINE_SOURCE == "push"
+      exists:
+        - frontend/package.json
+      changes:
+        - frontend/**/*
 
 frontend-build:
   stage: build
@@ -259,6 +275,11 @@ frontend-build:
 
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      exists:
+        - frontend/package.json
+      changes:
+        - frontend/**/*
+    - if: $CI_PIPELINE_SOURCE == "push"
       exists:
         - frontend/package.json
       changes:
