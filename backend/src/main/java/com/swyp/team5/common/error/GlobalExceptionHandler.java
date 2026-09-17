@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -104,6 +105,16 @@ public class GlobalExceptionHandler {
                         lastPathSegment(violation.getPropertyPath().toString()), violation.getMessage()))
                 .toList();
         log.warn("요청 파라미터 검증 실패: {}", details);
+        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", "입력값이 올바르지 않습니다.", details);
+    }
+
+    /**
+     * 필수 {@code @RequestParam}이 요청에 아예 빠진 경우(예: multipart 요청의 필수 폼 필드 누락).
+     */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingRequestParameter(MissingServletRequestParameterException e) {
+        List<ErrorDetail> details = List.of(new ErrorDetail(e.getParameterName(), "필수 값입니다."));
+        log.warn("필수 요청 파라미터 누락: {}", e.getParameterName());
         return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", "입력값이 올바르지 않습니다.", details);
     }
 
