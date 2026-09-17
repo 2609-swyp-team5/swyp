@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
-import { SiteFooter } from "@/components/layout/SiteFooter";
-import { SiteHeader } from "@/components/layout/SiteHeader";
+import { SiteFooter } from "@/common/components/layout/SiteFooter";
+import { SiteHeader } from "@/common/components/layout/SiteHeader";
 
 export default function MainLayout({ children }: { children: ReactNode }) {
     return (
