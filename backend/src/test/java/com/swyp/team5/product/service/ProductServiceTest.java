@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -87,6 +88,7 @@ class ProductServiceTest {
                 500_000L,
                 ProductCondition.A,
                 false,
+                3,
                 true,
                 TradeMethod.DIRECT,
                 null,
@@ -103,6 +105,8 @@ class ProductServiceTest {
         assertThat(response.title()).isEqualTo("아이폰 13");
         assertThat(response.memberId()).isEqualTo(1L);
         assertThat(response.category().id()).isEqualTo(category.getId());
+        assertThat(response.purchasedAt()).isEqualTo(LocalDate.now().minusMonths(3));
+        assertThat(response.purchasedMonths()).isEqualTo(3);
         assertThat(response.imageUrls()).containsExactly("https://image.example.com/1.png");
         assertThat(response.status()).isEqualTo(ProductStatus.ON_SALE);
     }
@@ -120,6 +124,7 @@ class ProductServiceTest {
                 500_000L,
                 ProductCondition.A,
                 false,
+                null,
                 true,
                 TradeMethod.DIRECT,
                 null,
@@ -135,6 +140,8 @@ class ProductServiceTest {
 
         ProductResponse response = service().create(1L, request);
 
+        assertThat(response.purchasedAt()).isNull();
+        assertThat(response.purchasedMonths()).isNull();
         assertThat(response.tags()).containsExactlyInAnyOrder("애플", "아이폰");
     }
 
@@ -148,6 +155,7 @@ class ProductServiceTest {
                 500_000L,
                 ProductCondition.A,
                 false,
+                null,
                 true,
                 TradeMethod.DIRECT,
                 null,
@@ -167,7 +175,7 @@ class ProductServiceTest {
         Category category = newCategory(1L, "전자기기");
         MockMultipartFile image = new MockMultipartFile("images", "iphone.png", "image/png", new byte[] {1, 2, 3});
         ProductAiAnalysisResult analysis = new ProductAiAnalysisResult(
-                category.getId(), "아이폰 13", "AI가 분석한 설명", ProductCondition.A, false, List.of("애플", "아이폰"));
+                category.getId(), "아이폰 13", "AI가 분석한 설명", ProductCondition.A, 450_000L, List.of("애플", "아이폰"));
 
         when(memberRepository.getReferenceById(1L)).thenReturn(member);
         when(productAiService.analyze(List.of(image))).thenReturn(analysis);
@@ -178,13 +186,16 @@ class ProductServiceTest {
         when(tagRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ProductResponse response = service().createFromImages(1L, List.of(image));
+        ProductResponse response = service().createFromImages(1L, List.of(image), 3, true);
 
         assertThat(response.title()).isEqualTo("아이폰 13");
         assertThat(response.description()).isEqualTo("AI가 분석한 설명");
         assertThat(response.category().id()).isEqualTo(category.getId());
         assertThat(response.condition()).isEqualTo(ProductCondition.A);
-        assertThat(response.price()).isEqualTo(0L);
+        assertThat(response.hasDefect()).isTrue();
+        assertThat(response.purchasedAt()).isEqualTo(LocalDate.now().minusMonths(3));
+        assertThat(response.purchasedMonths()).isEqualTo(3);
+        assertThat(response.price()).isEqualTo(450_000L);
         assertThat(response.tradeMethod()).isEqualTo(TradeMethod.DIRECT);
         assertThat(response.imageUrls()).containsExactly("https://image.example.com/iphone.png");
         assertThat(response.tags()).containsExactlyInAnyOrder("애플", "아이폰");
@@ -195,13 +206,13 @@ class ProductServiceTest {
     void createFromImagesFailsWhenCategoryNotFound() {
         MockMultipartFile image = new MockMultipartFile("images", "iphone.png", "image/png", new byte[] {1, 2, 3});
         ProductAiAnalysisResult analysis =
-                new ProductAiAnalysisResult(99L, "아이폰 13", "설명", ProductCondition.A, false, List.of());
+                new ProductAiAnalysisResult(99L, "아이폰 13", "설명", ProductCondition.A, 450_000L, List.of());
 
         when(memberRepository.getReferenceById(1L)).thenReturn(newMember(1L));
         when(productAiService.analyze(List.of(image))).thenReturn(analysis);
         when(categoryRepository.findById(99L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service().createFromImages(1L, List.of(image)))
+        assertThatThrownBy(() -> service().createFromImages(1L, List.of(image), null, false))
                 .isInstanceOf(CategoryNotFoundException.class);
     }
 
@@ -248,11 +259,13 @@ class ProductServiceTest {
         assertThat(response.nextCursor()).isNull();
     }
 
-    // 상품 수정 성공 - 소유자 본인
+    // 상품 수정 성공 - 소유자 본인 (구매일시는 등록 시점 값 그대로 유지됨)
     @Test
     void updateSucceedsWhenOwner() {
         Category category = newCategory(1L, "전자기기");
         Product product = newProduct(1L, newMember(1L), category);
+        LocalDate registeredPurchasedAt = LocalDate.now().minusMonths(5);
+        setField(product, "purchasedAt", registeredPurchasedAt);
 
         ProductUpdateRequest request = new ProductUpdateRequest(
                 category.getId(),
@@ -278,6 +291,7 @@ class ProductServiceTest {
 
         assertThat(response.title()).isEqualTo("아이폰 13 프로");
         assertThat(response.status()).isEqualTo(ProductStatus.RESERVED);
+        assertThat(response.purchasedAt()).isEqualTo(registeredPurchasedAt);
         assertThat(response.imageUrls()).containsExactly("https://image.example.com/2.png");
         assertThat(response.tags()).containsExactly("가성비");
     }
@@ -390,6 +404,7 @@ class ProductServiceTest {
                 500_000L,
                 ProductCondition.A,
                 false,
+                null,
                 true,
                 TradeMethod.DIRECT,
                 null,

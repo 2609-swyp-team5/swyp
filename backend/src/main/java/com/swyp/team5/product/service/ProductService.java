@@ -1,5 +1,6 @@
 package com.swyp.team5.product.service;
 
+import java.time.LocalDate;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -83,6 +84,7 @@ public class ProductService {
                 request.price(),
                 request.condition(),
                 request.hasDefect(),
+                toPurchasedAt(request.purchasedMonths()),
                 request.allowPriceSuggestion(),
                 request.tradeMethod(),
                 request.deliveryType(),
@@ -94,16 +96,21 @@ public class ProductService {
     }
 
     /**
-     * 상품 사진을 AI(Gemini)로 분석해 자동으로 등록한다. 가격은 기본값 0원, 거래 방식은 기본값
-     * 직거래(DIRECT)로 등록되며, 배송 방법/희망 거래 지역은 비워둔 채 등록 후 수정으로 채운다
+     * 상품 사진을 AI(Gemini)로 분석해 자동으로 등록한다. 가격은 AI가 추정한 참고용 시세로 채워지며
+     * (실제 시세 데이터 기반은 아님, 등록 후 판매자가 직접 수정 가능), 거래 방식은 기본값
+     * 직거래(DIRECT)로 등록되며, 배송 방법/희망 거래 지역은 비워둔 채 등록 후 수정으로 채운다.
+     * 구매 일시/결함 여부는 AI가 추론하지 않고 사용자가 직접 입력한 값을 그대로 사용한다.
      *
      * @param memberId 등록하는 회원 ID
      * @param images 분석할 상품 이미지 목록
+     * @param purchasedMonths 사용자가 입력한 구매 후 경과 개월 수(선택, 등록 시점 기준 구매일시로 변환)
+     * @param hasDefect 사용자가 입력한 결함 여부
      * @return 등록된 상품
      * @throws CategoryNotFoundException 등록된 카테고리가 없거나 AI가 반환한 카테고리가 존재하지 않는 경우
      */
     @Transactional
-    public ProductResponse createFromImages(Long memberId, List<MultipartFile> images) {
+    public ProductResponse createFromImages(
+            Long memberId, List<MultipartFile> images, Integer purchasedMonths, boolean hasDefect) {
         Member member = memberRepository.getReferenceById(memberId);
         ProductAiAnalysisResult analysis = productAiService.analyze(images);
         Category category = getCategoryOrThrow(analysis.categoryId());
@@ -116,9 +123,10 @@ public class ProductService {
                 category,
                 analysis.title(),
                 analysis.description(),
-                0L,
+                analysis.suggestedPrice(),
                 analysis.condition(),
-                analysis.hasDefect(),
+                hasDefect,
+                toPurchasedAt(purchasedMonths),
                 true,
                 TradeMethod.DIRECT,
                 null,
@@ -245,6 +253,18 @@ public class ProductService {
 
     private Category getCategoryOrThrow(Long categoryId) {
         return categoryRepository.findById(categoryId).orElseThrow(() -> new CategoryNotFoundException(categoryId));
+    }
+
+    /**
+     * 구매 후 경과 개월 수를 등록 시점 기준 구매일시로 변환한다. 이 값은 등록 시점에만 계산되며 이후
+     * 수정으로는 변경되지 않는다.
+     *
+     * @param purchasedMonths 구매 후 경과 개월 수(선택)
+     * @return {@code purchasedMonths}가 {@code null}이면 {@code null}, 아니면 오늘로부터
+     *     {@code purchasedMonths}개월 전 날짜
+     */
+    private static LocalDate toPurchasedAt(Integer purchasedMonths) {
+        return purchasedMonths == null ? null : LocalDate.now().minusMonths(purchasedMonths);
     }
 
     /**

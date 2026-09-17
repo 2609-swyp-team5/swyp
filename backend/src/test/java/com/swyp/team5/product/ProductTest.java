@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -28,6 +29,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.swyp.team5.auth.service.RefreshTokenService;
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.repository.CategoryRepository;
@@ -55,7 +57,7 @@ import org.junit.jupiter.api.Test;
 @AutoConfigureMockMvc
 class ProductTest {
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
     @Autowired
     private MockMvc mockMvc;
@@ -140,6 +142,7 @@ class ProductTest {
                 500_000L,
                 ProductCondition.A,
                 false,
+                null,
                 true,
                 TradeMethod.DIRECT,
                 null,
@@ -167,11 +170,63 @@ class ProductTest {
                 .andExpect(jsonPath("$.error.code").value("NOT_FOUND"));
     }
 
+    // 상품 등록 실패 - 구매 후 경과 개월 수가 음수(미래 구매일시로 계산되는 것을 방지)
+    @Test
+    void createFailsWhenPurchasedMonthsNegative() throws Exception {
+        ProductCreateRequest invalidRequest = new ProductCreateRequest(
+                category.getId(),
+                "아이폰 13",
+                "설명",
+                500_000L,
+                ProductCondition.A,
+                false,
+                -1,
+                true,
+                TradeMethod.DIRECT,
+                null,
+                null,
+                List.of("https://image.example.com/1.png"),
+                List.of());
+
+        mockMvc.perform(post("/products")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_INPUT_VALUE"));
+    }
+
+    // 상품 등록 실패 - 구매 후 경과 개월 수가 6 초과(최대 6개월까지만 허용)
+    @Test
+    void createFailsWhenPurchasedMonthsExceedsMax() throws Exception {
+        ProductCreateRequest invalidRequest = new ProductCreateRequest(
+                category.getId(),
+                "아이폰 13",
+                "설명",
+                500_000L,
+                ProductCondition.A,
+                false,
+                7,
+                true,
+                TradeMethod.DIRECT,
+                null,
+                null,
+                List.of("https://image.example.com/1.png"),
+                List.of());
+
+        mockMvc.perform(post("/products")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_INPUT_VALUE"));
+    }
+
     // 상품 이미지 AI 분석 등록 성공
     @Test
     void createFromImagesSucceeds() throws Exception {
         ProductAiAnalysisResult analysis = new ProductAiAnalysisResult(
-                category.getId(), "AI가 분석한 상품", "AI 설명", ProductCondition.B, false, List.of("가성비"));
+                category.getId(), "AI가 분석한 상품", "AI 설명", ProductCondition.B, 300_000L, List.of("가성비"));
         when(productAiService.analyze(anyList())).thenReturn(analysis);
         when(fileStorageService.upload(any(), eq("products")))
                 .thenReturn(new FileUploadResponse("key", "https://image.example.com/ai.png", 3, "image/png"));
@@ -180,11 +235,45 @@ class ProductTest {
 
         mockMvc.perform(multipart("/products/analyze")
                         .file(image)
+                        .param("purchasedMonths", "3")
+                        .param("hasDefect", "true")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.title").value("AI가 분석한 상품"))
-                .andExpect(jsonPath("$.data.price").value(0))
-                .andExpect(jsonPath("$.data.tradeMethod").value("DIRECT"));
+                .andExpect(jsonPath("$.data.price").value(300_000))
+                .andExpect(jsonPath("$.data.tradeMethod").value("DIRECT"))
+                .andExpect(jsonPath("$.data.hasDefect").value(true))
+                .andExpect(jsonPath("$.data.purchasedAt")
+                        .value(LocalDate.now().minusMonths(3).toString()))
+                .andExpect(jsonPath("$.data.purchasedMonths").value(3));
+    }
+
+    // 상품 이미지 AI 분석 등록 실패 - 구매 후 경과 개월 수가 음수
+    @Test
+    void createFromImagesFailsWhenPurchasedMonthsNegative() throws Exception {
+        MockMultipartFile image = new MockMultipartFile("images", "photo.png", "image/png", new byte[] {1, 2, 3});
+
+        mockMvc.perform(multipart("/products/analyze")
+                        .file(image)
+                        .param("purchasedMonths", "-1")
+                        .param("hasDefect", "true")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_INPUT_VALUE"));
+    }
+
+    // 상품 이미지 AI 분석 등록 실패 - 구매 후 경과 개월 수가 6 초과
+    @Test
+    void createFromImagesFailsWhenPurchasedMonthsExceedsMax() throws Exception {
+        MockMultipartFile image = new MockMultipartFile("images", "photo.png", "image/png", new byte[] {1, 2, 3});
+
+        mockMvc.perform(multipart("/products/analyze")
+                        .file(image)
+                        .param("purchasedMonths", "7")
+                        .param("hasDefect", "true")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_INPUT_VALUE"));
     }
 
     // 상품 상세 조회 성공
@@ -381,6 +470,7 @@ class ProductTest {
                 500_000L,
                 ProductCondition.A,
                 false,
+                3,
                 true,
                 TradeMethod.DIRECT,
                 null,

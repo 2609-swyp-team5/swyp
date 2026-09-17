@@ -2,6 +2,8 @@ package com.swyp.team5.common.error;
 
 import java.util.List;
 
+import jakarta.validation.ConstraintViolationException;
+
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -90,6 +92,21 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * {@code @RequestParam}/{@code @PathVariable} 등 요청 본문이 아닌 파라미터에 붙은 Bean Validation
+     * 제약(예: {@code @PositiveOrZero})을 위반한 경우. 컨트롤러 클래스에 {@code @Validated}가 있어야
+     * 발생한다.
+     */
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConstraintViolation(ConstraintViolationException e) {
+        List<ErrorDetail> details = e.getConstraintViolations().stream()
+                .map(violation -> new ErrorDetail(
+                        lastPathSegment(violation.getPropertyPath().toString()), violation.getMessage()))
+                .toList();
+        log.warn("요청 파라미터 검증 실패: {}", details);
+        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", "입력값이 올바르지 않습니다.", details);
+    }
+
+    /**
      * 요청 본문 자체를 읽지 못한 경우. JSON 문법 오류이거나, enum 필드에 정의되지 않은 값이 온 경우다.
      *
      * <p>예외 메시지에는 파서 내부 정보가 들어 있어 그대로 내려주지 않고 로그로만 남긴다.
@@ -108,6 +125,15 @@ public class GlobalExceptionHandler {
 
     private ResponseEntity<ApiResponse<Void>> errorResponse(HttpStatus status, String code, String message) {
         return errorResponse(status, code, message, null);
+    }
+
+    /**
+     * {@code ConstraintViolation}의 property path(예: {@code createFromImages.purchasedMonths})에서
+     * 파라미터 이름만 추출한다.
+     */
+    private static String lastPathSegment(String propertyPath) {
+        int lastDot = propertyPath.lastIndexOf('.');
+        return lastDot == -1 ? propertyPath : propertyPath.substring(lastDot + 1);
     }
 
     private ResponseEntity<ApiResponse<Void>> errorResponse(

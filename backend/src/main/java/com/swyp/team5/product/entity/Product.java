@@ -1,5 +1,6 @@
 package com.swyp.team5.product.entity;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -70,7 +71,7 @@ public class Product {
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "product_status")
-    private ProductStatus status; // 상품 상태
+    private ProductStatus status; // 상품 등록 상태
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
@@ -79,6 +80,9 @@ public class Product {
 
     @Column(name = "has_defect", nullable = false)
     private boolean hasDefect; // 상품 결함 여부(하자)
+
+    @Column(name = "purchased_at")
+    private LocalDate purchasedAt; // 구매 일시(선택)
 
     @Column(name = "allow_price_suggestion", nullable = false)
     private boolean allowPriceSuggestion; // 가격 제안 허용 여부
@@ -124,6 +128,7 @@ public class Product {
             Long price,
             ProductCondition condition,
             boolean hasDefect,
+            LocalDate purchasedAt,
             boolean allowPriceSuggestion,
             TradeMethod tradeMethod,
             DeliveryType deliveryType,
@@ -136,6 +141,7 @@ public class Product {
         this.status = ProductStatus.ON_SALE;
         this.condition = condition;
         this.hasDefect = hasDefect;
+        this.purchasedAt = purchasedAt;
         this.allowPriceSuggestion = allowPriceSuggestion;
         this.tradeMethod = tradeMethod;
         this.deliveryType = deliveryType;
@@ -158,6 +164,7 @@ public class Product {
             Long price,
             ProductCondition condition,
             boolean hasDefect,
+            LocalDate purchasedAt,
             boolean allowPriceSuggestion,
             TradeMethod tradeMethod,
             DeliveryType deliveryType,
@@ -172,6 +179,7 @@ public class Product {
                 .price(price)
                 .condition(condition)
                 .hasDefect(hasDefect)
+                .purchasedAt(purchasedAt)
                 .allowPriceSuggestion(allowPriceSuggestion)
                 .tradeMethod(tradeMethod)
                 .deliveryType(deliveryType)
@@ -195,6 +203,7 @@ public class Product {
     /**
      * 상품 정보를 전달된 값으로 전체 갱신한다. 이미지·태그는 이 메소드로 갱신되지 않으므로
      * {@link #addImages}/{@link #clearImages}, {@link #addTags}/{@link #clearTags}를 별도로 호출해야 한다.
+     * 구매 일시({@code purchasedAt})는 등록 시점에 확정되는 값이라 이 메소드로 변경되지 않는다.
      */
     public void update(
             Category category,
