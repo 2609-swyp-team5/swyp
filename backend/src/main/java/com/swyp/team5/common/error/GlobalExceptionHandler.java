@@ -13,6 +13,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.swyp.team5.auth.error.DuplicateEmailException;
 import com.swyp.team5.auth.error.DuplicatePhoneException;
@@ -115,6 +116,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleUnreadableRequestBody(HttpMessageNotReadableException e) {
         log.warn("요청 본문을 읽을 수 없습니다: {}", e.getMessage());
         return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", "요청 본문의 형식이 올바르지 않습니다.");
+    }
+
+    /**
+     * 존재하지 않는 정적 리소스 요청(잘못된 URL 등). Spring이 기본으로 404 처리하는 예외지만, 여기서
+     * 잡지 않으면 아래 {@link #handleException}으로 흘러가 500 + "예기치 못한 오류"로 잘못 보고된다.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNoResourceFound(NoResourceFoundException e) {
+        log.warn("존재하지 않는 정적 리소스 요청: {}", e.getResourcePath());
+        return errorResponse(HttpStatus.NOT_FOUND, "NOT_FOUND", "요청한 리소스를 찾을 수 없습니다.");
     }
 
     @ExceptionHandler(Exception.class)
