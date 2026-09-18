@@ -20,8 +20,6 @@ CREATE TABLE category_platforms (
 
 INSERT INTO platforms (name, is_active, is_crawl) VALUES ('번개장터', TRUE, TRUE);
 
--- application.yaml의 crawl.bunjang.category-mapping(2026-09-18 검증 완료분)을 그대로 옮김.
--- 상세 근거는 docs/시세수집-번개장터-API-참고.md 참고.
 INSERT INTO category_platforms (category_id, platform_id, external_category_id)
 SELECT mapping.category_id, bunjang.platform_id, mapping.external_category_id
 FROM (VALUES

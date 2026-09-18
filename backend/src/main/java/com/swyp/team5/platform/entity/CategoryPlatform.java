@@ -22,8 +22,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 /**
  * 우리 {@link Category} ↔ 외부 플랫폼({@link Platform}) 자체 카테고리 ID 매핑. 플랫폼별로 카테고리
- * 체계가 달라 이름 매칭이 안 되는 경우가 많아, 수작업으로 검증된 값만 row로 등록한다(상세 검증 근거는
- * docs/시세수집-번개장터-API-참고.md 참고).
+ * 체계가 달라 이름 매칭이 안 되는 경우가 많아, 수작업으로 검증된 값만 row로 등록한다.
  */
 @Entity
 @Table(name = "category_platforms")

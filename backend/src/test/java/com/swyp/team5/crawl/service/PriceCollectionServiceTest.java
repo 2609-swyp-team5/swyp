@@ -81,7 +81,7 @@ class PriceCollectionServiceTest {
     }
 
     @Test
-    void collectAll_카테고리_매핑이_비어있으면_아무_것도_하지_않는다() {
+    void collectAllDoesNothingWhenNoCategoryMapping() {
         when(categoryPlatformRepository.findByPlatformName("번개장터")).thenReturn(List.of());
 
         service().collectAll();
@@ -90,7 +90,7 @@ class PriceCollectionServiceTest {
     }
 
     @Test
-    void collectAll_광고_제외_중복_제외_후_카테고리_시세_통계로_상품별_스냅샷을_저장한다() {
+    void collectAllSavesSnapshotsExcludingAdsAndDuplicates() {
         CategoryPlatform mapping = mapping(10L, "999");
         when(categoryPlatformRepository.findByPlatformName("번개장터")).thenReturn(List.of(mapping));
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
@@ -125,7 +125,7 @@ class PriceCollectionServiceTest {
     }
 
     @Test
-    void collectAll_한_카테고리가_실패해도_나머지_카테고리는_계속_수집한다() {
+    void collectAllContinuesOtherCategoriesWhenOneFails() {
         CategoryPlatform failingMapping = mapping(10L, "fail");
         CategoryPlatform okMapping = mapping(20L, "999");
         when(categoryPlatformRepository.findByPlatformName("번개장터")).thenReturn(List.of(failingMapping, okMapping));
@@ -145,7 +145,7 @@ class PriceCollectionServiceTest {
     }
 
     @Test
-    void collectAll_신규_매물이_없으면_저장하지_않는다() {
+    void collectAllDoesNotSaveWhenNoFreshItems() {
         CategoryPlatform mapping = mapping(10L, "999");
         when(categoryPlatformRepository.findByPlatformName("번개장터")).thenReturn(List.of(mapping));
         when(bunjangCategoryClient.fetchPage(eq("999"), any()))
