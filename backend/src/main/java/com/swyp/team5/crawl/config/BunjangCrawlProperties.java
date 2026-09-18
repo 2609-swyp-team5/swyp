@@ -1,7 +1,5 @@
 package com.swyp.team5.crawl.config;
 
-import java.time.Duration;
-
 import jakarta.validation.constraints.NotNull;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -15,5 +13,4 @@ import org.springframework.validation.annotation.Validated;
  */
 @Validated
 @ConfigurationProperties(prefix = "crawl.bunjang")
-public record BunjangCrawlProperties(
-        @NotNull Integer pageLimit, @NotNull Duration dedupeTtl, @NotNull Duration cacheTtl) {}
+public record BunjangCrawlProperties(@NotNull Integer pageLimit) {}

@@ -122,8 +122,6 @@ crawl:
     enabled: ${CRAWL_BUNJANG_ENABLED:true}
     cron: ${CRAWL_BUNJANG_CRON:0 0 * * * *} # 매 시간 정각에 실행
     page-limit: ${CRAWL_BUNJANG_PAGE_LIMIT:5} # 한 번에 크롤링할 페이지 수 제한
-    dedupe-ttl: ${CRAWL_BUNJANG_DEDUPE_TTL:24h} # 중복 URL 제거용 Redis Set TTL
-    cache-ttl: ${CRAWL_BUNJANG_CACHE_TTL:1h} # 크롤링 결과 캐싱 TTL
 
 # 스웨거 설정
 springdoc:
