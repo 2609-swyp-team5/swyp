@@ -12,9 +12,9 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import com.swyp.team5.crawl.client.BunjangCategoryClient;
-import com.swyp.team5.crawl.client.dto.BunjangCategoryPage;
-import com.swyp.team5.crawl.client.dto.BunjangProductItem;
 import com.swyp.team5.crawl.config.BunjangCrawlProperties;
+import com.swyp.team5.crawl.dto.BunjangCategoryPage;
+import com.swyp.team5.crawl.dto.BunjangProductItem;
 import com.swyp.team5.platform.entity.CategoryPlatform;
 import com.swyp.team5.platform.repository.CategoryPlatformRepository;
 import com.swyp.team5.product.entity.Product;
@@ -53,7 +53,20 @@ public class PriceCollectionService {
             log.info("번개장터 카테고리 매핑이 비어있어 시세 수집을 건너뜁니다.");
             return;
         }
-        mappings.forEach(this::collectCategory);
+        mappings.forEach(this::collectCategorySafely);
+    }
+
+    /** 카테고리 하나가 실패해도(파싱 오류, 네트워크 문제 등) 나머지 카테고리는 계속 수집하도록 예외를 격리한다. */
+    private void collectCategorySafely(CategoryPlatform mapping) {
+        try {
+            collectCategory(mapping);
+        } catch (Exception e) {
+            log.error(
+                    "카테고리 {}(번개장터 {}) 시세 수집 중 오류가 발생했습니다.",
+                    mapping.getCategory().getId(),
+                    mapping.getExternalCategoryId(),
+                    e);
+        }
     }
 
     private void collectCategory(CategoryPlatform mapping) {

@@ -2,6 +2,7 @@ package com.swyp.team5.crawl.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -19,9 +20,9 @@ import org.springframework.data.redis.core.ValueOperations;
 
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.crawl.client.BunjangCategoryClient;
-import com.swyp.team5.crawl.client.dto.BunjangCategoryPage;
-import com.swyp.team5.crawl.client.dto.BunjangProductItem;
 import com.swyp.team5.crawl.config.BunjangCrawlProperties;
+import com.swyp.team5.crawl.dto.BunjangCategoryPage;
+import com.swyp.team5.crawl.dto.BunjangProductItem;
 import com.swyp.team5.platform.entity.CategoryPlatform;
 import com.swyp.team5.platform.repository.CategoryPlatformRepository;
 import com.swyp.team5.product.entity.Product;
@@ -121,6 +122,26 @@ class PriceCollectionServiceTest {
         assertThat(saved.get(0).getAveragePrice()).isEqualTo(2000L);
         assertThat(saved.get(0).getMaxPrice()).isEqualTo(3000L);
         assertThat(saved.get(0).getRecommendation()).isNull();
+    }
+
+    @Test
+    void collectAll_한_카테고리가_실패해도_나머지_카테고리는_계속_수집한다() {
+        CategoryPlatform failingMapping = mapping(10L, "fail");
+        CategoryPlatform okMapping = mapping(20L, "999");
+        when(categoryPlatformRepository.findByPlatformName("번개장터")).thenReturn(List.of(failingMapping, okMapping));
+        when(bunjangCategoryClient.fetchPage(eq("fail"), any())).thenThrow(new RuntimeException("파싱 실패"));
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(bunjangCategoryClient.fetchPage(eq("999"), any()))
+                .thenReturn(new BunjangCategoryPage(
+                        List.of(new BunjangProductItem(1L, "상품1", 1000L, "SELLING", false)), null, false));
+        when(valueOperations.setIfAbsent(anyString(), eq("1"), eq(DEDUPE_TTL))).thenReturn(true);
+        when(productRepository.findByCategoryId(20L)).thenReturn(List.of(mock(Product.class)));
+
+        service().collectAll();
+
+        verify(bunjangCategoryClient).fetchPage(eq("fail"), any());
+        verify(bunjangCategoryClient).fetchPage(eq("999"), any());
+        verify(productAnalysisRepository).saveAll(anyList());
     }
 
     @Test

@@ -1,4 +1,4 @@
-package com.swyp.team5.crawl.client.dto;
+package com.swyp.team5.crawl.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
