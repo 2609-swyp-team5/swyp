@@ -20,8 +20,8 @@ import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.product.dto.ProductAiAnalysisResult;
 
 /**
- * 상품 이미지를 Gemini에 전달해 상품 정보(제목/설명/카테고리/상태 등급/결함 여부/태그)를
- * 자동으로 추론하는 서비스.
+ * 상품 이미지를 Gemini에 전달해 상품 정보(제목/설명/카테고리/상태 등급/추정 판매가/태그)를
+ * 자동으로 추론하는 서비스. 구매 일시/결함 여부는 AI가 추론하지 않고 사용자가 직접 입력한다.
  */
 @Service
 public class ProductAiService {
@@ -29,8 +29,10 @@ public class ProductAiService {
     private static final String SYSTEM_PROMPT =
             """
             너는 중고거래 플랫폼의 상품 등록을 돕는 AI야. 업로드된 상품 사진들을 분석해서
-            상품 제목, 설명, 카테고리, 상태 등급, 결함 여부, 태그를 정확하게 추론해.
+            상품 제목, 설명, 카테고리, 상태 등급, 추정 판매가, 태그를 정확하게 추론해.
             categoryId는 반드시 아래 카테고리 목록에 있는 값 중 하나여야 해.
+            suggestedPrice는 상품 종류와 상태 등급을 참고해 국내 중고거래 플랫폼에서 통용되는
+            원화(KRW) 시세 감각으로 추정하되, 확신이 없어도 0원이 아닌 합리적인 범위의 값을 제시해.
 
             카테고리 목록:
             %s

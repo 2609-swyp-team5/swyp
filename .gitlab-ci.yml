@@ -42,7 +42,11 @@ backend-test:
     - ./gradlew spotlessCheck test
 
   rules:
-    - changes:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - backend/**/*
+    - if: $CI_PIPELINE_SOURCE == "push"
+      changes:
         - backend/**/*
 
 backend-build:
@@ -71,7 +75,11 @@ backend-build:
     expire_in: 3 days
 
   rules:
-    - changes:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - backend/**/*
+    - if: $CI_PIPELINE_SOURCE == "push"
+      changes:
         - backend/**/*
 
 # ==========================================
@@ -196,7 +204,13 @@ frontend-test:
     - npm run test:run
 
   rules:
-    - exists:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      exists:
+        - frontend/**/*
+      changes:
+        - frontend/**/*
+    - if: $CI_PIPELINE_SOURCE == "push"
+      exists:
         - frontend/**/*
       changes:
         - frontend/**/*
@@ -225,7 +239,13 @@ frontend-e2e:
     expire_in: 3 days
 
   rules:
-    - exists:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      exists:
+        - frontend/package.json
+      changes:
+        - frontend/**/*
+    - if: $CI_PIPELINE_SOURCE == "push"
+      exists:
         - frontend/package.json
       changes:
         - frontend/**/*
@@ -254,7 +274,13 @@ frontend-build:
     expire_in: 3 days
 
   rules:
-    - exists:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      exists:
+        - frontend/package.json
+      changes:
+        - frontend/**/*
+    - if: $CI_PIPELINE_SOURCE == "push"
+      exists:
         - frontend/package.json
       changes:
         - frontend/**/*
