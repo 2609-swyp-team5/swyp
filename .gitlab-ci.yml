@@ -270,7 +270,7 @@ frontend-build:
 
   artifacts:
     paths:
-      - frontend/dist/
+      - frontend/.next/
     expire_in: 3 days
 
   rules:

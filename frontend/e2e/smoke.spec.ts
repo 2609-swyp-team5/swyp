@@ -1,12 +1,50 @@
 import { expect, test } from "@playwright/test";
 
-test("homepage shows the getting-started content", async ({ page }) => {
+test("onboarding connects to the authentication flow", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page).toHaveTitle("Create Next App");
-    await expect(page.getByRole("heading", { name: /to get started/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Documentation" })).toHaveAttribute(
-        "href",
-        /nextjs\.org\/docs/,
+    await expect(page).toHaveTitle("지금이니?");
+    await expect(page.getByRole("heading", { name: "지금 팔까, 더 갖고 있을까?" })).toBeVisible();
+
+    await page.getByRole("link", { name: "시작하기" }).click();
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByRole("heading", { name: "로그인" })).toBeVisible();
+
+    await page.getByRole("link", { name: "비회원 로그인" }).click();
+    await expect(page).toHaveURL(/\/home$/);
+    await expect(page.getByRole("link", { name: "홈" })).toHaveAttribute("aria-current", "page");
+
+    await page.getByRole("link", { name: "프로필" }).click();
+    await expect(page).toHaveURL(/\/my$/);
+    await expect(page.getByRole("link", { name: "프로필" })).toHaveAttribute(
+        "aria-current",
+        "page",
     );
+    await expect(page.getByRole("link", { name: "마이페이지" })).toHaveAttribute(
+        "aria-current",
+        "page",
+    );
+    await page.getByRole("link", { name: "등록된 상품" }).click();
+    await expect(page).toHaveURL(/\/my\/products$/);
+    await expect(page.getByRole("link", { name: "등록된 상품" })).toHaveAttribute(
+        "aria-current",
+        "page",
+    );
+
+    await page.goto("/login");
+    await page.getByRole("link", { name: "회원가입" }).last().click();
+    await expect(page).toHaveURL(/\/signup$/);
+    await expect(page.getByRole("heading", { name: "회원가입" })).toBeVisible();
+
+    await page.goto("/login");
+    await page.getByRole("link", { name: "아이디/비밀번호 찾기" }).click();
+    await expect(page).toHaveURL(/\/account\/recovery$/);
+});
+
+test("home displays its page description", async ({ page }) => {
+    await page.goto("/home");
+
+    await expect(page.getByRole("heading", { name: "서비스 홈" })).toBeVisible();
+    await expect(page.getByText("서비스 홈 화면입니다.")).toBeVisible();
+    await expect(page.getByRole("link", { name: "홈" })).toHaveAttribute("aria-current", "page");
 });
