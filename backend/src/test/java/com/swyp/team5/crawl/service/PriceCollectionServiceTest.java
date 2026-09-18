@@ -2,9 +2,9 @@ package com.swyp.team5.crawl.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -12,11 +12,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import java.time.Duration;
 import java.util.List;
-
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
+import java.util.Optional;
 
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.crawl.client.BunjangCategoryClient;
@@ -24,58 +21,43 @@ import com.swyp.team5.crawl.config.BunjangCrawlProperties;
 import com.swyp.team5.crawl.dto.BunjangCategoryPage;
 import com.swyp.team5.crawl.dto.BunjangProductItem;
 import com.swyp.team5.platform.entity.CategoryPlatform;
+import com.swyp.team5.platform.entity.Platform;
+import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.platform.repository.CategoryPlatformRepository;
-import com.swyp.team5.product.entity.Product;
-import com.swyp.team5.product.repository.ProductRepository;
-import com.swyp.team5.productanalysis.entity.ProductAnalysis;
-import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
+import com.swyp.team5.platform.repository.PlatformListingRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-// 시세 데이터 수집(카테고리 단위 집계) Service 단위 테스트.
+// 시세 데이터 수집 Service 단위 테스트.
 @ExtendWith(MockitoExtension.class)
 class PriceCollectionServiceTest {
 
-    private static final Duration DEDUPE_TTL = Duration.ofHours(24);
-    private static final Duration CACHE_TTL = Duration.ofHours(1);
-    private static final BunjangCrawlProperties PROPERTIES = new BunjangCrawlProperties(5, DEDUPE_TTL, CACHE_TTL);
+    private static final BunjangCrawlProperties PROPERTIES = new BunjangCrawlProperties(5);
 
     @Mock
     private BunjangCategoryClient bunjangCategoryClient;
 
     @Mock
-    private ProductRepository productRepository;
-
-    @Mock
-    private ProductAnalysisRepository productAnalysisRepository;
-
-    @Mock
     private CategoryPlatformRepository categoryPlatformRepository;
 
     @Mock
-    private StringRedisTemplate redisTemplate;
-
-    @Mock
-    private ValueOperations<String, String> valueOperations;
+    private PlatformListingRepository platformListingRepository;
 
     private PriceCollectionService service() {
         return new PriceCollectionService(
-                bunjangCategoryClient,
-                productRepository,
-                productAnalysisRepository,
-                categoryPlatformRepository,
-                redisTemplate,
-                PROPERTIES);
+                bunjangCategoryClient, categoryPlatformRepository, platformListingRepository, PROPERTIES);
     }
 
     private static CategoryPlatform mapping(Long categoryId, String externalCategoryId) {
         Category category = mock(Category.class);
         when(category.getId()).thenReturn(categoryId);
+        Platform platform = mock(Platform.class);
         CategoryPlatform mapping = mock(CategoryPlatform.class);
         when(mapping.getCategory()).thenReturn(category);
+        lenient().when(mapping.getPlatform()).thenReturn(platform);
         when(mapping.getExternalCategoryId()).thenReturn(externalCategoryId);
         return mapping;
     }
@@ -86,44 +68,66 @@ class PriceCollectionServiceTest {
 
         service().collectAll();
 
-        verifyNoInteractions(bunjangCategoryClient, productRepository, productAnalysisRepository, redisTemplate);
+        verifyNoInteractions(bunjangCategoryClient, platformListingRepository);
     }
 
     @Test
-    void collectAllSavesSnapshotsExcludingAdsDuplicatesAndNonSellingItems() {
+    void collectAllUpsertsNewListingsAndFiltersAdsAndNonSellingItems() {
         CategoryPlatform mapping = mapping(10L, "999");
         when(categoryPlatformRepository.findByPlatformName("번개장터")).thenReturn(List.of(mapping));
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(bunjangCategoryClient.fetchPage(eq("999"), any()))
                 .thenReturn(new BunjangCategoryPage(
                         List.of(
-                                new BunjangProductItem(1L, "상품1", 1000L, "SELLING", false),
-                                new BunjangProductItem(2L, "상품2", 3000L, "SELLING", false),
-                                new BunjangProductItem(3L, "광고상품", 999_999L, "SELLING", true),
-                                new BunjangProductItem(4L, "판매완료상품", 1L, "SOLD_OUT", false)),
+                                new BunjangProductItem(1L, "상품1", 1000L, "SELLING", false, "https://img/1"),
+                                new BunjangProductItem(2L, "상품2", 3000L, "SELLING", false, "https://img/2"),
+                                new BunjangProductItem(3L, "광고상품", 999_999L, "SELLING", true, "https://img/3"),
+                                new BunjangProductItem(4L, "판매완료상품", 1L, "SOLD_OUT", false, "https://img/4")),
                         null,
                         false));
-        when(valueOperations.setIfAbsent(anyString(), eq("1"), eq(DEDUPE_TTL))).thenReturn(true);
-
-        Product product1 = mock(Product.class);
-        Product product2 = mock(Product.class);
-        when(productRepository.findByCategoryId(10L)).thenReturn(List.of(product1, product2));
+        when(platformListingRepository.findByPlatformAndExternalItemId(any(), anyString()))
+                .thenReturn(Optional.empty());
 
         service().collectAll();
 
         verify(bunjangCategoryClient, times(1)).fetchPage(eq("999"), any());
-        verify(valueOperations, never()).setIfAbsent(eq("crawl:bunjang:seen:3"), anyString(), any(Duration.class));
-        verify(valueOperations, never()).setIfAbsent(eq("crawl:bunjang:seen:4"), anyString(), any(Duration.class));
-        verify(valueOperations).set(eq("crawl:bunjang:price:10"), eq("min=1000,avg=2000,max=3000"), eq(CACHE_TTL));
+        verify(platformListingRepository).findByPlatformAndExternalItemId(mapping.getPlatform(), "1");
+        verify(platformListingRepository).findByPlatformAndExternalItemId(mapping.getPlatform(), "2");
+        verify(platformListingRepository, never()).findByPlatformAndExternalItemId(mapping.getPlatform(), "3");
+        verify(platformListingRepository, never()).findByPlatformAndExternalItemId(mapping.getPlatform(), "4");
 
-        ArgumentCaptor<List<ProductAnalysis>> captor = ArgumentCaptor.forClass(List.class);
-        verify(productAnalysisRepository).saveAll(captor.capture());
-        List<ProductAnalysis> saved = captor.getValue();
-        assertThat(saved).hasSize(2);
-        assertThat(saved.get(0).getMinPrice()).isEqualTo(1000L);
-        assertThat(saved.get(0).getAveragePrice()).isEqualTo(2000L);
-        assertThat(saved.get(0).getMaxPrice()).isEqualTo(3000L);
-        assertThat(saved.get(0).getRecommendation()).isNull();
+        ArgumentCaptor<PlatformListing> captor = ArgumentCaptor.forClass(PlatformListing.class);
+        verify(platformListingRepository, times(2)).save(captor.capture());
+        List<Long> savedPrices =
+                captor.getAllValues().stream().map(PlatformListing::getPrice).toList();
+        assertThat(savedPrices).containsExactlyInAnyOrder(1000L, 3000L);
+    }
+
+    @Test
+    void collectAllUpdatesExistingListingInPlace() {
+        CategoryPlatform mapping = mapping(10L, "999");
+        when(categoryPlatformRepository.findByPlatformName("번개장터")).thenReturn(List.of(mapping));
+        when(bunjangCategoryClient.fetchPage(eq("999"), any()))
+                .thenReturn(new BunjangCategoryPage(
+                        List.of(new BunjangProductItem(1L, "상품1(가격변동)", 5000L, "SELLING", false, "https://img/1")),
+                        null,
+                        false));
+        PlatformListing existing = PlatformListing.create(
+                mapping.getPlatform(),
+                mapping.getCategory(),
+                "1",
+                "상품1",
+                1000L,
+                "SELLING",
+                "https://img/1",
+                "https://m.bunjang.co.kr/products/1");
+        when(platformListingRepository.findByPlatformAndExternalItemId(mapping.getPlatform(), "1"))
+                .thenReturn(Optional.of(existing));
+
+        service().collectAll();
+
+        verify(platformListingRepository).save(existing);
+        assertThat(existing.getPrice()).isEqualTo(5000L);
+        assertThat(existing.getTitle()).isEqualTo("상품1(가격변동)");
     }
 
     @Test
@@ -132,22 +136,22 @@ class PriceCollectionServiceTest {
         CategoryPlatform okMapping = mapping(20L, "999");
         when(categoryPlatformRepository.findByPlatformName("번개장터")).thenReturn(List.of(failingMapping, okMapping));
         when(bunjangCategoryClient.fetchPage(eq("fail"), any())).thenThrow(new RuntimeException("파싱 실패"));
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(bunjangCategoryClient.fetchPage(eq("999"), any()))
                 .thenReturn(new BunjangCategoryPage(
-                        List.of(new BunjangProductItem(1L, "상품1", 1000L, "SELLING", false)), null, false));
-        when(valueOperations.setIfAbsent(anyString(), eq("1"), eq(DEDUPE_TTL))).thenReturn(true);
-        when(productRepository.findByCategoryId(20L)).thenReturn(List.of(mock(Product.class)));
+                        List.of(new BunjangProductItem(1L, "상품1", 1000L, "SELLING", false, "https://img/1")),
+                        null,
+                        false));
+        when(platformListingRepository.findByPlatformAndExternalItemId(any(), anyString()))
+                .thenReturn(Optional.empty());
 
         service().collectAll();
 
         verify(bunjangCategoryClient).fetchPage(eq("fail"), any());
         verify(bunjangCategoryClient).fetchPage(eq("999"), any());
-        verify(productAnalysisRepository).saveAll(anyList());
     }
 
     @Test
-    void collectAllDoesNotSaveWhenNoFreshItems() {
+    void collectAllSavesNothingWhenNoItemsReturned() {
         CategoryPlatform mapping = mapping(10L, "999");
         when(categoryPlatformRepository.findByPlatformName("번개장터")).thenReturn(List.of(mapping));
         when(bunjangCategoryClient.fetchPage(eq("999"), any()))
@@ -155,7 +159,6 @@ class PriceCollectionServiceTest {
 
         service().collectAll();
 
-        verifyNoInteractions(productAnalysisRepository);
-        verify(valueOperations, never()).set(anyString(), anyString(), any(Duration.class));
+        verifyNoInteractions(platformListingRepository);
     }
 }
