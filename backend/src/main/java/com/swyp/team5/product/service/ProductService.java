@@ -1,6 +1,7 @@
 package com.swyp.team5.product.service;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -219,15 +220,21 @@ public class ProductService {
         return CursorPageResponse.of(items, size, ProductSummaryResponse::id);
     }
 
-    /** 상품 목록의 각 상품 ID에 대한 가장 최근 시세 분석 판단을 한 번의 쿼리로 조회한다(N+1 방지). */
+    /**
+     * 상품 목록의 각 상품 ID에 대한 가장 최근 시세 분석 판단을 한 번의 쿼리로 조회한다(N+1 방지).
+     * {@code recommendation}이 {@code null}인 경우가 흔해 {@link Collectors#toMap}(null 값에서
+     * NPE 발생)은 쓸 수 없다.
+     */
     private Map<Long, AnalysisRecommendation> findLatestRecommendations(List<Product> products) {
         if (products.isEmpty()) {
             return Map.of();
         }
         List<Long> productIds = products.stream().map(Product::getId).toList();
-        return productAnalysisRepository.findLatestByProductIdIn(productIds).stream()
-                .collect(Collectors.toMap(
-                        analysis -> analysis.getProduct().getId(), ProductAnalysis::getRecommendation));
+        Map<Long, AnalysisRecommendation> recommendations = new HashMap<>();
+        for (ProductAnalysis analysis : productAnalysisRepository.findLatestByProductIdIn(productIds)) {
+            recommendations.put(analysis.getProduct().getId(), analysis.getRecommendation());
+        }
+        return recommendations;
     }
 
     /**
