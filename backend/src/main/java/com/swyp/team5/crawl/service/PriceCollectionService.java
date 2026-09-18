@@ -25,10 +25,6 @@ import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
 /**
  * 번개장터 카테고리별 매물을 광범위 수집해 카테고리 단위 시세 통계(평균/최저/최고가)를 계산하고,
  * 같은 카테고리에 등록된 상품마다 {@link ProductAnalysis} 스냅샷으로 저장한다.
- *
- * <p>1차 구현 스코프(2026-09-18 확정): 상품명 단위 매칭·이상치 필터링·판단(recommendation) 로직은
- * 다루지 않는다(PROGRESS.md "다음 작업" 2·3번 참고). 원시 매물 데이터는 저장하지 않고 집계된
- * 통계만 남긴다. API 기술 세부사항은 docs/시세수집-번개장터-API-참고.md 참고.
  */
 @Slf4j
 @Service
@@ -37,7 +33,7 @@ public class PriceCollectionService {
 
     private static final String SEEN_KEY_PREFIX = "crawl:bunjang:seen:";
     private static final String PRICE_CACHE_KEY_PREFIX = "crawl:bunjang:price:";
-    private static final String PLATFORM_NAME = "번개장터";
+    private static final String PLATFORM_NAME = "번개장터"; // 현재는 번개장터만 수집하므로 상수로 고정
 
     private final BunjangCategoryClient bunjangCategoryClient;
     private final ProductRepository productRepository;
@@ -46,7 +42,7 @@ public class PriceCollectionService {
     private final StringRedisTemplate redisTemplate;
     private final BunjangCrawlProperties properties;
 
-    /** 등록된 카테고리 매핑(category_platforms) 전체를 순회하며 수집한다. 매핑이 없으면 아무 것도 하지 않는다. */
+    /** 등록된 카테고리 전체를 순회하며 수집한다. 매핑이 없으면 아무 것도 하지 않는다. */
     public void collectAll() {
         List<CategoryPlatform> mappings = categoryPlatformRepository.findByPlatformName(PLATFORM_NAME);
         if (mappings.isEmpty()) {
@@ -56,7 +52,7 @@ public class PriceCollectionService {
         mappings.forEach(this::collectCategorySafely);
     }
 
-    /** 카테고리 하나가 실패해도(파싱 오류, 네트워크 문제 등) 나머지 카테고리는 계속 수집하도록 예외를 격리한다. */
+    /** 카테고리 하나가 실패해도 다른 카테고리는 계속 수집하도록 예외를 격리한다. */
     private void collectCategorySafely(CategoryPlatform mapping) {
         try {
             collectCategory(mapping);

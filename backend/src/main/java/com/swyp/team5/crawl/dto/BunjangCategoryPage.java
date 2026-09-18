@@ -7,10 +7,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * 번개장터 카테고리 목록 API 응답 한 페이지. {@code data.searchSpec.uiBlockList[]} 중
- * {@code mainGrid} 블록만 파싱한다(나머지 블록은 시세 수집에 불필요). 정식 공개 API가 아니라
- * 응답 스키마가 예고 없이 바뀔 수 있어 필요한 필드만 최소한으로 파싱한다. 상세 구조는
- * docs/시세수집-번개장터-API-참고.md 참고.
+ * 번개장터 카테고리 목록 API 응답페이지.
  */
 public record BunjangCategoryPage(List<BunjangProductItem> items, String nextCursor, boolean hasNext) {
 

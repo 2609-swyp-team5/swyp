@@ -10,9 +10,8 @@ import org.springframework.stereotype.Component;
 import com.swyp.team5.crawl.service.PriceCollectionService;
 
 /**
- * 번개장터 시세 수집을 주기 실행한다. 규모가 커지기 전까지는 Spring Batch 없이 {@code @Scheduled}로
- * 직접 처리하는 것으로 결정(2026-09-18) — 실패해도 재시작 지점 추적 없이 다음 주기에 처음부터 다시
- * 돌지만, Redis 중복 체크로 같은 매물을 반복 집계하지는 않는다(PROGRESS.md "다음 작업" 2번 참고).
+ * 번개장터 시세 수집을 주기 실행한다.
+ * 실패해도 재시작 지점 추적 없이 다음 주기에 처음부터 다시 돌지만, 중복 체크로 같은 매물을 반복 집계하지는 않음
  */
 @Slf4j
 @Component
