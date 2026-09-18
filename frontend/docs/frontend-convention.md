@@ -126,7 +126,26 @@ frontend/
 - Prettier 설정을 따른다: 4칸 들여쓰기, 큰따옴표, 세미콜론, trailing comma, LF.
 - Tailwind 클래스 순서는 `prettier-plugin-tailwindcss`에 맡긴다.
 
-## 7. 테스트 규칙
+## 7. 폼 / 검증
+
+- 폼 상태와 제출 처리는 `react-hook-form`을 기본으로 사용한다.
+- 필드 검증 규칙은 `zod` 스키마로 정의하고, `@hookform/resolvers/zod`의 `zodResolver`로 React Hook Form과 연결한다.
+- 상품 등록, 회원가입, 어드민 프롬프트 등록처럼 필드가 많거나 단계가 있는 폼에 우선 적용한다.
+- 스키마는 사용하는 도메인의 `features/{도메인}/schemas/`에 둔다. 여러 도메인에서 공유하는 규칙만 `common`으로 올린다.
+- API 요청 데이터와 응답 데이터의 검증이 필요할 때 같은 Zod 스키마를 활용한다. 현재 백엔드와 스키마를 자동으로 공유하는 구조는 아니므로, 공유가 필요해지면 별도 패키지나 생성 방식을 먼저 합의한다.
+- 실제 폼을 도입할 때 필요한 의존성은 `react-hook-form`, `@hookform/resolvers`, `zod`다. 사용하지 않는 화면에 미리 추가하지 않는다.
+
+## 8. 아이콘 / 애니메이션
+
+- 아이콘은 `lucide-react`를 기본으로 사용한다. 현재 프로젝트의 shadcn/ui 컴포넌트와 함께 사용할 수 있고, 아이콘의 크기·색상은 Tailwind 클래스로 조정한다.
+- 장식용 아이콘에는 `aria-hidden="true"`를 사용하고, 의미를 전달하는 아이콘 버튼에는 `aria-label`을 제공한다.
+- Figma에만 존재하는 브랜드 아이콘이나 외부 플랫폼 로고처럼 Lucide로 대체할 수 없는 경우에만 별도 SVG·이미지를 사용한다.
+- 모달, 토스트, 페이지 전환처럼 상태 변화가 있는 애니메이션에는 `framer-motion`을 사용한다.
+- 단순한 hover, 색상, opacity, 짧은 크기 변화는 Tailwind의 `transition-*` 클래스를 우선 사용한다.
+- 애니메이션은 콘텐츠 이해를 방해하지 않도록 최소화하고, `prefers-reduced-motion` 환경을 고려한다.
+- 실제 애니메이션을 도입할 때 필요한 의존성은 `framer-motion`이며, 사용하지 않는 화면에 미리 추가하지 않는다.
+
+## 9. 테스트 규칙
 
 - 단위·컴포넌트 테스트는 Vitest와 React Testing Library를 사용한다.
 - API mocking은 MSW를 사용한다.
@@ -144,7 +163,7 @@ npm run test:run
 npm run test:e2e
 ```
 
-## 8. 변경 시 확인 사항
+## 10. 변경 시 확인 사항
 
 - 새 코드가 `app`, `common`, `features` 중 올바른 위치에 있는가?
 - 컴포넌트 파일 이름이 PascalCase인가?
