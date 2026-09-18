@@ -3,7 +3,7 @@ package com.swyp.team5.crawl.service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.OptionalDouble;
+import java.util.LongSummaryStatistics;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -78,10 +78,10 @@ public class PriceCollectionService {
             return;
         }
 
-        long minPrice = prices.stream().mapToLong(Long::longValue).min().orElseThrow();
-        long maxPrice = prices.stream().mapToLong(Long::longValue).max().orElseThrow();
-        OptionalDouble average = prices.stream().mapToLong(Long::longValue).average();
-        long averagePrice = Math.round(average.orElseThrow());
+        LongSummaryStatistics stats = prices.stream().mapToLong(Long::longValue).summaryStatistics();
+        long minPrice = stats.getMin();
+        long maxPrice = stats.getMax();
+        long averagePrice = Math.round(stats.getAverage());
 
         cachePriceStats(categoryId, minPrice, averagePrice, maxPrice);
         saveAnalysisSnapshots(categoryId, minPrice, averagePrice, maxPrice);
