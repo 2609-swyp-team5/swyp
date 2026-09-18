@@ -118,6 +118,9 @@ frontend/
 
 - Tailwind CSS v4를 사용한다.
 - 전역 토큰과 공통 CSS는 `src/app/globals.css`에 둔다.
+- 전역 레이아웃은 `.layout-container`, `.layout-grid`를 사용하고, 타이포그래피는 `typography-heading-01`~`03`, `typography-body-large`~`small` 클래스를 사용한다.
+- 기본 본문은 Inter를 사용하고, 브랜드·푸터 문구에는 `font-brand` 또는 `typography-footer`를 사용한다.
+- 현재 기준 그리드는 데스크톱 8열/20px gutter/112px margin, 태블릿 6열/20px gutter/112px margin, 모바일 2열/5px gutter/40px margin이다.
 - 클래스 조합은 `@/common/lib/utils`의 `cn`을 사용한다.
 - 공통 버튼 변형은 `Button.tsx`의 CVA 설정에서 관리한다.
 - Prettier 설정을 따른다: 4칸 들여쓰기, 큰따옴표, 세미콜론, trailing comma, LF.

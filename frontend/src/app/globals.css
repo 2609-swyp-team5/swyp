@@ -5,9 +5,12 @@
 @theme inline {
     --color-background: var(--background);
     --color-foreground: var(--foreground);
-    --font-sans: var(--font-geist-sans);
-    --font-mono: var(--font-geist-mono);
-    --font-heading: var(--font-geist-sans);
+    --font-sans: var(--font-inter);
+    --font-mono:
+        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+        monospace;
+    --font-heading: var(--font-inter);
+    --font-brand: var(--font-dm-sans);
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -48,7 +51,7 @@
 
 :root {
     --background: #ffffff;
-    --foreground: #171717;
+    --foreground: #3a3a3c;
     --card: #ffffff;
     --card-foreground: oklch(0.145 0 0);
     --popover: oklch(1 0 0);
@@ -79,6 +82,35 @@
     --sidebar-accent-foreground: oklch(0.205 0 0);
     --sidebar-border: oklch(0.922 0 0);
     --sidebar-ring: oklch(0.708 0 0);
+
+    /* Grid: 1440px desktop baseline */
+    --grid-columns: 8;
+    --grid-gutter: 20px;
+    --grid-margin: 112px;
+    --grid-content-width: 1216px;
+    --header-height: 72px;
+    --footer-height: 285px;
+
+    /* Typography: Inter */
+    --type-heading-01-size: 60px;
+    --type-heading-01-weight: 700;
+    --type-heading-01-line-height: 75px;
+    --type-heading-02-size: 40px;
+    --type-heading-02-weight: 700;
+    --type-heading-02-line-height: 55px;
+    --type-heading-03-size: 30px;
+    --type-heading-03-weight: 600;
+    --type-heading-03-line-height: 45px;
+    --type-body-large-size: 25px;
+    --type-body-large-weight: 500;
+    --type-body-large-line-height: 38px;
+    --type-body-medium-size: 20px;
+    --type-body-medium-weight: 500;
+    --type-body-medium-line-height: 32px;
+    --type-body-small-size: 15px;
+    --type-body-small-weight: 500;
+    --type-body-small-line-height: 25px;
+    --type-letter-spacing: 0.5px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -123,6 +155,95 @@
     }
     body {
         @apply bg-background text-foreground;
-        font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+        font-family: var(--font-inter), Arial, "Noto Sans KR", sans-serif;
+        font-size: var(--type-body-medium-size);
+        font-weight: var(--type-body-medium-weight);
+        line-height: var(--type-body-medium-line-height);
+        letter-spacing: var(--type-letter-spacing);
+    }
+}
+
+@layer components {
+    .layout-container {
+        width: min(calc(100% - (var(--grid-margin) * 2)), var(--grid-content-width));
+        margin-inline: auto;
+    }
+
+    .layout-grid {
+        display: grid;
+        grid-template-columns: repeat(var(--grid-columns), minmax(0, 1fr));
+        gap: var(--grid-gutter);
+    }
+
+    .typography-heading-01,
+    .typography-heading-02,
+    .typography-heading-03,
+    .typography-body-large,
+    .typography-body-medium,
+    .typography-body-small {
+        font-family: var(--font-inter), Arial, "Noto Sans KR", sans-serif;
+        letter-spacing: var(--type-letter-spacing);
+    }
+
+    .typography-heading-01 {
+        font-size: var(--type-heading-01-size);
+        font-weight: var(--type-heading-01-weight);
+        line-height: var(--type-heading-01-line-height);
+    }
+
+    .typography-heading-02 {
+        font-size: var(--type-heading-02-size);
+        font-weight: var(--type-heading-02-weight);
+        line-height: var(--type-heading-02-line-height);
+    }
+
+    .typography-heading-03 {
+        font-size: var(--type-heading-03-size);
+        font-weight: var(--type-heading-03-weight);
+        line-height: var(--type-heading-03-line-height);
+    }
+
+    .typography-body-large {
+        font-size: var(--type-body-large-size);
+        font-weight: var(--type-body-large-weight);
+        line-height: var(--type-body-large-line-height);
+    }
+
+    .typography-body-medium {
+        font-size: var(--type-body-medium-size);
+        font-weight: var(--type-body-medium-weight);
+        line-height: var(--type-body-medium-line-height);
+    }
+
+    .typography-body-small {
+        font-size: var(--type-body-small-size);
+        font-weight: var(--type-body-small-weight);
+        line-height: var(--type-body-small-line-height);
+    }
+
+    .typography-footer {
+        font-family: var(--font-dm-sans), Arial, sans-serif;
+        font-size: 18px;
+        font-weight: 400;
+        line-height: 18px;
+    }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+    :root {
+        --grid-columns: 6;
+        --grid-margin: 112px;
+        --grid-content-width: 772px;
+        --footer-height: 250px;
+    }
+}
+
+@media (max-width: 767px) {
+    :root {
+        --grid-columns: 2;
+        --grid-gutter: 5px;
+        --grid-margin: 40px;
+        --grid-content-width: 322px;
+        --footer-height: 175px;
     }
 }

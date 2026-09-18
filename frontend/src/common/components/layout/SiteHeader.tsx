@@ -14,8 +14,8 @@ export function SiteHeader() {
 
     return (
         <header className="border-border bg-background border-b">
-            <div className="mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-6 px-6 lg:px-8">
-                <Link href="/" className="text-primary text-lg font-bold tracking-tight">
+            <div className="layout-container flex min-h-[var(--header-height)] items-center justify-between gap-6">
+                <Link href="/" className="typography-heading-03 text-primary">
                     지금이니?
                 </Link>
 
@@ -28,7 +28,7 @@ export function SiteHeader() {
                             key={link.href}
                             href={link.href}
                             aria-current={isRouteActive(pathname, link.href) ? "page" : undefined}
-                            className={`rounded-lg px-3 py-2 text-sm whitespace-nowrap transition-colors ${
+                            className={`typography-body-medium rounded-lg px-3 py-2 whitespace-nowrap transition-colors ${
                                 isRouteActive(pathname, link.href)
                                     ? "bg-primary/10 text-primary font-semibold"
                                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -39,7 +39,7 @@ export function SiteHeader() {
                     ))}
                 </nav>
 
-                <div className="flex items-center gap-2 text-sm">
+                <div className="typography-body-medium flex items-center gap-2">
                     <Link
                         href="/login"
                         className="text-muted-foreground hover:text-foreground rounded-full px-3 py-2 transition-colors"
@@ -51,7 +51,7 @@ export function SiteHeader() {
                         aria-label="프로필"
                         title="프로필"
                         aria-current={isRouteActive(pathname, "/my") ? "page" : undefined}
-                        className={`inline-flex size-9 items-center justify-center rounded-full font-semibold ${
+                        className={`typography-body-medium inline-flex size-9 items-center justify-center rounded-full font-semibold ${
                             isRouteActive(pathname, "/my")
                                 ? "bg-primary text-primary-foreground"
                                 : "bg-muted text-foreground"
