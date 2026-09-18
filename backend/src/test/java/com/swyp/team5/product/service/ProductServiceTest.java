@@ -29,6 +29,7 @@ import com.swyp.team5.member.repository.MemberRepository;
 import com.swyp.team5.product.dto.ProductAiAnalysisResult;
 import com.swyp.team5.product.dto.ProductCreateRequest;
 import com.swyp.team5.product.dto.ProductResponse;
+import com.swyp.team5.product.dto.ProductSummaryResponse;
 import com.swyp.team5.product.dto.ProductUpdateRequest;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
@@ -37,6 +38,8 @@ import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.repository.ProductRepository;
+import com.swyp.team5.productanalysis.entity.ProductAnalysis;
+import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
 import com.swyp.team5.tag.entity.Tag;
 import com.swyp.team5.tag.repository.TagRepository;
 import org.junit.jupiter.api.Test;
@@ -66,6 +69,9 @@ class ProductServiceTest {
     @Mock
     private TagRepository tagRepository;
 
+    @Mock
+    private ProductAnalysisRepository productAnalysisRepository;
+
     private ProductService service() {
         return new ProductService(
                 productRepository,
@@ -73,7 +79,8 @@ class ProductServiceTest {
                 memberRepository,
                 fileStorageService,
                 productAiService,
-                tagRepository);
+                tagRepository,
+                productAnalysisRepository);
     }
 
     // 상품 등록 성공
@@ -257,6 +264,26 @@ class ProductServiceTest {
         assertThat(response.content()).hasSize(2);
         assertThat(response.hasNext()).isFalse();
         assertThat(response.nextCursor()).isNull();
+    }
+
+    // 상품 목록 조회 - recommendation이 null인 분석 스냅샷이 있어도 예외 없이 조회됨
+    // (Collectors.toMap은 null 값에서 NPE가 나는 회귀 방지)
+    @Test
+    void getProductsHandlesNullRecommendation() {
+        Category category = newCategory(1L, "전자기기");
+        Member member = newMember(1L);
+        Product product = newProduct(1L, member, category);
+        ProductAnalysis analysis =
+                ProductAnalysis.fromCategoryPriceStats(product, 1000L, 2000L, 3000L, java.time.LocalDateTime.now());
+
+        when(productRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(product)));
+        when(productAnalysisRepository.findLatestByProductIdIn(List.of(1L))).thenReturn(List.of(analysis));
+
+        CursorPageResponse<ProductSummaryResponse> response = service().getProducts(null, null, null, 20);
+
+        assertThat(response.content()).hasSize(1);
+        assertThat(response.content().get(0).recommendation()).isNull();
     }
 
     // 상품 수정 성공 - 소유자 본인 (구매일시는 등록 시점 값 그대로 유지됨)

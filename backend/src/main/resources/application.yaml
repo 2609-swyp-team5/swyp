@@ -113,6 +113,18 @@ naver:
   # 프론트가 인증 URL에 싣는 값과 같아야 한다. 서버 발급 방식으로 바꾸기 전까지의 임시 고정값.
   state: ${NAVER_STATE:swyp}
 
+# 시세 데이터 수집(번개장터 크롤링) 설정
+# 카테고리 매핑(categories <-> 번개장터 categoryId)은 2026-09-18부터 여기가 아니라 DB
+# category_platforms 테이블에서 관리한다(플랫폼이 늘어도 스키마 변경 없이 row만 추가하면 되도록
+# 매핑 테이블로 분리, V4 마이그레이션 참고).
+crawl:
+  bunjang:
+    enabled: ${CRAWL_BUNJANG_ENABLED:true}
+    cron: ${CRAWL_BUNJANG_CRON:0 0 * * * *} # 매 정시
+    page-limit: ${CRAWL_BUNJANG_PAGE_LIMIT:5} # 카테고리당 최대 조회 페이지 수
+    dedupe-ttl: ${CRAWL_BUNJANG_DEDUPE_TTL:24h}
+    cache-ttl: ${CRAWL_BUNJANG_CACHE_TTL:1h}
+
 # 스웨거 설정
 springdoc:
   swagger-ui:

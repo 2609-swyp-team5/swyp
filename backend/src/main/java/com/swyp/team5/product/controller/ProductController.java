@@ -96,9 +96,10 @@ public class ProductController {
     }
 
     /**
-     * 상품 목록을 커서 기반으로 조회한다(정렬은 {@code id} 내림차순 고정).
+     * 상품 목록을 커서 기반으로 조회한다(정렬은 {@code id} 내림차순 고정, {@code HIDDEN} 상태는 항상
+     * 제외되는 공개 목록). 인증된 본인 전체 상품(숨김 포함)은 {@link #getMyProducts} 참고.
      *
-     * @param categoryId 카테고리 필터(선택)
+     * @param keyword 제목/설명 키워드 검색(선택)
      * @param status 상태 필터(선택)
      * @param cursor 이전 페이지 마지막 상품의 {@code id}(선택, 첫 페이지는 생략)
      * @param size 페이지 크기(기본 20)
@@ -108,11 +109,36 @@ public class ProductController {
     @Operation(summary = "상품 목록 조회")
     @GetMapping
     public ResponseEntity<ApiResponse<CursorPageResponse<ProductSummaryResponse>>> getProducts(
-            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String keyword,
             @RequestParam(required = false) ProductStatus status,
             @RequestParam(required = false) Long cursor,
             @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(ApiResponse.success(productService.getProducts(categoryId, status, cursor, size)));
+        return ResponseEntity.ok(ApiResponse.success(productService.getProducts(keyword, status, cursor, size)));
+    }
+
+    /**
+     * 인증된 본인이 등록한 상품 목록을 커서 기반으로 조회한다(정렬은 {@code id} 내림차순 고정). 본인
+     * 관리 화면 용도라 {@link #getProducts}와 달리 {@code HIDDEN} 상태도 포함한다.
+     *
+     * @param currentMember 인증된 요청자
+     * @param categoryId 카테고리 필터(선택)
+     * @param keyword 제목/설명 키워드 검색(선택)
+     * @param status 상태 필터(선택)
+     * @param cursor 이전 페이지 마지막 상품의 {@code id}(선택, 첫 페이지는 생략)
+     * @param size 페이지 크기(기본 20)
+     * @return 200 OK + 커서 페이지 응답
+     */
+    @Operation(summary = "내 상품 목록 조회")
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<CursorPageResponse<ProductSummaryResponse>>> getMyProducts(
+            @AuthenticationPrincipal PrincipalMember currentMember,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) ProductStatus status,
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.success(
+                productService.getMyProducts(currentMember.memberId(), categoryId, keyword, status, cursor, size)));
     }
 
     /**
