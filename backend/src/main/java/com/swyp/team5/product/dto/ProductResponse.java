@@ -12,6 +12,7 @@ import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.ProductImage;
 import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
+import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.tag.entity.Tag;
 
 public record ProductResponse(
@@ -33,10 +34,16 @@ public record ProductResponse(
         String preferredTradeRegion, // 희망 거래 지역
         List<String> imageUrls, // 상품 이미지 URL 목록 (등록 순서)
         List<String> tags, // 태그 이름 목록
+        AnalysisRecommendation recommendation, // 가장 최근 시세 분석 판단(지금 팔기/기다리기 등), 분석 이력 없으면 null
         LocalDateTime createdAt, // 등록 일시
         LocalDateTime updatedAt) { // 수정 일시
 
+    /** 시세 분석 이력이 없는 상품(신규 등록 직후 등)에 사용한다. */
     public static ProductResponse from(Product product) {
+        return from(product, null);
+    }
+
+    public static ProductResponse from(Product product, AnalysisRecommendation recommendation) {
         return new ProductResponse(
                 product.getId(),
                 product.getMember().getId(),
@@ -59,6 +66,7 @@ public record ProductResponse(
                 product.getPreferredTradeRegion(),
                 product.getImages().stream().map(ProductImage::getImageUrl).toList(),
                 product.getTags().stream().map(Tag::getName).toList(),
+                recommendation,
                 product.getCreatedAt(),
                 product.getUpdatedAt());
     }

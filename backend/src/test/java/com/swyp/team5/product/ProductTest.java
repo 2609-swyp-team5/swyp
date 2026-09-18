@@ -310,19 +310,73 @@ class ProductTest {
                 .andExpect(jsonPath("$.data.nextCursor").isNotEmpty());
     }
 
-    // 상품 목록 조회 - 카테고리 필터
+    // 내 상품 목록 조회 - 카테고리 필터
     @Test
-    void getProductsFiltersByCategory() throws Exception {
+    void getMyProductsFiltersByCategory() throws Exception {
         createProduct();
         Category otherCategory = createCategory();
         createProduct(otherCategory);
 
-        mockMvc.perform(get("/products")
+        mockMvc.perform(get("/products/me")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
                         .param("categoryId", String.valueOf(otherCategory.getId())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content.length()").value(1))
                 .andExpect(jsonPath("$.data.content[0].categoryName").value(otherCategory.getName()));
+    }
+
+    // 상품 목록 조회 - 키워드 검색(제목/설명)
+    @Test
+    void getProductsFiltersByKeyword() throws Exception {
+        createProduct(category, "아이폰 13 프로맥스", sellerToken);
+        createProduct(category, "갤럭시 S24 울트라", sellerToken);
+
+        mockMvc.perform(get("/products")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
+                        .param("keyword", "갤럭시"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].title").value("갤럭시 S24 울트라"));
+    }
+
+    // 상품 목록 조회(공개) - HIDDEN 상태는 항상 제외
+    @Test
+    void getProductsExcludesHidden() throws Exception {
+        Long productId = createProduct();
+        mockMvc.perform(patch("/products/{id}/status", productId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ProductStatusUpdateRequest(ProductStatus.HIDDEN))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/products").header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(0));
+    }
+
+    // 내 상품 목록 조회 - 본인 것만(HIDDEN 포함), 다른 회원 상품은 제외
+    @Test
+    void getMyProductsIncludesHiddenAndScopedToSelf() throws Exception {
+        Long hiddenProductId = createProduct();
+        mockMvc.perform(patch("/products/{id}/status", hiddenProductId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ProductStatusUpdateRequest(ProductStatus.HIDDEN))))
+                .andExpect(status().isOk());
+        createProduct();
+
+        Member other = memberRepository.save(Member.ofLocalSignUp(
+                "other-seller2@example.com", null, "encoded-password", "다른판매자2", "otherSeller2", null));
+        String otherToken = jwtTokenProvider.createAccessToken(other.getId(), MemberRole.USER);
+        mockMvc.perform(post("/products")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createRequest(category.getId()))))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/products/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(2));
     }
 
     // 상품 수정 성공 - 소유자 본인
@@ -443,9 +497,13 @@ class ProductTest {
     }
 
     private Long createProduct(Category productCategory) throws Exception {
-        ProductCreateRequest request = createRequest(productCategory.getId());
+        return createProduct(productCategory, "아이폰 13", sellerToken);
+    }
+
+    private Long createProduct(Category productCategory, String title, String token) throws Exception {
+        ProductCreateRequest request = createRequest(productCategory.getId(), title);
         String response = mockMvc.perform(post("/products")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -463,9 +521,13 @@ class ProductTest {
     }
 
     private ProductCreateRequest createRequest(Long categoryId) {
+        return createRequest(categoryId, "아이폰 13");
+    }
+
+    private ProductCreateRequest createRequest(Long categoryId, String title) {
         return new ProductCreateRequest(
                 categoryId,
-                "아이폰 13",
+                title,
                 "설명",
                 500_000L,
                 ProductCondition.A,

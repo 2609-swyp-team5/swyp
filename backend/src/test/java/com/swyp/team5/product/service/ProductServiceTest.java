@@ -37,6 +37,7 @@ import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.repository.ProductRepository;
+import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
 import com.swyp.team5.tag.entity.Tag;
 import com.swyp.team5.tag.repository.TagRepository;
 import org.junit.jupiter.api.Test;
@@ -66,6 +67,9 @@ class ProductServiceTest {
     @Mock
     private TagRepository tagRepository;
 
+    @Mock
+    private ProductAnalysisRepository productAnalysisRepository;
+
     private ProductService service() {
         return new ProductService(
                 productRepository,
@@ -73,7 +77,8 @@ class ProductServiceTest {
                 memberRepository,
                 fileStorageService,
                 productAiService,
-                tagRepository);
+                tagRepository,
+                productAnalysisRepository);
     }
 
     // 상품 등록 성공
