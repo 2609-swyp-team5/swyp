@@ -10,8 +10,8 @@ import org.springframework.stereotype.Component;
 import com.swyp.team5.crawl.service.PriceCollectionService;
 
 /**
- * 번개장터 시세 수집을 주기 실행한다.
- * 실패해도 재시작 지점 추적 없이 다음 주기에 처음부터 다시 돌지만, 중복 체크로 같은 매물을 반복 집계하지는 않음
+ * 번개장터 시세 수집을 주기 실행한다. 실패해도 재시작 지점 추적 없이 다음 주기에 처음부터 다시 돌며,
+ * 같은 매물이 다시 관측되면 {@code platform_listings}의 기존 행을 upsert(갱신)한다.
  */
 @Slf4j
 @Component
