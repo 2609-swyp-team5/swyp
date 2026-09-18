@@ -1,6 +1,8 @@
 package com.swyp.team5.product.dto;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 import com.swyp.team5.category.dto.CategoryResponse;
@@ -23,6 +25,8 @@ public record ProductResponse(
         ProductStatus status, // 게시 상태
         ProductCondition condition, // 상품 상태 등급
         boolean hasDefect, // 결함 여부
+        LocalDate purchasedAt, // 구매 일시
+        Integer purchasedMonths, // 구매 후 경과 개월 수 (구매 일시 없으면 null)
         boolean allowPriceSuggestion, // 가격 제안 허용 여부
         TradeMethod tradeMethod, // 거래 방식
         DeliveryType deliveryType, // 배송비 부담 방식
@@ -44,6 +48,11 @@ public record ProductResponse(
                 product.getStatus(),
                 product.getCondition(),
                 product.isHasDefect(),
+                product.getPurchasedAt(),
+                // 구매 일시가 null이면 null을 반환, 그렇지 않으면 현재 날짜와 구매 날짜의 차이를 개월 수로 계산
+                product.getPurchasedAt() == null
+                        ? null
+                        : (int) ChronoUnit.MONTHS.between(product.getPurchasedAt(), LocalDate.now()),
                 product.isAllowPriceSuggestion(),
                 product.getTradeMethod(),
                 product.getDeliveryType(),

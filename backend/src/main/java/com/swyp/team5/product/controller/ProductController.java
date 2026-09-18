@@ -3,6 +3,8 @@ package com.swyp.team5.product.controller;
 import java.util.List;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.PositiveOrZero;
 
 import lombok.RequiredArgsConstructor;
 
@@ -10,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -38,6 +41,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @RestController
 @RequestMapping("/products")
 @RequiredArgsConstructor
+@Validated
 public class ProductController {
 
     private final ProductService productService;
@@ -59,17 +63,23 @@ public class ProductController {
 
     /**
      * 상품 사진을 업로드하면 AI(Gemini)가 상품 정보를 분석해 자동으로 등록한다.
+     * 구매 일시/결함 여부는 AI가 추론하지 않고 사용자가 직접 입력한 값을 그대로 사용한다.
      *
      * @param currentMember 인증된 요청자
      * @param images 분석할 상품 이미지 목록
+     * @param purchasedMonths 사용자가 입력한 구매 후 경과 개월 수(선택, 0~6, 등록 시점 기준 구매일시로 변환)
+     * @param hasDefect 사용자가 입력한 결함 여부
      * @return 201 Created + 등록된 상품
      */
     @Operation(summary = "상품 이미지 AI 등록", description = "상품 사진을 업로드하면 AI(Gemini)가 상품 정보를 분석해 자동으로 등록한다.")
     @PostMapping(value = "/analyze", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<ProductResponse>> createFromImages(
             @AuthenticationPrincipal PrincipalMember currentMember,
-            @RequestParam("images") List<MultipartFile> images) {
-        ProductResponse response = productService.createFromImages(currentMember.memberId(), images);
+            @RequestParam("images") List<MultipartFile> images,
+            @RequestParam(required = false) @PositiveOrZero @Max(6) Integer purchasedMonths,
+            @RequestParam boolean hasDefect) {
+        ProductResponse response =
+                productService.createFromImages(currentMember.memberId(), images, purchasedMonths, hasDefect);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
     }
 
