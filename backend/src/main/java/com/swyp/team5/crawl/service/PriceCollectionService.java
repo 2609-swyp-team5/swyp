@@ -1,9 +1,7 @@
 package com.swyp.team5.crawl.service;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.LongSummaryStatistics;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,14 +15,11 @@ import com.swyp.team5.crawl.dto.BunjangCategoryPage;
 import com.swyp.team5.crawl.dto.BunjangProductItem;
 import com.swyp.team5.platform.entity.CategoryPlatform;
 import com.swyp.team5.platform.repository.CategoryPlatformRepository;
-import com.swyp.team5.product.entity.Product;
-import com.swyp.team5.product.repository.ProductRepository;
-import com.swyp.team5.productanalysis.entity.ProductAnalysis;
-import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
 
 /**
- * 번개장터 카테고리별 매물을 광범위 수집해 카테고리 단위 시세 통계(평균/최저/최고가)를 계산하고,
- * 같은 카테고리에 등록된 상품마다 {@link ProductAnalysis} 스냅샷으로 저장한다.
+ * 번개장터 카테고리별 매물을 광범위 수집한다. 카테고리 단위 평균 시세는 서로 다른 상품이 뒤섞여
+ * 개별 상품의 적정가를 대표하지 못해 더 이상 계산·저장하지 않는다(제목 유사도 기반 매물 매칭이
+ * 준비된 뒤 다시 다룰 예정).
  */
 @Slf4j
 @Service
@@ -32,7 +27,6 @@ import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
 public class PriceCollectionService {
 
     private static final String SEEN_KEY_PREFIX = "crawl:bunjang:seen:";
-    private static final String PRICE_CACHE_KEY_PREFIX = "crawl:bunjang:price:";
     private static final String PLATFORM_NAME = "번개장터"; // 현재는 번개장터만 수집하므로 상수로 고정
     // 실제 응답 표본(2026-09-18, 여러 카테고리·정렬 확인)에선 항상 SELLING만 내려오지만(판매완료/예약중
     // 매물은 이 API 자체가 피드에서 빼주는 것으로 보임), 비공식 API라 스키마가 예고 없이 바뀔 수 있어
@@ -40,8 +34,6 @@ public class PriceCollectionService {
     private static final String SELLING_STATUS = "SELLING";
 
     private final BunjangCategoryClient bunjangCategoryClient;
-    private final ProductRepository productRepository;
-    private final ProductAnalysisRepository productAnalysisRepository;
     private final CategoryPlatformRepository categoryPlatformRepository;
     private final StringRedisTemplate redisTemplate;
     private final BunjangCrawlProperties properties;
@@ -78,22 +70,7 @@ public class PriceCollectionService {
             return;
         }
 
-        LongSummaryStatistics stats = prices.stream().mapToLong(Long::longValue).summaryStatistics();
-        long minPrice = stats.getMin();
-        long maxPrice = stats.getMax();
-        long averagePrice = Math.round(stats.getAverage());
-
-        cachePriceStats(categoryId, minPrice, averagePrice, maxPrice);
-        saveAnalysisSnapshots(categoryId, minPrice, averagePrice, maxPrice);
-
-        log.info(
-                "카테고리 {}(번개장터 {}) 시세 수집 완료 — 신규 {}건, 평균 {}원, 최저 {}원, 최고 {}원",
-                categoryId,
-                bunjangCategoryId,
-                prices.size(),
-                averagePrice,
-                minPrice,
-                maxPrice);
+        log.info("카테고리 {}(번개장터 {}) 신규 매물 {}건 수집", categoryId, bunjangCategoryId, prices.size());
     }
 
     private List<Long> collectFreshPrices(String bunjangCategoryId) {
@@ -124,20 +101,5 @@ public class PriceCollectionService {
     private boolean isFresh(long pid) {
         Boolean isNew = redisTemplate.opsForValue().setIfAbsent(SEEN_KEY_PREFIX + pid, "1", properties.dedupeTtl());
         return Boolean.TRUE.equals(isNew);
-    }
-
-    private void cachePriceStats(Long categoryId, long minPrice, long averagePrice, long maxPrice) {
-        String value = "min=%d,avg=%d,max=%d".formatted(minPrice, averagePrice, maxPrice);
-        redisTemplate.opsForValue().set(PRICE_CACHE_KEY_PREFIX + categoryId, value, properties.cacheTtl());
-    }
-
-    private void saveAnalysisSnapshots(Long categoryId, long minPrice, long averagePrice, long maxPrice) {
-        List<Product> products = productRepository.findByCategoryId(categoryId);
-        LocalDateTime analyzedAt = LocalDateTime.now();
-        List<ProductAnalysis> snapshots = products.stream()
-                .map(product ->
-                        ProductAnalysis.fromCategoryPriceStats(product, minPrice, averagePrice, maxPrice, analyzedAt))
-                .toList();
-        productAnalysisRepository.saveAll(snapshots);
     }
 }
