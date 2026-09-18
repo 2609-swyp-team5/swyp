@@ -21,3 +21,8 @@ spring:
 jwt:
   secret: ${TEST_JWT_SECRET}
   refresh-secret: ${TEST_JWT_REFRESH_SECRET}
+
+# 시세 데이터 수집은 테스트 중 외부 API를 호출하지 않도록 비활성화
+crawl:
+  bunjang:
+    enabled: false
