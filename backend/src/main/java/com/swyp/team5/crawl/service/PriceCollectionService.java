@@ -34,6 +34,10 @@ public class PriceCollectionService {
     private static final String SEEN_KEY_PREFIX = "crawl:bunjang:seen:";
     private static final String PRICE_CACHE_KEY_PREFIX = "crawl:bunjang:price:";
     private static final String PLATFORM_NAME = "번개장터"; // 현재는 번개장터만 수집하므로 상수로 고정
+    // 실제 응답 표본(2026-09-18, 여러 카테고리·정렬 확인)에선 항상 SELLING만 내려오지만(판매완료/예약중
+    // 매물은 이 API 자체가 피드에서 빼주는 것으로 보임), 비공식 API라 스키마가 예고 없이 바뀔 수 있어
+    // 방어적으로 필터를 둔다.
+    private static final String SELLING_STATUS = "SELLING";
 
     private final BunjangCategoryClient bunjangCategoryClient;
     private final ProductRepository productRepository;
@@ -100,6 +104,9 @@ public class PriceCollectionService {
             for (BunjangProductItem item : result.items()) {
                 if (item.ad()) {
                     continue; // 광고 매물은 검색 연관도/입찰가로 노출돼 시세를 왜곡할 수 있어 제외
+                }
+                if (!SELLING_STATUS.equals(item.status())) {
+                    continue; // 판매중이 아닌 매물(판매완료/예약중 등)은 현재 시세가 아니므로 제외
                 }
                 if (isFresh(item.pid())) {
                     prices.add(item.price());

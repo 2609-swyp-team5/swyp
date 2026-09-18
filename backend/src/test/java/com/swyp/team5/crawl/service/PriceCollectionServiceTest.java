@@ -90,7 +90,7 @@ class PriceCollectionServiceTest {
     }
 
     @Test
-    void collectAllSavesSnapshotsExcludingAdsAndDuplicates() {
+    void collectAllSavesSnapshotsExcludingAdsDuplicatesAndNonSellingItems() {
         CategoryPlatform mapping = mapping(10L, "999");
         when(categoryPlatformRepository.findByPlatformName("번개장터")).thenReturn(List.of(mapping));
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
@@ -99,7 +99,8 @@ class PriceCollectionServiceTest {
                         List.of(
                                 new BunjangProductItem(1L, "상품1", 1000L, "SELLING", false),
                                 new BunjangProductItem(2L, "상품2", 3000L, "SELLING", false),
-                                new BunjangProductItem(3L, "광고상품", 999_999L, "SELLING", true)),
+                                new BunjangProductItem(3L, "광고상품", 999_999L, "SELLING", true),
+                                new BunjangProductItem(4L, "판매완료상품", 1L, "SOLD_OUT", false)),
                         null,
                         false));
         when(valueOperations.setIfAbsent(anyString(), eq("1"), eq(DEDUPE_TTL))).thenReturn(true);
@@ -112,6 +113,7 @@ class PriceCollectionServiceTest {
 
         verify(bunjangCategoryClient, times(1)).fetchPage(eq("999"), any());
         verify(valueOperations, never()).setIfAbsent(eq("crawl:bunjang:seen:3"), anyString(), any(Duration.class));
+        verify(valueOperations, never()).setIfAbsent(eq("crawl:bunjang:seen:4"), anyString(), any(Duration.class));
         verify(valueOperations).set(eq("crawl:bunjang:price:10"), eq("min=1000,avg=2000,max=3000"), eq(CACHE_TTL));
 
         ArgumentCaptor<List<ProductAnalysis>> captor = ArgumentCaptor.forClass(List.class);
