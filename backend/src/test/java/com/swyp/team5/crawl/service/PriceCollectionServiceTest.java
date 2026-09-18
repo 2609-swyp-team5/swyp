@@ -31,7 +31,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-// 시세 데이터 수집(카테고리별 매물 조회·필터링·platform_listings upsert) Service 단위 테스트.
+// 시세 데이터 수집 Service 단위 테스트.
 @ExtendWith(MockitoExtension.class)
 class PriceCollectionServiceTest {
 

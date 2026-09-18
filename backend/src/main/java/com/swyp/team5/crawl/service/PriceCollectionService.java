@@ -19,9 +19,7 @@ import com.swyp.team5.platform.repository.CategoryPlatformRepository;
 import com.swyp.team5.platform.repository.PlatformListingRepository;
 
 /**
- * 번개장터 카테고리별 매물을 광범위 수집해 {@link PlatformListing}으로 upsert한다. 카테고리 단위 평균
- * 시세는 서로 다른 상품이 뒤섞여 개별 상품의 적정가를 대표하지 못해 계산·저장하지 않는다(제목 유사도
- * 기반 매물 매칭이 준비된 뒤 다시 다룰 예정).
+ * 번개장터 카테고리별 매물을 광범위 수집해 {@link PlatformListing}으로 upsert한다.
  */
 @Slf4j
 @Service
@@ -30,9 +28,7 @@ public class PriceCollectionService {
 
     private static final String PLATFORM_NAME = "번개장터"; // 현재는 번개장터만 수집하므로 상수로 고정
     private static final String LISTING_URL_TEMPLATE = "https://m.bunjang.co.kr/products/%d";
-    // 실제 응답 표본(2026-09-18, 여러 카테고리·정렬 확인)에선 항상 SELLING만 내려오지만(판매완료/예약중
-    // 매물은 이 API 자체가 피드에서 빼주는 것으로 보임), 비공식 API라 스키마가 예고 없이 바뀔 수 있어
-    // 방어적으로 필터를 둔다.
+
     private static final String SELLING_STATUS = "SELLING";
 
     private final BunjangCategoryClient bunjangCategoryClient;
