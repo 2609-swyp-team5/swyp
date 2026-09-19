@@ -108,7 +108,7 @@ frontend/
 - 비밀값은 `NEXT_PUBLIC_` 환경변수에 넣지 않는다.
 - Axios 인스턴스는 `src/common/lib/api/client.ts`에서 관리한다.
 - 컴포넌트에서 Axios를 직접 호출하지 않고, 도메인 API 모듈을 거친다.
-- 현재 인증 API는 `src/features/auth/api/authApi.ts`에서 `authApi.login`, `authApi.signUp`으로 제공한다.
+- 현재 인증 API는 `src/features/auth/api/authApi.ts`에서 `authApi.authLogin`, `authApi.authSignUp`, `authApi.authLogout`, `authApi.authRefresh`로 제공한다.
 - 공통 응답 타입은 `src/common/lib/api/types.d.ts`의 `ApiResponse<T>`를 사용한다.
 - Axios 오류 메시지 변환은 `src/common/lib/api/error.ts`의 `getApiErrorMessage`를 사용한다.
 
@@ -134,6 +134,8 @@ frontend/
 - 스키마는 사용하는 도메인의 `features/{도메인}/schemas/`에 둔다. 여러 도메인에서 공유하는 규칙만 `common`으로 올린다.
 - API 요청 데이터와 응답 데이터의 검증이 필요할 때 같은 Zod 스키마를 활용한다. 현재 백엔드와 스키마를 자동으로 공유하는 구조는 아니므로, 공유가 필요해지면 별도 패키지나 생성 방식을 먼저 합의한다.
 - 실제 폼을 도입할 때 필요한 의존성은 `react-hook-form`, `@hookform/resolvers`, `zod`다. 사용하지 않는 화면에 미리 추가하지 않는다.
+- 로그인·회원가입은 `features/auth/schemas/authSchema.ts`의 스키마와 `zodResolver`를 사용한다. 필드 오류는 입력란 아래에 표시하고, 제출 중 상태는 React Hook Form의 `formState.isSubmitting`으로 관리한다.
+- 로그인은 이메일 형식과 필수 입력을 검사한다. 회원가입은 백엔드 DTO의 비밀번호·이름·닉네임·휴대폰 규칙을 반영한다. 비밀번호를 임의로 trim하지 않고, 선택 휴대폰 번호의 빈 문자열은 `null`로 변환한다. 최종 검증은 서버에서도 수행한다.
 
 ## 8. 아이콘 / 애니메이션
 

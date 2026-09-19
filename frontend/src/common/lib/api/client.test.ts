@@ -17,14 +17,104 @@ afterAll(() => vi.unstubAllEnvs());
 
 beforeEach(() => {
     sessionStorage.clear();
-    sessionStorage.setItem("accessToken", "old-token");
-    useAuthStore.setState({ isLoggedIn: true, isInitialized: true });
+    useAuthStore.setState({ accessToken: "old-token", isLoggedIn: true, isInitialized: true });
 });
 
 const refreshed = () =>
     HttpResponse.json({ success: true, data: { accessToken: "new-token" }, error: null });
 
 describe("access token refresh", () => {
+    it("restores login from a cookie without a stored token and shares initialization", async () => {
+        useAuthStore.setState({ accessToken: null, isLoggedIn: false, isInitialized: false });
+        let release!: () => void;
+        const pending = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        let refreshCount = 0;
+        server.use(
+            http.post(`${baseURL}/auth/refresh`, async ({ request }) => {
+                refreshCount++;
+                expect(request.headers.get("Authorization")).toBeNull();
+                await pending;
+                return refreshed();
+            }),
+        );
+        const first = useAuthStore.getState().checkStatus();
+        const second = useAuthStore.getState().checkStatus();
+        expect(useAuthStore.getState().isInitialized).toBe(false);
+        release();
+        await Promise.all([first, second]);
+        expect(useAuthStore.getState()).toMatchObject({
+            accessToken: "new-token",
+            isLoggedIn: true,
+            isInitialized: true,
+        });
+        expect(sessionStorage.getItem("accessToken")).toBeNull();
+        await useAuthStore.getState().checkStatus();
+        expect(refreshCount).toBe(1);
+    });
+
+    it.each([401, 500])(
+        "finishes initialization as a guest after refresh HTTP %s",
+        async (status) => {
+            useAuthStore.setState({ accessToken: null, isLoggedIn: false, isInitialized: false });
+            server.use(
+                http.post(`${baseURL}/auth/refresh`, () => new HttpResponse(null, { status })),
+            );
+            await useAuthStore.getState().checkStatus();
+            expect(useAuthStore.getState()).toMatchObject({
+                accessToken: null,
+                isLoggedIn: false,
+                isInitialized: true,
+            });
+        },
+    );
+
+    it("does not restore login when logout occurs during initialization", async () => {
+        useAuthStore.setState({ accessToken: null, isLoggedIn: false, isInitialized: false });
+        server.use(
+            http.post(`${baseURL}/auth/refresh`, async () => {
+                await useAuthStore.getState().logout();
+                return refreshed();
+            }),
+        );
+        await useAuthStore.getState().checkStatus();
+        expect(useAuthStore.getState()).toMatchObject({
+            accessToken: null,
+            isLoggedIn: false,
+            isInitialized: true,
+        });
+    });
+
+    it("stores login only in memory and clears it after successful logout", async () => {
+        useAuthStore.setState({ accessToken: null, isLoggedIn: false });
+        server.use(
+            http.post(`${baseURL}/auth/login`, refreshed),
+            http.post(`${baseURL}/auth/logout`, ({ request }) => {
+                expect(request.headers.get("Authorization")).toBe("Bearer new-token");
+                return HttpResponse.json({ success: true, data: null });
+            }),
+        );
+        await useAuthStore.getState().login({ email: "test@example.com", password: "password" });
+        expect(useAuthStore.getState().accessToken).toBe("new-token");
+        expect(sessionStorage.getItem("accessToken")).toBeNull();
+        await useAuthStore.getState().logout();
+        expect(useAuthStore.getState()).toMatchObject({ accessToken: null, isLoggedIn: false });
+    });
+
+    it("preserves login when logout fails", async () => {
+        server.use(
+            http.post(`${baseURL}/auth/logout`, () => new HttpResponse(null, { status: 500 })),
+        );
+        await expect(useAuthStore.getState().logout()).rejects.toMatchObject({
+            response: { status: 500 },
+        });
+        expect(useAuthStore.getState()).toMatchObject({
+            accessToken: "old-token",
+            isLoggedIn: true,
+        });
+    });
+
     it("refreshes once and retries with the same method and body", async () => {
         const headers: (string | null)[] = [];
         const bodies: unknown[] = [];
@@ -48,7 +138,7 @@ describe("access token refresh", () => {
         expect(headers).toEqual(["Bearer old-token", "Bearer new-token"]);
         expect(bodies).toEqual([{ name: "product" }, { name: "product" }]);
         expect(refreshCount).toBe(1);
-        expect(sessionStorage.getItem("accessToken")).toBe("new-token");
+        expect(useAuthStore.getState().accessToken).toBe("new-token");
     });
 
     it("shares a refresh across concurrent requests and late 401 responses", async () => {
@@ -108,7 +198,7 @@ describe("access token refresh", () => {
     );
 
     it("does not refresh when no access token is stored", async () => {
-        sessionStorage.clear();
+        useAuthStore.setState({ accessToken: null, isLoggedIn: false });
         server.use(http.get(`${baseURL}/products`, () => new HttpResponse(null, { status: 401 })));
         await expect(api.get("/products")).rejects.toMatchObject({ response: { status: 401 } });
     });
@@ -126,7 +216,7 @@ describe("access token refresh", () => {
             ),
         );
         await expect(api.get("/products")).rejects.toThrow("Refresh rejected");
-        expect(sessionStorage.getItem("accessToken")).toBeNull();
+        expect(useAuthStore.getState().accessToken).toBeNull();
         expect(useAuthStore.getState().isLoggedIn).toBe(false);
     });
 
@@ -143,7 +233,7 @@ describe("access token refresh", () => {
             );
             await expect(api.get("/products")).rejects.toMatchObject({ response: { status } });
             expect(refreshCount).toBe(1);
-            expect(sessionStorage.getItem("accessToken")).toBeNull();
+            expect(useAuthStore.getState().accessToken).toBeNull();
             expect(useAuthStore.getState().isLoggedIn).toBe(false);
         },
     );
@@ -152,24 +242,24 @@ describe("access token refresh", () => {
         server.use(
             http.get(`${baseURL}/products`, () => new HttpResponse(null, { status: 401 })),
             http.post(`${baseURL}/auth/refresh`, () => {
-                sessionStorage.removeItem("accessToken");
+                useAuthStore.setState({ accessToken: null, isLoggedIn: false });
                 return refreshed();
             }),
         );
         await expect(api.get("/products")).rejects.toMatchObject({ code: "ERR_CANCELED" });
-        expect(sessionStorage.getItem("accessToken")).toBeNull();
+        expect(useAuthStore.getState().accessToken).toBeNull();
     });
 
     it("does not clear a newer login when an older refresh fails", async () => {
         server.use(
             http.get(`${baseURL}/products`, () => new HttpResponse(null, { status: 401 })),
             http.post(`${baseURL}/auth/refresh`, () => {
-                sessionStorage.setItem("accessToken", "new-login-token");
+                useAuthStore.setState({ accessToken: "new-login-token" });
                 return new HttpResponse(null, { status: 401 });
             }),
         );
         await expect(api.get("/products")).rejects.toMatchObject({ response: { status: 401 } });
-        expect(sessionStorage.getItem("accessToken")).toBe("new-login-token");
+        expect(useAuthStore.getState().accessToken).toBe("new-login-token");
         expect(useAuthStore.getState().isLoggedIn).toBe(true);
     });
 
@@ -186,7 +276,7 @@ describe("access token refresh", () => {
             http.post(`${baseURL}/auth/refresh`, refreshed),
         );
         await expect(api.get("/products")).rejects.toMatchObject({ response: { status: 500 } });
-        expect(sessionStorage.getItem("accessToken")).toBe("new-token");
+        expect(useAuthStore.getState().accessToken).toBe("new-token");
         expect(useAuthStore.getState().isLoggedIn).toBe(true);
     });
 });

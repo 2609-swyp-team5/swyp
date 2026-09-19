@@ -34,7 +34,7 @@ export default function SignupPage() {
         };
 
         try {
-            const result = await authApi.signUp(params);
+            const result = await authApi.authSignUp(params);
 
             if (result.data.success) {
                 setSuccessMessage("회원가입이 완료되었습니다.");

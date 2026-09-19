@@ -19,7 +19,7 @@ export default function AuthInitializer() {
     );
 
     useEffect(() => {
-        checkStatus();
+        void checkStatus();
     }, [checkStatus]);
 
     useEffect(() => {

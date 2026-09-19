@@ -1,12 +1,15 @@
 import axios, { type InternalAxiosRequestConfig } from "axios";
 
-import type { LoginResponse } from "@/features/auth/types";
-
-import type { ApiResponse } from "./types";
+import { useAuthStore } from "@/features/auth/store/authStore";
 
 type RetryRequestConfig = InternalAxiosRequestConfig & { _retry?: boolean };
 
-let refreshPromise: Promise<string> | null = null;
+const REFRESH_EXCLUDED_PATHS = [
+    "/auth/login",
+    "/auth/signup",
+    "/auth/social/login",
+    "/auth/refresh",
+];
 
 const baseURL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -25,7 +28,7 @@ export const api = axios.create({
 api.interceptors.request.use(
     (config) => {
         if (typeof window !== "undefined") {
-            const accessToken = sessionStorage.getItem("accessToken");
+            const accessToken = useAuthStore.getState().accessToken;
 
             if (accessToken) {
                 config.headers.Authorization = `Bearer ${accessToken}`;
@@ -52,14 +55,12 @@ api.interceptors.response.use(
         }
 
         const pathname = new URL(api.getUri(config), window.location.origin).pathname;
-        const excludedPaths = [
-            "/auth/login",
-            "/auth/signup",
-            "/auth/social/login",
-            "/auth/refresh",
-        ];
-        const accessToken = sessionStorage.getItem("accessToken");
-        if (excludedPaths.includes(pathname) || !accessToken || !config.headers.Authorization) {
+        const accessToken = useAuthStore.getState().accessToken;
+        if (
+            REFRESH_EXCLUDED_PATHS.includes(pathname) ||
+            !accessToken ||
+            !config.headers.Authorization
+        ) {
             return Promise.reject(error);
         }
 
@@ -71,36 +72,7 @@ api.interceptors.response.use(
             return api(config);
         }
 
-        if (!refreshPromise) {
-            refreshPromise = (async (): Promise<string> => {
-                try {
-                    const res = await api.post<ApiResponse<LoginResponse>>("/auth/refresh");
-                    if (!res.data.success) {
-                        throw new Error(res.data.message);
-                    }
-
-                    if (sessionStorage.getItem("accessToken") !== accessToken) {
-                        throw new axios.CanceledError("재발급 중 로그인 상태가 변경되었습니다.");
-                    }
-
-                    const newAccessToken = res.data.data.accessToken;
-                    sessionStorage.setItem("accessToken", newAccessToken);
-                    return newAccessToken;
-                } catch (err) {
-                    // 초기 모듈 로딩 시 client → store → authApi 순환을 피합니다.
-                    const { useAuthStore } = await import("@/features/auth/store/authStore");
-                    if (sessionStorage.getItem("accessToken") === accessToken) {
-                        sessionStorage.removeItem("accessToken");
-                        useAuthStore.setState({ isLoggedIn: false });
-                    }
-                    return Promise.reject(err);
-                } finally {
-                    refreshPromise = null;
-                }
-            })();
-        }
-
-        const newAccessToken = await refreshPromise;
+        const newAccessToken = await useAuthStore.getState().refresh();
         config.headers.Authorization = `Bearer ${newAccessToken}`;
         return api(config);
     },

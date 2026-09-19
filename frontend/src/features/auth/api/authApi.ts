@@ -3,20 +3,25 @@ import type { ApiResponse } from "@/common/lib/api/types";
 
 import type { LoginRequest, LoginResponse, SignUpRequest, SignUpResponse } from "../types";
 
-const signUp = (params: SignUpRequest) => {
+const authSignUp = (params: SignUpRequest) => {
     return api.post<ApiResponse<SignUpResponse>>("/auth/signup", params);
 };
 
-const login = (params: LoginRequest) => {
+const authLogin = (params: LoginRequest) => {
     return api.post<ApiResponse<LoginResponse>>("/auth/login", params);
 };
 
-const logout = () => {
+const authLogout = () => {
     return api.post<ApiResponse<null>>("/auth/logout");
 };
 
+const authRefresh = () => {
+    return api.post<ApiResponse<LoginResponse>>("/auth/refresh");
+};
+
 export const authApi = {
-    signUp,
-    login,
-    logout,
+    authSignUp,
+    authLogin,
+    authLogout,
+    authRefresh,
 };

@@ -6,7 +6,7 @@ import { useAuthStore } from "@/features/auth/store/authStore";
 import OnboardingPage from "./page";
 
 vi.mock("@/features/auth/api/authApi", () => ({
-    authApi: { login: vi.fn(), logout: vi.fn() },
+    authApi: { authLogin: vi.fn(), authLogout: vi.fn() },
 }));
 
 describe("Onboarding page", () => {
