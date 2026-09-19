@@ -22,6 +22,9 @@ spring:
 jwt:
   secret: ${JWT_ACCESS_SECRET_KEY:}
   refresh-secret: ${JWT_REFRESH_SECRET_KEY:}
+  # 로컬은 HTTP라 secure 쿠키가 브라우저에 저장되지 않는 문제가 있어서 배포 환경과 다르게 적용
+  cookie-secure: false
+  cookie-same-site: Lax
 
 # 개발 로깅 설정
 logging:
