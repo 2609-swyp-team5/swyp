@@ -91,8 +91,8 @@ cloud:
 jwt:
   access-token-expires: ${JWT_ACCESS_TOKEN_EXPIRES:30m}
   refresh-token-expires: ${JWT_REFRESH_TOKEN_EXPIRES:14d}
-  # Refresh Token 쿠키 속성 - dev/prod는 HTTPS 크로스 사이트 배포라 secure+SameSite=None 필요,
-  # 로컬은 HTTP라 secure 쿠키가 저장 자체가 안 돼 application-local.yaml에서 재정의
+  # Refresh Token 쿠키 속성 - 배포환경은 HTTPS 크로스 사이트 배포라 secure+SameSite=None 필요,
+  # 로컬은 HTTP라 secure 쿠키가 저장 자체가 안 돼 application-local.yaml에서 재정의 했습니다.
   cookie-secure: ${JWT_COOKIE_SECURE:true}
   cookie-same-site: ${JWT_COOKIE_SAME_SITE:None}
 
