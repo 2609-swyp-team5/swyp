@@ -1,7 +1,20 @@
 import type { Metadata } from "next";
+import { DM_Sans, Inter } from "next/font/google";
 import type { ReactNode } from "react";
 
 import "./globals.css";
+
+const inter = Inter({
+    subsets: ["latin"],
+    variable: "--font-inter",
+    display: "swap",
+});
+
+const dmSans = DM_Sans({
+    subsets: ["latin"],
+    variable: "--font-dm-sans",
+    display: "swap",
+});
 
 export const metadata: Metadata = {
     title: "지금이니?",
@@ -10,7 +23,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
     return (
-        <html lang="ko" className="h-full antialiased">
+        <html lang="ko" className={`${inter.variable} ${dmSans.variable} h-full antialiased`}>
             <body className="flex min-h-full flex-col">{children}</body>
         </html>
     );
