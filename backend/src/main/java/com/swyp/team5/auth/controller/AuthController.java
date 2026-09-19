@@ -93,8 +93,8 @@ public class AuthController {
     private ResponseCookie refreshTokenCookie(String refreshToken) {
         return ResponseCookie.from(REFRESH_TOKEN_COOKIE, refreshToken)
                 .httpOnly(true)
-                .secure(true)
-                .sameSite("None")
+                .secure(jwtProperties.cookieSecure())
+                .sameSite(jwtProperties.cookieSameSite())
                 .path(REFRESH_TOKEN_COOKIE_PATH)
                 .maxAge(jwtProperties.refreshTokenExpires())
                 .build();
@@ -103,8 +103,8 @@ public class AuthController {
     private ResponseCookie expiredRefreshTokenCookie() {
         return ResponseCookie.from(REFRESH_TOKEN_COOKIE, "")
                 .httpOnly(true)
-                .secure(true)
-                .sameSite("None")
+                .secure(jwtProperties.cookieSecure())
+                .sameSite(jwtProperties.cookieSameSite())
                 .path(REFRESH_TOKEN_COOKIE_PATH)
                 .maxAge(0)
                 .build();

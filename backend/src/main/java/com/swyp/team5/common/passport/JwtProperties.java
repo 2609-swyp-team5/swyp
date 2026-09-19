@@ -14,4 +14,6 @@ public record JwtProperties(
         @NotBlank String secret,
         @NotBlank String refreshSecret,
         @NotNull Duration accessTokenExpires,
-        @NotNull Duration refreshTokenExpires) {}
+        @NotNull Duration refreshTokenExpires,
+        boolean cookieSecure,
+        @NotBlank String cookieSameSite) {}
