@@ -7,7 +7,7 @@ const fillLoginForm = async (page: Page) => {
     await page.getByLabel("비밀번호", { exact: true }).fill(loginRequest.password);
 };
 
-test("submits email and password and displays a successful login response", async ({ page }) => {
+test("redirects after login and prevents returning to the login page", async ({ page }) => {
     let releaseResponse = () => {};
     const responseReady = new Promise<void>((resolve) => {
         releaseResponse = resolve;
@@ -37,10 +37,20 @@ test("submits email and password and displays a successful login response", asyn
     await expect(page.getByRole("button", { name: "로그인 중..." })).toBeDisabled();
     await expect(page.getByLabel("이메일", { exact: true })).toBeDisabled();
     releaseResponse();
-    await expect(page.getByRole("main").getByRole("status")).toHaveText("로그인에 성공했습니다.");
-    await expect(page.getByRole("button", { name: "로그인", exact: true })).toBeEnabled();
-    await expect(page).toHaveURL(/\/login$/);
-    expect(await page.evaluate(() => [localStorage.length, sessionStorage.length])).toEqual([0, 0]);
+    await expect(page).toHaveURL(/\/$/);
+    await page.getByRole("link", { name: "시작하기", exact: true }).click();
+    await expect(page).toHaveURL(/\/home$/);
+    await expect(page.getByRole("heading", { name: "로그인", exact: true })).toHaveCount(0);
+    expect(await page.evaluate(() => sessionStorage.getItem("accessToken"))).toBe(
+        "test-access-token",
+    );
+    await page.reload();
+    await page.getByRole("link", { name: "지금이니?", exact: true }).click();
+    await page.getByRole("link", { name: "시작하기", exact: true }).click();
+    await expect(page).toHaveURL(/\/home$/);
+    await page.goto("/login");
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole("heading", { name: "로그인", exact: true })).toHaveCount(0);
 });
 
 test("forwards the form without client-side validation", async ({ page }) => {

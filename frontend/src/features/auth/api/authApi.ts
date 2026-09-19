@@ -11,7 +11,12 @@ const login = (params: LoginRequest) => {
     return api.post<ApiResponse<LoginResponse>>("/auth/login", params);
 };
 
+const logout = () => {
+    return api.post<ApiResponse<null>>("/auth/logout");
+};
+
 export const authApi = {
     signUp,
     login,
+    logout,
 };

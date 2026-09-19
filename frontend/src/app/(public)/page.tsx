@@ -1,6 +1,12 @@
+"use client";
+
 import Link from "next/link";
 
+import { useAuthStore } from "@/features/auth/store/authStore";
+
 export default function OnboardingPage() {
+    const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
+
     return (
         <main className="bg-background flex-1">
             <section className="mx-auto flex min-h-[520px] w-full max-w-7xl items-center px-6 py-20 lg:px-8">
@@ -16,7 +22,7 @@ export default function OnboardingPage() {
                     </p>
                     <div className="mt-8 flex flex-wrap gap-3">
                         <Link
-                            href="/login"
+                            href={isLoggedIn ? "/home" : "/login"}
                             className="bg-primary text-primary-foreground rounded-full px-6 py-3 font-semibold"
                         >
                             시작하기

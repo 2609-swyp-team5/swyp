@@ -1,11 +1,12 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { getApiErrorMessage } from "@/common/lib/api/error";
-import { authApi } from "@/features/auth/api/authApi";
+import { useAuthStore } from "@/features/auth/store/authStore";
 import type { LoginRequest } from "@/features/auth/types";
 
 const inputClassName =
@@ -15,14 +16,22 @@ const secondaryLinkClassName =
     "bg-muted text-foreground hover:bg-muted/80 flex h-12 w-full items-center justify-center rounded-lg text-sm font-semibold transition-colors";
 
 export default function LoginPage() {
+    const router = useRouter();
+    const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
+    const isInitialized = useAuthStore((state) => state.isInitialized);
+    const login = useAuthStore((state) => state.login);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [successMessage, setSuccessMessage] = useState("");
     const [errorMessage, setErrorMessage] = useState("");
+
+    useEffect(() => {
+        if (isInitialized && isLoggedIn) {
+            router.replace("/");
+        }
+    }, [isInitialized, isLoggedIn, router]);
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setIsSubmitting(true);
-        setSuccessMessage("");
         setErrorMessage("");
 
         const formData = new FormData(event.currentTarget);
@@ -32,20 +41,23 @@ export default function LoginPage() {
         };
 
         try {
-            const result = await authApi.login(params);
+            const result = await login(params);
 
-            if (result.data.success) {
-                setSuccessMessage("로그인에 성공했습니다.");
+            if (result.success) {
                 return;
             }
 
-            setErrorMessage(result.data.message);
+            setErrorMessage(result.message);
         } catch (error) {
             setErrorMessage(getApiErrorMessage(error));
         } finally {
             setIsSubmitting(false);
         }
     };
+
+    if (!isInitialized || isLoggedIn) {
+        return null;
+    }
 
     return (
         <main className="bg-muted/20 flex flex-1 items-center justify-center px-6 py-14 lg:px-8">
@@ -98,11 +110,6 @@ export default function LoginPage() {
                         </button>
                     </form>
 
-                    {successMessage ? (
-                        <p role="status" className="mt-5 text-center text-sm text-green-600">
-                            {successMessage}
-                        </p>
-                    ) : null}
                     {errorMessage ? (
                         <p role="alert" className="text-destructive mt-5 text-center text-sm">
                             {errorMessage}
