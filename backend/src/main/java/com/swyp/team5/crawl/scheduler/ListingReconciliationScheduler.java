@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 
 import com.swyp.team5.crawl.service.ListingReconciliationService;
 
-/** 매물 재확인(reconciliation)을 주기 실행한다(카테고리 크롤링과 겹치지 않는 시간대에 하루 1번 권장). */
+/** 수집한 데이터(상품) 재확인을 주기적으로 실행한다 */
 @Slf4j
 @Component
 @RequiredArgsConstructor
