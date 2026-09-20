@@ -6,6 +6,7 @@ import type {
     LoginResponse,
     SignUpRequest,
     SignUpResponse,
+    SocialLoginRequest,
     TokenResponse,
 } from "../types";
 
@@ -17,6 +18,11 @@ const authSignUp = (params: SignUpRequest) => {
 // 이메일과 비밀번호로 로그인 요청
 const authLogin = (params: LoginRequest) => {
     return api.post<ApiResponse<LoginResponse>>("/auth/login", params);
+};
+
+// 소셜 제공자의 인증 토큰으로 로그인 요청
+const authSocialLogin = (params: SocialLoginRequest) => {
+    return api.post<ApiResponse<TokenResponse>>("/auth/social/login", params);
 };
 
 // 로그아웃 및 리프레시 토큰 무효화 요청
@@ -32,6 +38,7 @@ const authRefresh = () => {
 export const authApi = {
     authSignUp,
     authLogin,
+    authSocialLogin,
     authLogout,
     authRefresh,
 };

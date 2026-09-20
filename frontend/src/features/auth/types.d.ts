@@ -29,7 +29,13 @@ export interface LoginResponse {
     accessToken: string;
 }
 
-// 토큰 재발급 성공 시 반환되는 액세스 토큰
+// 소셜 로그인에 필요한 제공자와 인증 토큰
+export interface SocialLoginRequest {
+    provider: "GOOGLE" | "KAKAO" | "NAVER";
+    token: string;
+}
+
+// 소셜 로그인 또는 토큰 재발급 성공 시 반환되는 액세스 토큰
 export interface TokenResponse {
     accessToken: string;
 }

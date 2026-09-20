@@ -1,9 +1,10 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { GoogleLogin, GoogleOAuthProvider, type CredentialResponse } from "@react-oauth/google";
 
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { useAuthStore } from "@/features/auth/store/authStore";
@@ -13,15 +14,30 @@ const inputClassName =
     "border-border bg-background h-12 w-full rounded-lg border px-5 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary disabled:cursor-not-allowed disabled:opacity-60";
 
 const secondaryLinkClassName =
-    "bg-muted text-foreground hover:bg-muted/80 flex h-12 w-full items-center justify-center rounded-lg text-sm font-semibold transition-colors";
+    "bg-muted text-foreground hover:bg-muted/80 flex h-10 w-full items-center justify-center rounded-lg text-sm font-semibold transition-colors";
 
 export default function LoginPage() {
     const router = useRouter();
     const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
     const isInitialized = useAuthStore((state) => state.isInitialized);
     const login = useAuthStore((state) => state.login);
+    const socialLogin = useAuthStore((state) => state.socialLogin);
+    const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
+    const googleButtonContainer = useRef<HTMLDivElement>(null);
+    const [googleButtonWidth, setGoogleButtonWidth] = useState(0);
+
+    useEffect(() => {
+        const container = googleButtonContainer.current;
+        if (!container) return;
+
+        const observer = new ResizeObserver(([entry]) => {
+            setGoogleButtonWidth(Math.min(400, Math.floor(entry.contentRect.width)));
+        });
+        observer.observe(container);
+        return () => observer.disconnect();
+    }, [isInitialized, isLoggedIn, googleClientId]);
 
     useEffect(() => {
         if (isInitialized && isLoggedIn) {
@@ -48,6 +64,32 @@ export default function LoginPage() {
             }
 
             setErrorMessage(result.message);
+        } catch (error) {
+            setErrorMessage(getApiErrorMessage(error));
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    // 구글 ID 토큰을 백엔드에 전달해 서비스 로그인 처리
+    const handleGoogleSuccess = async (response: CredentialResponse) => {
+        if (!response.credential) {
+            setErrorMessage("구글 인증 정보를 받지 못했습니다.");
+            return;
+        }
+
+        setIsSubmitting(true);
+        setErrorMessage("");
+
+        try {
+            const result = await socialLogin({
+                provider: "GOOGLE",
+                token: response.credential,
+            });
+
+            if (!result.success) {
+                setErrorMessage(result.message);
+            }
         } catch (error) {
             setErrorMessage(getApiErrorMessage(error));
         } finally {
@@ -110,13 +152,42 @@ export default function LoginPage() {
                         </button>
                     </form>
 
+                    {googleClientId ? (
+                        <div
+                            ref={googleButtonContainer}
+                            className="mx-auto mt-5 min-h-10 w-full max-w-[400px]"
+                        >
+                            <GoogleOAuthProvider clientId={googleClientId}>
+                                {isSubmitting ? (
+                                    <p
+                                        role="status"
+                                        className="flex h-10 items-center justify-center"
+                                    >
+                                        로그인 중...
+                                    </p>
+                                ) : googleButtonWidth > 0 ? (
+                                    <GoogleLogin
+                                        size="large"
+                                        width={googleButtonWidth}
+                                        onSuccess={handleGoogleSuccess}
+                                        onError={() => {
+                                            setErrorMessage("구글 인증에 실패했습니다.");
+                                        }}
+                                    />
+                                ) : null}
+                            </GoogleOAuthProvider>
+                        </div>
+                    ) : (
+                        <p className="mt-5 text-center text-sm">구글 로그인 설정이 필요합니다.</p>
+                    )}
+
                     {errorMessage ? (
                         <p role="alert" className="text-destructive mt-5 text-center text-sm">
                             {errorMessage}
                         </p>
                     ) : null}
 
-                    <div className="mt-7 space-y-3">
+                    <div className="mx-auto mt-7 w-full max-w-[400px] space-y-3">
                         <Link href="/home" className={secondaryLinkClassName}>
                             비회원 로그인
                         </Link>
