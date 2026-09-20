@@ -122,7 +122,7 @@ crawl:
   bunjang:
     enabled: ${CRAWL_BUNJANG_ENABLED:true}
     cron: ${CRAWL_BUNJANG_CRON:0 0 * * * *} # 매 시간 정각에 실행
-    page-limit: ${CRAWL_BUNJANG_PAGE_LIMIT:5} # 한 번에 크롤링할 페이지 수 제한
+    page-limit: ${CRAWL_BUNJANG_PAGE_LIMIT:8} # 한 번에 크롤링할 페이지 수 제한(60건/페이지, 대형 카테고리 커버리지 확보 위해 5→8로 상향)
     reconcile:
       enabled: ${CRAWL_BUNJANG_RECONCILE_ENABLED:true}
       cron: ${CRAWL_BUNJANG_RECONCILE_CRON:0 30 5 * * *} # 매일 새벽 5시 30분(카테고리 크롤링과 겹치지 않는 시간대)
