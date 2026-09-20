@@ -175,7 +175,7 @@ class InterestServiceTest {
         Product product = newProduct(1L, newMember(2L));
         Interest interest = newProductInterest(10L, member, product, null);
         ProductAnalysis analysis =
-                ProductAnalysis.fromCategoryPriceStats(product, 1000L, 2000L, 3000L, LocalDateTime.now());
+                ProductAnalysis.create(product, 1000L, 2000L, 3000L, null, null, null, null, LocalDateTime.now());
         when(interestRepository.findByMemberId(eq(1L), any()))
                 .thenReturn(new PageImpl<>(List.of(interest), Pageable.ofSize(10), 1));
         when(productAnalysisRepository.findLatestByProductIdIn(List.of(1L))).thenReturn(List.of(analysis));
