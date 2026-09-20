@@ -1,7 +1,8 @@
 "use client";
 
-import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { GoogleLogin, GoogleOAuthProvider, type CredentialResponse } from "@react-oauth/google";
@@ -9,6 +10,7 @@ import { GoogleLogin, GoogleOAuthProvider, type CredentialResponse } from "@reac
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import type { LoginRequest } from "@/features/auth/types";
+import { loginSchema } from "@/features/auth/schemas/authSchema";
 
 const inputClassName =
     "border-border bg-background h-12 w-full rounded-lg border px-5 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary disabled:cursor-not-allowed disabled:opacity-60";
@@ -23,7 +25,16 @@ export default function LoginPage() {
     const login = useAuthStore((state) => state.login);
     const socialLogin = useAuthStore((state) => state.socialLogin);
     const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const {
+        register,
+        handleSubmit,
+        formState: { errors, isSubmitting },
+    } = useForm<LoginRequest>({
+        resolver: zodResolver(loginSchema),
+        defaultValues: { email: "", password: "" },
+    });
+    const [isSocialSubmitting, setIsSocialSubmitting] = useState(false);
+    const isBusy = isSubmitting || isSocialSubmitting;
     const [errorMessage, setErrorMessage] = useState("");
     const googleButtonContainer = useRef<HTMLDivElement>(null);
     const [googleButtonWidth, setGoogleButtonWidth] = useState(0);
@@ -45,16 +56,8 @@ export default function LoginPage() {
         }
     }, [isInitialized, isLoggedIn, router]);
 
-    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        setIsSubmitting(true);
+    const onSubmit = async (params: LoginRequest) => {
         setErrorMessage("");
-
-        const formData = new FormData(event.currentTarget);
-        const params: LoginRequest = {
-            email: String(formData.get("email") ?? ""),
-            password: String(formData.get("password") ?? ""),
-        };
 
         try {
             const result = await login(params);
@@ -66,8 +69,6 @@ export default function LoginPage() {
             setErrorMessage(result.message);
         } catch (error) {
             setErrorMessage(getApiErrorMessage(error));
-        } finally {
-            setIsSubmitting(false);
         }
     };
 
@@ -78,7 +79,7 @@ export default function LoginPage() {
             return;
         }
 
-        setIsSubmitting(true);
+        setIsSocialSubmitting(true);
         setErrorMessage("");
 
         try {
@@ -93,7 +94,7 @@ export default function LoginPage() {
         } catch (error) {
             setErrorMessage(getApiErrorMessage(error));
         } finally {
-            setIsSubmitting(false);
+            setIsSocialSubmitting(false);
         }
     };
 
@@ -116,39 +117,67 @@ export default function LoginPage() {
                         로그인
                     </h1>
 
-                    <form noValidate onSubmit={handleSubmit} className="space-y-3">
-                        <fieldset disabled={isSubmitting} className="space-y-3">
-                            <label className="sr-only" htmlFor="email">
-                                이메일
-                            </label>
-                            <input
-                                id="email"
-                                name="email"
-                                type="email"
-                                autoComplete="email"
-                                placeholder="이메일"
-                                className={inputClassName}
-                            />
+                    <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+                        <fieldset disabled={isBusy} className="space-y-3">
+                            <div>
+                                <label className="sr-only" htmlFor="email">
+                                    이메일
+                                </label>
+                                <input
+                                    id="email"
+                                    {...register("email")}
+                                    aria-invalid={Boolean(errors.email)}
+                                    aria-describedby={errors.email ? "email-error" : undefined}
+                                    type="email"
+                                    autoComplete="email"
+                                    placeholder="이메일"
+                                    className={inputClassName}
+                                />
+                                {errors.email ? (
+                                    <p
+                                        id="email-error"
+                                        role="alert"
+                                        className="text-destructive mt-1 text-sm"
+                                    >
+                                        {errors.email.message}
+                                    </p>
+                                ) : null}
+                            </div>
 
-                            <label className="sr-only" htmlFor="password">
-                                비밀번호
-                            </label>
-                            <input
-                                id="password"
-                                name="password"
-                                type="password"
-                                autoComplete="current-password"
-                                placeholder="비밀번호"
-                                className={inputClassName}
-                            />
+                            <div>
+                                <label className="sr-only" htmlFor="password">
+                                    비밀번호
+                                </label>
+                                <input
+                                    id="password"
+                                    {...register("password")}
+                                    aria-invalid={Boolean(errors.password)}
+                                    aria-describedby={
+                                        errors.password ? "password-error" : undefined
+                                    }
+                                    type="password"
+                                    autoComplete="current-password"
+                                    placeholder="비밀번호"
+                                    className={inputClassName}
+                                />
+                                {errors.password ? (
+                                    <p
+                                        id="password-error"
+                                        role="alert"
+                                        className="text-destructive mt-1 text-sm"
+                                    >
+                                        {errors.password.message}
+                                    </p>
+                                ) : null}
+                            </div>
                         </fieldset>
 
                         <button
                             type="submit"
-                            disabled={isSubmitting}
+                            disabled={isBusy}
                             className="bg-primary text-primary-foreground hover:bg-primary/90 h-12 w-full rounded-lg text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            {isSubmitting ? "로그인 중..." : "로그인"}
+                            {isBusy ? "로그인 중..." : "로그인"}
                         </button>
                     </form>
 
@@ -158,7 +187,7 @@ export default function LoginPage() {
                             className="mx-auto mt-5 min-h-10 w-full max-w-[400px]"
                         >
                             <GoogleOAuthProvider clientId={googleClientId}>
-                                {isSubmitting ? (
+                                {isBusy ? (
                                     <p
                                         role="status"
                                         className="flex h-10 items-center justify-center"
