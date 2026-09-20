@@ -126,6 +126,14 @@ frontend/
 - Prettier 설정을 따른다: 4칸 들여쓰기, 큰따옴표, 세미콜론, trailing comma, LF.
 - Tailwind 클래스 순서는 `prettier-plugin-tailwindcss`에 맡긴다.
 
+### shadcn/ui
+
+- Shadcn 컴포넌트 추가는 `npx shadcn@latest add`를 직접 실행하지 않고 `npm run ui:add -- {component}`를 사용한다.
+- `ui:add`는 Shadcn CLI를 실행한 뒤 UI 컴포넌트 파일명을 PascalCase로 정리하고, 관련 import 경로를 함께 수정한다.
+- Shadcn 컴포넌트의 `cn` import는 `@/common/lib/utils`로 통일한다. `cn` 유틸은 `src/common/lib/utils.ts`에만 둔다.
+- Shadcn 컴포넌트는 추가 후 프로젝트 코드로 간주하고 필요한 만큼 Tailwind 클래스와 CVA 변형을 수정한다.
+- 커스터마이징한 컴포넌트는 기존 변경을 덮어쓸 수 있으므로 같은 컴포넌트를 CLI로 다시 추가하지 않는다.
+
 ## 7. 폼 / 검증
 
 - 폼 상태와 제출 처리는 `react-hook-form`을 기본으로 사용한다.
