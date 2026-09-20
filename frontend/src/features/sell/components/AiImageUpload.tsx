@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { ProductImageGrid } from "@/common/components/product/ProductImageGrid";
 
@@ -9,9 +9,12 @@ type PreviewImage = {
     url: string;
 };
 
+export type AiImagePreview = PreviewImage;
+
 type AiImageUploadProps = {
     onError: (message: string) => void;
-    onFilesChange: (files: File[]) => void;
+    images: AiImagePreview[];
+    onImagesChange: (images: AiImagePreview[]) => void;
 };
 
 const MAX_FILE_COUNT = 10;
@@ -22,22 +25,12 @@ function fileKey(file: File) {
     return `${file.name}-${file.size}-${file.lastModified}`;
 }
 
-export function AiImageUpload({ onError, onFilesChange }: AiImageUploadProps) {
+export function AiImageUpload({ images, onError, onImagesChange }: AiImageUploadProps) {
     const inputRef = useRef<HTMLInputElement>(null);
-    const imagesRef = useRef<PreviewImage[]>([]);
-    const [images, setImages] = useState<PreviewImage[]>([]);
     const [isDragging, setIsDragging] = useState(false);
 
-    useEffect(() => {
-        return () => {
-            imagesRef.current.forEach((image) => URL.revokeObjectURL(image.url));
-        };
-    }, []);
-
     const updateImages = (nextImages: PreviewImage[]) => {
-        imagesRef.current = nextImages;
-        setImages(nextImages);
-        onFilesChange(nextImages.map((image) => image.file));
+        onImagesChange(nextImages);
     };
 
     const addFiles = (fileList: FileList | File[]) => {

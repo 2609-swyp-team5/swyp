@@ -1,9 +1,154 @@
-export function AiRegisterAdditionalInfoStep() {
+"use client";
+
+import type { ReactNode } from "react";
+
+import { Checkbox } from "@/common/components/ui/Checkbox";
+import { cn } from "@/common/lib/utils";
+
+export type AiPurchasePeriod =
+    "within-six-months" | "within-one-year" | "within-two-years" | "over-two-years" | "unknown";
+
+export type AiOperationStatus = "normal" | "issues" | "unknown";
+
+export type AiIncludedItem = "body" | "charging-cable" | "box" | "manual" | "strap";
+
+type AiRegisterAdditionalInfoStepProps = {
+    purchasePeriod: AiPurchasePeriod;
+    operationStatus: AiOperationStatus;
+    includedItems: AiIncludedItem[];
+    onPurchasePeriodChange: (value: AiPurchasePeriod) => void;
+    onOperationStatusChange: (value: AiOperationStatus) => void;
+    onIncludedItemChange: (value: AiIncludedItem, checked: boolean) => void;
+    children: ReactNode;
+};
+
+const purchasePeriodOptions: { value: AiPurchasePeriod; label: string }[] = [
+    { value: "within-six-months", label: "6개월 이내" },
+    { value: "within-one-year", label: "1년 이내" },
+    { value: "within-two-years", label: "2년 이내" },
+    { value: "over-two-years", label: "2년 이상" },
+    { value: "unknown", label: "잘 모르겠어요" },
+];
+
+const operationStatusOptions: { value: AiOperationStatus; label: string }[] = [
+    { value: "normal", label: "모든 기능 정상" },
+    { value: "issues", label: "일부 문제 있음" },
+    { value: "unknown", label: "확인하지 못했어요" },
+];
+
+const includedItemOptions: { value: AiIncludedItem; label: string }[] = [
+    { value: "body", label: "본체" },
+    { value: "charging-cable", label: "충전 케이블" },
+    { value: "box", label: "박스" },
+    { value: "manual", label: "설명서" },
+    { value: "strap", label: "스트랩" },
+];
+
+function ChoiceButton({
+    label,
+    selected,
+    onClick,
+}: {
+    label: string;
+    selected: boolean;
+    onClick: () => void;
+}) {
     return (
-        <section className="flex min-h-[399px] w-full items-center justify-center rounded-[20px] border border-[#d3d3d3] bg-white">
-            <p className="text-[20px] leading-8 font-medium tracking-[0.5px] text-[#6b6c7b]">
-                AI 상품등록2 화면입니다.
-            </p>
-        </section>
+        <button
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            className={cn(
+                "h-10 rounded-full border-[1.5px] px-4 py-2 text-[16px] leading-[25px] font-semibold tracking-[0.5px] transition-colors focus-visible:ring-3 focus-visible:ring-[#6653fb]/30 focus-visible:outline-none",
+                selected
+                    ? "border-[#6653fb] bg-[#fafbff] text-[#6653fb]"
+                    : "border-[#d3d3d3] bg-white text-[#6b6c7b] hover:border-[#6653fb]",
+            )}
+            onClick={onClick}
+        >
+            {label}
+        </button>
+    );
+}
+
+export function AiRegisterAdditionalInfoStep({
+    purchasePeriod,
+    operationStatus,
+    includedItems,
+    onPurchasePeriodChange,
+    onOperationStatusChange,
+    onIncludedItemChange,
+    children,
+}: AiRegisterAdditionalInfoStepProps) {
+    return (
+        <div className="flex w-full flex-col">
+            <section className="flex w-full flex-col gap-10 rounded-[20px] border border-[#d3d3d3] bg-white px-6 pt-[50px] pb-[60px] lg:px-[60px]">
+                <div className="flex flex-col gap-3">
+                    <h2 className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#6b6c7b]">
+                        구매 시기는 언제인가요?
+                    </h2>
+                    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="구매 시기">
+                        {purchasePeriodOptions.map((option) => (
+                            <ChoiceButton
+                                key={option.value}
+                                label={option.label}
+                                selected={purchasePeriod === option.value}
+                                onClick={() => onPurchasePeriodChange(option.value)}
+                            />
+                        ))}
+                    </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                    <h2 className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#6b6c7b]">
+                        정상적으로 작동하나요?
+                    </h2>
+                    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="작동 상태">
+                        {operationStatusOptions.map((option) => (
+                            <ChoiceButton
+                                key={option.value}
+                                label={option.label}
+                                selected={operationStatus === option.value}
+                                onClick={() => onOperationStatusChange(option.value)}
+                            />
+                        ))}
+                    </div>
+                </div>
+
+                <div className="flex h-[82px] flex-col items-start justify-between">
+                    <h2 className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#6b6c7b]">
+                        구성품은 무엇이 있나요?
+                    </h2>
+                    <div
+                        className="flex h-[33px] flex-wrap items-center gap-4"
+                        role="group"
+                        aria-label="구성품"
+                    >
+                        {includedItemOptions.map((option) => {
+                            const checked = includedItems.includes(option.value);
+
+                            return (
+                                <label
+                                    key={option.value}
+                                    className="flex h-[27px] cursor-pointer items-center gap-2 text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#6b6c7b]"
+                                >
+                                    <Checkbox
+                                        checked={checked}
+                                        onCheckedChange={(nextChecked) =>
+                                            onIncludedItemChange(option.value, nextChecked === true)
+                                        }
+                                        aria-label={option.label}
+                                        className="size-[13px] rounded-[2px] border-[#6b6c7b] data-[state=checked]:border-[#5d55fe] data-[state=checked]:bg-[#5d55fe] [&_svg]:size-[11px]"
+                                    />
+                                    {option.label}
+                                </label>
+                            );
+                        })}
+                    </div>
+                </div>
+            </section>
+
+            {children}
+        </div>
     );
 }

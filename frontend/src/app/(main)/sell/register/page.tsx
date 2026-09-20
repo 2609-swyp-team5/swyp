@@ -32,7 +32,7 @@ export default function SellRegisterPage() {
         <main className="flex flex-1 flex-col bg-white">
             <section
                 aria-labelledby="register-page-title"
-                className="layout-container flex flex-1 flex-col gap-[50px] py-16 pb-[120px]"
+                className="layout-container flex flex-1 flex-col gap-[80px] py-16 pb-[120px]"
             >
                 <header className="flex flex-col gap-2.5">
                     <p className="typography-heading-02 text-[#363636]">판매할 상품을</p>
