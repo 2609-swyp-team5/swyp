@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.swyp.team5.auth.config.PasswordResetProperties;
-import com.swyp.team5.auth.error.InvalidTokenException;
+import com.swyp.team5.auth.error.InvalidPasswordResetTokenException;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.entity.MemberStatus;
 import com.swyp.team5.member.repository.MemberRepository;
@@ -65,12 +65,13 @@ public class PasswordResetService {
         String key = TOKEN_KEY_PREFIX + token;
         String memberId = redisTemplate.opsForValue().get(key);
         if (memberId == null) {
-            throw new InvalidTokenException();
+            throw new InvalidPasswordResetTokenException();
         }
 
-        Member member = memberRepository.findById(Long.valueOf(memberId)).orElseThrow(InvalidTokenException::new);
+        Member member =
+                memberRepository.findById(Long.valueOf(memberId)).orElseThrow(InvalidPasswordResetTokenException::new);
         if (member.getStatus() != MemberStatus.ACTIVE) {
-            throw new InvalidTokenException();
+            throw new InvalidPasswordResetTokenException();
         }
 
         member.changePassword(passwordEncoder.encode(newPassword));

@@ -110,8 +110,8 @@ public class AuthController {
     @PatchMapping("/password/reset")
     public ResponseEntity<ApiResponse<Void>> confirmPasswordReset(
             @Valid @RequestBody PasswordResetConfirmRequest request) {
-        passwordResetService.confirmReset(request.token(), request.newPassword());
-        return ResponseEntity.ok(ApiResponse.success("비밀번호가 변경되었습니다.", null));
+        passwordResetService.confirmReset(request.resetToken(), request.newPassword());
+        return ResponseEntity.ok(ApiResponse.success("비밀번호가 재설정되었습니다.", null));
     }
 
     private <T> ResponseEntity<ApiResponse<T>> responseWithRefreshTokenCookie(
