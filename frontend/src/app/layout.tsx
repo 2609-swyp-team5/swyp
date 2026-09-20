@@ -3,6 +3,7 @@ import { DM_Sans, Inter } from "next/font/google";
 import type { ReactNode } from "react";
 
 import AuthInitializer from "@/features/auth/components/AuthInitializer";
+import { QueryProvider } from "@/common/providers/QueryProvider";
 
 import "./globals.css";
 
@@ -27,8 +28,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     return (
         <html lang="ko" className={`${inter.variable} ${dmSans.variable} h-full antialiased`}>
             <body className="flex min-h-full flex-col">
-                <AuthInitializer />
-                {children}
+                <QueryProvider>
+                    <AuthInitializer />
+                    {children}
+                </QueryProvider>
             </body>
         </html>
     );

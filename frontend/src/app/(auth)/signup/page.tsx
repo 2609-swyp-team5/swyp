@@ -11,7 +11,7 @@ import { Input } from "@/common/components/ui/Input";
 import { Label } from "@/common/components/ui/Label";
 
 import { getApiErrorMessage } from "@/common/lib/api/error";
-import { authApi } from "@/features/auth/api/authApi";
+import { useSignUpMutation } from "@/features/auth/hooks/mutations/useSignUpMutation";
 import type { SignUpRequest } from "@/features/auth/types";
 import { signUpSchema, type SignUpFormValues } from "@/features/auth/schemas/authSchema";
 
@@ -27,24 +27,20 @@ export default function SignupPage() {
     });
     const [successMessage, setSuccessMessage] = useState("");
     const [errorMessage, setErrorMessage] = useState("");
+    const { mutate: signUp, isPending } = useSignUpMutation({
+        onSuccess: () => {
+            setSuccessMessage("회원가입이 완료되었습니다.");
+            reset();
+        },
+        onError: (error) => setErrorMessage(getApiErrorMessage(error)),
+    });
+    const isBusy = isSubmitting || isPending;
 
-    const onSubmit = async (params: SignUpRequest) => {
+    const onSubmit = (params: SignUpRequest) => {
         setSuccessMessage("");
         setErrorMessage("");
 
-        try {
-            const result = await authApi.authSignUp(params);
-
-            if (result.data.success) {
-                setSuccessMessage("회원가입이 완료되었습니다.");
-                reset();
-                return;
-            }
-
-            setErrorMessage(result.data.message);
-        } catch (error) {
-            setErrorMessage(getApiErrorMessage(error));
-        }
+        signUp(params);
     };
 
     return (
@@ -63,7 +59,7 @@ export default function SignupPage() {
                     </h1>
 
                     <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                        <fieldset disabled={isSubmitting} className="space-y-4">
+                        <fieldset disabled={isBusy} className="space-y-4">
                             <div>
                                 <Label className="sr-only" htmlFor="name">
                                     이름
@@ -195,10 +191,10 @@ export default function SignupPage() {
 
                         <Button
                             type="submit"
-                            disabled={isSubmitting}
+                            disabled={isBusy}
                             className="mt-2 h-12 w-full rounded-full text-sm font-bold"
                         >
-                            {isSubmitting ? "가입 중..." : "회원가입"}
+                            {isBusy ? "가입 중..." : "회원가입"}
                         </Button>
                     </form>
 

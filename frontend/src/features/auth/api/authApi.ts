@@ -11,18 +11,36 @@ import type {
 } from "../types";
 
 // 입력한 정보로 회원가입 요청
-const authSignUp = (params: SignUpRequest) => {
-    return api.post<ApiResponse<SignUpResponse>>("/auth/signup", params);
+const authSignUp = async (params: SignUpRequest): Promise<SignUpResponse> => {
+    const { data } = await api.post<ApiResponse<SignUpResponse>>("/auth/signup", params);
+
+    if (!data.success) {
+        throw new Error(data.message);
+    }
+
+    return data.data;
 };
 
 // 이메일과 비밀번호로 로그인 요청
-const authLogin = (params: LoginRequest) => {
-    return api.post<ApiResponse<LoginResponse>>("/auth/login", params);
+const authLogin = async (params: LoginRequest): Promise<LoginResponse> => {
+    const { data } = await api.post<ApiResponse<LoginResponse>>("/auth/login", params);
+
+    if (!data.success) {
+        throw new Error(data.message);
+    }
+
+    return data.data;
 };
 
 // 소셜 제공자의 인증 토큰으로 로그인 요청
-const authSocialLogin = (params: SocialLoginRequest) => {
-    return api.post<ApiResponse<TokenResponse>>("/auth/social/login", params);
+const authSocialLogin = async (params: SocialLoginRequest): Promise<TokenResponse> => {
+    const { data } = await api.post<ApiResponse<TokenResponse>>("/auth/social/login", params);
+
+    if (!data.success) {
+        throw new Error(data.message);
+    }
+
+    return data.data;
 };
 
 // 로그아웃 및 리프레시 토큰 무효화 요청

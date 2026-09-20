@@ -4,12 +4,6 @@ import { devtools } from "zustand/middleware";
 
 import type { ApiResponse } from "@/common/lib/api/types";
 import { authApi } from "@/features/auth/api/authApi";
-import type {
-    LoginRequest,
-    LoginResponse,
-    SocialLoginRequest,
-    TokenResponse,
-} from "@/features/auth/types";
 
 interface AuthStore {
     accessToken: string | null;
@@ -17,8 +11,7 @@ interface AuthStore {
     isInitialized: boolean;
     checkStatus: () => Promise<void>;
     refresh: () => Promise<string>;
-    login: (params: LoginRequest) => Promise<ApiResponse<LoginResponse>>;
-    socialLogin: (params: SocialLoginRequest) => Promise<ApiResponse<TokenResponse>>;
+    setAccessToken: (accessToken: string) => void;
     logout: () => Promise<ApiResponse<null> | undefined>;
 }
 
@@ -74,32 +67,13 @@ export const useAuthStore = create<AuthStore>()(
                 })();
                 return refreshPromise;
             },
-            login: async (params: LoginRequest) => {
-                const result = await authApi.authLogin(params);
-
-                if (result.data.success) {
-                    const accessToken = result.data.data.accessToken;
-                    authVersion++;
-                    set({ accessToken, isLoggedIn: Boolean(accessToken) }, false, "auth/login");
-                }
-
-                return result.data;
-            },
-            // 소셜 로그인 성공 시 토큰과 전역 로그인 상태 갱신
-            socialLogin: async (params: SocialLoginRequest) => {
-                const result = await authApi.authSocialLogin(params);
-
-                if (result.data.success) {
-                    const accessToken = result.data.data.accessToken;
-                    authVersion++;
-                    set(
-                        { accessToken, isLoggedIn: Boolean(accessToken) },
-                        false,
-                        "auth/socialLogin",
-                    );
-                }
-
-                return result.data;
+            setAccessToken: (accessToken) => {
+                authVersion++;
+                set(
+                    { accessToken, isLoggedIn: Boolean(accessToken) },
+                    false,
+                    "auth/setAccessToken",
+                );
             },
             logout: async () => {
                 const accessToken = get().accessToken;

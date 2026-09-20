@@ -14,6 +14,8 @@ import { Label } from "@/common/components/ui/Label";
 
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { GoogleLoginButton } from "@/features/auth/components/GoogleLoginButton";
+import { useLoginMutation } from "@/features/auth/hooks/mutations/useLoginMutation";
+import { useSocialLoginMutation } from "@/features/auth/hooks/mutations/useSocialLoginMutation";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import type { LoginRequest } from "@/features/auth/types";
 import { loginSchema } from "@/features/auth/schemas/authSchema";
@@ -22,9 +24,14 @@ export default function LoginPage() {
     const router = useRouter();
     const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
     const isInitialized = useAuthStore((state) => state.isInitialized);
-    const socialLogin = useAuthStore((state) => state.socialLogin);
     const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    const login = useAuthStore((state) => state.login);
+    const [errorMessage, setErrorMessage] = useState("");
+    const { mutate: login, isPending } = useLoginMutation({
+        onError: (error) => setErrorMessage(getApiErrorMessage(error)),
+    });
+    const { mutate: socialLogin, isPending: isSocialPending } = useSocialLoginMutation({
+        onError: (error) => setErrorMessage(getApiErrorMessage(error)),
+    });
     const {
         register,
         handleSubmit,
@@ -33,10 +40,8 @@ export default function LoginPage() {
         resolver: zodResolver(loginSchema),
         defaultValues: { email: "", password: "" },
     });
-    const [errorMessage, setErrorMessage] = useState("");
 
-    const [isSocialSubmitting, setIsSocialSubmitting] = useState(false);
-    const isBusy = isSubmitting || isSocialSubmitting;
+    const isBusy = isSubmitting || isPending || isSocialPending;
 
     useEffect(() => {
         if (isInitialized && isLoggedIn) {
@@ -44,46 +49,20 @@ export default function LoginPage() {
         }
     }, [isInitialized, isLoggedIn, router]);
 
-    const onSubmit = async (params: LoginRequest) => {
+    const onSubmit = (params: LoginRequest) => {
         setErrorMessage("");
-
-        try {
-            const result = await login(params);
-
-            if (result.success) {
-                return;
-            }
-
-            setErrorMessage(result.message);
-        } catch (error) {
-            setErrorMessage(getApiErrorMessage(error));
-        }
+        login(params);
     };
 
     // 구글 ID 토큰을 백엔드에 전달해 서비스 로그인 처리
-    const handleGoogleSuccess = async (response: CredentialResponse) => {
+    const handleGoogleSuccess = (response: CredentialResponse) => {
         if (!response.credential) {
             setErrorMessage("구글 인증 정보를 받지 못했습니다.");
             return;
         }
 
-        setIsSocialSubmitting(true);
         setErrorMessage("");
-
-        try {
-            const result = await socialLogin({
-                provider: "GOOGLE",
-                token: response.credential,
-            });
-
-            if (!result.success) {
-                setErrorMessage(result.message);
-            }
-        } catch (error) {
-            setErrorMessage(getApiErrorMessage(error));
-        } finally {
-            setIsSocialSubmitting(false);
-        }
+        socialLogin({ provider: "GOOGLE", token: response.credential });
     };
 
     if (!isInitialized || isLoggedIn) {

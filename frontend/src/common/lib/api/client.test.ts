@@ -89,13 +89,12 @@ describe("access token refresh", () => {
     it("stores login only in memory and clears it after successful logout", async () => {
         useAuthStore.setState({ accessToken: null, isLoggedIn: false });
         server.use(
-            http.post(`${baseURL}/auth/login`, refreshed),
             http.post(`${baseURL}/auth/logout`, ({ request }) => {
                 expect(request.headers.get("Authorization")).toBe("Bearer new-token");
                 return HttpResponse.json({ success: true, data: null });
             }),
         );
-        await useAuthStore.getState().login({ email: "test@example.com", password: "password" });
+        useAuthStore.getState().setAccessToken("new-token");
         expect(useAuthStore.getState().accessToken).toBe("new-token");
         expect(sessionStorage.getItem("accessToken")).toBeNull();
         await useAuthStore.getState().logout();
