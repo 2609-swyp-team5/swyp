@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { CredentialResponse } from "@react-oauth/google";
@@ -12,8 +14,9 @@ import { Label } from "@/common/components/ui/Label";
 
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { GoogleLoginButton } from "@/features/auth/components/GoogleLoginButton";
-import { useLoginForm } from "@/features/auth/hooks/useLoginForm";
 import { useAuthStore } from "@/features/auth/store/authStore";
+import type { LoginRequest } from "@/features/auth/types";
+import { loginSchema } from "@/features/auth/schemas/authSchema";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -21,8 +24,17 @@ export default function LoginPage() {
     const isInitialized = useAuthStore((state) => state.isInitialized);
     const socialLogin = useAuthStore((state) => state.socialLogin);
     const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    const { register, errors, isSubmitting, errorMessage, setErrorMessage, onSubmit } =
-        useLoginForm();
+    const login = useAuthStore((state) => state.login);
+    const {
+        register,
+        handleSubmit,
+        formState: { errors, isSubmitting },
+    } = useForm<LoginRequest>({
+        resolver: zodResolver(loginSchema),
+        defaultValues: { email: "", password: "" },
+    });
+    const [errorMessage, setErrorMessage] = useState("");
+
     const [isSocialSubmitting, setIsSocialSubmitting] = useState(false);
     const isBusy = isSubmitting || isSocialSubmitting;
 
@@ -31,6 +43,22 @@ export default function LoginPage() {
             router.replace("/");
         }
     }, [isInitialized, isLoggedIn, router]);
+
+    const onSubmit = async (params: LoginRequest) => {
+        setErrorMessage("");
+
+        try {
+            const result = await login(params);
+
+            if (result.success) {
+                return;
+            }
+
+            setErrorMessage(result.message);
+        } catch (error) {
+            setErrorMessage(getApiErrorMessage(error));
+        }
+    };
 
     // 구글 ID 토큰을 백엔드에 전달해 서비스 로그인 처리
     const handleGoogleSuccess = async (response: CredentialResponse) => {
@@ -77,7 +105,7 @@ export default function LoginPage() {
                         로그인
                     </h1>
 
-                    <form noValidate onSubmit={onSubmit} className="space-y-3">
+                    <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-3">
                         <fieldset disabled={isBusy} className="space-y-3">
                             <div>
                                 <Label className="sr-only" htmlFor="email">
