@@ -136,6 +136,11 @@ public class AuthService {
         refreshTokenService.delete(memberId);
     }
 
+    @Transactional(readOnly = true)
+    public boolean isEmailAvailable(String email) {
+        return !memberRepository.existsByEmail(email);
+    }
+
     // 이메일이 같은 기존 회원이 있으면 그 계정에 연결하고, 없으면 신규 가입
     private Member linkOrCreateSocialMember(SocialProvider provider, SocialUserInfo userInfo) {
         Member member = memberRepository
