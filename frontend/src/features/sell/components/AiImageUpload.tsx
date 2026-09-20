@@ -2,11 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import Image from "next/image";
-import { Plus, X } from "lucide-react";
-
-import { Badge } from "@/common/components/ui/Badge";
-import { Button } from "@/common/components/ui/Button";
+import { ProductImageGrid } from "@/common/components/product/ProductImageGrid";
 
 type PreviewImage = {
     file: File;
@@ -101,15 +97,15 @@ export function AiImageUpload({ onError, onFilesChange }: AiImageUploadProps) {
     return (
         <div className="flex w-full flex-col gap-2">
             <div
-                role="button"
-                tabIndex={0}
-                aria-label="상품 사진 업로드"
-                className={`relative flex h-[399px] min-h-[280px] w-full cursor-pointer flex-col items-center justify-center gap-4 rounded-tl-[16px] rounded-tr-[16px] border border-dashed p-12 transition-colors ${
+                role={images.length === 0 ? "button" : undefined}
+                tabIndex={images.length === 0 ? 0 : undefined}
+                aria-label={images.length === 0 ? "상품 사진 업로드" : undefined}
+                className={`relative flex h-[399px] min-h-[280px] w-full flex-col items-center justify-center gap-4 rounded-tl-[16px] rounded-tr-[16px] border border-dashed p-12 transition-colors ${
                     isDragging
                         ? "border-[#6653fb] bg-[#f0efff]"
-                        : "border-[#d3d3d3] bg-[#fafbff] hover:border-[#6653fb]"
+                        : `border-[#d3d3d3] bg-[#fafbff] ${images.length === 0 ? "cursor-pointer hover:border-[#6653fb]" : ""}`
                 }`}
-                onClick={openFileDialog}
+                onClick={images.length === 0 ? openFileDialog : undefined}
                 onDragEnter={(event) => {
                     event.preventDefault();
                     setIsDragging(true);
@@ -122,6 +118,10 @@ export function AiImageUpload({ onError, onFilesChange }: AiImageUploadProps) {
                     addFiles(event.dataTransfer.files);
                 }}
                 onKeyDown={(event) => {
+                    if (images.length > 0) {
+                        return;
+                    }
+
                     if (event.key === "Enter" || event.key === " ") {
                         event.preventDefault();
                         openFileDialog();
@@ -162,56 +162,15 @@ export function AiImageUpload({ onError, onFilesChange }: AiImageUploadProps) {
                         </span>
                     </>
                 ) : (
-                    <div className="grid w-full max-w-[760px] grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                        {images.map((image, index) => (
-                            <div
-                                key={image.url}
-                                className="relative aspect-square overflow-hidden rounded-xl bg-[#e5eafc]"
-                            >
-                                <Image
-                                    src={image.url}
-                                    alt={`선택한 상품 사진 ${index + 1}`}
-                                    fill
-                                    unoptimized
-                                    className="object-cover"
-                                    sizes="(min-width: 1024px) 160px, 33vw"
-                                />
-                                {image.url === images[0]?.url && (
-                                    <Badge className="absolute top-2 left-2 h-auto rounded-full bg-[#6653fb] px-2 py-1 text-[11px] leading-4 font-semibold text-white hover:bg-[#6653fb]">
-                                        대표 이미지
-                                    </Badge>
-                                )}
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    aria-label={`${index + 1}번 사진 삭제`}
-                                    className="absolute top-2 right-2 rounded-full bg-black/65 text-white hover:bg-black/80"
-                                    onClick={(event) => {
-                                        event.stopPropagation();
-                                        removeImage(image.url);
-                                    }}
-                                >
-                                    <X aria-hidden="true" className="size-4" />
-                                </Button>
-                            </div>
-                        ))}
-                        {images.length < MAX_FILE_COUNT && (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="icon-lg"
-                                aria-label="상품 사진 추가"
-                                className="flex aspect-square h-auto w-full rounded-xl border-dashed border-[#d3d3d3] bg-white text-[#6653fb] hover:bg-[#f5f4ff]"
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                    openFileDialog();
-                                }}
-                            >
-                                <Plus aria-hidden="true" className="size-8" />
-                            </Button>
-                        )}
-                    </div>
+                    <ProductImageGrid
+                        images={images.map((image, index) => ({
+                            url: image.url,
+                            alt: `선택한 상품 사진 ${index + 1}`,
+                        }))}
+                        maxCount={MAX_FILE_COUNT}
+                        onAdd={openFileDialog}
+                        onRemove={removeImage}
+                    />
                 )}
             </div>
         </div>

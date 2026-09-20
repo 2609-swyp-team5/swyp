@@ -81,9 +81,11 @@ export function AiRegisterPage() {
                         {error && (
                             <Alert
                                 variant="destructive"
-                                className="flex w-auto max-w-full items-center gap-1.5 border-0 bg-transparent p-0 text-left shadow-none sm:absolute sm:top-4 sm:left-0"
+                                className="flex w-auto max-w-full items-center gap-2 border-0 bg-transparent p-0 text-left shadow-none sm:absolute sm:top-4 sm:left-0"
                             >
-                                <CircleAlert aria-hidden="true" className="size-4 shrink-0" />
+                                <span className="flex size-4 shrink-0 items-center justify-center">
+                                    <CircleAlert aria-hidden="true" className="size-4" />
+                                </span>
                                 <AlertDescription className="typography-body-small text-destructive p-0 text-left">
                                     {error}
                                 </AlertDescription>
