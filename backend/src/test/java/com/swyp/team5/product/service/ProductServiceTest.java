@@ -273,8 +273,8 @@ class ProductServiceTest {
         Category category = newCategory(1L, "전자기기");
         Member member = newMember(1L);
         Product product = newProduct(1L, member, category);
-        ProductAnalysis analysis =
-                ProductAnalysis.fromCategoryPriceStats(product, 1000L, 2000L, 3000L, java.time.LocalDateTime.now());
+        ProductAnalysis analysis = ProductAnalysis.create(
+                product, 1000L, 2000L, 3000L, null, null, null, null, java.time.LocalDateTime.now());
 
         when(productRepository.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(product)));
