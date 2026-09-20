@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { Avatar, AvatarFallback } from "@/common/components/ui/Avatar";
+import { Button } from "@/common/components/ui/Button";
 import { HEADER_LINKS } from "@/constants/routes";
 
 function isRouteActive(pathname: string, href: string) {
@@ -11,6 +13,7 @@ function isRouteActive(pathname: string, href: string) {
 
 export function SiteHeader() {
     const pathname = usePathname();
+    const isProfileActive = isRouteActive(pathname, "/my");
 
     return (
         <header className="border-border bg-background border-b">
@@ -21,44 +24,61 @@ export function SiteHeader() {
 
                 <nav
                     aria-label="주요 메뉴"
-                    className="flex min-w-0 flex-1 items-center justify-end gap-1 overflow-x-auto"
+                    className="flex min-w-0 flex-1 items-center justify-end gap-1"
                 >
-                    {HEADER_LINKS.map((link) => (
-                        <Link
-                            key={link.href}
-                            href={link.href}
-                            aria-current={isRouteActive(pathname, link.href) ? "page" : undefined}
-                            className={`typography-body-medium rounded-lg px-3 py-2 whitespace-nowrap transition-colors ${
-                                isRouteActive(pathname, link.href)
-                                    ? "bg-primary/10 text-primary font-semibold"
-                                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                            }`}
-                        >
-                            {link.label}
-                        </Link>
-                    ))}
+                    {HEADER_LINKS.map((link) => {
+                        const isActive = isRouteActive(pathname, link.href);
+
+                        return (
+                            <Button
+                                key={link.href}
+                                asChild
+                                variant="ghost"
+                                className={`typography-body-medium h-auto rounded-lg px-3 py-2 whitespace-nowrap ${
+                                    isActive
+                                        ? "bg-primary/10 text-primary font-semibold"
+                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                }`}
+                            >
+                                <Link href={link.href} aria-current={isActive ? "page" : undefined}>
+                                    {link.label}
+                                </Link>
+                            </Button>
+                        );
+                    })}
                 </nav>
 
                 <div className="typography-body-medium flex items-center gap-2">
-                    <Link
-                        href="/login"
-                        className="text-muted-foreground hover:text-foreground rounded-full px-3 py-2 transition-colors"
+                    <Button
+                        asChild
+                        variant="ghost"
+                        className="typography-body-medium text-muted-foreground hover:text-foreground h-auto rounded-full px-3 py-2"
                     >
-                        로그인
-                    </Link>
-                    <Link
-                        href="/my"
-                        aria-label="프로필"
-                        title="프로필"
-                        aria-current={isRouteActive(pathname, "/my") ? "page" : undefined}
-                        className={`typography-body-medium inline-flex size-9 items-center justify-center rounded-full font-semibold ${
-                            isRouteActive(pathname, "/my")
-                                ? "bg-primary text-primary-foreground"
+                        <Link href="/login">로그인</Link>
+                    </Button>
+                    <Button
+                        asChild
+                        variant="ghost"
+                        size="icon-lg"
+                        className={`rounded-full p-0 ${
+                            isProfileActive
+                                ? "bg-primary text-primary-foreground hover:bg-primary/80"
                                 : "bg-muted text-foreground"
                         }`}
                     >
-                        <span aria-hidden="true">P</span>
-                    </Link>
+                        <Link
+                            href="/my"
+                            aria-label="프로필"
+                            title="프로필"
+                            aria-current={isProfileActive ? "page" : undefined}
+                        >
+                            <Avatar aria-hidden="true" className="size-full after:border-0">
+                                <AvatarFallback className="bg-transparent font-semibold text-inherit">
+                                    P
+                                </AvatarFallback>
+                            </Avatar>
+                        </Link>
+                    </Button>
                 </div>
             </div>
         </header>
