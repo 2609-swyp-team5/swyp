@@ -64,6 +64,7 @@ public class PriceCollectionService {
         String bunjangCategoryId = mapping.getExternalCategoryId();
         int count = 0;
         String cursor = null;
+        boolean hasMorePages = false;
         for (int page = 0; page < properties.pageLimit(); page++) {
             BunjangCategoryPage result = bunjangCategoryClient.fetchPage(bunjangCategoryId, cursor);
             for (BunjangProductItem item : result.items()) {
@@ -76,12 +77,24 @@ public class PriceCollectionService {
                 upsertListing(mapping, item);
                 count++;
             }
-            if (!result.hasNext()) {
+            hasMorePages = result.hasNext();
+            if (!hasMorePages) {
                 break;
             }
             cursor = result.nextCursor();
         }
-        log.info("카테고리 {}(번개장터 {}) 매물 {}건 수집", categoryId, bunjangCategoryId, count);
+        // hasMorePages가 여전히 true면 hasNext=false로 자연 종료한 게 아니라 page-limit 캡에 걸려
+        // 강제 종료된 것 — 이 경우 아직 못 본 매물이 남아있다는 뜻이라 WARN으로 구분해 남긴다.
+        if (hasMorePages) {
+            log.warn(
+                    "카테고리 {}(번개장터 {}) 매물 {}건 수집 — page-limit({}) 캡에 도달해 더 있는 매물을 못 봤습니다.",
+                    categoryId,
+                    bunjangCategoryId,
+                    count,
+                    properties.pageLimit());
+        } else {
+            log.info("카테고리 {}(번개장터 {}) 매물 {}건 수집", categoryId, bunjangCategoryId, count);
+        }
     }
 
     /**

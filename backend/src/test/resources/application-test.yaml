@@ -26,3 +26,9 @@ jwt:
 crawl:
   bunjang:
     enabled: false
+    reconcile:
+      enabled: false
+
+# 시세 분석도 테스트 중 AI를 호출하지 않도록 비활성화
+analysis:
+  enabled: false
