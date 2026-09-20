@@ -5,13 +5,15 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 
+import { Button } from "@/common/components/ui/Button";
+import { Card } from "@/common/components/ui/Card";
+import { Input } from "@/common/components/ui/Input";
+import { Label } from "@/common/components/ui/Label";
+
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { authApi } from "@/features/auth/api/authApi";
 import type { SignUpRequest } from "@/features/auth/types";
 import { signUpSchema, type SignUpFormValues } from "@/features/auth/schemas/authSchema";
-
-const inputClassName =
-    "border-border bg-background h-12 w-full rounded-full border px-5 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary disabled:cursor-not-allowed disabled:opacity-60";
 
 export default function SignupPage() {
     const {
@@ -55,7 +57,7 @@ export default function SignupPage() {
                     <p className="text-primary mt-2 text-4xl font-bold tracking-tight">지금이니?</p>
                 </div>
 
-                <div className="border-border bg-background rounded-2xl border p-7 shadow-xl shadow-black/5 sm:p-10">
+                <Card className="bg-background block rounded-2xl border p-7 shadow-xl ring-0 shadow-black/5 sm:p-10">
                     <h1 id="page-title" className="mb-7 text-3xl font-bold tracking-tight">
                         회원가입
                     </h1>
@@ -63,10 +65,10 @@ export default function SignupPage() {
                     <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                         <fieldset disabled={isSubmitting} className="space-y-4">
                             <div>
-                                <label className="sr-only" htmlFor="name">
+                                <Label className="sr-only" htmlFor="name">
                                     이름
-                                </label>
-                                <input
+                                </Label>
+                                <Input
                                     id="name"
                                     {...register("name")}
                                     aria-invalid={Boolean(errors.name)}
@@ -74,7 +76,7 @@ export default function SignupPage() {
                                     type="text"
                                     autoComplete="name"
                                     placeholder="이름"
-                                    className={inputClassName}
+                                    className="bg-background h-12 rounded-full px-5 text-sm"
                                 />
                                 {errors.name ? (
                                     <p
@@ -88,10 +90,10 @@ export default function SignupPage() {
                             </div>
 
                             <div>
-                                <label className="sr-only" htmlFor="nickname">
+                                <Label className="sr-only" htmlFor="nickname">
                                     닉네임
-                                </label>
-                                <input
+                                </Label>
+                                <Input
                                     id="nickname"
                                     {...register("nickname")}
                                     aria-invalid={Boolean(errors.nickname)}
@@ -100,7 +102,7 @@ export default function SignupPage() {
                                     }
                                     type="text"
                                     placeholder="닉네임"
-                                    className={inputClassName}
+                                    className="bg-background h-12 rounded-full px-5 text-sm"
                                 />
                                 {errors.nickname ? (
                                     <p
@@ -114,10 +116,10 @@ export default function SignupPage() {
                             </div>
 
                             <div>
-                                <label className="sr-only" htmlFor="phone">
+                                <Label className="sr-only" htmlFor="phone">
                                     휴대폰 번호 (선택)
-                                </label>
-                                <input
+                                </Label>
+                                <Input
                                     id="phone"
                                     {...register("phone")}
                                     aria-invalid={Boolean(errors.phone)}
@@ -125,7 +127,7 @@ export default function SignupPage() {
                                     type="tel"
                                     autoComplete="tel"
                                     placeholder="휴대폰 번호 (선택)"
-                                    className={inputClassName}
+                                    className="bg-background h-12 rounded-full px-5 text-sm"
                                 />
                                 {errors.phone ? (
                                     <p
@@ -139,10 +141,10 @@ export default function SignupPage() {
                             </div>
 
                             <div>
-                                <label className="sr-only" htmlFor="email">
+                                <Label className="sr-only" htmlFor="email">
                                     이메일
-                                </label>
-                                <input
+                                </Label>
+                                <Input
                                     id="email"
                                     {...register("email")}
                                     aria-invalid={Boolean(errors.email)}
@@ -150,7 +152,7 @@ export default function SignupPage() {
                                     type="email"
                                     autoComplete="email"
                                     placeholder="이메일"
-                                    className={inputClassName}
+                                    className="bg-background h-12 rounded-full px-5 text-sm"
                                 />
                                 {errors.email ? (
                                     <p
@@ -164,10 +166,10 @@ export default function SignupPage() {
                             </div>
 
                             <div>
-                                <label className="sr-only" htmlFor="password">
+                                <Label className="sr-only" htmlFor="password">
                                     비밀번호
-                                </label>
-                                <input
+                                </Label>
+                                <Input
                                     id="password"
                                     {...register("password")}
                                     aria-invalid={Boolean(errors.password)}
@@ -177,7 +179,7 @@ export default function SignupPage() {
                                     type="password"
                                     autoComplete="new-password"
                                     placeholder="비밀번호"
-                                    className={inputClassName}
+                                    className="bg-background h-12 rounded-full px-5 text-sm"
                                 />
                                 {errors.password ? (
                                     <p
@@ -191,13 +193,13 @@ export default function SignupPage() {
                             </div>
                         </fieldset>
 
-                        <button
+                        <Button
                             type="submit"
                             disabled={isSubmitting}
-                            className="bg-primary text-primary-foreground hover:bg-primary/90 mt-2 h-12 w-full rounded-full text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                            className="mt-2 h-12 w-full rounded-full text-sm font-bold"
                         >
                             {isSubmitting ? "가입 중..." : "회원가입"}
-                        </button>
+                        </Button>
                     </form>
 
                     {successMessage ? (
@@ -220,7 +222,7 @@ export default function SignupPage() {
                             로그인
                         </Link>
                     </p>
-                </div>
+                </Card>
             </section>
         </main>
     );

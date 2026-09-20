@@ -7,16 +7,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { GoogleLogin, GoogleOAuthProvider, type CredentialResponse } from "@react-oauth/google";
 
+import { Button } from "@/common/components/ui/Button";
+import { Card } from "@/common/components/ui/Card";
+import { Input } from "@/common/components/ui/Input";
+import { Label } from "@/common/components/ui/Label";
+
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import type { LoginRequest } from "@/features/auth/types";
 import { loginSchema } from "@/features/auth/schemas/authSchema";
-
-const inputClassName =
-    "border-border bg-background h-12 w-full rounded-lg border px-5 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary disabled:cursor-not-allowed disabled:opacity-60";
-
-const secondaryLinkClassName =
-    "bg-muted text-foreground hover:bg-muted/80 flex h-10 w-full items-center justify-center rounded-lg text-sm font-semibold transition-colors";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -112,7 +111,7 @@ export default function LoginPage() {
                     <p className="text-primary mt-2 text-4xl font-bold tracking-tight">지금이니?</p>
                 </div>
 
-                <div className="border-border bg-background rounded-2xl border p-7 shadow-xl shadow-black/5 sm:p-10">
+                <Card className="bg-background block rounded-2xl border p-7 shadow-xl ring-0 shadow-black/5 sm:p-10">
                     <h1 id="page-title" className="mb-10 text-3xl font-bold tracking-tight">
                         로그인
                     </h1>
@@ -120,10 +119,10 @@ export default function LoginPage() {
                     <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-3">
                         <fieldset disabled={isBusy} className="space-y-3">
                             <div>
-                                <label className="sr-only" htmlFor="email">
+                                <Label className="sr-only" htmlFor="email">
                                     이메일
-                                </label>
-                                <input
+                                </Label>
+                                <Input
                                     id="email"
                                     {...register("email")}
                                     aria-invalid={Boolean(errors.email)}
@@ -131,7 +130,7 @@ export default function LoginPage() {
                                     type="email"
                                     autoComplete="email"
                                     placeholder="이메일"
-                                    className={inputClassName}
+                                    className="bg-background h-12 rounded-lg px-5 text-sm"
                                 />
                                 {errors.email ? (
                                     <p
@@ -145,10 +144,10 @@ export default function LoginPage() {
                             </div>
 
                             <div>
-                                <label className="sr-only" htmlFor="password">
+                                <Label className="sr-only" htmlFor="password">
                                     비밀번호
-                                </label>
-                                <input
+                                </Label>
+                                <Input
                                     id="password"
                                     {...register("password")}
                                     aria-invalid={Boolean(errors.password)}
@@ -158,7 +157,7 @@ export default function LoginPage() {
                                     type="password"
                                     autoComplete="current-password"
                                     placeholder="비밀번호"
-                                    className={inputClassName}
+                                    className="bg-background h-12 rounded-lg px-5 text-sm"
                                 />
                                 {errors.password ? (
                                     <p
@@ -172,13 +171,13 @@ export default function LoginPage() {
                             </div>
                         </fieldset>
 
-                        <button
+                        <Button
                             type="submit"
                             disabled={isBusy}
-                            className="bg-primary text-primary-foreground hover:bg-primary/90 h-12 w-full rounded-lg text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                            className="h-12 w-full rounded-lg text-sm font-bold"
                         >
                             {isBusy ? "로그인 중..." : "로그인"}
-                        </button>
+                        </Button>
                     </form>
 
                     {googleClientId ? (
@@ -217,12 +216,20 @@ export default function LoginPage() {
                     ) : null}
 
                     <div className="mx-auto mt-7 w-full max-w-[400px] space-y-3">
-                        <Link href="/home" className={secondaryLinkClassName}>
-                            비회원 로그인
-                        </Link>
-                        <Link href="/signup" className={secondaryLinkClassName}>
-                            회원가입
-                        </Link>
+                        <Button
+                            asChild
+                            variant="secondary"
+                            className="h-10 w-full rounded-lg text-sm font-semibold"
+                        >
+                            <Link href="/home">비회원 로그인</Link>
+                        </Button>
+                        <Button
+                            asChild
+                            variant="secondary"
+                            className="h-10 w-full rounded-lg text-sm font-semibold"
+                        >
+                            <Link href="/signup">회원가입</Link>
+                        </Button>
                     </div>
 
                     <Link
@@ -231,7 +238,7 @@ export default function LoginPage() {
                     >
                         아이디/비밀번호 찾기
                     </Link>
-                </div>
+                </Card>
             </section>
         </main>
     );
