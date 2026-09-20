@@ -1,12 +1,9 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 for (const refreshSucceeds of [true, false]) {
     test(`logout handles expired access tokens when refresh ${refreshSucceeds ? "succeeds" : "fails"}`, async ({
         page,
     }) => {
-        await page.goto("/");
-        await page.evaluate(() => sessionStorage.setItem("accessToken", "expired-token"));
-        await page.goto("/my");
         let logoutCount = 0;
         let refreshCount = 0;
         await page.route("**/auth/logout", async (route) => {
@@ -21,24 +18,29 @@ for (const refreshSucceeds of [true, false]) {
         });
         await page.route("**/auth/refresh", async (route) => {
             refreshCount++;
+            const restoring = refreshCount === 1;
+            const success = restoring || refreshSucceeds;
             await route.fulfill({
-                status: refreshSucceeds ? 200 : 401,
+                status: success ? 200 : 401,
                 json: {
-                    success: refreshSucceeds,
-                    data: refreshSucceeds ? { accessToken: "fresh-token" } : null,
+                    success,
+                    data: success
+                        ? { accessToken: restoring ? "expired-token" : "fresh-token" }
+                        : null,
                     message: "Refresh failed",
                     error: null,
                 },
             });
         });
+        await page.goto("/my");
+        await expect(page.getByRole("heading", { name: "마이페이지", exact: true })).toBeVisible();
         await page
             .getByRole("banner")
             .getByRole("button", { name: "로그아웃", exact: true })
             .click();
         await expect(page).toHaveURL(/\/login$/);
         await expect(page.getByRole("heading", { name: "로그인", exact: true })).toBeVisible();
-        expect(await page.evaluate(() => sessionStorage.getItem("accessToken"))).toBeNull();
-        expect(refreshCount).toBe(1);
+        expect(refreshCount).toBe(2);
         expect(logoutCount).toBe(refreshSucceeds ? 2 : 1);
     });
 }

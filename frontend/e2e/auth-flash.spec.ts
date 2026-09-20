@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 test("does not render the login form before login restoration", async ({ browser }) => {
     const context = await browser.newContext({ javaScriptEnabled: false });
@@ -14,8 +14,12 @@ test("does not render the login form before login restoration", async ({ browser
 });
 
 test("never inserts the login form while redirecting a restored session", async ({ page }) => {
-    await page.goto("/");
-    await page.evaluate(() => sessionStorage.setItem("accessToken", "test-access-token"));
+    await page.route("**/auth/refresh", (route) =>
+        route.fulfill({
+            status: 200,
+            json: { success: true, data: { accessToken: "test-access-token" }, error: null },
+        }),
+    );
     await page.addInitScript(() => {
         const detectForm = () => {
             if (location.pathname === "/login" && document.querySelector("form")) {

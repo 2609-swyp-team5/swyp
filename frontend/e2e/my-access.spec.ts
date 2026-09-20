@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 test("hides the profile link before login", async ({ page }) => {
     await page.goto("/");
@@ -17,8 +17,12 @@ for (const path of ["/my", "/my/settings"]) {
 }
 
 test("restores my page access on reload and redirects after logout", async ({ page }) => {
-    await page.goto("/");
-    await page.evaluate(() => sessionStorage.setItem("accessToken", "test-access-token"));
+    await page.route("**/auth/refresh", (route) =>
+        route.fulfill({
+            status: 200,
+            json: { success: true, data: { accessToken: "test-access-token" }, error: null },
+        }),
+    );
     await page.goto("/my");
 
     const header = page.getByRole("banner");
