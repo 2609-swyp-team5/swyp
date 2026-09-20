@@ -1,8 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 
 import { Button } from "@/common/components/ui/Button";
@@ -10,42 +7,11 @@ import { Card } from "@/common/components/ui/Card";
 import { Input } from "@/common/components/ui/Input";
 import { Label } from "@/common/components/ui/Label";
 
-import { getApiErrorMessage } from "@/common/lib/api/error";
-import { authApi } from "@/features/auth/api/authApi";
-import type { SignUpRequest } from "@/features/auth/types";
-import { signUpSchema, type SignUpFormValues } from "@/features/auth/schemas/authSchema";
+import { useSignupForm } from "@/features/auth/hooks/useSignupForm";
 
 export default function SignupPage() {
-    const {
-        register,
-        handleSubmit,
-        reset,
-        formState: { errors, isSubmitting },
-    } = useForm<SignUpFormValues, unknown, SignUpRequest>({
-        resolver: zodResolver(signUpSchema),
-        defaultValues: { name: "", nickname: "", phone: "", email: "", password: "" },
-    });
-    const [successMessage, setSuccessMessage] = useState("");
-    const [errorMessage, setErrorMessage] = useState("");
-
-    const onSubmit = async (params: SignUpRequest) => {
-        setSuccessMessage("");
-        setErrorMessage("");
-
-        try {
-            const result = await authApi.authSignUp(params);
-
-            if (result.data.success) {
-                setSuccessMessage("회원가입이 완료되었습니다.");
-                reset();
-                return;
-            }
-
-            setErrorMessage(result.data.message);
-        } catch (error) {
-            setErrorMessage(getApiErrorMessage(error));
-        }
-    };
+    const { register, errors, isSubmitting, successMessage, errorMessage, onSubmit } =
+        useSignupForm();
 
     return (
         <main className="bg-muted/20 flex flex-1 items-center justify-center px-6 py-14 lg:px-8">
@@ -62,7 +28,7 @@ export default function SignupPage() {
                         회원가입
                     </h1>
 
-                    <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                    <form noValidate onSubmit={onSubmit} className="space-y-4">
                         <fieldset disabled={isSubmitting} className="space-y-4">
                             <div>
                                 <Label className="sr-only" htmlFor="name">
