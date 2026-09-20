@@ -29,6 +29,20 @@ spring:
       ssl:
         enabled: ${REDIS_SSL_ENABLED:false}
 
+# 메일 발송 설정 (비밀번호 재설정)
+# host 가 비어 있으면 메일을 보내지 않고 재설정 링크를 로그로 남긴다(로컬 개발용).
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
 # Kafka 설정 (사용시 주석 해제)
 #  kafka:
 #    bootstrap-servers: ${KAFKA_SERVER:localhost:9092}
@@ -88,6 +102,13 @@ cloud:
     public-base-url: ${AWS_S3_PUBLIC_BASE_URL:}
 
 # JWT 설정 (secret/refresh-secret은 profile별 파일에서 설정)
+# 비밀번호 재설정 설정
+password-reset:
+  token-expires: ${PASSWORD_RESET_TOKEN_EXPIRES:30m} # 재설정 링크 유효 시간
+  cooldown: ${PASSWORD_RESET_COOLDOWN:1m} # 같은 이메일로 다시 요청할 수 있게 되기까지의 시간
+  reset-url: ${PASSWORD_RESET_URL:http://localhost:3000/account/reset-password} # 메일에 담을 프론트 주소
+  from: ${MAIL_FROM:no-reply@haru-dev.me} # 발신자 주소
+
 jwt:
   access-token-expires: ${JWT_ACCESS_TOKEN_EXPIRES:30m}
   refresh-token-expires: ${JWT_REFRESH_TOKEN_EXPIRES:14d}

@@ -14,6 +14,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,11 +25,14 @@ import com.swyp.team5.auth.dto.EmailAvailabilityResponse;
 import com.swyp.team5.auth.dto.EmailCheckRequest;
 import com.swyp.team5.auth.dto.LoginRequest;
 import com.swyp.team5.auth.dto.LoginResponse;
+import com.swyp.team5.auth.dto.PasswordResetConfirmRequest;
+import com.swyp.team5.auth.dto.PasswordResetRequest;
 import com.swyp.team5.auth.dto.SignUpRequest;
 import com.swyp.team5.auth.dto.SignUpResponse;
 import com.swyp.team5.auth.dto.SocialLoginRequest;
 import com.swyp.team5.auth.dto.TokenResponse;
 import com.swyp.team5.auth.service.AuthService;
+import com.swyp.team5.auth.service.PasswordResetService;
 import com.swyp.team5.common.common.ApiResponse;
 import com.swyp.team5.common.passport.JwtProperties;
 import com.swyp.team5.common.passport.PrincipalMember;
@@ -45,6 +49,8 @@ public class AuthController {
     private static final String REFRESH_TOKEN_COOKIE_PATH = "/auth";
 
     private final AuthService authService;
+
+    private final PasswordResetService passwordResetService;
 
     private final JwtProperties jwtProperties;
 
@@ -91,6 +97,21 @@ public class AuthController {
             @Valid @ModelAttribute EmailCheckRequest request) {
         boolean available = authService.isEmailAvailable(request.email());
         return ResponseEntity.ok(ApiResponse.success(new EmailAvailabilityResponse(available)));
+    }
+
+    @Operation(summary = "비밀번호 재설정 요청")
+    @PostMapping("/password/reset")
+    public ResponseEntity<ApiResponse<Void>> requestPasswordReset(@Valid @RequestBody PasswordResetRequest request) {
+        passwordResetService.requestReset(request.email());
+        return ResponseEntity.ok(ApiResponse.success("비밀번호 재설정 메일을 발송했습니다.", null));
+    }
+
+    @Operation(summary = "비밀번호 재설정")
+    @PatchMapping("/password/reset")
+    public ResponseEntity<ApiResponse<Void>> confirmPasswordReset(
+            @Valid @RequestBody PasswordResetConfirmRequest request) {
+        passwordResetService.confirmReset(request.token(), request.newPassword());
+        return ResponseEntity.ok(ApiResponse.success("비밀번호가 변경되었습니다.", null));
     }
 
     private <T> ResponseEntity<ApiResponse<T>> responseWithRefreshTokenCookie(
