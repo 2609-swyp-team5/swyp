@@ -173,7 +173,7 @@ class AuthTest {
         // 스파이의 실제 verify()는 구글 서버 통신이 필요해 when(...)으로 스텁하면 실제 메소드가 먼저 호출되어 버린다.
         // 실제 호출 없이 스텁만 걸리도록 doReturn().when(...) 형태를 사용한다.
         Mockito.doReturn(userInfo).when(googleLoginStrategy).verify("id-token");
-        SocialLoginRequest request = new SocialLoginRequest(SocialProvider.GOOGLE, "id-token");
+        SocialLoginRequest request = new SocialLoginRequest(SocialProvider.GOOGLE, "id-token", null);
 
         mockMvc.perform(post("/auth/social/login")
                         .contentType(MediaType.APPLICATION_JSON)

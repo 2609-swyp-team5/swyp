@@ -24,6 +24,9 @@ public class KakaoProperties {
 
     private String redirectUri;
 
+    /** 사용자를 카카오 로그인 화면으로 보내는 주소 */
+    private String authorizeUri;
+
     /** 인가 코드를 액세스 토큰으로 교환하는 주소 */
     private String tokenUri;
 

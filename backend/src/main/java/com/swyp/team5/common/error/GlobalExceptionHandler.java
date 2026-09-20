@@ -21,6 +21,7 @@ import com.swyp.team5.auth.error.DuplicatePhoneException;
 import com.swyp.team5.auth.error.InactiveMemberException;
 import com.swyp.team5.auth.error.InvalidCredentialsException;
 import com.swyp.team5.auth.error.InvalidPasswordResetTokenException;
+import com.swyp.team5.auth.error.InvalidSocialStateException;
 import com.swyp.team5.auth.error.InvalidSocialTokenException;
 import com.swyp.team5.auth.error.InvalidTokenException;
 import com.swyp.team5.auth.error.UnsupportedSocialProviderException;
@@ -52,6 +53,7 @@ public class GlobalExceptionHandler {
         InvalidCredentialsException.class,
         InvalidTokenException.class,
         InvalidSocialTokenException.class,
+        InvalidSocialStateException.class,
         InvalidPasswordResetTokenException.class
     })
     public ResponseEntity<ApiResponse<Void>> handleAuthenticationFailure(RuntimeException e) {

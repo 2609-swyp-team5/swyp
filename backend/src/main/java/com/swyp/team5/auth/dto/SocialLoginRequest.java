@@ -5,4 +5,4 @@ import jakarta.validation.constraints.NotNull;
 
 import com.swyp.team5.social.entity.SocialProvider;
 
-public record SocialLoginRequest(@NotNull SocialProvider provider, @NotBlank String token) {}
+public record SocialLoginRequest(@NotNull SocialProvider provider, @NotBlank String token, String state) {}

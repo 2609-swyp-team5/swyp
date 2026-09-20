@@ -43,26 +43,33 @@ public class NaverLoginStrategy implements SocialLoginStrategy {
         return SocialProvider.NAVER;
     }
 
-    /**
-     * @param token 프론트가 네이버에서 받은 인가 코드
-     */
     @Override
     public SocialUserInfo verify(String token) {
-        String accessToken = exchangeToken(token);
+        // AuthService 는 항상 state 를 넘기는 쪽을 호출한다. 여기로 오면 호출부가 잘못된 것이다.
+        throw new UnsupportedOperationException("네이버 로그인은 state 가 필요합니다.");
+    }
+
+    /**
+     * @param token 프론트가 네이버에서 받은 인가 코드
+     * @param state 인증 URL 발급 시 서버가 만든 난수. 네이버가 토큰 교환에서 같은 값을 요구한다.
+     */
+    @Override
+    public SocialUserInfo verify(String token, String state) {
+        String accessToken = exchangeToken(token, state);
         NaverUserResponse.Response user = requestUserInfo(accessToken);
 
         return toSocialUserInfo(user);
     }
 
     /** 인가 코드를 액세스 토큰으로 교환한다. 인가 코드는 1회용이라 재시도해도 실패한다. */
-    private String exchangeToken(String authorizationCode) {
+    private String exchangeToken(String authorizationCode, String state) {
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         form.add("grant_type", "authorization_code");
         form.add("client_id", properties.getClientId());
         form.add("client_secret", properties.getClientSecret());
         form.add("redirect_uri", properties.getRedirectUri());
         form.add("code", authorizationCode);
-        form.add("state", properties.getState());
+        form.add("state", state);
 
         NaverTokenResponse response;
         try {

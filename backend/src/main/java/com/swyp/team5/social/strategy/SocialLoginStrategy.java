@@ -10,4 +10,9 @@ public interface SocialLoginStrategy {
 
     /** 프론트에서 전달받은 토큰을 검증해 사용자 정보를 반환한다. 검증 실패 시 InvalidSocialTokenException. */
     SocialUserInfo verify(String token);
+
+    /** 토큰 교환에 state 가 필요한 provider 만 재정의한다. 그 외에는 state 를 쓰지 않는다. */
+    default SocialUserInfo verify(String token, String state) {
+        return verify(token);
+    }
 }

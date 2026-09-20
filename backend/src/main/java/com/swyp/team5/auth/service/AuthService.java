@@ -122,7 +122,7 @@ public class AuthService {
         if (strategy == null) {
             throw new UnsupportedSocialProviderException(provider.name());
         }
-        SocialUserInfo userInfo = strategy.verify(request.token());
+        SocialUserInfo userInfo = strategy.verify(request.token(), request.state());
 
         Member member = socialRepository
                 .findByProviderAndProviderId(provider, userInfo.providerId())
