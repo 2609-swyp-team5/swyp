@@ -5,6 +5,10 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Camera, CircleAlert, Plus, X } from "lucide-react";
 
+import { Alert, AlertDescription } from "@/common/components/ui/Alert";
+import { Badge } from "@/common/components/ui/Badge";
+import { Button } from "@/common/components/ui/Button";
+
 type PreviewImage = {
     file: File;
     url: string;
@@ -197,59 +201,67 @@ export function AiImageUpload({ error, onError, onFilesChange }: AiImageUploadPr
                                     sizes="(min-width: 1024px) 160px, 33vw"
                                 />
                                 {image.url === representativeUrl && (
-                                    <span className="absolute top-2 left-2 rounded-full bg-[#6653fb] px-2 py-1 text-[11px] leading-4 font-semibold text-white">
+                                    <Badge className="absolute top-2 left-2 h-auto rounded-full bg-[#6653fb] px-2 py-1 text-[11px] leading-4 font-semibold text-white hover:bg-[#6653fb]">
                                         대표 이미지
-                                    </span>
+                                    </Badge>
                                 )}
-                                <button
+                                <Button
                                     type="button"
+                                    variant="ghost"
+                                    size="icon-sm"
                                     aria-label={`${index + 1}번 사진 삭제`}
-                                    className="absolute top-2 right-2 flex size-7 items-center justify-center rounded-full bg-black/65 text-white transition-colors hover:bg-black/80"
+                                    className="absolute top-2 right-2 rounded-full bg-black/65 text-white hover:bg-black/80"
                                     onClick={(event) => {
                                         event.stopPropagation();
                                         removeImage(image.url);
                                     }}
                                 >
                                     <X aria-hidden="true" className="size-4" />
-                                </button>
+                                </Button>
                                 {image.url !== representativeUrl && (
-                                    <button
+                                    <Button
                                         type="button"
-                                        className="absolute right-2 bottom-2 rounded-full bg-white/90 px-2 py-1 text-[11px] leading-4 font-semibold text-[#545d82] transition-colors hover:bg-white"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="absolute right-2 bottom-2 h-auto rounded-full bg-white/90 px-2 py-1 text-[11px] leading-4 font-semibold text-[#545d82] hover:bg-white"
                                         onClick={(event) => {
                                             event.stopPropagation();
                                             setRepresentative(image.url);
                                         }}
                                     >
                                         대표로 설정
-                                    </button>
+                                    </Button>
                                 )}
                             </div>
                         ))}
                         {images.length < MAX_FILE_COUNT && (
-                            <button
+                            <Button
                                 type="button"
+                                variant="outline"
+                                size="icon-lg"
                                 aria-label="상품 사진 추가"
-                                className="flex aspect-square items-center justify-center rounded-xl border border-dashed border-[#d3d3d3] bg-white text-[#6653fb] transition-colors hover:bg-[#f5f4ff]"
+                                className="flex aspect-square h-auto w-full rounded-xl border-dashed border-[#d3d3d3] bg-white text-[#6653fb] hover:bg-[#f5f4ff]"
                                 onClick={(event) => {
                                     event.stopPropagation();
                                     openFileDialog();
                                 }}
                             >
                                 <Plus aria-hidden="true" className="size-8" />
-                            </button>
+                            </Button>
                         )}
                     </div>
                 )}
             </div>
             {error && (
-                <p
-                    role="alert"
-                    className="typography-body-small flex items-center gap-1.5 text-left text-red-600"
+                <Alert
+                    variant="destructive"
+                    className="flex items-center gap-1.5 border-0 bg-transparent p-0 text-left shadow-none"
                 >
                     <CircleAlert aria-hidden="true" className="size-4 shrink-0" />
-                    {error}
-                </p>
+                    <AlertDescription className="typography-body-small text-destructive p-0">
+                        {error}
+                    </AlertDescription>
+                </Alert>
             )}
         </div>
     );

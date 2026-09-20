@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { ArrowRight, Check } from "lucide-react";
 
+import { Button } from "@/common/components/ui/Button";
 import { cn } from "@/common/lib/utils";
 
 type RegisterMethodCardProps = {
@@ -78,16 +79,18 @@ export function RegisterMethodCard({
                 </ul>
             </div>
 
-            <Link
-                href={href}
+            <Button
+                asChild
                 className={cn(
-                    "typography-body-medium mt-auto inline-flex h-[54px] items-center justify-center gap-2 rounded-full px-6 py-3 font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-[#6653fb] focus-visible:ring-offset-2 focus-visible:outline-none",
+                    "typography-body-medium mt-auto h-[54px] rounded-full px-6 py-3 font-semibold",
                     styles.button,
                 )}
             >
-                <span>{tone === "ai" ? "AI 등록 시작하기" : "직접 등록 시작하기"}</span>
-                <ArrowRight aria-hidden="true" className="size-5" />
-            </Link>
+                <Link href={href}>
+                    <span>{tone === "ai" ? "AI 등록 시작하기" : "직접 등록 시작하기"}</span>
+                    <ArrowRight aria-hidden="true" className="size-5" />
+                </Link>
+            </Button>
         </article>
     );
 }
