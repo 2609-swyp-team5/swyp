@@ -98,15 +98,28 @@ fun loadDotenv(): Map<String, String> {
 				return@mapNotNull null
 			}
 			val key = line.substring(0, separatorIndex).trim()
-			var value = line.substring(separatorIndex + 1).trim()
-			if (value.length >= 2 &&
-				((value.startsWith("\"") && value.endsWith("\"")) || (value.startsWith("'") && value.endsWith("'")))
-			) {
-				value = value.substring(1, value.length - 1)
-			}
-			key to value
+			val rawValue = line.substring(separatorIndex + 1).trim()
+			key to parseDotenvValue(rawValue)
 		}
 		.toMap()
+}
+
+// 따옴표로 감싼 값은 그 안의 내용만 취하고(닫는 따옴표 뒤의 인라인 주석은 무시),
+// 따옴표 없는 값은 " #" 이후를 인라인 주석으로 간주해 제거한다.
+fun parseDotenvValue(rawValue: String): String {
+	if (rawValue.isEmpty()) {
+		return rawValue
+	}
+	val quoteChar = rawValue[0]
+	if (quoteChar == '"' || quoteChar == '\'') {
+		val closingIndex = rawValue.indexOf(quoteChar, 1)
+		if (closingIndex >= 0) {
+			return rawValue.substring(1, closingIndex)
+		}
+		return rawValue
+	}
+	val commentIndex = rawValue.indexOf(" #")
+	return if (commentIndex >= 0) rawValue.substring(0, commentIndex).trim() else rawValue
 }
 
 val dotenv = loadDotenv().filterKeys { System.getenv(it) == null }

@@ -6,6 +6,7 @@ import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
+import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 
 public record ProductSummaryResponse(
         Long id, // 상품 ID
@@ -16,6 +17,7 @@ public record ProductSummaryResponse(
         String categoryName, // 카테고리명
         String thumbnailUrl, // 대표(첫 번째) 이미지 URL, 이미지 없으면 null
         AnalysisRecommendation recommendation, // 가장 최근 시세 분석 판단, 분석 이력 없으면 null
+        Long marketAveragePrice, // 가장 최근 시세 분석의 비교 매물 평균가(수집 데이터 기반), 분석 이력 없으면 null
         LocalDateTime createdAt) { // 등록 일시
 
     /** 시세 분석 이력이 없는 상품(신규 등록 직후 등)에 사용한다. */
@@ -23,7 +25,7 @@ public record ProductSummaryResponse(
         return from(product, null);
     }
 
-    public static ProductSummaryResponse from(Product product, AnalysisRecommendation recommendation) {
+    public static ProductSummaryResponse from(Product product, ProductAnalysis analysis) {
         String thumbnailUrl = product.getImages().isEmpty()
                 ? null
                 : product.getImages().get(0).getImageUrl();
@@ -35,7 +37,8 @@ public record ProductSummaryResponse(
                 product.getCondition(),
                 product.getCategory().getName(),
                 thumbnailUrl,
-                recommendation,
+                analysis == null ? null : analysis.getRecommendation(),
+                analysis == null ? null : analysis.getAveragePrice(),
                 product.getCreatedAt());
     }
 }
