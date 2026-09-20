@@ -1,4 +1,4 @@
-import { Clock3, PenLine, Sparkles } from "lucide-react";
+import { PenLine, Sparkles } from "lucide-react";
 
 import { RegisterMethodCard } from "@/features/sell/components/RegisterMethodCard";
 
@@ -40,11 +40,6 @@ export default function SellRegisterPage() {
                         어떻게 등록할까요?
                     </h1>
                 </header>
-
-                <div className="typography-body-medium flex items-center gap-3 rounded-[10px] bg-[#f5f5ff] px-5 py-3 text-[#363636]">
-                    <Clock3 aria-hidden="true" className="size-[30px] shrink-0" strokeWidth={1.5} />
-                    <span>작성 중인 상품이 있어요 — 이어서 등록하기</span>
-                </div>
 
                 <div className="layout-grid">
                     {registerMethods.map((method) => (

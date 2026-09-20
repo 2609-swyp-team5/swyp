@@ -28,6 +28,7 @@ const sizeStyles = {
         add: "aspect-square h-auto w-full rounded-xl",
         badge: "h-9 rounded-none rounded-b-xl text-[16px] leading-7",
         imageSizes: "(min-width: 1024px) 160px, 33vw",
+        remove: "top-[-12px] right-[-12px] size-[25px]",
     },
     sm: {
         grid: "flex w-full flex-wrap gap-3",
@@ -35,6 +36,7 @@ const sizeStyles = {
         add: "size-[100px] rounded-lg",
         badge: "h-6 rounded-none rounded-b-lg text-[10px] leading-[15px]",
         imageSizes: "100px",
+        remove: "top-[-8px] right-[-8px] size-5",
     },
     direct: {
         grid: "flex w-full flex-wrap gap-3",
@@ -42,6 +44,7 @@ const sizeStyles = {
         add: "size-[200px] rounded-[8px]",
         badge: "h-[29px] rounded-none rounded-b-[8px] text-[16px] leading-[25px]",
         imageSizes: "200px",
+        remove: "top-[-12px] right-[-12px] size-[25px]",
     },
 } as const;
 
@@ -116,8 +119,7 @@ export function ProductImageGrid({
                         aria-label={`${index + 1}번 사진 삭제`}
                         className={cn(
                             "absolute top-[-8px] right-[-8px] z-10 flex size-5 items-center justify-center rounded-full bg-[#374151] p-0 text-white hover:bg-[#1f2937]",
-                            size === "default" && "top-2 right-2 size-7",
-                            size === "direct" && "top-[-12px] right-[-12px] size-[25px]",
+                            styles.remove,
                         )}
                         onClick={(event) => {
                             event.stopPropagation();

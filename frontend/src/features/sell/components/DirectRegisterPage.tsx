@@ -10,7 +10,6 @@ import {
     type ReactNode,
 } from "react";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CircleAlert, X } from "lucide-react";
 
@@ -29,6 +28,7 @@ import {
 import { Textarea } from "@/common/components/ui/Textarea";
 import { categoryApi, type Category } from "@/features/sell/api/categoryApi";
 import { DirectImageUpload } from "@/features/sell/components/DirectImageUpload";
+import { ExitDialog } from "@/features/sell/components/ExitDialog";
 
 type FieldLabelProps = {
     htmlFor?: string;
@@ -128,6 +128,7 @@ export function DirectRegisterPage() {
     const [childCategoryId, setChildCategoryId] = useState("");
     const [tags, setTags] = useState<string[]>([]);
     const [tagInput, setTagInput] = useState("");
+    const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
     const isTagComposingRef = useRef(false);
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({
         title: "",
@@ -453,10 +454,11 @@ export function DirectRegisterPage() {
 
                     <div className="flex w-full max-w-[1144px] items-center justify-end gap-3">
                         <Button
-                            asChild
+                            type="button"
                             className="h-[54px] rounded-full border-0 bg-[#d3d3d3] px-[50px] py-3 text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-white hover:bg-[#c6c6c6]"
+                            onClick={() => setIsExitDialogOpen(true)}
                         >
-                            <Link href="/sell/register">나가기</Link>
+                            나가기
                         </Button>
                         <Button
                             type="submit"
@@ -468,6 +470,15 @@ export function DirectRegisterPage() {
                     </div>
                 </div>
             </section>
+
+            <ExitDialog
+                open={isExitDialogOpen}
+                onClose={() => setIsExitDialogOpen(false)}
+                onConfirm={() => {
+                    setIsExitDialogOpen(false);
+                    router.push("/sell/register");
+                }}
+            />
         </main>
     );
 }

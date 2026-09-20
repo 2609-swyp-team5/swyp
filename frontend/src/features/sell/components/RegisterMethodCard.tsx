@@ -18,7 +18,7 @@ type RegisterMethodCardProps = {
 
 const toneStyles = {
     ai: {
-        card: "border-[#8275eb] bg-[linear-gradient(135deg,#ededfd_0%,#ffffff_75%)]",
+        card: "border-[#83889e] bg-[#fafbff]",
         icon: "bg-[#b1a9ef] text-[#363636]",
         button: "bg-[#6653fb] text-white hover:bg-[#5745e7]",
     },
