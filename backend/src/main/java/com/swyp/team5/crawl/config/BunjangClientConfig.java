@@ -12,7 +12,7 @@ import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 @Configuration
-@EnableConfigurationProperties(BunjangCrawlProperties.class)
+@EnableConfigurationProperties({BunjangCrawlProperties.class, ListingReconciliationProperties.class})
 public class BunjangClientConfig {
 
     private static final String BASE_URL = "https://api.bunjang.co.kr";

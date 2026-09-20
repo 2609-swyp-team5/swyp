@@ -102,4 +102,8 @@ public class Member {
                 .profileImageUrl(profileImageUrl)
                 .build();
     }
+
+    public void changePassword(String encodedPassword) {
+        this.password = encodedPassword;
+    }
 }

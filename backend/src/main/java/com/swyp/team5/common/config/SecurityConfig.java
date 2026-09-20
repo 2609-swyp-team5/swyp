@@ -14,6 +14,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import com.swyp.team5.auth.config.PasswordResetProperties;
 import com.swyp.team5.common.passport.JsonAuthenticationEntryPoint;
 import com.swyp.team5.common.passport.JwtAuthenticationFilter;
 import com.swyp.team5.common.passport.JwtProperties;
@@ -22,7 +23,12 @@ import com.swyp.team5.social.strategy.NaverLoginProperties;
 
 /** JWT 기반 stateless 인증 설정. Access Token은 Authorization 헤더, Refresh Token은 httpOnly 쿠키로 검증한다. */
 @Configuration
-@EnableConfigurationProperties({JwtProperties.class, KakaoProperties.class, NaverLoginProperties.class})
+@EnableConfigurationProperties({
+    JwtProperties.class,
+    KakaoProperties.class,
+    NaverLoginProperties.class,
+    PasswordResetProperties.class
+})
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -31,6 +37,8 @@ public class SecurityConfig {
         "/auth/login",
         "/auth/refresh",
         "/auth/social/**",
+        "/auth/email/check",
+        "/auth/password/reset",
         "/swagger/**",
         "/swagger-ui/**",
         "/v3/api-docs/**",

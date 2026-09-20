@@ -161,4 +161,26 @@ class PriceCollectionServiceTest {
 
         verifyNoInteractions(platformListingRepository);
     }
+
+    // page-limit 캡에 걸려도(hasNext=true인데도) 그 이상은 조회하지 않고 멈춤(캡 도달 여부 로그 구분의 전제 동작)
+    @Test
+    void collectAllStopsAtPageLimitEvenWhenMorePagesExist() {
+        BunjangCrawlProperties singlePageLimit = new BunjangCrawlProperties(1);
+        PriceCollectionService service = new PriceCollectionService(
+                bunjangCategoryClient, categoryPlatformRepository, platformListingRepository, singlePageLimit);
+        CategoryPlatform mapping = mapping(10L, "999");
+        when(categoryPlatformRepository.findByPlatformName("번개장터")).thenReturn(List.of(mapping));
+        when(bunjangCategoryClient.fetchPage(eq("999"), any()))
+                .thenReturn(new BunjangCategoryPage(
+                        List.of(new BunjangProductItem(1L, "상품1", 1000L, "SELLING", false, "https://img/1")),
+                        "next-cursor",
+                        true));
+        when(platformListingRepository.findByPlatformAndExternalItemId(any(), anyString()))
+                .thenReturn(Optional.empty());
+
+        service.collectAll();
+
+        verify(bunjangCategoryClient, times(1)).fetchPage(eq("999"), any());
+        verify(platformListingRepository).save(any());
+    }
 }
