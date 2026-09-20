@@ -45,7 +45,7 @@ class ProductAiServiceTest {
     void analyzeSucceedsWhenCategoryExists() {
         MockMultipartFile image = new MockMultipartFile("images", "phone.png", "image/png", new byte[] {1, 2, 3});
         ProductAiAnalysisResult analysis =
-                new ProductAiAnalysisResult(1L, "아이폰 13", "설명", ProductCondition.A, 500_000L, List.of("애플"));
+                new ProductAiAnalysisResult(1L, "아이폰 13", "설명", ProductCondition.A, 500_000L, "판단 근거", List.of("애플"));
 
         when(categoryRepository.findAllByOrderByIdAsc()).thenReturn(List.of(newCategory(1L, "전자기기")));
         when(geminiAiClient
@@ -78,7 +78,7 @@ class ProductAiServiceTest {
     void analyzeFailsWhenCategoryNotFound() {
         MockMultipartFile image = new MockMultipartFile("images", "phone.png", "image/png", new byte[] {1, 2, 3});
         ProductAiAnalysisResult analysis =
-                new ProductAiAnalysisResult(99L, "아이폰 13", "설명", ProductCondition.A, 500_000L, List.of("애플"));
+                new ProductAiAnalysisResult(99L, "아이폰 13", "설명", ProductCondition.A, 500_000L, "판단 근거", List.of("애플"));
 
         when(categoryRepository.findAllByOrderByIdAsc()).thenReturn(List.of(newCategory(1L, "전자기기")));
         when(geminiAiClient
