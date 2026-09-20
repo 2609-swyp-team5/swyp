@@ -28,6 +28,7 @@ import com.swyp.team5.common.common.ApiResponse;
 import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.common.passport.PrincipalMember;
 import com.swyp.team5.product.dto.ProductCreateRequest;
+import com.swyp.team5.product.dto.ProductListItemResponse;
 import com.swyp.team5.product.dto.ProductResponse;
 import com.swyp.team5.product.dto.ProductStatusUpdateRequest;
 import com.swyp.team5.product.dto.ProductSummaryResponse;
@@ -96,19 +97,21 @@ public class ProductController {
     }
 
     /**
-     * 상품 목록을 커서 기반으로 조회한다(정렬은 {@code id} 내림차순 고정, {@code HIDDEN} 상태는 항상
-     * 제외되는 공개 목록). 인증된 본인 전체 상품(숨김 포함)은 {@link #getMyProducts} 참고.
+     * 상품 목록을 커서 기반으로 조회한다(정렬은 등록일시 내림차순, {@code HIDDEN} 상태는 항상 제외되는
+     * 공개 목록). 우리 회원 상품과 외부 플랫폼에서 수집한 매물을 한 목록에 섞어 반환한다({@code source}
+     * 필드로 구분, {@link ProductService#getProducts} 참고). 인증된 본인 전체 상품(숨김 포함)은
+     * {@link #getMyProducts} 참고.
      *
-     * @param keyword 제목/설명 키워드 검색(선택)
-     * @param status 상태 필터(선택)
-     * @param cursor 이전 페이지 마지막 상품의 {@code id}(선택, 첫 페이지는 생략)
+     * @param keyword 제목/설명(외부 매물은 제목만) 키워드 검색(선택)
+     * @param status 상태 필터(선택, 지정 시 외부 매물은 제외되고 우리 상품만 반환)
+     * @param cursor 이전 페이지 마지막 항목의 등록일시(epoch millisecond, 선택, 첫 페이지는 생략)
      * @param size 페이지 크기(기본 20)
      * @return 200 OK + 커서 페이지 응답
      */
     // 커서 기반 페이징 적용
     @Operation(summary = "상품 목록 조회")
     @GetMapping
-    public ResponseEntity<ApiResponse<CursorPageResponse<ProductSummaryResponse>>> getProducts(
+    public ResponseEntity<ApiResponse<CursorPageResponse<ProductListItemResponse>>> getProducts(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) ProductStatus status,
             @RequestParam(required = false) Long cursor,

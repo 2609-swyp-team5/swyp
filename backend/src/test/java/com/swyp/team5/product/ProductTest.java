@@ -226,7 +226,13 @@ class ProductTest {
     @Test
     void createFromImagesSucceeds() throws Exception {
         ProductAiAnalysisResult analysis = new ProductAiAnalysisResult(
-                category.getId(), "AI가 분석한 상품", "AI 설명", ProductCondition.B, 300_000L, List.of("가성비"));
+                category.getId(),
+                "AI가 분석한 상품",
+                "AI 설명",
+                ProductCondition.B,
+                300_000L,
+                "외관 상태가 양호해 A급 시세 대비 적정합니다.",
+                List.of("가성비"));
         when(productAiService.analyze(anyList())).thenReturn(analysis);
         when(fileStorageService.upload(any(), eq("products")))
                 .thenReturn(new FileUploadResponse("key", "https://image.example.com/ai.png", 3, "image/png"));
@@ -241,6 +247,8 @@ class ProductTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.title").value("AI가 분석한 상품"))
                 .andExpect(jsonPath("$.data.price").value(300_000))
+                .andExpect(jsonPath("$.data.suggestedPrice").value(300_000))
+                .andExpect(jsonPath("$.data.analysisDescription").value("외관 상태가 양호해 A급 시세 대비 적정합니다."))
                 .andExpect(jsonPath("$.data.tradeMethod").value("DIRECT"))
                 .andExpect(jsonPath("$.data.hasDefect").value(true))
                 .andExpect(jsonPath("$.data.purchasedAt")

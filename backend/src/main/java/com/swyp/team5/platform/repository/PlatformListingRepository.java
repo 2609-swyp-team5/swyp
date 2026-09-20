@@ -3,11 +3,13 @@ package com.swyp.team5.platform.repository;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import com.swyp.team5.platform.entity.Platform;
 import com.swyp.team5.platform.entity.PlatformListing;
 
-public interface PlatformListingRepository extends JpaRepository<PlatformListing, Long> {
+public interface PlatformListingRepository
+        extends JpaRepository<PlatformListing, Long>, JpaSpecificationExecutor<PlatformListing> {
 
     Optional<PlatformListing> findByPlatformAndExternalItemId(Platform platform, String externalItemId);
 }

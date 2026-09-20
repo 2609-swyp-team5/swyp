@@ -3,12 +3,15 @@ package com.swyp.team5.product.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -26,10 +29,14 @@ import com.swyp.team5.file.dto.FileUploadResponse;
 import com.swyp.team5.file.service.FileStorageService;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.repository.MemberRepository;
+import com.swyp.team5.platform.entity.Platform;
+import com.swyp.team5.platform.entity.PlatformListing;
+import com.swyp.team5.platform.repository.PlatformListingRepository;
+import com.swyp.team5.product.dto.ListingSource;
 import com.swyp.team5.product.dto.ProductAiAnalysisResult;
 import com.swyp.team5.product.dto.ProductCreateRequest;
+import com.swyp.team5.product.dto.ProductListItemResponse;
 import com.swyp.team5.product.dto.ProductResponse;
-import com.swyp.team5.product.dto.ProductSummaryResponse;
 import com.swyp.team5.product.dto.ProductUpdateRequest;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
@@ -72,6 +79,9 @@ class ProductServiceTest {
     @Mock
     private ProductAnalysisRepository productAnalysisRepository;
 
+    @Mock
+    private PlatformListingRepository platformListingRepository;
+
     private ProductService service() {
         return new ProductService(
                 productRepository,
@@ -80,7 +90,8 @@ class ProductServiceTest {
                 fileStorageService,
                 productAiService,
                 tagRepository,
-                productAnalysisRepository);
+                productAnalysisRepository,
+                platformListingRepository);
     }
 
     // 상품 등록 성공
@@ -182,7 +193,13 @@ class ProductServiceTest {
         Category category = newCategory(1L, "전자기기");
         MockMultipartFile image = new MockMultipartFile("images", "iphone.png", "image/png", new byte[] {1, 2, 3});
         ProductAiAnalysisResult analysis = new ProductAiAnalysisResult(
-                category.getId(), "아이폰 13", "AI가 분석한 설명", ProductCondition.A, 450_000L, List.of("애플", "아이폰"));
+                category.getId(),
+                "아이폰 13",
+                "AI가 분석한 설명",
+                ProductCondition.A,
+                450_000L,
+                "외관 스크래치가 거의 없어 A급으로 판단했습니다.",
+                List.of("애플", "아이폰"));
 
         when(memberRepository.getReferenceById(1L)).thenReturn(member);
         when(productAiService.analyze(List.of(image))).thenReturn(analysis);
@@ -203,6 +220,8 @@ class ProductServiceTest {
         assertThat(response.purchasedAt()).isEqualTo(LocalDate.now().minusMonths(3));
         assertThat(response.purchasedMonths()).isEqualTo(3);
         assertThat(response.price()).isEqualTo(450_000L);
+        assertThat(response.suggestedPrice()).isEqualTo(450_000L);
+        assertThat(response.analysisDescription()).isEqualTo("외관 스크래치가 거의 없어 A급으로 판단했습니다.");
         assertThat(response.tradeMethod()).isEqualTo(TradeMethod.DIRECT);
         assertThat(response.imageUrls()).containsExactly("https://image.example.com/iphone.png");
         assertThat(response.tags()).containsExactlyInAnyOrder("애플", "아이폰");
@@ -213,7 +232,7 @@ class ProductServiceTest {
     void createFromImagesFailsWhenCategoryNotFound() {
         MockMultipartFile image = new MockMultipartFile("images", "iphone.png", "image/png", new byte[] {1, 2, 3});
         ProductAiAnalysisResult analysis =
-                new ProductAiAnalysisResult(99L, "아이폰 13", "설명", ProductCondition.A, 450_000L, List.of());
+                new ProductAiAnalysisResult(99L, "아이폰 13", "설명", ProductCondition.A, 450_000L, "판단 근거", List.of());
 
         when(memberRepository.getReferenceById(1L)).thenReturn(newMember(1L));
         when(productAiService.analyze(List.of(image))).thenReturn(analysis);
@@ -231,7 +250,9 @@ class ProductServiceTest {
         assertThatThrownBy(() -> service().getProduct(1L)).isInstanceOf(ProductNotFoundException.class);
     }
 
-    // 상품 목록 조회 - 다음 페이지 존재(size보다 1개 더 조회되어 hasNext=true, nextCursor=마지막 항목 id)
+    // 상품 목록 조회 - 다음 페이지 존재(size보다 1개 더 조회되어 hasNext=true, nextCursor=마지막 항목의
+    // 등록일시를 epoch millisecond로 인코딩한 값 — 우리 상품과 외부 매물을 등록일시 기준으로 병합하기
+    // 위한 커서라 id가 아니다)
     @Test
     void getProductsHasNextWhenMoreItemsExist() {
         Category category = newCategory(1L, "전자기기");
@@ -241,12 +262,16 @@ class ProductServiceTest {
 
         when(productRepository.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(products));
+        when(platformListingRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of()));
 
-        CursorPageResponse<?> response = service().getProducts(null, null, null, 2);
+        CursorPageResponse<ProductListItemResponse> response = service().getProducts(null, null, null, 2);
 
         assertThat(response.content()).hasSize(2);
+        assertThat(response.content().get(0).id()).isEqualTo(3L);
+        assertThat(response.content().get(1).id()).isEqualTo(2L);
         assertThat(response.hasNext()).isTrue();
-        assertThat(response.nextCursor()).isEqualTo(2L);
+        assertThat(response.nextCursor()).isEqualTo(toEpochMillis(LocalDateTime.of(2026, 1, 1, 0, 2)));
     }
 
     // 상품 목록 조회 - 마지막 페이지(size만큼만 조회되어 hasNext=false, nextCursor=null)
@@ -258,8 +283,10 @@ class ProductServiceTest {
 
         when(productRepository.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(products));
+        when(platformListingRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of()));
 
-        CursorPageResponse<?> response = service().getProducts(null, null, null, 2);
+        CursorPageResponse<ProductListItemResponse> response = service().getProducts(null, null, null, 2);
 
         assertThat(response.content()).hasSize(2);
         assertThat(response.hasNext()).isFalse();
@@ -278,12 +305,57 @@ class ProductServiceTest {
 
         when(productRepository.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(product)));
+        when(platformListingRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of()));
         when(productAnalysisRepository.findLatestByProductIdIn(List.of(1L))).thenReturn(List.of(analysis));
 
-        CursorPageResponse<ProductSummaryResponse> response = service().getProducts(null, null, null, 20);
+        CursorPageResponse<ProductListItemResponse> response = service().getProducts(null, null, null, 20);
 
         assertThat(response.content()).hasSize(1);
         assertThat(response.content().get(0).recommendation()).isNull();
+        assertThat(response.content().get(0).marketAveragePrice()).isEqualTo(2000L);
+    }
+
+    // 상품 목록 조회 - 외부 플랫폼 매물이 섞여서 반환되고 platformName/externalUrl이 채워짐
+    @Test
+    void getProductsIncludesExternalListingsWithPlatformName() {
+        when(productRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of()));
+        Platform platform = newPlatform(1L, "번개장터");
+        Category category = newCategory(1L, "전자기기");
+        PlatformListing listing = PlatformListing.create(
+                platform, category, "ext-1", "번개장터 아이폰", 400_000L, "SELLING", "https://img", "https://url");
+        setField(listing, "id", 100L);
+        when(platformListingRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(listing)));
+
+        CursorPageResponse<ProductListItemResponse> response = service().getProducts(null, null, null, 20);
+
+        assertThat(response.content()).hasSize(1);
+        ProductListItemResponse item = response.content().get(0);
+        assertThat(item.source()).isEqualTo(ListingSource.EXTERNAL);
+        assertThat(item.platformName()).isEqualTo("번개장터");
+        assertThat(item.externalUrl()).isEqualTo("https://url");
+        assertThat(item.condition()).isNull();
+        assertThat(item.recommendation()).isNull();
+    }
+
+    // 상품 목록 조회 - status 필터 지정 시 외부 매물은 제외되고 우리 상품만 반환됨
+    @Test
+    void getProductsExcludesExternalListingsWhenStatusFilterGiven() {
+        Category category = newCategory(1L, "전자기기");
+        Member member = newMember(1L);
+        Product product = newProduct(1L, member, category);
+
+        when(productRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(product)));
+
+        CursorPageResponse<ProductListItemResponse> response =
+                service().getProducts(null, ProductStatus.ON_SALE, null, 20);
+
+        assertThat(response.content()).hasSize(1);
+        assertThat(response.content().get(0).source()).isEqualTo(ListingSource.OUR);
+        verify(platformListingRepository, never()).findAll(any(Specification.class), any(Pageable.class));
     }
 
     // 상품 수정 성공 - 소유자 본인 (구매일시는 등록 시점 값 그대로 유지됨)
@@ -422,6 +494,19 @@ class ProductServiceTest {
         }
     }
 
+    private Platform newPlatform(Long id, String name) {
+        try {
+            Constructor<Platform> constructor = Platform.class.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            Platform platform = constructor.newInstance();
+            setField(platform, "id", id);
+            setField(platform, "name", name);
+            return platform;
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     private Product newProduct(Long id, Member member, Category category) {
         Product product = Product.create(
                 member,
@@ -439,6 +524,8 @@ class ProductServiceTest {
                 List.of("https://image.example.com/1.png"),
                 Set.of());
         setField(product, "id", id);
+        // id가 클수록 최근 등록으로 취급(목록 조회가 createdAt DESC 정렬이라 테스트에서도 순서가 맞아야 함)
+        setField(product, "createdAt", LocalDateTime.of(2026, 1, 1, 0, 0).plusMinutes(id));
         return product;
     }
 
@@ -456,5 +543,10 @@ class ProductServiceTest {
         } catch (ReflectiveOperationException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    // ProductService의 등록일시 커서 인코딩과 동일한 방식(Asia/Seoul epoch millisecond)으로 계산한다.
+    private static long toEpochMillis(LocalDateTime dateTime) {
+        return dateTime.atZone(ZoneId.of("Asia/Seoul")).toInstant().toEpochMilli();
     }
 }
