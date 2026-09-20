@@ -12,12 +12,16 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.CookieValue;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.swyp.team5.auth.dto.AuthResult;
+import com.swyp.team5.auth.dto.EmailAvailabilityResponse;
+import com.swyp.team5.auth.dto.EmailCheckRequest;
 import com.swyp.team5.auth.dto.LoginRequest;
 import com.swyp.team5.auth.dto.LoginResponse;
 import com.swyp.team5.auth.dto.SignUpRequest;
@@ -79,6 +83,14 @@ public class AuthController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, expiredRefreshTokenCookie().toString())
                 .body(ApiResponse.<Void>success("성공적으로 로그아웃되었습니다.", null));
+    }
+
+    @Operation(summary = "이메일 중복확인")
+    @GetMapping("/email/check")
+    public ResponseEntity<ApiResponse<EmailAvailabilityResponse>> checkEmail(
+            @Valid @ModelAttribute EmailCheckRequest request) {
+        boolean available = authService.isEmailAvailable(request.email());
+        return ResponseEntity.ok(ApiResponse.success(new EmailAvailabilityResponse(available)));
     }
 
     private <T> ResponseEntity<ApiResponse<T>> responseWithRefreshTokenCookie(
