@@ -27,9 +27,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 
 /**
- * 상품 시세 분석 스냅샷. 시세 데이터 수집 시점의 카테고리 평균/최저/최고가를 기록한다.
- * {@code recommendation}(지금 팔기/기다리기 등 판단)은 별도 분석 로직이 채우므로 수집 단계에서는
- * 비워둔다.
+ * 상품 시세 분석 스냅샷. 같은 카테고리 비교 매물({@code platform_listings}) 통계와 AI 판단 결과를
+ * 함께 기록한다.
  */
 @Entity
 @Table(name = "product_analysis")
@@ -82,26 +81,50 @@ public class ProductAnalysis {
 
     @Builder
     private ProductAnalysis(
-            Product product, Long minPrice, Long averagePrice, Long maxPrice, LocalDateTime analyzedAt) {
+            Product product,
+            Long minPrice,
+            Long averagePrice,
+            Long maxPrice,
+            BigDecimal changeRate,
+            AnalysisRecommendation recommendation,
+            Long suggestedPrice,
+            String description,
+            LocalDateTime analyzedAt) {
         this.product = product;
         this.minPrice = minPrice;
         this.averagePrice = averagePrice;
         this.maxPrice = maxPrice;
+        this.changeRate = changeRate;
+        this.recommendation = recommendation;
+        this.suggestedPrice = suggestedPrice;
+        this.description = description;
         this.analyzedAt = analyzedAt;
     }
 
     /**
-     * 크롤링으로 수집한 카테고리 단위 시세 통계로 스냅샷을 생성한다. {@code recommendation}/
-     * {@code suggestedPrice}/{@code description}/{@code changeRate}는 이 단계에서 채우지 않고,
-     * 이후 별도 분석 로직이 채운다.
+     * 비교 매물({@code platform_listings}) 통계 + AI 판단 결과로 분석 스냅샷을 생성한다.
+     *
+     * @param changeRate 직전 스냅샷 대비 평균가 변동률(직전 스냅샷이 없으면 null)
      */
-    public static ProductAnalysis fromCategoryPriceStats(
-            Product product, long minPrice, long averagePrice, long maxPrice, LocalDateTime analyzedAt) {
+    public static ProductAnalysis create(
+            Product product,
+            long minPrice,
+            long averagePrice,
+            long maxPrice,
+            BigDecimal changeRate,
+            AnalysisRecommendation recommendation,
+            Long suggestedPrice,
+            String description,
+            LocalDateTime analyzedAt) {
         return ProductAnalysis.builder()
                 .product(product)
                 .minPrice(minPrice)
                 .averagePrice(averagePrice)
                 .maxPrice(maxPrice)
+                .changeRate(changeRate)
+                .recommendation(recommendation)
+                .suggestedPrice(suggestedPrice)
+                .description(description)
                 .analyzedAt(analyzedAt)
                 .build();
     }

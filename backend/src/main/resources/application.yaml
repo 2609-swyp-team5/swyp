@@ -122,7 +122,22 @@ crawl:
   bunjang:
     enabled: ${CRAWL_BUNJANG_ENABLED:true}
     cron: ${CRAWL_BUNJANG_CRON:0 0 * * * *} # 매 시간 정각에 실행
-    page-limit: ${CRAWL_BUNJANG_PAGE_LIMIT:5} # 한 번에 크롤링할 페이지 수 제한
+    page-limit: ${CRAWL_BUNJANG_PAGE_LIMIT:8} # 한 번에 크롤링할 페이지 수 제한(60건 * 페이지)
+    reconcile:
+      enabled: ${CRAWL_BUNJANG_RECONCILE_ENABLED:true}
+      cron: ${CRAWL_BUNJANG_RECONCILE_CRON:0 30 5 * * *} # 매일 새벽 5시 30분(다른 크롤링과 겹치지 않는 시간대)
+      stale-after-hours: ${CRAWL_BUNJANG_RECONCILE_STALE_AFTER_HOURS:20} # 이 시간 넘게 갱신 안 된 SELLING 매물을 재확인 대상으로 삼음
+      batch-size: ${CRAWL_BUNJANG_RECONCILE_BATCH_SIZE:300} # 한 사이클에 재확인할 최대 매물 수
+      call-interval-ms: ${CRAWL_BUNJANG_RECONCILE_CALL_INTERVAL_MS:500} # 개별 호출 간 최소 대기 시간
+
+# 시세 분석(감가/추천) 배치 설정
+analysis:
+  enabled: ${PRICE_ANALYSIS_ENABLED:true}
+  cron: ${PRICE_ANALYSIS_CRON:0 0 0/6 * * *} # 6시간마다(00/06/12/18)
+  min-listings: ${PRICE_ANALYSIS_MIN_LISTINGS:3} # 비교 매물이 이 수보다 적으면 분석을 건너뜀
+  freshness-hours: ${PRICE_ANALYSIS_FRESHNESS_HOURS:24} # 비교 매물로 인정할 최근 수집 기준 시간
+  sample-size: ${PRICE_ANALYSIS_SAMPLE_SIZE:30} # AI 프롬프트에 포함할 매물 샘플 최대 개수
+  ai-call-interval-ms: ${PRICE_ANALYSIS_AI_CALL_INTERVAL_MS:6500} # AI 호출 간 최소 대기 시간(제한 대응)
 
 # 스웨거 설정
 springdoc:
