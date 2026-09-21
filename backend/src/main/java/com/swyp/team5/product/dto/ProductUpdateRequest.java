@@ -19,7 +19,7 @@ public record ProductUpdateRequest(
         String description, // 상품 설명 (선택)
         @NotNull @PositiveOrZero Long price, // 판매 희망가
         @NotNull ProductStatus status, // 게시 상태 (ON_SALE/RESERVED/SOLD_OUT/HIDDEN)
-        @NotNull ProductCondition condition, // 상품 상태 등급 (S/A/B/C)
+        @NotNull ProductCondition condition, // 상품 상태 등급 (S/A/B/C/D)
         boolean hasDefect, // 결함 여부
         boolean allowPriceSuggestion, // 가격 제안 허용 여부
         @NotNull TradeMethod tradeMethod, // 거래 방식 (직거래/택배)

@@ -27,6 +27,7 @@ import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.file.dto.FileUploadResponse;
 import com.swyp.team5.file.service.FileStorageService;
+import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.repository.MemberRepository;
 import com.swyp.team5.platform.entity.Platform;
@@ -37,6 +38,7 @@ import com.swyp.team5.product.dto.ProductAiAnalysisResult;
 import com.swyp.team5.product.dto.ProductCreateRequest;
 import com.swyp.team5.product.dto.ProductListItemResponse;
 import com.swyp.team5.product.dto.ProductResponse;
+import com.swyp.team5.product.dto.ProductSummaryResponse;
 import com.swyp.team5.product.dto.ProductUpdateRequest;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
@@ -47,6 +49,7 @@ import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
+import com.swyp.team5.search.service.SearchLogService;
 import com.swyp.team5.tag.entity.Tag;
 import com.swyp.team5.tag.repository.TagRepository;
 import org.junit.jupiter.api.Test;
@@ -82,6 +85,12 @@ class ProductServiceTest {
     @Mock
     private PlatformListingRepository platformListingRepository;
 
+    @Mock
+    private InterestRepository interestRepository;
+
+    @Mock
+    private SearchLogService searchLogService;
+
     private ProductService service() {
         return new ProductService(
                 productRepository,
@@ -91,7 +100,9 @@ class ProductServiceTest {
                 productAiService,
                 tagRepository,
                 productAnalysisRepository,
-                platformListingRepository);
+                platformListingRepository,
+                interestRepository,
+                searchLogService);
     }
 
     // 상품 등록 성공
@@ -265,7 +276,7 @@ class ProductServiceTest {
         when(platformListingRepository.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of()));
 
-        CursorPageResponse<ProductListItemResponse> response = service().getProducts(null, null, null, 2);
+        CursorPageResponse<ProductListItemResponse> response = service().getProducts(1L, null, null, null, 2);
 
         assertThat(response.content()).hasSize(2);
         assertThat(response.content().get(0).id()).isEqualTo(3L);
@@ -286,7 +297,7 @@ class ProductServiceTest {
         when(platformListingRepository.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of()));
 
-        CursorPageResponse<ProductListItemResponse> response = service().getProducts(null, null, null, 2);
+        CursorPageResponse<ProductListItemResponse> response = service().getProducts(1L, null, null, null, 2);
 
         assertThat(response.content()).hasSize(2);
         assertThat(response.hasNext()).isFalse();
@@ -309,7 +320,7 @@ class ProductServiceTest {
                 .thenReturn(new PageImpl<>(List.of()));
         when(productAnalysisRepository.findLatestByProductIdIn(List.of(1L))).thenReturn(List.of(analysis));
 
-        CursorPageResponse<ProductListItemResponse> response = service().getProducts(null, null, null, 20);
+        CursorPageResponse<ProductListItemResponse> response = service().getProducts(1L, null, null, null, 20);
 
         assertThat(response.content()).hasSize(1);
         assertThat(response.content().get(0).recommendation()).isNull();
@@ -329,7 +340,7 @@ class ProductServiceTest {
         when(platformListingRepository.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(listing)));
 
-        CursorPageResponse<ProductListItemResponse> response = service().getProducts(null, null, null, 20);
+        CursorPageResponse<ProductListItemResponse> response = service().getProducts(1L, null, null, null, 20);
 
         assertThat(response.content()).hasSize(1);
         ProductListItemResponse item = response.content().get(0);
@@ -351,11 +362,50 @@ class ProductServiceTest {
                 .thenReturn(new PageImpl<>(List.of(product)));
 
         CursorPageResponse<ProductListItemResponse> response =
-                service().getProducts(null, ProductStatus.ON_SALE, null, 20);
+                service().getProducts(1L, null, ProductStatus.ON_SALE, null, 20);
 
         assertThat(response.content()).hasSize(1);
         assertThat(response.content().get(0).source()).isEqualTo(ListingSource.OUR);
         verify(platformListingRepository, never()).findAll(any(Specification.class), any(Pageable.class));
+    }
+
+    // 상품 목록 조회 - 키워드가 있으면 검색 로그를 기록한다
+    @Test
+    void getProductsRecordsSearchLogWhenKeywordGiven() {
+        when(productRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of()));
+        when(platformListingRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        service().getProducts(1L, "아이패드", null, null, 20);
+
+        verify(searchLogService).record(1L, "아이패드");
+    }
+
+    // 인기 상품 조회 - 관심상품(찜) 등록 수 내림차순으로 정렬됨
+    @Test
+    void getPopularProductsOrdersByInterestCountDesc() {
+        Category category = newCategory(1L, "전자기기");
+        Member member = newMember(1L);
+        Product popular = newProduct(1L, member, category);
+        Product lessPopular = newProduct(2L, member, category);
+
+        when(interestRepository.findPopularProductIds(any(LocalDateTime.class), any(Pageable.class)))
+                .thenReturn(List.of(1L, 2L));
+        when(productRepository.findAllById(List.of(1L, 2L))).thenReturn(List.of(lessPopular, popular));
+
+        List<ProductSummaryResponse> response = service().getPopularProducts();
+
+        assertThat(response).extracting(ProductSummaryResponse::id).containsExactly(1L, 2L);
+    }
+
+    // 인기 상품 조회 - 관심상품 등록 이력이 없으면 빈 목록 반환
+    @Test
+    void getPopularProductsReturnsEmptyWhenNoInterests() {
+        when(interestRepository.findPopularProductIds(any(LocalDateTime.class), any(Pageable.class)))
+                .thenReturn(List.of());
+
+        assertThat(service().getPopularProducts()).isEmpty();
     }
 
     // 상품 수정 성공 - 소유자 본인 (구매일시는 등록 시점 값 그대로 유지됨)
