@@ -1,51 +1,73 @@
 "use client";
 
-import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import type { CredentialResponse } from "@react-oauth/google";
+
+import { Button } from "@/common/components/ui/Button";
+import { Card } from "@/common/components/ui/Card";
+import { Input } from "@/common/components/ui/Input";
+import { Label } from "@/common/components/ui/Label";
 
 import { getApiErrorMessage } from "@/common/lib/api/error";
-import { authApi } from "@/features/auth/api/authApi";
+import { GoogleLoginButton } from "@/features/auth/components/GoogleLoginButton";
+import { useLoginMutation } from "@/features/auth/hooks/mutations/useLoginMutation";
+import { useSocialLoginMutation } from "@/features/auth/hooks/mutations/useSocialLoginMutation";
+import { useAuthStore } from "@/features/auth/store/authStore";
 import type { LoginRequest } from "@/features/auth/types";
-
-const inputClassName =
-    "border-border bg-background h-12 w-full rounded-lg border px-5 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary disabled:cursor-not-allowed disabled:opacity-60";
-
-const secondaryLinkClassName =
-    "bg-muted text-foreground hover:bg-muted/80 flex h-12 w-full items-center justify-center rounded-lg text-sm font-semibold transition-colors";
+import { loginSchema } from "@/features/auth/schemas/authSchema";
 
 export default function LoginPage() {
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [successMessage, setSuccessMessage] = useState("");
+    const router = useRouter();
+    const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
+    const isInitialized = useAuthStore((state) => state.isInitialized);
+    const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     const [errorMessage, setErrorMessage] = useState("");
+    const { mutate: login, isPending } = useLoginMutation({
+        onError: (error) => setErrorMessage(getApiErrorMessage(error)),
+    });
+    const { mutate: socialLogin, isPending: isSocialPending } = useSocialLoginMutation({
+        onError: (error) => setErrorMessage(getApiErrorMessage(error)),
+    });
+    const {
+        register,
+        handleSubmit,
+        formState: { errors, isSubmitting },
+    } = useForm<LoginRequest>({
+        resolver: zodResolver(loginSchema),
+        defaultValues: { email: "", password: "" },
+    });
 
-    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        setIsSubmitting(true);
-        setSuccessMessage("");
-        setErrorMessage("");
+    const isBusy = isSubmitting || isPending || isSocialPending;
 
-        const formData = new FormData(event.currentTarget);
-        const params: LoginRequest = {
-            email: String(formData.get("email") ?? ""),
-            password: String(formData.get("password") ?? ""),
-        };
-
-        try {
-            const result = await authApi.login(params);
-
-            if (result.data.success) {
-                setSuccessMessage("로그인에 성공했습니다.");
-                return;
-            }
-
-            setErrorMessage(result.data.message);
-        } catch (error) {
-            setErrorMessage(getApiErrorMessage(error));
-        } finally {
-            setIsSubmitting(false);
+    useEffect(() => {
+        if (isInitialized && isLoggedIn) {
+            router.replace("/");
         }
+    }, [isInitialized, isLoggedIn, router]);
+
+    const onSubmit = (params: LoginRequest) => {
+        setErrorMessage("");
+        login(params);
     };
+
+    // 구글 ID 토큰을 백엔드에 전달해 서비스 로그인 처리
+    const handleGoogleSuccess = (response: CredentialResponse) => {
+        if (!response.credential) {
+            setErrorMessage("구글 인증 정보를 받지 못했습니다.");
+            return;
+        }
+
+        setErrorMessage("");
+        socialLogin({ provider: "GOOGLE", token: response.credential });
+    };
+
+    if (!isInitialized || isLoggedIn) {
+        return null;
+    }
 
     return (
         <main className="bg-muted/20 flex flex-1 items-center justify-center px-6 py-14 lg:px-8">
@@ -57,65 +79,109 @@ export default function LoginPage() {
                     <p className="text-primary mt-2 text-4xl font-bold tracking-tight">지금이니?</p>
                 </div>
 
-                <div className="border-border bg-background rounded-2xl border p-7 shadow-xl shadow-black/5 sm:p-10">
+                <Card className="bg-background block rounded-2xl border p-7 shadow-xl ring-0 shadow-black/5 sm:p-10">
                     <h1 id="page-title" className="mb-10 text-3xl font-bold tracking-tight">
                         로그인
                     </h1>
 
-                    <form noValidate onSubmit={handleSubmit} className="space-y-3">
-                        <fieldset disabled={isSubmitting} className="space-y-3">
-                            <label className="sr-only" htmlFor="email">
-                                이메일
-                            </label>
-                            <input
-                                id="email"
-                                name="email"
-                                type="email"
-                                autoComplete="email"
-                                placeholder="이메일"
-                                className={inputClassName}
-                            />
+                    <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+                        <fieldset disabled={isBusy} className="space-y-3">
+                            <div>
+                                <Label className="sr-only" htmlFor="email">
+                                    이메일
+                                </Label>
+                                <Input
+                                    id="email"
+                                    {...register("email")}
+                                    aria-invalid={Boolean(errors.email)}
+                                    aria-describedby={errors.email ? "email-error" : undefined}
+                                    type="email"
+                                    autoComplete="email"
+                                    placeholder="이메일"
+                                    className="bg-background h-12 rounded-lg px-5 text-sm"
+                                />
+                                {errors.email ? (
+                                    <p
+                                        id="email-error"
+                                        role="alert"
+                                        className="text-destructive mt-1 text-sm"
+                                    >
+                                        {errors.email.message}
+                                    </p>
+                                ) : null}
+                            </div>
 
-                            <label className="sr-only" htmlFor="password">
-                                비밀번호
-                            </label>
-                            <input
-                                id="password"
-                                name="password"
-                                type="password"
-                                autoComplete="current-password"
-                                placeholder="비밀번호"
-                                className={inputClassName}
-                            />
+                            <div>
+                                <Label className="sr-only" htmlFor="password">
+                                    비밀번호
+                                </Label>
+                                <Input
+                                    id="password"
+                                    {...register("password")}
+                                    aria-invalid={Boolean(errors.password)}
+                                    aria-describedby={
+                                        errors.password ? "password-error" : undefined
+                                    }
+                                    type="password"
+                                    autoComplete="current-password"
+                                    placeholder="비밀번호"
+                                    className="bg-background h-12 rounded-lg px-5 text-sm"
+                                />
+                                {errors.password ? (
+                                    <p
+                                        id="password-error"
+                                        role="alert"
+                                        className="text-destructive mt-1 text-sm"
+                                    >
+                                        {errors.password.message}
+                                    </p>
+                                ) : null}
+                            </div>
                         </fieldset>
 
-                        <button
+                        <Button
                             type="submit"
-                            disabled={isSubmitting}
-                            className="bg-primary text-primary-foreground hover:bg-primary/90 h-12 w-full rounded-lg text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={isBusy}
+                            className="h-12 w-full rounded-lg text-sm font-bold"
                         >
-                            {isSubmitting ? "로그인 중..." : "로그인"}
-                        </button>
+                            {isBusy ? "로그인 중..." : "로그인"}
+                        </Button>
                     </form>
 
-                    {successMessage ? (
-                        <p role="status" className="mt-5 text-center text-sm text-green-600">
-                            {successMessage}
-                        </p>
-                    ) : null}
+                    {googleClientId ? (
+                        <GoogleLoginButton
+                            clientId={googleClientId}
+                            isBusy={isBusy}
+                            onSuccess={handleGoogleSuccess}
+                            onError={() => {
+                                setErrorMessage("구글 인증에 실패했습니다.");
+                            }}
+                        />
+                    ) : (
+                        <p className="mt-5 text-center text-sm">구글 로그인 설정이 필요합니다.</p>
+                    )}
+
                     {errorMessage ? (
                         <p role="alert" className="text-destructive mt-5 text-center text-sm">
                             {errorMessage}
                         </p>
                     ) : null}
 
-                    <div className="mt-7 space-y-3">
-                        <Link href="/home" className={secondaryLinkClassName}>
-                            비회원 로그인
-                        </Link>
-                        <Link href="/signup" className={secondaryLinkClassName}>
-                            회원가입
-                        </Link>
+                    <div className="mx-auto mt-7 w-full max-w-[400px] space-y-3">
+                        <Button
+                            asChild
+                            variant="secondary"
+                            className="h-10 w-full rounded-lg text-sm font-semibold"
+                        >
+                            <Link href="/home">비회원 로그인</Link>
+                        </Button>
+                        <Button
+                            asChild
+                            variant="secondary"
+                            className="h-10 w-full rounded-lg text-sm font-semibold"
+                        >
+                            <Link href="/signup">회원가입</Link>
+                        </Button>
                     </div>
 
                     <Link
@@ -124,7 +190,7 @@ export default function LoginPage() {
                     >
                         아이디/비밀번호 찾기
                     </Link>
-                </div>
+                </Card>
             </section>
         </main>
     );

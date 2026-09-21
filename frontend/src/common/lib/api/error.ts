@@ -6,7 +6,9 @@ export type { ApiErrorResponse } from "./types";
 
 export function getApiErrorMessage(error: unknown): string {
     if (!isAxiosError<ApiErrorResponse>(error)) {
-        return "요청 처리 중 오류가 발생했습니다.";
+        return error instanceof Error && error.message.trim()
+            ? error.message
+            : "요청 처리 중 오류가 발생했습니다.";
     }
 
     if (error.code === "ECONNABORTED" || error.code === "ETIMEDOUT") {

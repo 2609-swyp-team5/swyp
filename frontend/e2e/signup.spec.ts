@@ -1,4 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+import { expect, test } from "./fixtures";
 
 const signupRequest = {
     email: "signup@example.com",
@@ -69,7 +71,7 @@ for (const phone of [signupRequest.phone, null]) {
     });
 }
 
-test("forwards the form without client-side validation", async ({ page }) => {
+test("blocks empty signup fields before sending a request", async ({ page }) => {
     let requestBody: unknown;
     await page.route("**/auth/signup", async (route) => {
         requestBody = route.request().postDataJSON();
@@ -86,16 +88,11 @@ test("forwards the form without client-side validation", async ({ page }) => {
     await page.goto("/signup");
     await page.getByRole("button", { name: "회원가입", exact: true }).click();
 
-    await expect(page.getByRole("main").getByRole("alert")).toHaveText(
-        "입력값이 올바르지 않습니다.",
-    );
-    expect(requestBody).toEqual({
-        name: "",
-        nickname: "",
-        phone: null,
-        email: "",
-        password: "",
-    });
+    await expect(page.locator("#name-error")).toHaveText("이름을 입력해 주세요.");
+    await expect(page.locator("#nickname-error")).toHaveText("닉네임을 입력해 주세요.");
+    await expect(page.locator("#email-error")).toHaveText("이메일을 입력해 주세요.");
+    await expect(page.locator("#password-error")).toHaveText("비밀번호를 입력해 주세요.");
+    expect(requestBody).toBeUndefined();
 });
 
 test("shows the backend signup error and allows correcting the form", async ({ page }) => {

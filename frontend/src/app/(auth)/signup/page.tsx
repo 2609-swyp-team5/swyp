@@ -1,53 +1,46 @@
 "use client";
 
-import type { FormEvent } from "react";
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 
-import { getApiErrorMessage } from "@/common/lib/api/error";
-import { authApi } from "@/features/auth/api/authApi";
-import type { SignUpRequest } from "@/features/auth/types";
+import { Button } from "@/common/components/ui/Button";
+import { Card } from "@/common/components/ui/Card";
+import { Input } from "@/common/components/ui/Input";
+import { Label } from "@/common/components/ui/Label";
 
-const inputClassName =
-    "border-border bg-background h-12 w-full rounded-full border px-5 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary disabled:cursor-not-allowed disabled:opacity-60";
+import { getApiErrorMessage } from "@/common/lib/api/error";
+import { useSignUpMutation } from "@/features/auth/hooks/mutations/useSignUpMutation";
+import type { SignUpRequest } from "@/features/auth/types";
+import { signUpSchema, type SignUpFormValues } from "@/features/auth/schemas/authSchema";
 
 export default function SignupPage() {
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const {
+        register,
+        handleSubmit,
+        reset,
+        formState: { errors, isSubmitting },
+    } = useForm<SignUpFormValues, unknown, SignUpRequest>({
+        resolver: zodResolver(signUpSchema),
+        defaultValues: { name: "", nickname: "", phone: "", email: "", password: "" },
+    });
     const [successMessage, setSuccessMessage] = useState("");
     const [errorMessage, setErrorMessage] = useState("");
+    const { mutate: signUp, isPending } = useSignUpMutation({
+        onSuccess: () => {
+            setSuccessMessage("회원가입이 완료되었습니다.");
+            reset();
+        },
+        onError: (error) => setErrorMessage(getApiErrorMessage(error)),
+    });
+    const isBusy = isSubmitting || isPending;
 
-    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        const form = event.currentTarget;
-        setIsSubmitting(true);
+    const onSubmit = (params: SignUpRequest) => {
         setSuccessMessage("");
         setErrorMessage("");
 
-        const formData = new FormData(form);
-        const phone = String(formData.get("phone") ?? "");
-        const params: SignUpRequest = {
-            name: String(formData.get("name") ?? ""),
-            nickname: String(formData.get("nickname") ?? ""),
-            phone: phone || null,
-            email: String(formData.get("email") ?? ""),
-            password: String(formData.get("password") ?? ""),
-        };
-
-        try {
-            const result = await authApi.signUp(params);
-
-            if (result.data.success) {
-                setSuccessMessage("회원가입이 완료되었습니다.");
-                form.reset();
-                return;
-            }
-
-            setErrorMessage(result.data.message);
-        } catch (error) {
-            setErrorMessage(getApiErrorMessage(error));
-        } finally {
-            setIsSubmitting(false);
-        }
+        signUp(params);
     };
 
     return (
@@ -60,80 +53,149 @@ export default function SignupPage() {
                     <p className="text-primary mt-2 text-4xl font-bold tracking-tight">지금이니?</p>
                 </div>
 
-                <div className="border-border bg-background rounded-2xl border p-7 shadow-xl shadow-black/5 sm:p-10">
+                <Card className="bg-background block rounded-2xl border p-7 shadow-xl ring-0 shadow-black/5 sm:p-10">
                     <h1 id="page-title" className="mb-7 text-3xl font-bold tracking-tight">
                         회원가입
                     </h1>
 
-                    <form noValidate onSubmit={handleSubmit} className="space-y-4">
-                        <fieldset disabled={isSubmitting} className="space-y-4">
-                            <label className="sr-only" htmlFor="name">
-                                이름
-                            </label>
-                            <input
-                                id="name"
-                                name="name"
-                                type="text"
-                                autoComplete="name"
-                                placeholder="이름"
-                                className={inputClassName}
-                            />
+                    <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                        <fieldset disabled={isBusy} className="space-y-4">
+                            <div>
+                                <Label className="sr-only" htmlFor="name">
+                                    이름
+                                </Label>
+                                <Input
+                                    id="name"
+                                    {...register("name")}
+                                    aria-invalid={Boolean(errors.name)}
+                                    aria-describedby={errors.name ? "name-error" : undefined}
+                                    type="text"
+                                    autoComplete="name"
+                                    placeholder="이름"
+                                    className="bg-background h-12 rounded-full px-5 text-sm"
+                                />
+                                {errors.name ? (
+                                    <p
+                                        id="name-error"
+                                        role="alert"
+                                        className="text-destructive mt-1 text-sm"
+                                    >
+                                        {errors.name.message}
+                                    </p>
+                                ) : null}
+                            </div>
 
-                            <label className="sr-only" htmlFor="nickname">
-                                닉네임
-                            </label>
-                            <input
-                                id="nickname"
-                                name="nickname"
-                                type="text"
-                                placeholder="닉네임"
-                                className={inputClassName}
-                            />
+                            <div>
+                                <Label className="sr-only" htmlFor="nickname">
+                                    닉네임
+                                </Label>
+                                <Input
+                                    id="nickname"
+                                    {...register("nickname")}
+                                    aria-invalid={Boolean(errors.nickname)}
+                                    aria-describedby={
+                                        errors.nickname ? "nickname-error" : undefined
+                                    }
+                                    type="text"
+                                    placeholder="닉네임"
+                                    className="bg-background h-12 rounded-full px-5 text-sm"
+                                />
+                                {errors.nickname ? (
+                                    <p
+                                        id="nickname-error"
+                                        role="alert"
+                                        className="text-destructive mt-1 text-sm"
+                                    >
+                                        {errors.nickname.message}
+                                    </p>
+                                ) : null}
+                            </div>
 
-                            <label className="sr-only" htmlFor="phone">
-                                휴대폰 번호 (선택)
-                            </label>
-                            <input
-                                id="phone"
-                                name="phone"
-                                type="tel"
-                                autoComplete="tel"
-                                placeholder="휴대폰 번호 (선택)"
-                                className={inputClassName}
-                            />
+                            <div>
+                                <Label className="sr-only" htmlFor="phone">
+                                    휴대폰 번호 (선택)
+                                </Label>
+                                <Input
+                                    id="phone"
+                                    {...register("phone")}
+                                    aria-invalid={Boolean(errors.phone)}
+                                    aria-describedby={errors.phone ? "phone-error" : undefined}
+                                    type="tel"
+                                    autoComplete="tel"
+                                    placeholder="휴대폰 번호 (선택)"
+                                    className="bg-background h-12 rounded-full px-5 text-sm"
+                                />
+                                {errors.phone ? (
+                                    <p
+                                        id="phone-error"
+                                        role="alert"
+                                        className="text-destructive mt-1 text-sm"
+                                    >
+                                        {errors.phone.message}
+                                    </p>
+                                ) : null}
+                            </div>
 
-                            <label className="sr-only" htmlFor="email">
-                                이메일
-                            </label>
-                            <input
-                                id="email"
-                                name="email"
-                                type="email"
-                                autoComplete="email"
-                                placeholder="이메일"
-                                className={inputClassName}
-                            />
+                            <div>
+                                <Label className="sr-only" htmlFor="email">
+                                    이메일
+                                </Label>
+                                <Input
+                                    id="email"
+                                    {...register("email")}
+                                    aria-invalid={Boolean(errors.email)}
+                                    aria-describedby={errors.email ? "email-error" : undefined}
+                                    type="email"
+                                    autoComplete="email"
+                                    placeholder="이메일"
+                                    className="bg-background h-12 rounded-full px-5 text-sm"
+                                />
+                                {errors.email ? (
+                                    <p
+                                        id="email-error"
+                                        role="alert"
+                                        className="text-destructive mt-1 text-sm"
+                                    >
+                                        {errors.email.message}
+                                    </p>
+                                ) : null}
+                            </div>
 
-                            <label className="sr-only" htmlFor="password">
-                                비밀번호
-                            </label>
-                            <input
-                                id="password"
-                                name="password"
-                                type="password"
-                                autoComplete="new-password"
-                                placeholder="비밀번호"
-                                className={inputClassName}
-                            />
+                            <div>
+                                <Label className="sr-only" htmlFor="password">
+                                    비밀번호
+                                </Label>
+                                <Input
+                                    id="password"
+                                    {...register("password")}
+                                    aria-invalid={Boolean(errors.password)}
+                                    aria-describedby={
+                                        errors.password ? "password-error" : undefined
+                                    }
+                                    type="password"
+                                    autoComplete="new-password"
+                                    placeholder="비밀번호"
+                                    className="bg-background h-12 rounded-full px-5 text-sm"
+                                />
+                                {errors.password ? (
+                                    <p
+                                        id="password-error"
+                                        role="alert"
+                                        className="text-destructive mt-1 text-sm"
+                                    >
+                                        {errors.password.message}
+                                    </p>
+                                ) : null}
+                            </div>
                         </fieldset>
 
-                        <button
+                        <Button
                             type="submit"
-                            disabled={isSubmitting}
-                            className="bg-primary text-primary-foreground hover:bg-primary/90 mt-2 h-12 w-full rounded-full text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={isBusy}
+                            className="mt-2 h-12 w-full rounded-full text-sm font-bold"
                         >
-                            {isSubmitting ? "가입 중..." : "회원가입"}
-                        </button>
+                            {isBusy ? "가입 중..." : "회원가입"}
+                        </Button>
                     </form>
 
                     {successMessage ? (
@@ -156,7 +218,7 @@ export default function SignupPage() {
                             로그인
                         </Link>
                     </p>
-                </div>
+                </Card>
             </section>
         </main>
     );
