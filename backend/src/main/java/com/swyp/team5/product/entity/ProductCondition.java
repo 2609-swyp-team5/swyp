@@ -5,5 +5,6 @@ public enum ProductCondition {
     S,
     A,
     B,
-    C
+    C,
+    D
 }
