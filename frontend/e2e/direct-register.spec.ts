@@ -34,7 +34,12 @@ test("direct registration keeps the product information while moving to status a
         "aria-checked",
         "true",
     );
-    await expect(page.getByRole("combobox", { name: "구매 시기" })).toContainText("6개월 이내");
+    await expect(page.getByRole("combobox", { name: "구매 시기" })).toContainText("6개월");
+    await page.getByRole("combobox", { name: "구매 시기" }).click();
+    await expect(page.getByRole("option", { name: "1개월" })).toBeVisible();
+    await expect(page.getByRole("option", { name: "6개월" })).toBeVisible();
+    await expect(page.getByRole("option", { name: "0개월" })).toHaveCount(0);
+    await page.keyboard.press("Escape");
     await expect(page.getByRole("radio", { name: "하자 없음", exact: true })).toHaveAttribute(
         "aria-checked",
         "true",

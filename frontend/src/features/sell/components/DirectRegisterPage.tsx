@@ -75,8 +75,8 @@ const initialInfoState: DirectRegisterInfoState = {
 };
 
 const initialStatusPriceState: DirectStatusPriceState = {
-    productCondition: "lightly-used",
-    purchasePeriod: "within-six-months",
+    productCondition: "B",
+    purchasePeriod: "6",
     includedItems: ["body", "charging-cable"],
     defectStatus: "none",
     price: "",

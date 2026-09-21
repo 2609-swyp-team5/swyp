@@ -37,7 +37,7 @@ type AiRegisterAction =
 const initialState: AiRegisterState = {
     step: "upload",
     images: [],
-    purchasePeriod: "within-six-months",
+    purchasePeriod: "6",
     operationStatus: "normal",
     includedItems: ["body", "charging-cable"],
 };

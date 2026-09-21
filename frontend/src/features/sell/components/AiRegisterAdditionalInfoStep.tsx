@@ -5,8 +5,7 @@ import type { ReactNode } from "react";
 import { Checkbox } from "@/common/components/ui/Checkbox";
 import { cn } from "@/common/lib/utils";
 
-export type AiPurchasePeriod =
-    "within-six-months" | "within-one-year" | "within-two-years" | "over-two-years" | "unknown";
+export type AiPurchasePeriod = "1" | "2" | "3" | "4" | "5" | "6" | "unknown";
 
 export type AiOperationStatus = "normal" | "issues" | "unknown";
 
@@ -23,10 +22,12 @@ type AiRegisterAdditionalInfoStepProps = {
 };
 
 const purchasePeriodOptions: { value: AiPurchasePeriod; label: string }[] = [
-    { value: "within-six-months", label: "6개월 이내" },
-    { value: "within-one-year", label: "1년 이내" },
-    { value: "within-two-years", label: "2년 이내" },
-    { value: "over-two-years", label: "2년 이상" },
+    { value: "1", label: "1개월 이내" },
+    { value: "2", label: "2개월 이내" },
+    { value: "3", label: "3개월 이내" },
+    { value: "4", label: "4개월 이내" },
+    { value: "5", label: "5개월 이내" },
+    { value: "6", label: "6개월 이내" },
     { value: "unknown", label: "잘 모르겠어요" },
 ];
 

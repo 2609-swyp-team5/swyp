@@ -13,10 +13,8 @@ import {
 } from "@/common/components/ui/Select";
 import { cn } from "@/common/lib/utils";
 
-export type DirectProductCondition =
-    "unopened" | "like-new" | "lightly-used" | "used" | "repair-needed";
-export type DirectPurchasePeriod =
-    "within-six-months" | "within-one-year" | "within-two-years" | "over-two-years" | "unknown";
+export type DirectProductCondition = "S" | "A" | "B" | "C" | "D";
+export type DirectPurchasePeriod = "1" | "2" | "3" | "4" | "5" | "6" | "unknown";
 export type DirectIncludedItem = "body" | "charging-cable" | "box" | "manual" | "accessory";
 export type DirectDefectStatus = "none" | "has-defect";
 export type DirectTradeMethod = "direct" | "delivery";
@@ -48,18 +46,20 @@ const productConditionOptions: {
     label: string;
     description: string;
 }[] = [
-    { value: "unopened", label: "미개봉", description: "포장을 개봉하지 않은 새 상품" },
-    { value: "like-new", label: "거의 새 상품", description: "사용 흔적이 거의 없음" },
-    { value: "lightly-used", label: "사용감 적음", description: "작은 사용 흔적이 있음" },
-    { value: "used", label: "사용감 있음", description: "스크래치나 사용 흔적이 확인됨" },
-    { value: "repair-needed", label: "수리 필요", description: "일부 기능에 문제가 있음" },
+    { value: "S", label: "미개봉", description: "포장을 개봉하지 않은 새 상품" },
+    { value: "A", label: "거의 새 상품", description: "사용 흔적이 거의 없음" },
+    { value: "B", label: "사용감 적음", description: "작은 사용 흔적이 있음" },
+    { value: "C", label: "사용감 있음", description: "스크래치나 사용 흔적이 확인됨" },
+    { value: "D", label: "수리 필요", description: "일부 기능에 문제가 있음" },
 ];
 
 const purchasePeriodOptions: { value: DirectPurchasePeriod; label: string }[] = [
-    { value: "within-six-months", label: "6개월 이내" },
-    { value: "within-one-year", label: "1년 이내" },
-    { value: "within-two-years", label: "2년 이내" },
-    { value: "over-two-years", label: "2년 이상" },
+    { value: "1", label: "1개월" },
+    { value: "2", label: "2개월" },
+    { value: "3", label: "3개월" },
+    { value: "4", label: "4개월" },
+    { value: "5", label: "5개월" },
+    { value: "6", label: "6개월" },
     { value: "unknown", label: "잘 모르겠어요" },
 ];
 
