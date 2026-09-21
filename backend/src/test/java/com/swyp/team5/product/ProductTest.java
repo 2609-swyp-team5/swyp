@@ -226,7 +226,13 @@ class ProductTest {
     @Test
     void createFromImagesSucceeds() throws Exception {
         ProductAiAnalysisResult analysis = new ProductAiAnalysisResult(
-                category.getId(), "AI가 분석한 상품", "AI 설명", ProductCondition.B, 300_000L, List.of("가성비"));
+                category.getId(),
+                "AI가 분석한 상품",
+                "AI 설명",
+                ProductCondition.B,
+                300_000L,
+                "외관 상태가 양호해 A급 시세 대비 적정합니다.",
+                List.of("가성비"));
         when(productAiService.analyze(anyList())).thenReturn(analysis);
         when(fileStorageService.upload(any(), eq("products")))
                 .thenReturn(new FileUploadResponse("key", "https://image.example.com/ai.png", 3, "image/png"));
@@ -241,6 +247,8 @@ class ProductTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.title").value("AI가 분석한 상품"))
                 .andExpect(jsonPath("$.data.price").value(300_000))
+                .andExpect(jsonPath("$.data.suggestedPrice").value(300_000))
+                .andExpect(jsonPath("$.data.analysisDescription").value("외관 상태가 양호해 A급 시세 대비 적정합니다."))
                 .andExpect(jsonPath("$.data.tradeMethod").value("DIRECT"))
                 .andExpect(jsonPath("$.data.hasDefect").value(true))
                 .andExpect(jsonPath("$.data.purchasedAt")
@@ -352,6 +360,29 @@ class ProductTest {
         mockMvc.perform(get("/products").header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content.length()").value(0));
+    }
+
+    // 인기 검색어 조회 - 키워드로 상품 목록을 조회하면 검색 로그가 남고, 인기검색어 조회에 노출됨
+    @Test
+    void getPopularKeywordsReflectsRecentSearches() throws Exception {
+        createProduct(category, "아이폰 13 프로맥스", sellerToken);
+
+        mockMvc.perform(get("/products")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
+                        .param("keyword", "아이폰"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/products/keywords/trending").header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0]").value("아이폰"));
+    }
+
+    // 인기 상품 조회 - 관심상품 등록 이력이 없으면 빈 목록 반환(경로가 {productId}와 충돌하지 않음도 함께 확인)
+    @Test
+    void getPopularProductsReturnsEmptyWhenNoInterests() throws Exception {
+        mockMvc.perform(get("/products/popular").header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(0));
     }
 
     // 내 상품 목록 조회 - 본인 것만(HIDDEN 포함), 다른 회원 상품은 제외

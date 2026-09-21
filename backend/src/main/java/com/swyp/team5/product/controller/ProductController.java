@@ -35,6 +35,7 @@ import com.swyp.team5.product.dto.ProductSummaryResponse;
 import com.swyp.team5.product.dto.ProductUpdateRequest;
 import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.service.ProductService;
+import com.swyp.team5.search.service.SearchLogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
@@ -46,6 +47,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class ProductController {
 
     private final ProductService productService;
+    private final SearchLogService searchLogService;
 
     /**
      * 상품을 직접 등록한다.
@@ -102,6 +104,7 @@ public class ProductController {
      * 필드로 구분, {@link ProductService#getProducts} 참고). 인증된 본인 전체 상품(숨김 포함)은
      * {@link #getMyProducts} 참고.
      *
+     * @param currentMember 인증된 요청자(키워드 검색 로그 기록용)
      * @param keyword 제목/설명(외부 매물은 제목만) 키워드 검색(선택)
      * @param status 상태 필터(선택, 지정 시 외부 매물은 제외되고 우리 상품만 반환)
      * @param cursor 이전 페이지 마지막 항목의 등록일시(epoch millisecond, 선택, 첫 페이지는 생략)
@@ -112,11 +115,35 @@ public class ProductController {
     @Operation(summary = "상품 목록 조회")
     @GetMapping
     public ResponseEntity<ApiResponse<CursorPageResponse<ProductListItemResponse>>> getProducts(
+            @AuthenticationPrincipal PrincipalMember currentMember,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) ProductStatus status,
             @RequestParam(required = false) Long cursor,
             @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(ApiResponse.success(productService.getProducts(keyword, status, cursor, size)));
+        return ResponseEntity.ok(ApiResponse.success(
+                productService.getProducts(currentMember.memberId(), keyword, status, cursor, size)));
+    }
+
+    /**
+     * 최근 7일간 검색 빈도 상위 10개 키워드를 조회한다.
+     *
+     * @return 200 OK + 인기검색어 목록(빈도 내림차순)
+     */
+    @Operation(summary = "인기 검색어 조회")
+    @GetMapping("/keywords/trending")
+    public ResponseEntity<ApiResponse<List<String>>> getPopularKeywords() {
+        return ResponseEntity.ok(ApiResponse.success(searchLogService.getPopularKeywords()));
+    }
+
+    /**
+     * 최근 7일간 관심상품(찜) 등록 수 상위 10개 우리 상품을 조회한다.
+     *
+     * @return 200 OK + 인기 상품 목록(관심상품 등록 수 내림차순)
+     */
+    @Operation(summary = "인기 상품 조회")
+    @GetMapping("/popular")
+    public ResponseEntity<ApiResponse<List<ProductSummaryResponse>>> getPopularProducts() {
+        return ResponseEntity.ok(ApiResponse.success(productService.getPopularProducts()));
     }
 
     /**

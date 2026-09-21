@@ -5,7 +5,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +25,7 @@ import com.swyp.team5.category.error.CategoryNotFoundException;
 import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.file.service.FileStorageService;
+import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.repository.MemberRepository;
 import com.swyp.team5.platform.entity.PlatformListing;
@@ -45,6 +45,7 @@ import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
+import com.swyp.team5.search.service.SearchLogService;
 import com.swyp.team5.tag.entity.Tag;
 import com.swyp.team5.tag.repository.TagRepository;
 
@@ -62,6 +63,8 @@ public class ProductService {
     private final TagRepository tagRepository;
     private final ProductAnalysisRepository productAnalysisRepository;
     private final PlatformListingRepository platformListingRepository;
+    private final InterestRepository interestRepository;
+    private final SearchLogService searchLogService;
 
     public ProductService(
             ProductRepository productRepository,
@@ -71,7 +74,9 @@ public class ProductService {
             ProductAiService productAiService,
             TagRepository tagRepository,
             ProductAnalysisRepository productAnalysisRepository,
-            PlatformListingRepository platformListingRepository) {
+            PlatformListingRepository platformListingRepository,
+            InterestRepository interestRepository,
+            SearchLogService searchLogService) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
         this.memberRepository = memberRepository;
@@ -80,6 +85,8 @@ public class ProductService {
         this.tagRepository = tagRepository;
         this.productAnalysisRepository = productAnalysisRepository;
         this.platformListingRepository = platformListingRepository;
+        this.interestRepository = interestRepository;
+        this.searchLogService = searchLogService;
     }
 
     /**
@@ -153,7 +160,8 @@ public class ProductService {
                 imageUrls,
                 resolveTags(analysis.tags()));
 
-        return ProductResponse.from(productRepository.save(product));
+        return ProductResponse.fromAiAnalysis(
+                productRepository.save(product), analysis.suggestedPrice(), analysis.analysisDescription());
     }
 
     /**
@@ -176,18 +184,19 @@ public class ProductService {
 
     /**
      * 상품 목록을 커서 기반으로 조회한다(정렬은 등록일시 내림차순, {@code HIDDEN} 상태는 항상 제외 —
-     * 공개 목록이므로 판매자가 숨긴 상품은 노출하지 않음). 우리 회원 상품과 함께, 같은 카테고리 기준
-     * 외부 플랫폼에서 수집한 매물({@link PlatformListing})도 한 목록에 등록일시 순으로 섞어서
-     * 반환한다({@code source} 필드로 구분) — 단, {@code status} 필터를 지정한 요청은 우리 상품 고유의
-     * 상태 개념(예약중 등)이라 외부 매물과 대응이 안 돼 우리 상품만 반환한다. 각 상품의 가장 최근
-     * 시세 분석 판단({@code recommendation})/시세 평균가({@code marketAveragePrice})도 함께
-     * 포함한다(분석 이력이 없거나 외부 매물이면 {@code null}).
+     * 공개 목록이므로 판매자가 숨긴 상품은 노출하지 않음). 우리 회원 상품과 함께, 외부 플랫폼에서
+     * 수집한 매물({@link PlatformListing})도 한 목록에 등록일시 순으로 섞어서 반환한다({@code source}
+     * 필드로 구분) — 단, {@code status} 필터를 지정한 요청은 우리 상품 고유의 상태 개념(예약중 등)이라
+     * 외부 매물과 대응이 안 돼 우리 상품만 반환한다. 각 상품의 가장 최근 시세 분석 판단
+     * ({@code recommendation})/시세 평균가({@code marketAveragePrice})도 함께 포함한다(분석 이력이
+     * 없거나 외부 매물이면 {@code null}).
      *
      * <p>{@code cursor}는 이전 페이지 마지막 항목의 등록일시를 epoch millisecond로 인코딩한 값이다
      * (두 서로 다른 테이블을 한 목록으로 병합 정렬하기 위해 공통 기준인 등록일시를 커서로 사용 —
      * 응답의 {@code nextCursor}를 그대로 다음 요청에 돌려주기만 하면 되는 불투명한 값이라 호출 측이
      * 이 인코딩을 알 필요는 없다).
      *
+     * @param memberId 요청자 회원 ID(키워드 검색 로그 기록용)
      * @param keyword 제목/설명(외부 매물은 제목만) 키워드 검색(선택, {@code null}이거나 공백이면 미적용)
      * @param status 상태 필터(선택, {@code null}이면 전체 — 단, {@code HIDDEN}은 지정해도 결과에서 제외)
      * @param cursor 이전 페이지 마지막 항목의 등록일시(epoch millisecond, 선택, {@code null}이면 첫 페이지)
@@ -196,7 +205,8 @@ public class ProductService {
      */
     @Transactional(readOnly = true)
     public CursorPageResponse<ProductListItemResponse> getProducts(
-            String keyword, ProductStatus status, Long cursor, int size) {
+            Long memberId, String keyword, ProductStatus status, Long cursor, int size) {
+        searchLogService.record(memberId, keyword);
         LocalDateTime cursorTime = cursor == null ? null : epochMillisToDateTime(cursor);
         Pageable pageable = PageRequest.of(0, size + 1, Sort.by(Sort.Direction.DESC, "createdAt", "id"));
 
@@ -256,6 +266,36 @@ public class ProductService {
         return findProducts(spec, size);
     }
 
+    private static final int POPULAR_WINDOW_DAYS = 7;
+    private static final int POPULAR_LIMIT = 10;
+
+    /**
+     * 최근 {@value #POPULAR_WINDOW_DAYS}일간 관심상품(찜) 등록 수 상위 {@value #POPULAR_LIMIT}개
+     * 우리 상품을 등록 수 내림차순으로 조회한다(외부 플랫폼 매물은 대상에서 제외). 각 상품의 가장
+     * 최근 시세 분석 스냅샷도 함께 포함한다.
+     *
+     * @return 인기 상품 목록(관심상품 등록 수 내림차순). 등록 이력 자체가 없으면 빈 목록
+     */
+    @Transactional(readOnly = true)
+    public List<ProductSummaryResponse> getPopularProducts() {
+        LocalDateTime since = LocalDateTime.now().minusDays(POPULAR_WINDOW_DAYS);
+        List<Long> popularProductIds =
+                interestRepository.findPopularProductIds(since, PageRequest.of(0, POPULAR_LIMIT));
+        if (popularProductIds.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, Product> productsById = productRepository.findAllById(popularProductIds).stream()
+                .collect(Collectors.toMap(Product::getId, product -> product));
+        List<Product> products = popularProductIds.stream()
+                .map(productsById::get)
+                .filter(product -> product != null)
+                .toList();
+        Map<Long, ProductAnalysis> analyses = findLatestAnalyses(products);
+        return products.stream()
+                .map(product -> ProductSummaryResponse.from(product, analyses.get(product.getId())))
+                .toList();
+    }
+
     private CursorPageResponse<ProductSummaryResponse> findProducts(Specification<Product> spec, int size) {
         Pageable pageable = PageRequest.of(0, size + 1, Sort.by(Sort.Direction.DESC, "id"));
 
@@ -270,18 +310,20 @@ public class ProductService {
 
     /**
      * 상품 목록의 각 상품 ID에 대한 가장 최근 시세 분석 스냅샷(추천 판단 + 수집 데이터 기반 평균가)을
-     * 한 번의 쿼리로 조회한다(N+1 방지).
+     * 한 번의 쿼리로 조회한다(N+1 방지). 맵 값이 스냅샷 객체 자체라 {@code recommendation} 필드가
+     * {@code null}이어도 {@link Collectors#toMap}에서 NPE가 나지 않는다(NPE는 값 자체가 null일 때만
+     * 발생).
      */
     private Map<Long, ProductAnalysis> findLatestAnalyses(List<Product> products) {
         if (products.isEmpty()) {
             return Map.of();
         }
         List<Long> productIds = products.stream().map(Product::getId).toList();
-        Map<Long, ProductAnalysis> analyses = new HashMap<>();
-        for (ProductAnalysis analysis : productAnalysisRepository.findLatestByProductIdIn(productIds)) {
-            analyses.put(analysis.getProduct().getId(), analysis);
-        }
-        return analyses;
+        return productAnalysisRepository.findLatestByProductIdIn(productIds).stream()
+                .collect(Collectors.toMap(
+                        analysis -> analysis.getProduct().getId(),
+                        analysis -> analysis,
+                        (existing, replacement) -> replacement));
     }
 
     /**
