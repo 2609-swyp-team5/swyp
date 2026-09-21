@@ -5,7 +5,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -271,19 +270,20 @@ public class ProductService {
 
     /**
      * 상품 목록의 각 상품 ID에 대한 가장 최근 시세 분석 스냅샷(추천 판단 + 수집 데이터 기반 평균가)을
-     * 한 번의 쿼리로 조회한다(N+1 방지). {@code recommendation}이 {@code null}인 경우가 흔해
-     * {@link Collectors#toMap}(null 값에서 NPE 발생)은 쓸 수 없다.
+     * 한 번의 쿼리로 조회한다(N+1 방지). 맵 값이 스냅샷 객체 자체라 {@code recommendation} 필드가
+     * {@code null}이어도 {@link Collectors#toMap}에서 NPE가 나지 않는다(NPE는 값 자체가 null일 때만
+     * 발생).
      */
     private Map<Long, ProductAnalysis> findLatestAnalyses(List<Product> products) {
         if (products.isEmpty()) {
             return Map.of();
         }
         List<Long> productIds = products.stream().map(Product::getId).toList();
-        Map<Long, ProductAnalysis> analyses = new HashMap<>();
-        for (ProductAnalysis analysis : productAnalysisRepository.findLatestByProductIdIn(productIds)) {
-            analyses.put(analysis.getProduct().getId(), analysis);
-        }
-        return analyses;
+        return productAnalysisRepository.findLatestByProductIdIn(productIds).stream()
+                .collect(Collectors.toMap(
+                        analysis -> analysis.getProduct().getId(),
+                        analysis -> analysis,
+                        (existing, replacement) -> replacement));
     }
 
     /**

@@ -67,10 +67,11 @@ class InterestServiceTest {
     private InterestService service() {
         return new InterestService(
                 interestRepository,
-                productRepository,
                 memberRepository,
                 productAnalysisRepository,
-                platformListingRepository);
+                List.of(
+                        new ProductInterestRegistrar(interestRepository, productRepository),
+                        new ListingInterestRegistrar(interestRepository, platformListingRepository)));
     }
 
     // 관심상품 등록 성공 - 우리 상품

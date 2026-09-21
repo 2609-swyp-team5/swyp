@@ -1,8 +1,8 @@
 package com.swyp.team5.interest.service;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
 
@@ -16,18 +16,11 @@ import com.swyp.team5.interest.dto.InterestCreateResponse;
 import com.swyp.team5.interest.dto.InterestListItemResponse;
 import com.swyp.team5.interest.dto.TargetPriceResponse;
 import com.swyp.team5.interest.entity.Interest;
-import com.swyp.team5.interest.error.InterestAlreadyExistsException;
 import com.swyp.team5.interest.error.InterestNotFoundException;
 import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.repository.MemberRepository;
-import com.swyp.team5.platform.entity.PlatformListing;
-import com.swyp.team5.platform.error.PlatformListingNotFoundException;
-import com.swyp.team5.platform.repository.PlatformListingRepository;
 import com.swyp.team5.product.dto.ListingSource;
-import com.swyp.team5.product.entity.Product;
-import com.swyp.team5.product.error.ProductNotFoundException;
-import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
 
@@ -37,13 +30,14 @@ import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
 public class InterestService {
 
     private final InterestRepository interestRepository;
-    private final ProductRepository productRepository;
     private final MemberRepository memberRepository;
     private final ProductAnalysisRepository productAnalysisRepository;
-    private final PlatformListingRepository platformListingRepository;
+    private final List<InterestRegistrar> registrars;
 
     /**
-     * 상품 또는 외부 플랫폼 수집 매물을 관심상품으로 등록한다.
+     * 상품 또는 외부 플랫폼 수집 매물을 관심상품으로 등록한다. {@code source}에 맞는
+     * {@link InterestRegistrar}에게 대상 검증·중복 검증을 위임한다(새 source 추가 시 이 메서드는
+     * 수정하지 않아도 됨).
      *
      * @param memberId 요청자 회원 ID
      * @param source 등록 대상 종류(OUR/EXTERNAL)
@@ -52,28 +46,15 @@ public class InterestService {
      */
     public InterestCreateResponse register(Long memberId, ListingSource source, Long targetId) {
         Member member = memberRepository.getReferenceById(memberId);
-        Interest interest = source == ListingSource.OUR
-                ? registerProduct(member, memberId, targetId)
-                : registerListing(member, memberId, targetId);
+        Interest interest = registrarFor(source).register(member, memberId, targetId);
         return new InterestCreateResponse(interestRepository.save(interest).getId());
     }
 
-    private Interest registerProduct(Member member, Long memberId, Long productId) {
-        Product product = getProduct(productId);
-        if (interestRepository.existsByMemberIdAndProductId(memberId, productId)) {
-            throw new InterestAlreadyExistsException();
-        }
-        return Interest.ofProduct(member, product);
-    }
-
-    private Interest registerListing(Member member, Long memberId, Long listingId) {
-        PlatformListing listing = platformListingRepository
-                .findById(listingId)
-                .orElseThrow(() -> new PlatformListingNotFoundException(listingId));
-        if (interestRepository.existsByMemberIdAndListingId(memberId, listingId)) {
-            throw new InterestAlreadyExistsException();
-        }
-        return Interest.ofListing(member, listing);
+    private InterestRegistrar registrarFor(ListingSource source) {
+        return registrars.stream()
+                .filter(registrar -> registrar.source() == source)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("지원하지 않는 관심상품 등록 대상입니다: " + source));
     }
 
     /**
@@ -119,11 +100,11 @@ public class InterestService {
         if (productIds.isEmpty()) {
             return Map.of();
         }
-        Map<Long, ProductAnalysis> analyses = new HashMap<>();
-        for (ProductAnalysis analysis : productAnalysisRepository.findLatestByProductIdIn(productIds)) {
-            analyses.put(analysis.getProduct().getId(), analysis);
-        }
-        return analyses;
+        return productAnalysisRepository.findLatestByProductIdIn(productIds).stream()
+                .collect(Collectors.toMap(
+                        analysis -> analysis.getProduct().getId(),
+                        analysis -> analysis,
+                        (existing, replacement) -> replacement));
     }
 
     /**
@@ -153,9 +134,5 @@ public class InterestService {
 
     private Interest getInterestOrThrow(Long memberId, Long interestId) {
         return interestRepository.findByIdAndMemberId(interestId, memberId).orElseThrow(InterestNotFoundException::new);
-    }
-
-    private Product getProduct(Long productId) {
-        return productRepository.findById(productId).orElseThrow(() -> new ProductNotFoundException(productId));
     }
 }
