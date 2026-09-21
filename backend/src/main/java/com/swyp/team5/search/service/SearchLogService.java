@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.swyp.team5.member.entity.Member;
@@ -34,6 +35,7 @@ public class SearchLogService {
      * @param memberId 요청자 회원 ID(비회원 확장 대비 nullable)
      * @param keyword 검색 키워드
      */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void record(Long memberId, String keyword) {
         if (keyword == null || keyword.isBlank()) {
             return;

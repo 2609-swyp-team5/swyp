@@ -203,7 +203,7 @@ public class ProductService {
      * @param size 페이지 크기
      * @return {@code hasNext}/{@code nextCursor}를 포함한 커서 페이지 응답
      */
-    @Transactional
+    @Transactional(readOnly = true)
     public CursorPageResponse<ProductListItemResponse> getProducts(
             Long memberId, String keyword, ProductStatus status, Long cursor, int size) {
         searchLogService.record(memberId, keyword);
