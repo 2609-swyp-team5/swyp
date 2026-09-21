@@ -29,6 +29,9 @@ import com.swyp.team5.common.common.ApiError;
 import com.swyp.team5.common.common.ApiResponse;
 import com.swyp.team5.common.common.ErrorDetail;
 import com.swyp.team5.file.error.FileStorageException;
+import com.swyp.team5.interest.error.InterestAlreadyExistsException;
+import com.swyp.team5.interest.error.InterestNotFoundException;
+import com.swyp.team5.platform.error.PlatformListingNotFoundException;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductNotFoundException;
 
@@ -71,7 +74,12 @@ public class GlobalExceptionHandler {
         return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
     }
 
-    @ExceptionHandler({ProductNotFoundException.class, CategoryNotFoundException.class})
+    @ExceptionHandler({
+        ProductNotFoundException.class,
+        CategoryNotFoundException.class,
+        InterestNotFoundException.class,
+        PlatformListingNotFoundException.class
+    })
     public ResponseEntity<ApiResponse<Void>> handleNotFound(RuntimeException e) {
         log.warn("리소스를 찾을 수 없음: {}", e.getMessage());
         return errorResponse(HttpStatus.NOT_FOUND, "NOT_FOUND", e.getMessage());
@@ -81,6 +89,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleProductAccessDenied(ProductAccessDeniedException e) {
         log.warn("상품 접근 권한 없음: {}", e.getMessage());
         return errorResponse(HttpStatus.FORBIDDEN, "FORBIDDEN", e.getMessage());
+    }
+
+    @ExceptionHandler(InterestAlreadyExistsException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInterestAlreadyExists(InterestAlreadyExistsException e) {
+        log.warn("관심상품 중복 등록 시도: {}", e.getMessage());
+        return errorResponse(HttpStatus.CONFLICT, "CONFLICT", e.getMessage());
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

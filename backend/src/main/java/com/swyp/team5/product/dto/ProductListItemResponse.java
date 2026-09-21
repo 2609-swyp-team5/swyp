@@ -20,6 +20,7 @@ public record ProductListItemResponse(
         String thumbnailUrl,
         AnalysisRecommendation recommendation, // 외부 매물은 null
         Long marketAveragePrice, // 외부 매물은 null
+        String platformName, // 우리 상품은 null, 외부 매물은 수집 플랫폼명(예: "번개장터")
         String externalUrl, // 우리 상품은 null, 외부 매물은 원본 매물 링크
         LocalDateTime createdAt) {
 
@@ -39,6 +40,7 @@ public record ProductListItemResponse(
                 analysis == null ? null : analysis.getRecommendation(),
                 analysis == null ? null : analysis.getAveragePrice(),
                 null,
+                null,
                 product.getCreatedAt());
     }
 
@@ -54,6 +56,7 @@ public record ProductListItemResponse(
                 listing.getImageUrl(),
                 null,
                 null,
+                listing.getPlatform().getName(),
                 listing.getListingUrl(),
                 listing.getCreatedAt());
     }

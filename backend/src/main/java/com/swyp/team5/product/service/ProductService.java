@@ -5,7 +5,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -153,7 +152,8 @@ public class ProductService {
                 imageUrls,
                 resolveTags(analysis.tags()));
 
-        return ProductResponse.from(productRepository.save(product));
+        return ProductResponse.fromAiAnalysis(
+                productRepository.save(product), analysis.suggestedPrice(), analysis.analysisDescription());
     }
 
     /**
@@ -176,12 +176,12 @@ public class ProductService {
 
     /**
      * 상품 목록을 커서 기반으로 조회한다(정렬은 등록일시 내림차순, {@code HIDDEN} 상태는 항상 제외 —
-     * 공개 목록이므로 판매자가 숨긴 상품은 노출하지 않음). 우리 회원 상품과 함께, 같은 카테고리 기준
-     * 외부 플랫폼에서 수집한 매물({@link PlatformListing})도 한 목록에 등록일시 순으로 섞어서
-     * 반환한다({@code source} 필드로 구분) — 단, {@code status} 필터를 지정한 요청은 우리 상품 고유의
-     * 상태 개념(예약중 등)이라 외부 매물과 대응이 안 돼 우리 상품만 반환한다. 각 상품의 가장 최근
-     * 시세 분석 판단({@code recommendation})/시세 평균가({@code marketAveragePrice})도 함께
-     * 포함한다(분석 이력이 없거나 외부 매물이면 {@code null}).
+     * 공개 목록이므로 판매자가 숨긴 상품은 노출하지 않음). 우리 회원 상품과 함께, 외부 플랫폼에서
+     * 수집한 매물({@link PlatformListing})도 한 목록에 등록일시 순으로 섞어서 반환한다({@code source}
+     * 필드로 구분) — 단, {@code status} 필터를 지정한 요청은 우리 상품 고유의 상태 개념(예약중 등)이라
+     * 외부 매물과 대응이 안 돼 우리 상품만 반환한다. 각 상품의 가장 최근 시세 분석 판단
+     * ({@code recommendation})/시세 평균가({@code marketAveragePrice})도 함께 포함한다(분석 이력이
+     * 없거나 외부 매물이면 {@code null}).
      *
      * <p>{@code cursor}는 이전 페이지 마지막 항목의 등록일시를 epoch millisecond로 인코딩한 값이다
      * (두 서로 다른 테이블을 한 목록으로 병합 정렬하기 위해 공통 기준인 등록일시를 커서로 사용 —
@@ -270,18 +270,20 @@ public class ProductService {
 
     /**
      * 상품 목록의 각 상품 ID에 대한 가장 최근 시세 분석 스냅샷(추천 판단 + 수집 데이터 기반 평균가)을
-     * 한 번의 쿼리로 조회한다(N+1 방지).
+     * 한 번의 쿼리로 조회한다(N+1 방지). 맵 값이 스냅샷 객체 자체라 {@code recommendation} 필드가
+     * {@code null}이어도 {@link Collectors#toMap}에서 NPE가 나지 않는다(NPE는 값 자체가 null일 때만
+     * 발생).
      */
     private Map<Long, ProductAnalysis> findLatestAnalyses(List<Product> products) {
         if (products.isEmpty()) {
             return Map.of();
         }
         List<Long> productIds = products.stream().map(Product::getId).toList();
-        Map<Long, ProductAnalysis> analyses = new HashMap<>();
-        for (ProductAnalysis analysis : productAnalysisRepository.findLatestByProductIdIn(productIds)) {
-            analyses.put(analysis.getProduct().getId(), analysis);
-        }
-        return analyses;
+        return productAnalysisRepository.findLatestByProductIdIn(productIds).stream()
+                .collect(Collectors.toMap(
+                        analysis -> analysis.getProduct().getId(),
+                        analysis -> analysis,
+                        (existing, replacement) -> replacement));
     }
 
     /**
