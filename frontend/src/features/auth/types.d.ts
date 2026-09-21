@@ -30,8 +30,10 @@ export interface LoginResponse {
 }
 
 // 소셜 로그인에 필요한 제공자와 인증 토큰
+export type SocialProvider = "GOOGLE" | "KAKAO" | "NAVER";
+
 export interface SocialLoginRequest {
-    provider: "GOOGLE" | "KAKAO" | "NAVER";
+    provider: SocialProvider;
     token: string;
 }
 
