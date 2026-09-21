@@ -2,14 +2,17 @@
 
 import type { ReactNode } from "react";
 
-import { Checkbox } from "@/common/components/ui/Checkbox";
 import { cn } from "@/common/lib/utils";
+import {
+    IncludedItemsField,
+    type IncludedItemOption,
+} from "@/features/sell/components/IncludedItemsField";
 
 export type AiPurchasePeriod = "1" | "2" | "3" | "4" | "5" | "6" | "unknown";
 
 export type AiOperationStatus = "normal" | "issues" | "unknown";
 
-export type AiIncludedItem = "body" | "charging-cable" | "box" | "manual" | "strap";
+export type AiIncludedItem = string;
 
 type AiRegisterAdditionalInfoStepProps = {
     purchasePeriod: AiPurchasePeriod;
@@ -37,7 +40,7 @@ const operationStatusOptions: { value: AiOperationStatus; label: string }[] = [
     { value: "unknown", label: "확인하지 못했어요" },
 ];
 
-const includedItemOptions: { value: AiIncludedItem; label: string }[] = [
+const includedItemOptions: IncludedItemOption[] = [
     { value: "body", label: "본체" },
     { value: "charging-cable", label: "충전 케이블" },
     { value: "box", label: "박스" },
@@ -116,36 +119,16 @@ export function AiRegisterAdditionalInfoStep({
                     </div>
                 </div>
 
-                <div className="flex h-[82px] flex-col items-start justify-between">
+                <div className="flex flex-col gap-3">
                     <h2 className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#6b6c7b]">
                         구성품은 무엇이 있나요?
                     </h2>
-                    <div
-                        className="flex h-[33px] flex-wrap items-center gap-4"
-                        role="group"
-                        aria-label="구성품"
-                    >
-                        {includedItemOptions.map((option) => {
-                            const checked = includedItems.includes(option.value);
-
-                            return (
-                                <label
-                                    key={option.value}
-                                    className="flex h-[27px] cursor-pointer items-center gap-2 text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#6b6c7b]"
-                                >
-                                    <Checkbox
-                                        checked={checked}
-                                        onCheckedChange={(nextChecked) =>
-                                            onIncludedItemChange(option.value, nextChecked === true)
-                                        }
-                                        aria-label={option.label}
-                                        className="size-[13px] rounded-[2px] border-[#6b6c7b] data-[state=checked]:border-[#5d55fe] data-[state=checked]:bg-[#5d55fe] [&_svg]:size-[11px]"
-                                    />
-                                    {option.label}
-                                </label>
-                            );
-                        })}
-                    </div>
+                    <IncludedItemsField
+                        items={includedItems}
+                        options={includedItemOptions}
+                        onChange={onIncludedItemChange}
+                        ariaLabel="구성품"
+                    />
                 </div>
             </section>
 

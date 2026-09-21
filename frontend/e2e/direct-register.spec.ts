@@ -45,6 +45,23 @@ test("direct registration keeps the product information while moving to status a
         "true",
     );
 
+    const includedItemInput = page.getByRole("textbox", { name: "구성품 추가" });
+    await includedItemInput.fill("케이스");
+    await includedItemInput.press("Enter");
+    await expect(page.getByRole("button", { name: "케이스 구성품 삭제" })).toBeVisible();
+
+    for (const item of ["보호 필름", "설명서", "스트랩"]) {
+        await includedItemInput.fill(item);
+        await includedItemInput.press("Enter");
+    }
+
+    const moreItemsButton = page.getByRole("button", { name: "숨겨진 구성품 3개 보기" });
+    await expect(moreItemsButton).toBeVisible();
+    await moreItemsButton.click();
+    await expect(page.getByRole("button", { name: "보호 필름 구성품 삭제" })).toBeVisible();
+    await page.getByRole("button", { name: "보호 필름 구성품 삭제" }).click();
+    await expect(page.getByRole("button", { name: "숨겨진 구성품 2개 보기" })).toBeVisible();
+
     const priceInput = page.getByRole("textbox", { name: "희망 가격" });
     await priceInput.fill("1234567");
     await expect(priceInput).toHaveValue("1,234,567");

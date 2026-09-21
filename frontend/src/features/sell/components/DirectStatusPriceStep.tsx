@@ -12,10 +12,14 @@ import {
     SelectValue,
 } from "@/common/components/ui/Select";
 import { cn } from "@/common/lib/utils";
+import {
+    IncludedItemsField,
+    type IncludedItemOption,
+} from "@/features/sell/components/IncludedItemsField";
 
 export type DirectProductCondition = "S" | "A" | "B" | "C" | "D";
 export type DirectPurchasePeriod = "1" | "2" | "3" | "4" | "5" | "6" | "unknown";
-export type DirectIncludedItem = "body" | "charging-cable" | "box" | "manual" | "accessory";
+export type DirectIncludedItem = string;
 export type DirectDefectStatus = "none" | "has-defect";
 export type DirectTradeMethod = "direct" | "delivery";
 
@@ -63,7 +67,7 @@ const purchasePeriodOptions: { value: DirectPurchasePeriod; label: string }[] = 
     { value: "unknown", label: "잘 모르겠어요" },
 ];
 
-const includedItemOptions: { value: DirectIncludedItem; label: string }[] = [
+const includedItemOptions: IncludedItemOption[] = [
     { value: "body", label: "본체" },
     { value: "charging-cable", label: "충전 케이블" },
     { value: "box", label: "박스" },
@@ -194,31 +198,13 @@ export function DirectStatusPriceStep({
                         <legend className="text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#545d82]">
                             구성품
                         </legend>
-                        <div className="flex min-h-[50px] flex-wrap items-center gap-4">
-                            {includedItemOptions.map((option) => {
-                                const checked = includedItems.includes(option.value);
-
-                                return (
-                                    <label
-                                        key={option.value}
-                                        className="flex items-center gap-1.5 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#545d82]"
-                                    >
-                                        <Checkbox
-                                            checked={checked}
-                                            onCheckedChange={(nextChecked) =>
-                                                onIncludedItemChange(
-                                                    option.value,
-                                                    nextChecked === true,
-                                                )
-                                            }
-                                            aria-label={option.label}
-                                            className="size-[13px] rounded-[2px] border-[#767676] data-[state=checked]:border-[#5d55fe] data-[state=checked]:bg-[#5d55fe] [&_svg]:size-[11px]"
-                                        />
-                                        {option.label}
-                                    </label>
-                                );
-                            })}
-                        </div>
+                        <IncludedItemsField
+                            items={includedItems}
+                            options={includedItemOptions}
+                            onChange={onIncludedItemChange}
+                            overflow
+                            ariaLabel="구성품"
+                        />
                     </fieldset>
                 </div>
 
