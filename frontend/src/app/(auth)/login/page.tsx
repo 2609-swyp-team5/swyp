@@ -13,12 +13,39 @@ import { Input } from "@/common/components/ui/Input";
 import { Label } from "@/common/components/ui/Label";
 
 import { getApiErrorMessage } from "@/common/lib/api/error";
-import { GoogleLoginButton } from "@/features/auth/components/GoogleLoginButton";
+import { SocialLoginButtons } from "@/features/auth/components/social/SocialLoginButtons";
 import { useLoginMutation } from "@/features/auth/hooks/mutations/useLoginMutation";
 import { useSocialLoginMutation } from "@/features/auth/hooks/mutations/useSocialLoginMutation";
 import { useAuthStore } from "@/features/auth/store/authStore";
-import type { LoginRequest } from "@/features/auth/types";
+import type { LoginRequest, SocialProvider } from "@/features/auth/types";
 import { loginSchema } from "@/features/auth/schemas/authSchema";
+
+type OAuthProvider = Exclude<SocialProvider, "GOOGLE">;
+
+const oauthConfig: Record<
+    OAuthProvider,
+    {
+        clientId: string | undefined;
+        authorizeUri: string;
+        redirectUri: string | undefined;
+        redirectPath: string;
+        state?: string;
+    }
+> = {
+    KAKAO: {
+        clientId: process.env.NEXT_PUBLIC_KAKAO_CLIENT_ID,
+        authorizeUri: "https://kauth.kakao.com/oauth/authorize",
+        redirectUri: process.env.NEXT_PUBLIC_KAKAO_REDIRECT_URI,
+        redirectPath: "/oauth/kakao",
+    },
+    NAVER: {
+        clientId: process.env.NEXT_PUBLIC_NAVER_CLIENT_ID,
+        authorizeUri: "https://nid.naver.com/oauth2.0/authorize",
+        redirectUri: process.env.NEXT_PUBLIC_NAVER_REDIRECT_URI,
+        redirectPath: "/oauth/naver",
+        state: process.env.NEXT_PUBLIC_NAVER_STATE ?? "swyp",
+    },
+};
 
 export default function LoginPage() {
     const router = useRouter();
@@ -26,6 +53,7 @@ export default function LoginPage() {
     const isInitialized = useAuthStore((state) => state.isInitialized);
     const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     const [errorMessage, setErrorMessage] = useState("");
+    const [socialRedirecting, setSocialRedirecting] = useState<OAuthProvider | null>(null);
     const { mutate: login, isPending } = useLoginMutation({
         onError: (error) => setErrorMessage(getApiErrorMessage(error)),
     });
@@ -41,7 +69,7 @@ export default function LoginPage() {
         defaultValues: { email: "", password: "" },
     });
 
-    const isBusy = isSubmitting || isPending || isSocialPending;
+    const isBusy = isSubmitting || isPending || isSocialPending || socialRedirecting !== null;
 
     useEffect(() => {
         if (isInitialized && isLoggedIn) {
@@ -63,6 +91,28 @@ export default function LoginPage() {
 
         setErrorMessage("");
         socialLogin({ provider: "GOOGLE", token: response.credential });
+    };
+
+    const handleSocialAuthorize = (provider: OAuthProvider) => {
+        setErrorMessage("");
+        const config = oauthConfig[provider];
+        if (!config.clientId) {
+            setErrorMessage(
+                `${provider === "KAKAO" ? "카카오" : "네이버"} 로그인 설정이 필요합니다.`,
+            );
+            return;
+        }
+
+        const redirectUri = config.redirectUri ?? `${window.location.origin}${config.redirectPath}`;
+        const params = new URLSearchParams({
+            client_id: config.clientId,
+            redirect_uri: redirectUri,
+            response_type: "code",
+            ...(config.state ? { state: config.state } : {}),
+        });
+
+        setSocialRedirecting(provider);
+        window.open(`${config.authorizeUri}?${params.toString()}`, "_self");
     };
 
     if (!isInitialized || isLoggedIn) {
@@ -148,18 +198,18 @@ export default function LoginPage() {
                         </Button>
                     </form>
 
-                    {googleClientId ? (
-                        <GoogleLoginButton
-                            clientId={googleClientId}
-                            isBusy={isBusy}
-                            onSuccess={handleGoogleSuccess}
-                            onError={() => {
-                                setErrorMessage("구글 인증에 실패했습니다.");
-                            }}
-                        />
-                    ) : (
-                        <p className="mt-5 text-center text-sm">구글 로그인 설정이 필요합니다.</p>
-                    )}
+                    <SocialLoginButtons
+                        googleClientId={googleClientId}
+                        kakaoClientId={oauthConfig.KAKAO.clientId}
+                        naverClientId={oauthConfig.NAVER.clientId}
+                        isBusy={isBusy}
+                        socialRedirecting={socialRedirecting}
+                        onGoogleSuccess={handleGoogleSuccess}
+                        onGoogleError={() => {
+                            setErrorMessage("구글 인증에 실패했습니다.");
+                        }}
+                        onAuthorize={handleSocialAuthorize}
+                    />
 
                     {errorMessage ? (
                         <p role="alert" className="text-destructive mt-5 text-center text-sm">
