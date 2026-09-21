@@ -38,7 +38,7 @@ it("카카오 인가 코드를 전달하고 로그인 성공 후 메인으로 �
             { provider: "KAKAO", token: "kakao-authorization-code" },
             expect.any(Object),
         );
-        expect(mocks.replace).toHaveBeenCalledWith("/");
+        expect(mocks.replace).toHaveBeenCalledWith("/home");
     });
 });
 

@@ -73,7 +73,7 @@ export default function LoginPage() {
 
     useEffect(() => {
         if (isInitialized && isLoggedIn) {
-            router.replace("/");
+            router.replace("/home");
         }
     }, [isInitialized, isLoggedIn, router]);
 

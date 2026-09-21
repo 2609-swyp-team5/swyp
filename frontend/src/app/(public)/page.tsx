@@ -6,6 +6,11 @@ import { useAuthStore } from "@/features/auth/store/authStore";
 
 export default function OnboardingPage() {
     const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
+    const isInitialized = useAuthStore((state) => state.isInitialized);
+
+    if (!isInitialized) {
+        return null;
+    }
 
     return (
         <main className="bg-background flex-1">

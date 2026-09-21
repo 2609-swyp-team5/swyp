@@ -63,7 +63,7 @@ export default function SocialOAuthCallbackPage() {
         }
 
         requestStarted.current = true;
-        socialLogin({ provider, token: code }, { onSuccess: () => router.replace("/") });
+        socialLogin({ provider, token: code }, { onSuccess: () => router.replace("/home") });
     }, [code, provider, providerError, router, socialLogin]);
 
     const errorMessage = mutationError || callbackError;

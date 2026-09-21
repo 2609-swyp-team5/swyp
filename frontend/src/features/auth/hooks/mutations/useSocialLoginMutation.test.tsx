@@ -26,7 +26,9 @@ beforeEach(() => {
 });
 
 it("sends the Google credential and stores the returned service token", async () => {
-    authSocialLogin.mockResolvedValue({ accessToken: "service-token" });
+    authSocialLogin.mockResolvedValue({
+        data: { success: true, data: { accessToken: "service-token" } },
+    });
     const { result } = setup();
     await act(async () => {
         await result.current.mutateAsync({ provider: "GOOGLE", token: "google-credential" });
@@ -39,6 +41,20 @@ it("sends the Google credential and stores the returned service token", async ()
         accessToken: "service-token",
         isLoggedIn: true,
     });
+});
+
+it("treats success false as a mutation failure without logging in", async () => {
+    authSocialLogin.mockResolvedValue({
+        data: { success: false, message: "Invalid Google token", data: null },
+    });
+    const { result, onError } = setup();
+    act(() => result.current.mutate({ provider: "GOOGLE", token: "invalid" }));
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Invalid Google token" }),
+    );
+    expect(authSocialLogin).toHaveBeenCalledTimes(1);
+    expect(useAuthStore.getState()).toMatchObject({ accessToken: null, isLoggedIn: false });
 });
 
 it("passes failure to the page callback without logging in or retrying", async () => {

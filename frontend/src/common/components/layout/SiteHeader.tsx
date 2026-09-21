@@ -1,13 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { Avatar, AvatarFallback } from "@/common/components/ui/Avatar";
 import { Button } from "@/common/components/ui/Button";
 import { HEADER_LINKS } from "@/constants/routes";
-import { getApiErrorMessage } from "@/common/lib/api/error";
 import { useAuthStore } from "@/features/auth/store/authStore";
 
 function isRouteActive(pathname: string, href: string) {
@@ -16,38 +14,23 @@ function isRouteActive(pathname: string, href: string) {
 
 export function SiteHeader() {
     const pathname = usePathname();
+    const router = useRouter();
     const isProfileActive = isRouteActive(pathname, "/my");
     const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
-    const logout = useAuthStore((state) => state.logout);
-    const [isLoggingOut, setIsLoggingOut] = useState(false);
-    const [errorMessage, setErrorMessage] = useState("");
-
-    const handleLogout = async () => {
-        setIsLoggingOut(true);
-        setErrorMessage("");
-
-        try {
-            const result = await logout();
-            if (result && !result.success) {
-                setErrorMessage(result.message);
-            }
-        } catch (error) {
-            setErrorMessage(getApiErrorMessage(error));
-        } finally {
-            setIsLoggingOut(false);
-        }
-    };
+    const isAuthPage = pathname === "/login" || pathname === "/signup";
+    const hideMenus = pathname === "/" || isAuthPage;
+    const logoHref = isAuthPage || (pathname === "/" && !isLoggedIn) ? "/" : "/home";
 
     return (
         <header className="border-border bg-background border-b">
             <div className="layout-container flex min-h-[var(--header-height)] items-center justify-between gap-6">
-                <Link href="/" className="typography-heading-03 text-primary">
+                <Link href={logoHref} className="typography-heading-03 text-primary">
                     지금이니?
                 </Link>
 
                 <nav
                     aria-label="주요 메뉴"
-                    className="flex min-w-0 flex-1 items-center justify-end gap-1"
+                    className={`flex min-w-0 flex-1 items-center justify-end gap-1 ${hideMenus ? "invisible" : ""}`}
                 >
                     {HEADER_LINKS.map((link) => {
                         const isActive = isRouteActive(pathname, link.href);
@@ -72,7 +55,7 @@ export function SiteHeader() {
                 </nav>
 
                 <div className="typography-body-medium flex items-center gap-2">
-                    {isLoggedIn ? (
+                    {isLoggedIn && !isAuthPage ? (
                         <Button
                             asChild
                             variant="ghost"
@@ -97,32 +80,17 @@ export function SiteHeader() {
                             </Link>
                         </Button>
                     ) : null}
-                    {isLoggedIn ? (
+                    {!isLoggedIn || isAuthPage ? (
                         <Button
                             type="button"
-                            variant="ghost"
-                            onClick={handleLogout}
-                            disabled={isLoggingOut}
-                            className="typography-body-medium text-muted-foreground hover:text-foreground h-auto rounded-full px-3 py-2"
+                            onClick={() => router.push("/login")}
+                            className="typography-body-medium h-auto rounded-full px-3 py-2"
                         >
-                            {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
+                            로그인
                         </Button>
-                    ) : (
-                        <Button
-                            asChild
-                            variant="ghost"
-                            className="typography-body-medium text-muted-foreground hover:text-foreground h-auto rounded-full px-3 py-2"
-                        >
-                            <Link href="/login">로그인</Link>
-                        </Button>
-                    )}
+                    ) : null}
                 </div>
             </div>
-            {errorMessage ? (
-                <p role="alert" className="px-6 pb-3 text-sm text-red-600 lg:px-8">
-                    {errorMessage}
-                </p>
-            ) : null}
         </header>
     );
 }
