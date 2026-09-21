@@ -31,8 +31,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 /**
- * 관심상품(찜) API. 우리 회원 상품과 외부 플랫폼 수집 매물 양쪽 다 대상이 될 수 있어 더 이상 상품
- * 하위 리소스가 아니다 — {@code /interests}를 최상위 리소스로 둔다.
+ * 관심상품 API. 우리 회원 상품과 외부 플랫폼 수집 매물 양쪽 다 대상이 될 수 있다.
  */
 @Tag(name = "Interest", description = "관심 상품")
 @RestController
