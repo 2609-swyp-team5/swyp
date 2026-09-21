@@ -362,6 +362,29 @@ class ProductTest {
                 .andExpect(jsonPath("$.data.content.length()").value(0));
     }
 
+    // 인기 검색어 조회 - 키워드로 상품 목록을 조회하면 검색 로그가 남고, 인기검색어 조회에 노출됨
+    @Test
+    void getPopularKeywordsReflectsRecentSearches() throws Exception {
+        createProduct(category, "아이폰 13 프로맥스", sellerToken);
+
+        mockMvc.perform(get("/products")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
+                        .param("keyword", "아이폰"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/products/keywords/trending").header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0]").value("아이폰"));
+    }
+
+    // 인기 상품 조회 - 관심상품 등록 이력이 없으면 빈 목록 반환(경로가 {productId}와 충돌하지 않음도 함께 확인)
+    @Test
+    void getPopularProductsReturnsEmptyWhenNoInterests() throws Exception {
+        mockMvc.perform(get("/products/popular").header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(0));
+    }
+
     // 내 상품 목록 조회 - 본인 것만(HIDDEN 포함), 다른 회원 상품은 제외
     @Test
     void getMyProductsIncludesHiddenAndScopedToSelf() throws Exception {

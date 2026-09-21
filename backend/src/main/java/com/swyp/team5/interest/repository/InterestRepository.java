@@ -1,5 +1,7 @@
 package com.swyp.team5.interest.repository;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -20,4 +22,8 @@ public interface InterestRepository extends JpaRepository<Interest, Long> {
 
     @Query("SELECT i FROM Interest i LEFT JOIN FETCH i.product LEFT JOIN FETCH i.listing WHERE i.member.id = :memberId")
     Page<Interest> findByMemberId(@Param("memberId") Long memberId, Pageable pageable);
+
+    @Query("SELECT i.product.id FROM Interest i WHERE i.product IS NOT NULL AND i.createdAt >= :since "
+            + "GROUP BY i.product.id ORDER BY COUNT(i) DESC")
+    List<Long> findPopularProductIds(@Param("since") LocalDateTime since, Pageable pageable);
 }
