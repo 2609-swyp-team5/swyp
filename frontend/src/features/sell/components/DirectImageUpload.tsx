@@ -1,20 +1,21 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 
 import {
     ProductImageGrid,
     type ProductImagePreview,
 } from "@/common/components/product/ProductImageGrid";
 
-type PreviewImage = {
+export type DirectImagePreview = {
     file: File;
     url: string;
 };
 
 type DirectImageUploadProps = {
+    images: DirectImagePreview[];
     onError: (message: string) => void;
-    onFilesChange: (files: File[]) => void;
+    onImagesChange: (images: DirectImagePreview[]) => void;
 };
 
 const MAX_FILE_COUNT = 10;
@@ -25,21 +26,11 @@ function fileKey(file: File) {
     return `${file.name}-${file.size}-${file.lastModified}`;
 }
 
-export function DirectImageUpload({ onError, onFilesChange }: DirectImageUploadProps) {
+export function DirectImageUpload({ images, onError, onImagesChange }: DirectImageUploadProps) {
     const inputRef = useRef<HTMLInputElement>(null);
-    const imagesRef = useRef<PreviewImage[]>([]);
-    const [images, setImages] = useState<PreviewImage[]>([]);
 
-    useEffect(() => {
-        return () => {
-            imagesRef.current.forEach((image) => URL.revokeObjectURL(image.url));
-        };
-    }, []);
-
-    const updateImages = (nextImages: PreviewImage[]) => {
-        imagesRef.current = nextImages;
-        setImages(nextImages);
-        onFilesChange(nextImages.map((image) => image.file));
+    const updateImages = (nextImages: DirectImagePreview[]) => {
+        onImagesChange(nextImages);
     };
 
     const addFiles = (fileList: FileList | File[]) => {
@@ -68,7 +59,7 @@ export function DirectImageUpload({ onError, onFilesChange }: DirectImageUploadP
         }
 
         const acceptedFiles = newFiles.slice(0, remainingCount);
-        const nextImages = [
+        const nextImages: DirectImagePreview[] = [
             ...images,
             ...acceptedFiles.map((file) => ({ file, url: URL.createObjectURL(file) })),
         ];

@@ -7,6 +7,16 @@ export type Category = {
     parentId: number | null;
 };
 
+const getCategories = async (): Promise<Category[]> => {
+    const { data } = await api.get<ApiResponse<Category[]>>("/categories");
+
+    if (!data.success) {
+        throw new Error(data.message);
+    }
+
+    return data.data;
+};
+
 export const categoryApi = {
-    getCategories: () => api.get<ApiResponse<Category[]>>("/categories"),
+    getCategories,
 };
