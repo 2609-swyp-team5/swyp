@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.platform.repository.PlatformListingRepository;
+import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.error.ProductNotFoundException;
@@ -178,7 +179,7 @@ public class ProductAnalysisService {
                 maxPrice,
                 product.getPrice(),
                 product.getCondition(),
-                product.isHasDefect() ? "있음" : "없음",
+                defectStatusLabel(product.getDefectStatus()),
                 Math.min(listings.size(), properties.sampleSize()),
                 sample);
 
@@ -190,6 +191,15 @@ public class ProductAnalysisService {
                 .entity(MarketAnalysisResult.class);
         assert result != null;
         return result;
+    }
+
+    /** 결함(하자) 상태를 AI 프롬프트에 넣을 한국어 설명으로 변환한다. */
+    private static String defectStatusLabel(DefectStatus defectStatus) {
+        return switch (defectStatus) {
+            case NORMAL -> "없음";
+            case ISSUES -> "있음";
+            case UNKNOWN -> "확인 안 됨";
+        };
     }
 
     private static BigDecimal calculateChangeRate(Long previousAveragePrice, long currentAveragePrice) {
