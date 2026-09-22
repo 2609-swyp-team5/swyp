@@ -29,6 +29,6 @@ test("never inserts the login form while redirecting a restored session", async 
         new MutationObserver(detectForm).observe(document, { childList: true, subtree: true });
     });
     await page.goto("/login");
-    await expect(page).toHaveURL(/\/$/);
+    await expect(page).toHaveURL(/\/home$/);
     expect(await page.evaluate(() => sessionStorage.getItem("login-form-flashed"))).toBeNull();
 });

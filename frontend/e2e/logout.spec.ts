@@ -1,6 +1,6 @@
 import { expect, test } from "./fixtures";
 
-test("header logout preserves the session on failure and clears it on success", async ({
+test("sidebar logout preserves the session on failure and clears it on success", async ({
     page,
 }) => {
     let authenticated = true;
@@ -14,11 +14,12 @@ test("header logout preserves the session on failure and clears it on success", 
             },
         }),
     );
-    await page.goto("/");
+    await page.goto("/my");
 
     const header = page.getByRole("banner");
-    await expect(header.getByRole("button", { name: "로그아웃", exact: true })).toBeVisible();
-    await expect(header.getByRole("link", { name: "로그인" })).toHaveCount(0);
+    const menu = page.getByRole("navigation", { name: "마이페이지 메뉴" });
+    await expect(menu.getByRole("button", { name: "로그아웃", exact: true })).toBeVisible();
+    await expect(header.getByRole("button", { name: "로그인" })).toHaveCount(0);
 
     let shouldFail = true;
     await page.route("**/auth/logout", async (route) => {
@@ -36,19 +37,19 @@ test("header logout preserves the session on failure and clears it on success", 
         });
     });
 
-    await header.getByRole("button", { name: "로그아웃", exact: true }).click();
-    await expect(header.getByRole("alert")).toHaveText("로그아웃에 실패했습니다.");
-    await expect(header.getByRole("button", { name: "로그아웃", exact: true })).toBeVisible();
-    await expect(header.getByRole("link", { name: "로그인" })).toHaveCount(0);
+    await menu.getByRole("button", { name: "로그아웃", exact: true }).click();
+    await expect(menu.getByRole("alert")).toHaveText("로그아웃에 실패했습니다.");
+    await expect(menu.getByRole("button", { name: "로그아웃", exact: true })).toBeVisible();
+    await expect(header.getByRole("button", { name: "로그인" })).toHaveCount(0);
 
     shouldFail = false;
-    await header.getByRole("button", { name: "로그아웃", exact: true }).click();
-    await expect(header.getByRole("link", { name: "로그인" })).toBeVisible();
-    await expect(header.getByRole("button", { name: "로그아웃", exact: true })).toHaveCount(0);
-    await expect(header.getByRole("alert")).toHaveCount(0);
+    await menu.getByRole("button", { name: "로그아웃", exact: true }).click();
+    await expect(header.getByRole("button", { name: "로그인" })).toBeVisible();
+    await expect(menu.getByRole("button", { name: "로그아웃", exact: true })).toHaveCount(0);
+    await expect(menu.getByRole("alert")).toHaveCount(0);
 
     await page.reload();
-    await header.getByRole("link", { name: "로그인" }).click();
+    await header.getByRole("button", { name: "로그인" }).click();
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.getByRole("heading", { name: "로그인", exact: true })).toBeVisible();
 });

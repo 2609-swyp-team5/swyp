@@ -24,8 +24,9 @@ test("onboarding connects to the authentication flow", async ({ page }) => {
     await expect(page.getByRole("heading", { name: "회원가입" })).toBeVisible();
 
     await page.goto("/login");
-    await page.getByRole("link", { name: "아이디/비밀번호 찾기" }).click();
-    await expect(page).toHaveURL(/\/account\/recovery$/);
+    await page.getByRole("button", { name: "비밀번호 찾기", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "비밀번호 찾기" })).toBeVisible();
+    await expect(page).toHaveURL(/\/login$/);
 });
 
 test("authenticated members can navigate the profile menu", async ({ page }) => {
