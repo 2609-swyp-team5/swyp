@@ -107,6 +107,10 @@ public class Member {
         this.password = encodedPassword;
     }
 
+    public void withdraw() {
+        this.status = MemberStatus.DELETED;
+    }
+
     public void changeProfileImage(String profileImageUrl) {
         this.profileImageUrl = profileImageUrl;
     }

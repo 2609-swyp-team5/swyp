@@ -4,9 +4,12 @@ import jakarta.validation.Valid;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.swyp.team5.common.common.ApiResponse;
+import com.swyp.team5.common.passport.JwtProperties;
 import com.swyp.team5.common.passport.PrincipalMember;
 import com.swyp.team5.member.dto.MemberResponse;
 import com.swyp.team5.member.dto.MemberUpdateRequest;
@@ -31,12 +35,26 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @RequiredArgsConstructor
 public class MemberController {
 
+    private static final String REFRESH_TOKEN_COOKIE = "refreshToken";
+    private static final String REFRESH_TOKEN_COOKIE_PATH = "/auth";
+
     private final MemberService memberService;
+
+    private final JwtProperties jwtProperties;
 
     @Operation(summary = "내 정보 조회")
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<MemberResponse>> getMe(@AuthenticationPrincipal PrincipalMember currentMember) {
         return ResponseEntity.ok(ApiResponse.success(memberService.getProfile(currentMember.memberId())));
+    }
+
+    @Operation(summary = "회원 탈퇴")
+    @DeleteMapping("/me")
+    public ResponseEntity<ApiResponse<Void>> withdraw(@AuthenticationPrincipal PrincipalMember currentMember) {
+        memberService.withdraw(currentMember.memberId());
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, expiredRefreshTokenCookie().toString())
+                .body(ApiResponse.success("회원 탈퇴가 완료되었습니다.", null));
     }
 
     @Operation(summary = "프로필 이미지 등록")
@@ -60,5 +78,15 @@ public class MemberController {
     public ResponseEntity<ApiResponse<MemberResponse>> updateMe(
             @AuthenticationPrincipal PrincipalMember currentMember, @Valid @RequestBody MemberUpdateRequest request) {
         return ResponseEntity.ok(ApiResponse.success(memberService.updateProfile(currentMember.memberId(), request)));
+    }
+
+    private ResponseCookie expiredRefreshTokenCookie() {
+        return ResponseCookie.from(REFRESH_TOKEN_COOKIE, "")
+                .httpOnly(true)
+                .secure(jwtProperties.cookieSecure())
+                .sameSite(jwtProperties.cookieSameSite())
+                .path(REFRESH_TOKEN_COOKIE_PATH)
+                .maxAge(0)
+                .build();
     }
 }

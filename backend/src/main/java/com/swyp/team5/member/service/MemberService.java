@@ -85,6 +85,14 @@ public class MemberService {
         return MemberResponse.from(member);
     }
 
+    @Transactional
+    public void withdraw(Long memberId) {
+        Member member = findMember(memberId);
+
+        member.withdraw();
+        refreshTokenService.delete(memberId);
+    }
+
     private Member findMember(Long memberId) {
         return memberRepository.findById(memberId).orElseThrow(() -> new MemberNotFoundException(memberId));
     }
