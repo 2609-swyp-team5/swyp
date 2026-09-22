@@ -77,11 +77,7 @@ export function IncludedItemsField({
     const getLabel = (value: string) => labelByValue.get(value) ?? value;
 
     return (
-        <div
-            className="flex min-h-[50px] flex-wrap items-center gap-2"
-            role="group"
-            aria-label={ariaLabel}
-        >
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label={ariaLabel}>
             {visibleItems.map((item) => (
                 <Tag key={item} label={getLabel(item)} onRemove={() => onChange(item, false)} />
             ))}

@@ -6,6 +6,7 @@ type DirectRegisterActionsProps = {
     primaryLabel: string;
     primaryType?: "button" | "submit";
     primaryForm?: string;
+    onPrimaryClick?: () => void;
     onExit: () => void;
 };
 
@@ -13,6 +14,7 @@ export function DirectRegisterActions({
     primaryLabel,
     primaryType = "button",
     primaryForm,
+    onPrimaryClick,
     onExit,
 }: DirectRegisterActionsProps) {
     return (
@@ -27,6 +29,7 @@ export function DirectRegisterActions({
             <Button
                 type={primaryType}
                 form={primaryForm}
+                onClick={onPrimaryClick}
                 className="h-[54px] rounded-full bg-[#6653fb] px-[50px] py-3 text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-white hover:bg-[#5745e7]"
             >
                 {primaryLabel}

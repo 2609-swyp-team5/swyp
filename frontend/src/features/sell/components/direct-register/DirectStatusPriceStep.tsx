@@ -15,13 +15,19 @@ import { cn } from "@/common/lib/utils";
 import {
     IncludedItemsField,
     type IncludedItemOption,
-} from "@/features/sell/components/IncludedItemsField";
+} from "@/features/sell/components/shared/IncludedItemsField";
+import {
+    FieldError,
+    FieldLabel,
+    FieldLegend,
+} from "@/features/sell/components/direct-register/DirectRegisterFields";
 
 export type DirectProductCondition = "S" | "A" | "B" | "C" | "D";
 export type DirectPurchasePeriod = "1" | "2" | "3" | "4" | "5" | "6" | "unknown";
 export type DirectIncludedItem = string;
 export type DirectDefectStatus = "none" | "has-defect";
 export type DirectTradeMethod = "direct" | "delivery";
+export type DirectDeliveryType = "INCLUDED" | "PREPAID" | null;
 
 export type DirectStatusPriceState = {
     productCondition: DirectProductCondition;
@@ -31,10 +37,17 @@ export type DirectStatusPriceState = {
     price: string;
     allowPriceProposal: boolean;
     tradeMethod: DirectTradeMethod;
+    deliveryType: DirectDeliveryType;
     tradeLocation: string;
 };
 
+export type DirectStatusPriceErrors = {
+    price: string;
+    deliveryType: string;
+};
+
 type DirectStatusPriceStepProps = DirectStatusPriceState & {
+    errors: DirectStatusPriceErrors;
     onProductConditionChange: (value: DirectProductCondition) => void;
     onPurchasePeriodChange: (value: DirectPurchasePeriod) => void;
     onIncludedItemChange: (value: DirectIncludedItem, checked: boolean) => void;
@@ -42,6 +55,7 @@ type DirectStatusPriceStepProps = DirectStatusPriceState & {
     onPriceChange: (value: string) => void;
     onAllowPriceProposalChange: (checked: boolean) => void;
     onTradeMethodChange: (value: DirectTradeMethod) => void;
+    onDeliveryTypeChange: (value: Exclude<DirectDeliveryType, null>) => void;
     onTradeLocationChange: (value: string) => void;
 };
 
@@ -58,12 +72,12 @@ const productConditionOptions: {
 ];
 
 const purchasePeriodOptions: { value: DirectPurchasePeriod; label: string }[] = [
-    { value: "1", label: "1개월" },
-    { value: "2", label: "2개월" },
-    { value: "3", label: "3개월" },
-    { value: "4", label: "4개월" },
-    { value: "5", label: "5개월" },
-    { value: "6", label: "6개월" },
+    { value: "1", label: "1개월 이내" },
+    { value: "2", label: "2개월 이내" },
+    { value: "3", label: "3개월 이내" },
+    { value: "4", label: "4개월 이내" },
+    { value: "5", label: "5개월 이내" },
+    { value: "6", label: "6개월 이내" },
     { value: "unknown", label: "잘 모르겠어요" },
 ];
 
@@ -119,7 +133,9 @@ export function DirectStatusPriceStep({
     price,
     allowPriceProposal,
     tradeMethod,
+    deliveryType,
     tradeLocation,
+    errors,
     onProductConditionChange,
     onPurchasePeriodChange,
     onIncludedItemChange,
@@ -127,6 +143,7 @@ export function DirectStatusPriceStep({
     onPriceChange,
     onAllowPriceProposalChange,
     onTradeMethodChange,
+    onDeliveryTypeChange,
     onTradeLocationChange,
 }: DirectStatusPriceStepProps) {
     const fieldClassName =
@@ -135,12 +152,10 @@ export function DirectStatusPriceStep({
     return (
         <div className="flex w-full max-w-[1144px] flex-col gap-8">
             <section className="flex flex-col gap-7 rounded-xl border border-[#dee5ed] bg-white p-8">
-                <div className="flex flex-col gap-2.5">
-                    <h2 className="text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#464646]">
-                        상품 상태 <span aria-hidden="true">*</span>
-                    </h2>
+                <fieldset>
+                    <FieldLegend required>상품 상태</FieldLegend>
                     <div
-                        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5"
+                        className="mt-2.5 grid gap-5 sm:grid-cols-2 lg:grid-cols-5"
                         role="radiogroup"
                         aria-label="상품 상태"
                     >
@@ -163,16 +178,11 @@ export function DirectStatusPriceStep({
                             />
                         ))}
                     </div>
-                </div>
+                </fieldset>
 
                 <div className="grid gap-6 lg:grid-cols-2">
                     <div className="flex flex-col gap-2.5">
-                        <label
-                            htmlFor="direct-purchase-period"
-                            className="text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#545d82]"
-                        >
-                            구매 시기
-                        </label>
+                        <FieldLabel htmlFor="direct-purchase-period">구매 시기</FieldLabel>
                         <Select value={purchasePeriod} onValueChange={onPurchasePeriodChange}>
                             <SelectTrigger
                                 id="direct-purchase-period"
@@ -194,25 +204,23 @@ export function DirectStatusPriceStep({
                         </Select>
                     </div>
 
-                    <fieldset className="flex flex-col gap-2.5">
-                        <legend className="text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#545d82]">
-                            구성품
-                        </legend>
-                        <IncludedItemsField
-                            items={includedItems}
-                            options={includedItemOptions}
-                            onChange={onIncludedItemChange}
-                            overflow
-                            ariaLabel="구성품"
-                        />
+                    <fieldset>
+                        <FieldLegend>구성품</FieldLegend>
+                        <div className="mt-2.5 flex min-h-[50px] items-center" aria-label="구성품">
+                            <IncludedItemsField
+                                items={includedItems}
+                                options={includedItemOptions}
+                                onChange={onIncludedItemChange}
+                                overflow
+                                ariaLabel="구성품"
+                            />
+                        </div>
                     </fieldset>
                 </div>
 
-                <div className="flex flex-col gap-2.5">
-                    <h2 className="text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#464646]">
-                        하자 여부 <span aria-hidden="true">*</span>
-                    </h2>
-                    <div className="flex gap-3" role="radiogroup" aria-label="하자 여부">
+                <fieldset>
+                    <FieldLegend required>하자 여부</FieldLegend>
+                    <div className="mt-2.5 flex gap-3" role="radiogroup" aria-label="하자 여부">
                         <ChoiceButton
                             label="하자 없음"
                             selected={defectStatus === "none"}
@@ -226,15 +234,12 @@ export function DirectStatusPriceStep({
                             className="h-14 flex-1 rounded-lg px-3 py-3 text-[15px] leading-[22px] font-semibold"
                         />
                     </div>
-                </div>
+                </fieldset>
 
                 <div className="flex flex-col gap-2.5">
-                    <label
-                        htmlFor="direct-price"
-                        className="text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#464646]"
-                    >
-                        희망 가격 <span aria-hidden="true">*</span>
-                    </label>
+                    <FieldLabel htmlFor="direct-price" required>
+                        희망 가격
+                    </FieldLabel>
                     <div className="flex items-center gap-3">
                         <div className="relative flex-1">
                             <Input
@@ -247,6 +252,7 @@ export function DirectStatusPriceStep({
                                 }
                                 className={`${fieldClassName} pr-12 text-right`}
                                 aria-label="희망 가격"
+                                aria-invalid={Boolean(errors.price)}
                             />
                             <span className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-[16px] leading-[25px] text-[#6b7395]">
                                 원
@@ -264,13 +270,16 @@ export function DirectStatusPriceStep({
                             <span>가격 제안 허용</span>
                         </label>
                     </div>
+                    <FieldError message={errors.price} />
                 </div>
 
-                <div className="flex flex-col gap-2.5">
-                    <h2 className="text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#545d82]">
-                        거래 방식
-                    </h2>
-                    <div className="flex flex-wrap gap-3" role="radiogroup" aria-label="거래 방식">
+                <fieldset>
+                    <FieldLegend required>거래 방식</FieldLegend>
+                    <div
+                        className="mt-2.5 flex flex-wrap gap-3"
+                        role="radiogroup"
+                        aria-label="거래 방식"
+                    >
                         <ChoiceButton
                             label="직거래"
                             selected={tradeMethod === "direct"}
@@ -284,15 +293,44 @@ export function DirectStatusPriceStep({
                             className="rounded-full px-5 py-1 text-[14px] leading-[21px] font-medium"
                         />
                     </div>
-                    <Input
-                        id="direct-trade-location"
-                        value={tradeLocation}
-                        onChange={(event) => onTradeLocationChange(event.target.value)}
-                        placeholder="거래 희망 지역 (예: 서울 강남구)"
-                        className={`${fieldClassName} mt-1`}
-                        aria-label="거래 희망 지역"
-                    />
-                </div>
+                    {tradeMethod === "delivery" ? (
+                        <fieldset className="mt-6">
+                            <FieldLegend required>배송비 부담 방식</FieldLegend>
+                            <div
+                                className="mt-2.5 flex flex-wrap gap-3"
+                                role="radiogroup"
+                                aria-label="배송비 부담 방식"
+                            >
+                                <ChoiceButton
+                                    label="배송비 포함"
+                                    selected={deliveryType === "INCLUDED"}
+                                    onClick={() => onDeliveryTypeChange("INCLUDED")}
+                                    className="rounded-full px-5 py-1 text-[14px] leading-[21px] font-medium"
+                                />
+                                <ChoiceButton
+                                    label="배송비 별도"
+                                    selected={deliveryType === "PREPAID"}
+                                    onClick={() => onDeliveryTypeChange("PREPAID")}
+                                    className="rounded-full px-5 py-1 text-[14px] leading-[21px] font-medium"
+                                />
+                            </div>
+                            {errors.deliveryType && (
+                                <div className="mt-2.5">
+                                    <FieldError message={errors.deliveryType} />
+                                </div>
+                            )}
+                        </fieldset>
+                    ) : (
+                        <Input
+                            id="direct-trade-location"
+                            value={tradeLocation}
+                            onChange={(event) => onTradeLocationChange(event.target.value)}
+                            placeholder="거래 희망 지역 (예: 서울 강남구)"
+                            className={`${fieldClassName} mt-3`}
+                            aria-label="거래 희망 지역"
+                        />
+                    )}
+                </fieldset>
             </section>
         </div>
     );

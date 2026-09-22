@@ -5,17 +5,18 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
-import { DirectRegisterActions } from "@/features/sell/components/DirectRegisterActions";
+import { DirectRegisterActions } from "@/features/sell/components/direct-register/DirectRegisterActions";
 import {
     DirectRegisterInfoStep,
     type DirectRegisterInfoState,
-} from "@/features/sell/components/DirectRegisterInfoStep";
+} from "@/features/sell/components/direct-register/DirectRegisterInfoStep";
 import {
     DirectStatusPriceStep,
+    type DirectStatusPriceErrors,
     type DirectStatusPriceState,
-} from "@/features/sell/components/DirectStatusPriceStep";
-import type { DirectImagePreview } from "@/features/sell/components/DirectImageUpload";
-import { ExitDialog } from "@/features/sell/components/ExitDialog";
+} from "@/features/sell/components/direct-register/DirectStatusPriceStep";
+import type { DirectImagePreview } from "@/features/sell/components/direct-register/DirectImageUpload";
+import { ExitDialog } from "@/features/sell/components/shared/ExitDialog";
 import { useCategoriesQuery } from "@/features/sell/hooks/queries/useCategoriesQuery";
 
 export type DirectRegisterStep = "info" | "status";
@@ -82,7 +83,13 @@ const initialStatusPriceState: DirectStatusPriceState = {
     price: "",
     allowPriceProposal: false,
     tradeMethod: "direct",
+    deliveryType: null,
     tradeLocation: "",
+};
+
+const initialStatusPriceErrors: DirectStatusPriceErrors = {
+    price: "",
+    deliveryType: "",
 };
 
 export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageProps) {
@@ -90,6 +97,7 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
     const [step, setStep] = useState<DirectRegisterStep>(initialStep);
     const [info, setInfo] = useState(initialInfoState);
     const [statusPrice, setStatusPrice] = useState(initialStatusPriceState);
+    const [statusPriceErrors, setStatusPriceErrors] = useState(initialStatusPriceErrors);
     const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
     const imagesRef = useRef<DirectImagePreview[]>(info.images);
     const {
@@ -125,6 +133,22 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
     const handleExit = () => {
         setIsExitDialogOpen(false);
         router.push("/sell/register");
+    };
+
+    const handleStatusPriceSubmit = () => {
+        const nextErrors: DirectStatusPriceErrors = {
+            price: statusPrice.price ? "" : "희망 가격을 입력해 주세요.",
+            deliveryType:
+                statusPrice.tradeMethod === "delivery" && !statusPrice.deliveryType
+                    ? "배송비 부담 방식을 선택해 주세요."
+                    : "",
+        };
+
+        setStatusPriceErrors(nextErrors);
+
+        if (Object.values(nextErrors).some(Boolean)) {
+            return;
+        }
     };
 
     const isInfoStep = step === "info";
@@ -181,6 +205,7 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
                         <>
                             <DirectStatusPriceStep
                                 {...statusPrice}
+                                errors={statusPriceErrors}
                                 onProductConditionChange={(value) =>
                                     updateStatusPrice("productCondition", value)
                                 }
@@ -202,19 +227,41 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
                                 onDefectStatusChange={(value) =>
                                     updateStatusPrice("defectStatus", value)
                                 }
-                                onPriceChange={(value) => updateStatusPrice("price", value)}
+                                onPriceChange={(value) => {
+                                    updateStatusPrice("price", value);
+                                    setStatusPriceErrors((current) => ({ ...current, price: "" }));
+                                }}
                                 onAllowPriceProposalChange={(checked) =>
                                     updateStatusPrice("allowPriceProposal", checked)
                                 }
-                                onTradeMethodChange={(value) =>
-                                    updateStatusPrice("tradeMethod", value)
-                                }
+                                onTradeMethodChange={(value) => {
+                                    setStatusPrice((current) => ({
+                                        ...current,
+                                        tradeMethod: value,
+                                        deliveryType:
+                                            value === "direct" ? null : current.deliveryType,
+                                        tradeLocation:
+                                            value === "delivery" ? "" : current.tradeLocation,
+                                    }));
+                                    setStatusPriceErrors((current) => ({
+                                        ...current,
+                                        deliveryType: "",
+                                    }));
+                                }}
+                                onDeliveryTypeChange={(value) => {
+                                    updateStatusPrice("deliveryType", value);
+                                    setStatusPriceErrors((current) => ({
+                                        ...current,
+                                        deliveryType: "",
+                                    }));
+                                }}
                                 onTradeLocationChange={(value) =>
                                     updateStatusPrice("tradeLocation", value)
                                 }
                             />
                             <DirectRegisterActions
                                 primaryLabel="AI 분석 & 등록확인"
+                                onPrimaryClick={handleStatusPriceSubmit}
                                 onExit={() => setIsExitDialogOpen(true)}
                             />
                         </>

@@ -2,7 +2,10 @@
 
 import type { ReactNode } from "react";
 
-import { AiImageUpload, type AiImagePreview } from "@/features/sell/components/AiImageUpload";
+import {
+    AiImageUpload,
+    type AiImagePreview,
+} from "@/features/sell/components/ai-register/AiImageUpload";
 
 type AiRegisterUploadStepProps = {
     images: AiImagePreview[];

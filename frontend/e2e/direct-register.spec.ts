@@ -19,6 +19,15 @@ test("direct registration keeps the product information while moving to status a
     );
 
     await page.goto("/sell/register/direct");
+    await page.locator('input[type="file"]').setInputFiles({
+        name: "product.png",
+        mimeType: "image/png",
+        buffer: Buffer.from(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLZJwAAAABJRU5ErkJggg==",
+            "base64",
+        ),
+    });
+    await expect(page.getByRole("img", { name: "선택한 상품 사진 1" })).toBeVisible();
     await page.getByLabel("상품명", { exact: false }).fill("필름카메라 FM2 니콘");
     await page.getByRole("combobox", { name: "대분류" }).click();
     await page.getByRole("option", { name: "전자기기" }).click();

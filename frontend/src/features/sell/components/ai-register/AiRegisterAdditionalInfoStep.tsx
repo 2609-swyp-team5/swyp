@@ -6,7 +6,7 @@ import { cn } from "@/common/lib/utils";
 import {
     IncludedItemsField,
     type IncludedItemOption,
-} from "@/features/sell/components/IncludedItemsField";
+} from "@/features/sell/components/shared/IncludedItemsField";
 
 export type AiPurchasePeriod = "1" | "2" | "3" | "4" | "5" | "6" | "unknown";
 
@@ -120,9 +120,9 @@ export function AiRegisterAdditionalInfoStep({
                 </div>
 
                 <div className="flex flex-col gap-3">
-                    <h2 className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#6b6c7b]">
+                    <p className="typography-heading-03 text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#6b6c7b]">
                         구성품은 무엇이 있나요?
-                    </h2>
+                    </p>
                     <IncludedItemsField
                         items={includedItems}
                         options={includedItemOptions}

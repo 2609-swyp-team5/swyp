@@ -1,14 +1,12 @@
 "use client";
 
-import { useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
+import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 
-import { CircleAlert, X } from "lucide-react";
+import { X } from "lucide-react";
 
-import { Alert, AlertDescription } from "@/common/components/ui/Alert";
 import { Badge } from "@/common/components/ui/Badge";
 import { Button } from "@/common/components/ui/Button";
 import { Input } from "@/common/components/ui/Input";
-import { Label } from "@/common/components/ui/Label";
 import {
     Select,
     SelectContent,
@@ -21,17 +19,17 @@ import type { Category } from "@/features/sell/api/categoryApi";
 import {
     DirectImageUpload,
     type DirectImagePreview,
-} from "@/features/sell/components/DirectImageUpload";
-
-type FieldLabelProps = {
-    htmlFor?: string;
-    required?: boolean;
-    children: ReactNode;
-};
+} from "@/features/sell/components/direct-register/DirectImageUpload";
+import {
+    FieldError,
+    FieldLabel,
+} from "@/features/sell/components/direct-register/DirectRegisterFields";
 
 type FieldErrors = {
+    images: string;
     title: string;
-    category: string;
+    parentCategory: string;
+    childCategory: string;
     description: string;
 };
 
@@ -56,40 +54,6 @@ type DirectRegisterInfoStepProps = {
     onNext: () => void;
 };
 
-function FieldLabel({ htmlFor, required = false, children }: FieldLabelProps) {
-    return (
-        <div className="flex min-h-[21px] items-center gap-3">
-            <Label
-                htmlFor={htmlFor}
-                className="text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#464646]"
-            >
-                {children}
-                {required && <span> *</span>}
-            </Label>
-        </div>
-    );
-}
-
-function FieldError({ message }: { message?: string }) {
-    if (!message) {
-        return null;
-    }
-
-    return (
-        <Alert
-            variant="destructive"
-            className="flex w-fit items-center gap-2 border-0 bg-transparent p-0 shadow-none"
-        >
-            <span className="flex size-4 shrink-0 items-center justify-center">
-                <CircleAlert aria-hidden="true" className="size-4" />
-            </span>
-            <AlertDescription className="text-destructive p-0 text-[12px] leading-[18px]">
-                {message}
-            </AlertDescription>
-        </Alert>
-    );
-}
-
 function EmptySelectItem({ message }: { message: string }) {
     return (
         <SelectItem value="empty" disabled>
@@ -108,8 +72,10 @@ export function DirectRegisterInfoStep({
     const [imageError, setImageError] = useState("");
     const [tagInput, setTagInput] = useState("");
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({
+        images: "",
         title: "",
-        category: "",
+        parentCategory: "",
+        childCategory: "",
         description: "",
     });
     const isTagComposingRef = useRef(false);
@@ -147,9 +113,10 @@ export function DirectRegisterInfoStep({
         event.preventDefault();
 
         const nextErrors: FieldErrors = {
+            images: value.images.length > 0 ? "" : "상품 사진을 1장 이상 업로드해주세요.",
             title: value.title.trim() ? "" : "상품명을 입력해 주세요.",
-            category:
-                value.parentCategoryId && value.childCategoryId ? "" : "카테고리를 선택해 주세요.",
+            parentCategory: value.parentCategoryId ? "" : "대분류를 선택해 주세요.",
+            childCategory: value.childCategoryId ? "" : "중분류를 선택해 주세요.",
             description: value.description.trim() ? "" : "상품 설명을 입력해 주세요.",
         };
 
@@ -175,15 +142,21 @@ export function DirectRegisterInfoStep({
             className="flex w-full max-w-[1144px] flex-col gap-7 rounded-xl border border-[#dee5ed] bg-white p-8"
         >
             <section className="flex flex-col gap-2.5" aria-labelledby="image-label">
-                <FieldLabel>
+                <FieldLabel required>
                     <span id="image-label">상품 이미지</span>
                 </FieldLabel>
                 <DirectImageUpload
                     images={value.images}
                     onError={setImageError}
-                    onImagesChange={(images) => onChange("images", images)}
+                    onImagesChange={(images) => {
+                        onChange("images", images);
+                        setFieldErrors((current) => ({
+                            ...current,
+                            images: images.length > 0 ? "" : current.images,
+                        }));
+                    }}
                 />
-                <FieldError message={imageError} />
+                <FieldError message={imageError || fieldErrors.images} />
                 <p className="text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6b6c7b]">
                     최대 10장 · 첫 번째 사진이 대표 이미지로 사용됩니다.
                 </p>
@@ -212,81 +185,101 @@ export function DirectRegisterInfoStep({
             <section className="flex flex-col gap-1.5">
                 <FieldLabel required>카테고리</FieldLabel>
                 <div className="grid gap-3 lg:grid-cols-2">
-                    <Select
-                        value={value.parentCategoryId}
-                        onValueChange={(nextValue) => {
-                            onChange("parentCategoryId", nextValue);
-                            onChange("childCategoryId", "");
-                            setFieldErrors((current) => ({ ...current, category: "" }));
-                        }}
-                    >
-                        <SelectTrigger
-                            className={selectClassName}
-                            aria-label="대분류"
-                            aria-invalid={Boolean(fieldErrors.category)}
-                        >
-                            <SelectValue placeholder="대분류 선택" />
-                        </SelectTrigger>
-                        <SelectContent
-                            position="popper"
-                            side="bottom"
-                            sideOffset={4}
-                            align="start"
-                            className="!max-h-60 !w-[var(--radix-select-trigger-width)] !overflow-y-auto !bg-white !text-[#6b6c7b]"
-                        >
-                            {categoryStatus === "ready" && parentCategories.length > 0 ? (
-                                parentCategories.map((category) => (
-                                    <SelectItem key={category.id} value={String(category.id)}>
-                                        {category.name}
-                                    </SelectItem>
-                                ))
-                            ) : (
-                                <EmptySelectItem
-                                    message={
-                                        categoryStatus === "error"
-                                            ? "카테고리를 불러오지 못했어요."
-                                            : "카테고리를 불러오는 중이에요."
-                                    }
-                                />
-                            )}
-                        </SelectContent>
-                    </Select>
+                    <div className="flex flex-col gap-1.5">
+                        <Select
+                            value={value.parentCategoryId}
+                            onValueChange={(nextValue) => {
+                                onChange("parentCategoryId", nextValue);
+                                onChange("childCategoryId", "");
+                                setFieldErrors((current) => {
+                                    const hasCategoryError = Boolean(
+                                        current.parentCategory || current.childCategory,
+                                    );
 
-                    <Select
-                        value={value.childCategoryId}
-                        onValueChange={(nextValue) => {
-                            onChange("childCategoryId", nextValue);
-                            setFieldErrors((current) => ({ ...current, category: "" }));
-                        }}
-                        disabled={!value.parentCategoryId}
-                    >
-                        <SelectTrigger
-                            className={selectClassName}
-                            aria-label="중분류"
-                            aria-invalid={Boolean(fieldErrors.category)}
+                                    return {
+                                        ...current,
+                                        parentCategory: "",
+                                        childCategory: hasCategoryError
+                                            ? "중분류를 선택해 주세요."
+                                            : "",
+                                    };
+                                });
+                            }}
                         >
-                            <SelectValue placeholder="중분류 선택" />
-                        </SelectTrigger>
-                        <SelectContent
-                            position="popper"
-                            side="bottom"
-                            sideOffset={4}
-                            align="start"
-                            className="!max-h-60 !w-[var(--radix-select-trigger-width)] !overflow-y-auto !bg-white !text-[#6b6c7b]"
+                            <SelectTrigger
+                                className={selectClassName}
+                                aria-label="대분류"
+                                aria-invalid={Boolean(fieldErrors.parentCategory)}
+                            >
+                                <SelectValue placeholder="대분류 선택" />
+                            </SelectTrigger>
+                            <SelectContent
+                                position="popper"
+                                side="bottom"
+                                sideOffset={4}
+                                align="start"
+                                className="!max-h-60 !w-[var(--radix-select-trigger-width)] !overflow-y-auto !bg-white !text-[#6b6c7b]"
+                            >
+                                {categoryStatus === "ready" && parentCategories.length > 0 ? (
+                                    parentCategories.map((category) => (
+                                        <SelectItem key={category.id} value={String(category.id)}>
+                                            {category.name}
+                                        </SelectItem>
+                                    ))
+                                ) : (
+                                    <EmptySelectItem
+                                        message={
+                                            categoryStatus === "error"
+                                                ? "카테고리를 불러오지 못했어요."
+                                                : "카테고리를 불러오는 중이에요."
+                                        }
+                                    />
+                                )}
+                            </SelectContent>
+                        </Select>
+                        <FieldError message={fieldErrors.parentCategory} />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                        <Select
+                            value={value.childCategoryId}
+                            onValueChange={(nextValue) => {
+                                onChange("childCategoryId", nextValue);
+                                setFieldErrors((current) => ({
+                                    ...current,
+                                    childCategory: "",
+                                }));
+                            }}
+                            disabled={!value.parentCategoryId}
                         >
-                            {childCategories.length > 0 ? (
-                                childCategories.map((category) => (
-                                    <SelectItem key={category.id} value={String(category.id)}>
-                                        {category.name}
-                                    </SelectItem>
-                                ))
-                            ) : (
-                                <EmptySelectItem message="대분류를 먼저 선택해 주세요." />
-                            )}
-                        </SelectContent>
-                    </Select>
+                            <SelectTrigger
+                                className={selectClassName}
+                                aria-label="중분류"
+                                aria-invalid={Boolean(fieldErrors.childCategory)}
+                            >
+                                <SelectValue placeholder="중분류 선택" />
+                            </SelectTrigger>
+                            <SelectContent
+                                position="popper"
+                                side="bottom"
+                                sideOffset={4}
+                                align="start"
+                                className="!max-h-60 !w-[var(--radix-select-trigger-width)] !overflow-y-auto !bg-white !text-[#6b6c7b]"
+                            >
+                                {childCategories.length > 0 ? (
+                                    childCategories.map((category) => (
+                                        <SelectItem key={category.id} value={String(category.id)}>
+                                            {category.name}
+                                        </SelectItem>
+                                    ))
+                                ) : (
+                                    <EmptySelectItem message="대분류를 먼저 선택해 주세요." />
+                                )}
+                            </SelectContent>
+                        </Select>
+                        <FieldError message={fieldErrors.childCategory} />
+                    </div>
                 </div>
-                <FieldError message={fieldErrors.category} />
             </section>
 
             <section className="flex flex-col gap-1.5">

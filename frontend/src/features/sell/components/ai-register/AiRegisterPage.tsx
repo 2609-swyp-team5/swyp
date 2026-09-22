@@ -12,10 +12,10 @@ import {
     type AiIncludedItem,
     type AiOperationStatus,
     type AiPurchasePeriod,
-} from "@/features/sell/components/AiRegisterAdditionalInfoStep";
-import type { AiImagePreview } from "@/features/sell/components/AiImageUpload";
-import { ExitDialog } from "@/features/sell/components/ExitDialog";
-import { AiRegisterUploadStep } from "@/features/sell/components/AiRegisterUploadStep";
+} from "@/features/sell/components/ai-register/AiRegisterAdditionalInfoStep";
+import type { AiImagePreview } from "@/features/sell/components/ai-register/AiImageUpload";
+import { ExitDialog } from "@/features/sell/components/shared/ExitDialog";
+import { AiRegisterUploadStep } from "@/features/sell/components/ai-register/AiRegisterUploadStep";
 
 type AiRegisterStep = "upload" | "additional-info";
 
