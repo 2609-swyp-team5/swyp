@@ -14,6 +14,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.swyp.team5.auth.error.DuplicateEmailException;
@@ -134,6 +135,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleMissingRequestParameter(MissingServletRequestParameterException e) {
         List<ErrorDetail> details = List.of(new ErrorDetail(e.getParameterName(), "필수 값입니다."));
         log.warn("필수 요청 파라미터 누락: {}", e.getParameterName());
+        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", "입력값이 올바르지 않습니다.", details);
+    }
+
+    /**
+     * 필수 {@code @RequestPart}가 요청에 아예 빠진 경우(예: multipart 요청의 JSON 파트/파일 파트 누락).
+     */
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingRequestPart(MissingServletRequestPartException e) {
+        List<ErrorDetail> details = List.of(new ErrorDetail(e.getRequestPartName(), "필수 값입니다."));
+        log.warn("필수 요청 파트 누락: {}", e.getRequestPartName());
         return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", "입력값이 올바르지 않습니다.", details);
     }
 
