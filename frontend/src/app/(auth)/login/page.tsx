@@ -14,6 +14,7 @@ import { Label } from "@/common/components/ui/Label";
 
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { SocialLoginButtons } from "@/features/auth/components/social/SocialLoginButtons";
+import { PasswordResetModal } from "@/features/auth/components/PasswordResetModal";
 import { useLoginMutation } from "@/features/auth/hooks/mutations/useLoginMutation";
 import { useSocialLogin } from "@/features/auth/hooks/useSocialLogin";
 import { useAuthStore } from "@/features/auth/store/authStore";
@@ -160,12 +161,7 @@ export default function LoginPage() {
                         로그인 상태 유지
                     </Label>
                 </div>
-                <Link
-                    href="/account/recovery"
-                    className="text-muted-foreground hover:text-foreground mt-2 inline-block text-base underline underline-offset-2"
-                >
-                    비밀번호 찾기
-                </Link>
+                <PasswordResetModal />
                 <Link
                     href="/signup"
                     className="text-primary mt-2 ml-6 inline-block text-base underline underline-offset-2"
