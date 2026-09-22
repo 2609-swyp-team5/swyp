@@ -6,6 +6,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 import com.swyp.team5.category.dto.CategoryResponse;
+import com.swyp.team5.component.entity.Component;
+import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.DeliveryType;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
@@ -21,11 +23,12 @@ public record ProductResponse(
         String nickname, // 판매자 닉네임
         CategoryResponse category, // 카테고리 정보
         String title, // 상품 제목
+        String brand, // 브랜드
         String description, // 상품 설명
         Long price, // 판매 희망가
         ProductStatus status, // 게시 상태
         ProductCondition condition, // 상품 상태 등급
-        boolean hasDefect, // 결함 여부
+        DefectStatus defectStatus, // 결함(하자) 상태 (NORMAL/ISSUES/UNKNOWN)
         LocalDate purchasedAt, // 구매 일시
         Integer purchasedMonths, // 구매 후 경과 개월 수 (구매 일시 없으면 null)
         boolean allowPriceSuggestion, // 가격 제안 허용 여부
@@ -34,6 +37,7 @@ public record ProductResponse(
         String preferredTradeRegion, // 희망 거래 지역
         List<String> imageUrls, // 상품 이미지 URL 목록 (등록 순서)
         List<String> tags, // 태그 이름 목록
+        List<String> includedItems, // 구성품 이름 목록
         AnalysisRecommendation recommendation, // 가장 최근 시세 분석 판단(지금 팔기/기다리기 등), 분석 이력 없으면 null
         Long suggestedPrice, // AI가 제안한 적정가(AI 등록 응답에만 포함, 그 외에는 null)
         String analysisDescription, // AI가 상태 등급/적정가를 그렇게 판단한 근거(AI 등록 응답에만 포함, 그 외에는 null)
@@ -65,11 +69,12 @@ public record ProductResponse(
                 product.getMember().getNickname(),
                 CategoryResponse.from(product.getCategory()),
                 product.getTitle(),
+                product.getBrand(),
                 product.getDescription(),
                 product.getPrice(),
                 product.getStatus(),
                 product.getCondition(),
-                product.isHasDefect(),
+                product.getDefectStatus(),
                 product.getPurchasedAt(),
                 // 구매 일시가 null이면 null을 반환, 그렇지 않으면 현재 날짜와 구매 날짜의 차이를 개월 수로 계산
                 product.getPurchasedAt() == null
@@ -81,6 +86,7 @@ public record ProductResponse(
                 product.getPreferredTradeRegion(),
                 product.getImages().stream().map(ProductImage::getImageUrl).toList(),
                 product.getTags().stream().map(Tag::getName).toList(),
+                product.getComponents().stream().map(Component::getName).toList(),
                 recommendation,
                 suggestedPrice,
                 analysisDescription,
