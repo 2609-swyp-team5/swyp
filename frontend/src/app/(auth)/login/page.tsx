@@ -5,59 +5,29 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { CredentialResponse } from "@react-oauth/google";
+import { CircleAlert, Eye, EyeOff } from "lucide-react";
 
 import { Button } from "@/common/components/ui/Button";
-import { Card } from "@/common/components/ui/Card";
+import { Checkbox } from "@/common/components/ui/Checkbox";
 import { Input } from "@/common/components/ui/Input";
 import { Label } from "@/common/components/ui/Label";
 
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { SocialLoginButtons } from "@/features/auth/components/social/SocialLoginButtons";
 import { useLoginMutation } from "@/features/auth/hooks/mutations/useLoginMutation";
-import { useSocialLoginMutation } from "@/features/auth/hooks/mutations/useSocialLoginMutation";
+import { useSocialLogin } from "@/features/auth/hooks/useSocialLogin";
 import { useAuthStore } from "@/features/auth/store/authStore";
-import type { LoginRequest, SocialProvider } from "@/features/auth/types";
+import type { LoginRequest } from "@/features/auth/types";
 import { loginSchema } from "@/features/auth/schemas/authSchema";
-
-type OAuthProvider = Exclude<SocialProvider, "GOOGLE">;
-
-const oauthConfig: Record<
-    OAuthProvider,
-    {
-        clientId: string | undefined;
-        authorizeUri: string;
-        redirectUri: string | undefined;
-        redirectPath: string;
-        state?: string;
-    }
-> = {
-    KAKAO: {
-        clientId: process.env.NEXT_PUBLIC_KAKAO_CLIENT_ID,
-        authorizeUri: "https://kauth.kakao.com/oauth/authorize",
-        redirectUri: process.env.NEXT_PUBLIC_KAKAO_REDIRECT_URI,
-        redirectPath: "/oauth/kakao",
-    },
-    NAVER: {
-        clientId: process.env.NEXT_PUBLIC_NAVER_CLIENT_ID,
-        authorizeUri: "https://nid.naver.com/oauth2.0/authorize",
-        redirectUri: process.env.NEXT_PUBLIC_NAVER_REDIRECT_URI,
-        redirectPath: "/oauth/naver",
-        state: process.env.NEXT_PUBLIC_NAVER_STATE ?? "swyp",
-    },
-};
 
 export default function LoginPage() {
     const router = useRouter();
     const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
     const isInitialized = useAuthStore((state) => state.isInitialized);
-    const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     const [errorMessage, setErrorMessage] = useState("");
-    const [socialRedirecting, setSocialRedirecting] = useState<OAuthProvider | null>(null);
+    const [showPassword, setShowPassword] = useState(false);
+    const socialLogin = useSocialLogin(setErrorMessage);
     const { mutate: login, isPending } = useLoginMutation({
-        onError: (error) => setErrorMessage(getApiErrorMessage(error)),
-    });
-    const { mutate: socialLogin, isPending: isSocialPending } = useSocialLoginMutation({
         onError: (error) => setErrorMessage(getApiErrorMessage(error)),
     });
     const {
@@ -69,7 +39,7 @@ export default function LoginPage() {
         defaultValues: { email: "", password: "" },
     });
 
-    const isBusy = isSubmitting || isPending || isSocialPending || socialRedirecting !== null;
+    const isBusy = isSubmitting || isPending || socialLogin.isBusy;
 
     useEffect(() => {
         if (isInitialized && isLoggedIn) {
@@ -82,165 +52,152 @@ export default function LoginPage() {
         login(params);
     };
 
-    // 구글 ID 토큰을 백엔드에 전달해 서비스 로그인 처리
-    const handleGoogleSuccess = (response: CredentialResponse) => {
-        if (!response.credential) {
-            setErrorMessage("구글 인증 정보를 받지 못했습니다.");
-            return;
-        }
-
-        setErrorMessage("");
-        socialLogin({ provider: "GOOGLE", token: response.credential });
-    };
-
-    const handleSocialAuthorize = (provider: OAuthProvider) => {
-        setErrorMessage("");
-        const config = oauthConfig[provider];
-        if (!config.clientId) {
-            setErrorMessage(
-                `${provider === "KAKAO" ? "카카오" : "네이버"} 로그인 설정이 필요합니다.`,
-            );
-            return;
-        }
-
-        const redirectUri = config.redirectUri ?? `${window.location.origin}${config.redirectPath}`;
-        const params = new URLSearchParams({
-            client_id: config.clientId,
-            redirect_uri: redirectUri,
-            response_type: "code",
-            ...(config.state ? { state: config.state } : {}),
-        });
-
-        setSocialRedirecting(provider);
-        window.open(`${config.authorizeUri}?${params.toString()}`, "_self");
-    };
-
     if (!isInitialized || isLoggedIn) {
         return null;
     }
 
     return (
-        <main className="bg-muted/20 flex flex-1 items-center justify-center px-6 py-14 lg:px-8">
-            <section aria-labelledby="page-title" className="w-full max-w-[500px]">
-                <div className="mb-10 text-center">
-                    <p className="text-muted-foreground text-sm font-semibold">
+        <main className="bg-background flex flex-1 justify-center px-6 pt-16 pb-20 sm:pt-28">
+            <section aria-labelledby="page-title" className="w-full max-w-[1016px]">
+                <div className="mb-16 text-center sm:mb-20">
+                    <p className="text-base font-semibold sm:text-xl">
                         AI와 함께하는 똑똑한 중고거래
                     </p>
-                    <p className="text-primary mt-2 text-4xl font-bold tracking-tight">지금이니?</p>
+                    <p className="text-primary mt-2 text-5xl font-bold tracking-tight sm:text-6xl">
+                        지금이니?
+                    </p>
                 </div>
 
-                <Card className="bg-background block rounded-2xl border p-7 shadow-xl ring-0 shadow-black/5 sm:p-10">
-                    <h1 id="page-title" className="mb-10 text-3xl font-bold tracking-tight">
-                        로그인
-                    </h1>
+                <h1 id="page-title" className="mb-10 text-3xl font-bold tracking-tight">
+                    로그인
+                </h1>
 
-                    <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-                        <fieldset disabled={isBusy} className="space-y-3">
-                            <div>
-                                <Label className="sr-only" htmlFor="email">
-                                    이메일
-                                </Label>
-                                <Input
-                                    id="email"
-                                    {...register("email")}
-                                    aria-invalid={Boolean(errors.email)}
-                                    aria-describedby={errors.email ? "email-error" : undefined}
-                                    type="email"
-                                    autoComplete="email"
-                                    placeholder="이메일"
-                                    className="bg-background h-12 rounded-lg px-5 text-sm"
-                                />
-                                {errors.email ? (
-                                    <p
-                                        id="email-error"
-                                        role="alert"
-                                        className="text-destructive mt-1 text-sm"
-                                    >
-                                        {errors.email.message}
-                                    </p>
-                                ) : null}
-                            </div>
+                <form id="login-form" noValidate onSubmit={handleSubmit(onSubmit)}>
+                    <fieldset disabled={isBusy} className="space-y-5">
+                        <div>
+                            <Label className="mb-2 text-sm font-semibold" htmlFor="email">
+                                이메일
+                            </Label>
+                            <Input
+                                id="email"
+                                {...register("email")}
+                                aria-invalid={Boolean(errors.email)}
+                                aria-describedby={errors.email ? "email-error" : undefined}
+                                type="email"
+                                autoComplete="email"
+                                placeholder="이메일 주소를 입력해주세요"
+                                className="bg-background h-10 rounded-md px-5 text-sm"
+                            />
+                            {errors.email ? (
+                                <p
+                                    id="email-error"
+                                    role="alert"
+                                    className="text-destructive mt-1 text-sm"
+                                >
+                                    {errors.email.message}
+                                </p>
+                            ) : null}
+                        </div>
 
-                            <div>
-                                <Label className="sr-only" htmlFor="password">
-                                    비밀번호
-                                </Label>
+                        <div>
+                            <Label className="mb-2 text-sm font-semibold" htmlFor="password">
+                                비밀번호
+                            </Label>
+                            <div className="relative">
                                 <Input
                                     id="password"
                                     {...register("password")}
                                     aria-invalid={Boolean(errors.password)}
                                     aria-describedby={
-                                        errors.password ? "password-error" : undefined
+                                        errors.password ? "password-error" : "password-hint"
                                     }
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     autoComplete="current-password"
-                                    placeholder="비밀번호"
-                                    className="bg-background h-12 rounded-lg px-5 text-sm"
+                                    placeholder="8자 이상, 영문/숫자 조합"
+                                    className="bg-background h-10 rounded-md pr-12 pl-5 text-sm"
                                 />
-                                {errors.password ? (
-                                    <p
-                                        id="password-error"
-                                        role="alert"
-                                        className="text-destructive mt-1 text-sm"
-                                    >
-                                        {errors.password.message}
-                                    </p>
-                                ) : null}
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 표시"}
+                                    aria-pressed={showPassword}
+                                    onClick={() => setShowPassword((value) => !value)}
+                                    className="text-muted-foreground absolute top-1 right-2"
+                                >
+                                    {showPassword ? <Eye /> : <EyeOff />}
+                                </Button>
                             </div>
-                        </fieldset>
+                            {errors.password ? (
+                                <p
+                                    id="password-error"
+                                    role="alert"
+                                    className="text-destructive mt-1 text-sm"
+                                >
+                                    {errors.password.message}
+                                </p>
+                            ) : (
+                                <p
+                                    id="password-hint"
+                                    className="text-destructive mt-2 flex items-center gap-2 text-xs"
+                                >
+                                    <CircleAlert aria-hidden="true" className="size-3 shrink-0" />
+                                    비밀번호는 영문, 숫자, 특수문자를 포함해야 합니다.
+                                </p>
+                            )}
+                        </div>
+                    </fieldset>
+                </form>
 
-                        <Button
-                            type="submit"
-                            disabled={isBusy}
-                            className="h-12 w-full rounded-lg text-sm font-bold"
-                        >
-                            {isBusy ? "로그인 중..." : "로그인"}
-                        </Button>
-                    </form>
-
-                    <SocialLoginButtons
-                        googleClientId={googleClientId}
-                        kakaoClientId={oauthConfig.KAKAO.clientId}
-                        naverClientId={oauthConfig.NAVER.clientId}
-                        isBusy={isBusy}
-                        socialRedirecting={socialRedirecting}
-                        onGoogleSuccess={handleGoogleSuccess}
-                        onGoogleError={() => {
-                            setErrorMessage("구글 인증에 실패했습니다.");
-                        }}
-                        onAuthorize={handleSocialAuthorize}
+                <div className="mt-4 flex items-center gap-2">
+                    <Checkbox
+                        id="remember-login"
+                        defaultChecked
+                        disabled={isBusy}
+                        className="data-[state=checked]:border-foreground data-[state=checked]:bg-foreground data-[state=checked]:text-background size-6"
                     />
+                    <Label htmlFor="remember-login" className="text-muted-foreground text-base">
+                        로그인 상태 유지
+                    </Label>
+                </div>
+                <Link
+                    href="/account/recovery"
+                    className="text-muted-foreground hover:text-foreground mt-2 inline-block text-base underline underline-offset-2"
+                >
+                    비밀번호 찾기
+                </Link>
+                <Link
+                    href="/signup"
+                    className="text-primary mt-2 ml-6 inline-block text-base underline underline-offset-2"
+                >
+                    회원가입
+                </Link>
 
-                    {errorMessage ? (
-                        <p role="alert" className="text-destructive mt-5 text-center text-sm">
-                            {errorMessage}
-                        </p>
-                    ) : null}
+                <SocialLoginButtons {...socialLogin} isBusy={isBusy} />
 
-                    <div className="mx-auto mt-7 w-full max-w-[400px] space-y-3">
-                        <Button
-                            asChild
-                            variant="secondary"
-                            className="h-10 w-full rounded-lg text-sm font-semibold"
-                        >
-                            <Link href="/home">비회원 로그인</Link>
-                        </Button>
-                        <Button
-                            asChild
-                            variant="secondary"
-                            className="h-10 w-full rounded-lg text-sm font-semibold"
-                        >
-                            <Link href="/signup">회원가입</Link>
-                        </Button>
-                    </div>
+                {errorMessage ? (
+                    <p role="alert" className="text-destructive mt-5 text-center text-sm">
+                        {errorMessage}
+                    </p>
+                ) : null}
 
-                    <Link
-                        href="/account/recovery"
-                        className="text-muted-foreground hover:text-foreground mt-5 inline-block text-sm hover:underline"
+                <div className="mt-14 flex justify-end gap-5">
+                    <Button
+                        asChild
+                        variant="secondary"
+                        className="text-muted-foreground h-14 flex-1 rounded-full bg-[#dedee6] text-lg font-bold sm:w-[216px] sm:flex-none"
                     >
-                        아이디/비밀번호 찾기
-                    </Link>
-                </Card>
+                        <Link href="/home">비회원 로그인</Link>
+                    </Button>
+                    <Button
+                        type="submit"
+                        form="login-form"
+                        disabled={isBusy}
+                        className="h-14 flex-1 rounded-full text-lg font-bold sm:w-[216px] sm:flex-none"
+                    >
+                        {isBusy ? "로그인 중..." : "로그인"}
+                    </Button>
+                </div>
             </section>
         </main>
     );
