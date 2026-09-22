@@ -31,7 +31,9 @@ import com.swyp.team5.common.common.ErrorDetail;
 import com.swyp.team5.file.error.FileStorageException;
 import com.swyp.team5.interest.error.InterestAlreadyExistsException;
 import com.swyp.team5.interest.error.InterestNotFoundException;
+import com.swyp.team5.member.error.InvalidCurrentPasswordException;
 import com.swyp.team5.member.error.MemberNotFoundException;
+import com.swyp.team5.member.error.PasswordChangeNotAllowedException;
 import com.swyp.team5.platform.error.PlatformListingNotFoundException;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductNotFoundException;
@@ -56,7 +58,8 @@ public class GlobalExceptionHandler {
         InvalidCredentialsException.class,
         InvalidTokenException.class,
         InvalidSocialTokenException.class,
-        InvalidPasswordResetTokenException.class
+        InvalidPasswordResetTokenException.class,
+        InvalidCurrentPasswordException.class
     })
     public ResponseEntity<ApiResponse<Void>> handleAuthenticationFailure(RuntimeException e) {
         log.warn("인증 실패: {}", e.getMessage());
@@ -67,6 +70,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleInactiveMember(InactiveMemberException e) {
         log.warn("비활성 계정 접근 시도: {}", e.getMessage());
         return errorResponse(HttpStatus.FORBIDDEN, "FORBIDDEN", e.getMessage());
+    }
+
+    @ExceptionHandler(PasswordChangeNotAllowedException.class)
+    public ResponseEntity<ApiResponse<Void>> handlePasswordChangeNotAllowed(PasswordChangeNotAllowedException e) {
+        log.warn("비밀번호 변경 불가: {}", e.getMessage());
+        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
     }
 
     @ExceptionHandler(UnsupportedSocialProviderException.class)

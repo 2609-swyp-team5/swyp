@@ -2,14 +2,19 @@ package com.swyp.team5.member.service;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.swyp.team5.auth.error.DuplicatePhoneException;
+import com.swyp.team5.auth.service.RefreshTokenService;
 import com.swyp.team5.member.dto.MemberResponse;
 import com.swyp.team5.member.dto.MemberUpdateRequest;
+import com.swyp.team5.member.dto.PasswordChangeRequest;
 import com.swyp.team5.member.entity.Member;
+import com.swyp.team5.member.error.InvalidCurrentPasswordException;
 import com.swyp.team5.member.error.MemberNotFoundException;
+import com.swyp.team5.member.error.PasswordChangeNotAllowedException;
 import com.swyp.team5.member.repository.MemberRepository;
 
 @Service
@@ -17,6 +22,10 @@ import com.swyp.team5.member.repository.MemberRepository;
 public class MemberService {
 
     private final MemberRepository memberRepository;
+
+    private final PasswordEncoder passwordEncoder;
+
+    private final RefreshTokenService refreshTokenService;
 
     @Transactional(readOnly = true)
     public MemberResponse getProfile(Long memberId) {
@@ -34,6 +43,21 @@ public class MemberService {
 
         member.updateProfile(request.nickname(), phone);
         return MemberResponse.from(member);
+    }
+
+    @Transactional
+    public void changePassword(Long memberId, PasswordChangeRequest request) {
+        Member member = findMember(memberId);
+
+        if (member.getPassword() == null) {
+            throw new PasswordChangeNotAllowedException();
+        }
+        if (!passwordEncoder.matches(request.currentPassword(), member.getPassword())) {
+            throw new InvalidCurrentPasswordException();
+        }
+
+        member.changePassword(passwordEncoder.encode(request.newPassword()));
+        refreshTokenService.delete(memberId);
     }
 
     private Member findMember(Long memberId) {
