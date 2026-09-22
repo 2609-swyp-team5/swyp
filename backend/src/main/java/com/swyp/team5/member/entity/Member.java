@@ -106,4 +106,9 @@ public class Member {
     public void changePassword(String encodedPassword) {
         this.password = encodedPassword;
     }
+
+    public void updateProfile(String nickname, String phone) {
+        this.nickname = nickname;
+        this.phone = phone;
+    }
 }

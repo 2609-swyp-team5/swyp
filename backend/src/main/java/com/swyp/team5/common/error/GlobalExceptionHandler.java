@@ -31,6 +31,7 @@ import com.swyp.team5.common.common.ErrorDetail;
 import com.swyp.team5.file.error.FileStorageException;
 import com.swyp.team5.interest.error.InterestAlreadyExistsException;
 import com.swyp.team5.interest.error.InterestNotFoundException;
+import com.swyp.team5.member.error.MemberNotFoundException;
 import com.swyp.team5.platform.error.PlatformListingNotFoundException;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductNotFoundException;
@@ -78,7 +79,8 @@ public class GlobalExceptionHandler {
         ProductNotFoundException.class,
         CategoryNotFoundException.class,
         InterestNotFoundException.class,
-        PlatformListingNotFoundException.class
+        PlatformListingNotFoundException.class,
+        MemberNotFoundException.class
     })
     public ResponseEntity<ApiResponse<Void>> handleNotFound(RuntimeException e) {
         log.warn("리소스를 찾을 수 없음: {}", e.getMessage());
