@@ -107,6 +107,10 @@ public class Member {
         this.password = encodedPassword;
     }
 
+    public void changeProfileImage(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
+    }
+
     public void updateProfile(String nickname, String phone) {
         this.nickname = nickname;
         this.phone = phone;
