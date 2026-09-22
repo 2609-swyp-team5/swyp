@@ -34,3 +34,7 @@ export const signUpSchema = z.object({
 });
 
 export type SignUpFormValues = z.input<typeof signUpSchema>;
+
+export const passwordResetSchema = z.object({
+    email: emailSchema,
+});

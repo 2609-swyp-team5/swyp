@@ -31,7 +31,7 @@ test("redirects after login and prevents returning to the login page", async ({ 
     await expect(page.locator("form input")).toHaveCount(2);
     await fillLoginForm(page);
     const requestPromise = page.waitForRequest("**/auth/login");
-    await page.getByRole("button", { name: "로그인", exact: true }).click();
+    await page.locator('button[form="login-form"]').click();
     const request = await requestPromise;
     expect(request.method()).toBe("POST");
     expect(request.headers()["content-type"]).toContain("application/json");
@@ -39,11 +39,9 @@ test("redirects after login and prevents returning to the login page", async ({ 
     await expect(page.getByRole("button", { name: "로그인 중..." })).toBeDisabled();
     await expect(page.getByLabel("이메일", { exact: true })).toBeDisabled();
     releaseResponse();
-    await expect(page).toHaveURL(/\/$/);
-    await page.getByRole("link", { name: "시작하기", exact: true }).click();
     await expect(page).toHaveURL(/\/home$/);
     await expect(page.getByRole("heading", { name: "로그인", exact: true })).toHaveCount(0);
-    await expect(page.getByRole("banner").getByRole("button", { name: "로그아웃" })).toBeVisible();
+    await expect(page.getByRole("banner").getByRole("link", { name: "프로필" })).toBeVisible();
     await page.route("**/auth/refresh", (route) =>
         route.fulfill({
             status: 200,
@@ -52,10 +50,9 @@ test("redirects after login and prevents returning to the login page", async ({ 
     );
     await page.reload();
     await page.getByRole("link", { name: "지금이니?", exact: true }).click();
-    await page.getByRole("link", { name: "시작하기", exact: true }).click();
     await expect(page).toHaveURL(/\/home$/);
     await page.goto("/login");
-    await expect(page).toHaveURL(/\/$/);
+    await expect(page).toHaveURL(/\/home$/);
     await expect(page.getByRole("heading", { name: "로그인", exact: true })).toHaveCount(0);
 });
 
@@ -74,7 +71,7 @@ test("blocks empty login fields before sending a request", async ({ page }) => {
         });
     });
     await page.goto("/login");
-    await page.getByRole("button", { name: "로그인", exact: true }).click();
+    await page.locator('button[form="login-form"]').click();
 
     await expect(page.locator("#email-error")).toHaveText("이메일을 입력해 주세요.");
     await expect(page.locator("#password-error")).toHaveText("비밀번호를 입력해 주세요.");
@@ -95,11 +92,12 @@ test("displays the backend login error and allows retrying", async ({ page }) =>
     );
     await page.goto("/login");
     await fillLoginForm(page);
-    await page.getByRole("button", { name: "로그인", exact: true }).click();
-    await expect(page.getByRole("main").getByRole("alert")).toHaveText(
-        "이메일 또는 비밀번호가 일치하지 않습니다.",
-    );
-    await expect(page.getByRole("button", { name: "로그인", exact: true })).toBeEnabled();
+    await page.locator('button[form="login-form"]').click();
+    const dialog = page.getByRole("alertdialog", { name: "로그인 오류" });
+    await expect(dialog).toContainText("이메일 또는 비밀번호가 일치하지 않습니다.");
+    await dialog.getByRole("button", { name: "확인", exact: true }).click();
+    await expect(dialog).not.toBeVisible();
+    await expect(page.locator('button[form="login-form"]')).toBeEnabled();
     await expect(page.getByLabel("이메일", { exact: true })).toHaveValue(loginRequest.email);
     await expect(page.getByText("로그인에 성공했습니다.")).toHaveCount(0);
 });

@@ -41,3 +41,13 @@ export interface SocialLoginRequest {
 export interface TokenResponse {
     accessToken: string;
 }
+
+// 이메일 중복 확인 결과
+export interface EmailAvailabilityResponse {
+    available: boolean;
+}
+
+// 비밀번호 재설정 메일 요청
+export interface PasswordResetRequest {
+    email: string;
+}

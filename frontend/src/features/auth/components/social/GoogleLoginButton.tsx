@@ -37,7 +37,7 @@ export function GoogleLoginButton({
 
             {clientId && !isBusy ? (
                 <GoogleOAuthProvider clientId={clientId}>
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0">
+                    <div className="absolute inset-0 flex cursor-pointer items-center justify-center opacity-0">
                         <GoogleLogin
                             type="icon"
                             theme="outline"

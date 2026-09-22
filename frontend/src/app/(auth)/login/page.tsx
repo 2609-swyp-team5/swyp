@@ -7,6 +7,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CircleAlert, Eye, EyeOff } from "lucide-react";
 
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/common/components/ui/AlertDialog";
 import { Button } from "@/common/components/ui/Button";
 import { Checkbox } from "@/common/components/ui/Checkbox";
 import { Input } from "@/common/components/ui/Input";
@@ -21,12 +30,24 @@ import { useAuthStore } from "@/features/auth/store/authStore";
 import type { LoginRequest } from "@/features/auth/types";
 import { loginSchema } from "@/features/auth/schemas/authSchema";
 
+const SAVED_EMAIL_KEY = "savedLoginEmail";
+
 export default function LoginPage() {
     const router = useRouter();
     const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
     const isInitialized = useAuthStore((state) => state.isInitialized);
     const [errorMessage, setErrorMessage] = useState("");
     const [showPassword, setShowPassword] = useState(false);
+    const [savedEmail] = useState(() => {
+        try {
+            return typeof window === "undefined"
+                ? ""
+                : (localStorage.getItem(SAVED_EMAIL_KEY) ?? "");
+        } catch {
+            return "";
+        }
+    });
+    const [rememberEmail, setRememberEmail] = useState(Boolean(savedEmail));
     const socialLogin = useSocialLogin(setErrorMessage);
     const { mutate: login, isPending } = useLoginMutation({
         onError: (error) => setErrorMessage(getApiErrorMessage(error)),
@@ -37,7 +58,7 @@ export default function LoginPage() {
         formState: { errors, isSubmitting },
     } = useForm<LoginRequest>({
         resolver: zodResolver(loginSchema),
-        defaultValues: { email: "", password: "" },
+        defaultValues: { email: savedEmail, password: "" },
     });
 
     const isBusy = isSubmitting || isPending || socialLogin.isBusy;
@@ -50,7 +71,30 @@ export default function LoginPage() {
 
     const onSubmit = (params: LoginRequest) => {
         setErrorMessage("");
-        login(params);
+        login(params, {
+            onSuccess: () => {
+                try {
+                    if (rememberEmail) {
+                        localStorage.setItem(SAVED_EMAIL_KEY, params.email);
+                    } else {
+                        localStorage.removeItem(SAVED_EMAIL_KEY);
+                    }
+                } catch {
+                    // 이메일 저장 실패는 로그인 성공에 영향을 주지 않습니다.
+                }
+            },
+        });
+    };
+
+    const handleRememberEmailChange = (checked: boolean | "indeterminate") => {
+        setRememberEmail(checked === true);
+        if (checked !== true) {
+            try {
+                localStorage.removeItem(SAVED_EMAIL_KEY);
+            } catch {
+                // 저장소 접근이 차단된 경우에도 체크 해제는 반영합니다.
+            }
+        }
     };
 
     if (!isInitialized || isLoggedIn) {
@@ -153,12 +197,13 @@ export default function LoginPage() {
                 <div className="mt-4 flex items-center gap-2">
                     <Checkbox
                         id="remember-login"
-                        defaultChecked
+                        checked={rememberEmail}
+                        onCheckedChange={handleRememberEmailChange}
                         disabled={isBusy}
                         className="data-[state=checked]:border-foreground data-[state=checked]:bg-foreground data-[state=checked]:text-background size-6"
                     />
                     <Label htmlFor="remember-login" className="text-muted-foreground text-base">
-                        로그인 상태 유지
+                        아이디 저장
                     </Label>
                 </div>
                 <PasswordResetModal />
@@ -171,11 +216,22 @@ export default function LoginPage() {
 
                 <SocialLoginButtons {...socialLogin} isBusy={isBusy} />
 
-                {errorMessage ? (
-                    <p role="alert" className="text-destructive mt-5 text-center text-sm">
-                        {errorMessage}
-                    </p>
-                ) : null}
+                <AlertDialog
+                    open={Boolean(errorMessage)}
+                    onOpenChange={(open) => {
+                        if (!open) setErrorMessage("");
+                    }}
+                >
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>로그인 오류</AlertDialogTitle>
+                            <AlertDialogDescription>{errorMessage}</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogAction>확인</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
 
                 <div className="mt-14 flex justify-end gap-5">
                     <Button
