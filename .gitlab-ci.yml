@@ -22,6 +22,8 @@ variables:
 # 필요 CI/CD 변수(GitLab 프로젝트 설정에 masked로 등록): TEST_DB_DRIVER_CLASS_NAME,
 # TEST_DB_URL, TEST_DB_USERNAME, TEST_DB_PASSWORD (Neon swyp-test 브랜치 접속 정보),
 # TEST_JWT_SECRET, TEST_JWT_REFRESH_SECRET (테스트 전용 JWT 서명 키)
+# TEST_PLATFORM_SESSION_ENCRYPTION_KEY (선택, 외부 플랫폼 세션 암호화 키 — Base64 32바이트, 미등록 시
+# application-test.yaml의 테스트 전용 더미 키 사용)
 # resource_group: 여러 MR 파이프라인이 동시에 같은 swyp-test 브랜치를 Flyway clean하지 않도록 직렬화
 backend-test:
   stage: test

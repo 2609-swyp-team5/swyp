@@ -4,6 +4,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.format.FormatterRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import com.swyp.team5.platform.entity.PlatformType;
 import com.swyp.team5.product.entity.DefectStatus;
 
 /**
@@ -16,5 +17,6 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addFormatters(FormatterRegistry registry) {
         registry.addConverter(String.class, DefectStatus.class, DefectStatus::from);
+        registry.addConverter(String.class, PlatformType.class, PlatformType::from);
     }
 }

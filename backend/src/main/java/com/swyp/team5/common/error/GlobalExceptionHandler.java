@@ -14,6 +14,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -32,7 +33,15 @@ import com.swyp.team5.common.common.ErrorDetail;
 import com.swyp.team5.file.error.FileStorageException;
 import com.swyp.team5.interest.error.InterestAlreadyExistsException;
 import com.swyp.team5.interest.error.InterestNotFoundException;
+import com.swyp.team5.platform.error.InvalidPlatformSessionException;
+import com.swyp.team5.platform.error.InvalidProductUrlException;
+import com.swyp.team5.platform.error.MemberPlatformNotFoundException;
 import com.swyp.team5.platform.error.PlatformListingNotFoundException;
+import com.swyp.team5.platform.error.PlatformPublishFailedException;
+import com.swyp.team5.platform.error.ProductPlatformAlreadyLinkedException;
+import com.swyp.team5.platform.error.ProductPlatformNotFoundException;
+import com.swyp.team5.platform.error.ProductPlatformPublishInProgressException;
+import com.swyp.team5.platform.error.UnsupportedPlatformException;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductNotFoundException;
 
@@ -79,11 +88,35 @@ public class GlobalExceptionHandler {
         ProductNotFoundException.class,
         CategoryNotFoundException.class,
         InterestNotFoundException.class,
-        PlatformListingNotFoundException.class
+        PlatformListingNotFoundException.class,
+        MemberPlatformNotFoundException.class,
+        ProductPlatformNotFoundException.class
     })
     public ResponseEntity<ApiResponse<Void>> handleNotFound(RuntimeException e) {
         log.warn("리소스를 찾을 수 없음: {}", e.getMessage());
         return errorResponse(HttpStatus.NOT_FOUND, "NOT_FOUND", e.getMessage());
+    }
+
+    @ExceptionHandler({
+        InvalidPlatformSessionException.class,
+        InvalidProductUrlException.class,
+        UnsupportedPlatformException.class
+    })
+    public ResponseEntity<ApiResponse<Void>> handleInvalidPlatformInput(RuntimeException e) {
+        log.warn("외부 플랫폼 연동 입력값 오류: {}", e.getMessage());
+        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
+    }
+
+    @ExceptionHandler({ProductPlatformAlreadyLinkedException.class, ProductPlatformPublishInProgressException.class})
+    public ResponseEntity<ApiResponse<Void>> handleProductPlatformConflict(RuntimeException e) {
+        log.warn("이미 연동/등록 중인 외부 플랫폼 상품: {}", e.getMessage());
+        return errorResponse(HttpStatus.CONFLICT, "CONFLICT", e.getMessage());
+    }
+
+    @ExceptionHandler(PlatformPublishFailedException.class)
+    public ResponseEntity<ApiResponse<Void>> handlePlatformPublishFailed(PlatformPublishFailedException e) {
+        log.error("외부 플랫폼 매물 등록 실패: {}", e.getMessage(), e);
+        return errorResponse(HttpStatus.BAD_GATEWAY, "BAD_GATEWAY", e.getMessage());
     }
 
     @ExceptionHandler(ProductAccessDeniedException.class)
@@ -145,6 +178,21 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleMissingRequestPart(MissingServletRequestPartException e) {
         List<ErrorDetail> details = List.of(new ErrorDetail(e.getRequestPartName(), "필수 값입니다."));
         log.warn("필수 요청 파트 누락: {}", e.getRequestPartName());
+        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", "입력값이 올바르지 않습니다.", details);
+    }
+
+    /**
+     * 경로/쿼리 파라미터를 선언된 타입으로 변환하지 못한 경우(예: 숫자 자리에 문자, 지원하지 않는 플랫폼 값).
+     * 여기서 잡지 않으면 {@link #handleException}으로 흘러가 500으로 잘못 보고된다. 변환 중 우리 쪽 예외
+     * (예: {@code UnsupportedPlatformException})가 원인이면 그 메시지를 그대로 내려준다.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Void>> handleArgumentTypeMismatch(MethodArgumentTypeMismatchException e) {
+        String reason = e.getMostSpecificCause() instanceof UnsupportedPlatformException cause
+                ? cause.getMessage()
+                : "형식이 올바르지 않습니다.";
+        List<ErrorDetail> details = List.of(new ErrorDetail(e.getName(), reason));
+        log.warn("요청 파라미터 타입 변환 실패: {}={}", e.getName(), e.getValue());
         return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", "입력값이 올바르지 않습니다.", details);
     }
 

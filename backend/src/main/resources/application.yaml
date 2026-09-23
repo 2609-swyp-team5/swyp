@@ -109,6 +109,13 @@ password-reset:
   reset-url: ${PASSWORD_RESET_URL:http://localhost:3000/account/reset-password} # 메일에 담을 프론트 주소
   from: ${MAIL_FROM:no-reply@haru-dev.me} # 발신자 주소
 
+# 외부 플랫폼(번개장터 등) 연동 - 세션 토큰 DB 저장 시 암호화 키 (AES-256, Base64 인코딩된 32바이트)
+platform:
+  session-encryption-key: ${PLATFORM_SESSION_ENCRYPTION_KEY}
+  bunjang:
+    publish:
+      headless: ${PLATFORM_BUNJANG_PUBLISH_HEADLESS:true} # false면 등록 과정을 브라우저 창으로 확인 가능(로컬 디버깅용)
+
 jwt:
   access-token-expires: ${JWT_ACCESS_TOKEN_EXPIRES:30m}
   refresh-token-expires: ${JWT_REFRESH_TOKEN_EXPIRES:14d}
