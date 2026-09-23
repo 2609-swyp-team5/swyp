@@ -16,8 +16,11 @@ import {
     type DirectStatusPriceState,
 } from "@/features/sell/components/direct-register/DirectStatusPriceStep";
 import type { DirectImagePreview } from "@/features/sell/components/direct-register/DirectImageUpload";
+import { ProductRegistrationProcessing } from "@/features/sell/components/ProductRegistrationProcessing";
 import { ExitDialog } from "@/features/sell/components/shared/ExitDialog";
+import { getApiErrorMessage } from "@/common/lib/api/error";
 import { useCategoriesQuery } from "@/features/sell/hooks/queries/useCategoriesQuery";
+import { useCreateDirectProductMutation } from "@/features/sell/hooks/mutations/useCreateDirectProductMutation";
 
 export type DirectRegisterStep = "info" | "status";
 
@@ -98,6 +101,10 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
     const [info, setInfo] = useState(initialInfoState);
     const [statusPrice, setStatusPrice] = useState(initialStatusPriceState);
     const [statusPriceErrors, setStatusPriceErrors] = useState(initialStatusPriceErrors);
+    const [submissionStatus, setSubmissionStatus] = useState<
+        "idle" | "loading" | "success" | "error"
+    >("idle");
+    const [submissionError, setSubmissionError] = useState("");
     const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
     const imagesRef = useRef<DirectImagePreview[]>(info.images);
     const {
@@ -105,6 +112,13 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
         isPending: isCategoriesPending,
         isError: isCategoriesError,
     } = useCategoriesQuery();
+    const createDirectProductMutation = useCreateDirectProductMutation({
+        onSuccess: () => setSubmissionStatus("success"),
+        onError: (mutationError) => {
+            setSubmissionError(getApiErrorMessage(mutationError));
+            setSubmissionStatus("error");
+        },
+    });
 
     useEffect(() => {
         imagesRef.current = info.images;
@@ -149,7 +163,45 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
         if (Object.values(nextErrors).some(Boolean)) {
             return;
         }
+
+        setSubmissionError("");
+        setSubmissionStatus("loading");
+
+        createDirectProductMutation.mutate({
+            images: info.images.map((image) => image.file),
+            request: {
+                categoryId: Number(info.childCategoryId),
+                title: info.title.trim(),
+                brand: info.brand.trim() || null,
+                description: info.description.trim(),
+                price: Number(statusPrice.price),
+                condition: statusPrice.productCondition,
+                defectStatus: statusPrice.defectStatus === "has-defect" ? "ISSUES" : "NORMAL",
+                purchasedMonths:
+                    statusPrice.purchasePeriod === "unknown"
+                        ? null
+                        : Number(statusPrice.purchasePeriod),
+                includedItems: statusPrice.includedItems,
+                allowPriceSuggestion: statusPrice.allowPriceProposal,
+                tradeMethod: statusPrice.tradeMethod === "direct" ? "DIRECT" : "DELIVERY",
+                deliveryType: statusPrice.deliveryType,
+                preferredTradeRegion: statusPrice.tradeLocation.trim() || null,
+                tags: info.tags,
+            },
+        });
     };
+
+    if (submissionStatus !== "idle") {
+        return (
+            <ProductRegistrationProcessing
+                kind="direct"
+                status={submissionStatus}
+                errorMessage={submissionError}
+                onRetry={handleStatusPriceSubmit}
+                onGoToManage={() => router.push("/sell/manage")}
+            />
+        );
+    }
 
     const isInfoStep = step === "info";
     const categoryStatus = isCategoriesPending ? "loading" : isCategoriesError ? "error" : "ready";

@@ -16,6 +16,10 @@ vi.mock("@/features/sell/hooks/queries/useCategoriesQuery", () => ({
     }),
 }));
 
+vi.mock("@/features/sell/hooks/mutations/useCreateDirectProductMutation", () => ({
+    useCreateDirectProductMutation: () => ({ mutate: vi.fn() }),
+}));
+
 import { DirectRegisterPage } from "./DirectRegisterPage";
 
 describe("DirectRegisterPage", () => {

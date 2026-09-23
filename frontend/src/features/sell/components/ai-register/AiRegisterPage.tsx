@@ -7,6 +7,7 @@ import { ArrowLeft, CircleAlert } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/common/components/ui/Alert";
 import { Button } from "@/common/components/ui/Button";
+import { getApiErrorMessage } from "@/common/lib/api/error";
 import {
     AiRegisterAdditionalInfoStep,
     type AiIncludedItem,
@@ -14,8 +15,10 @@ import {
     type AiPurchasePeriod,
 } from "@/features/sell/components/ai-register/AiRegisterAdditionalInfoStep";
 import type { AiImagePreview } from "@/features/sell/components/ai-register/AiImageUpload";
+import { ProductRegistrationProcessing } from "@/features/sell/components/ProductRegistrationProcessing";
 import { ExitDialog } from "@/features/sell/components/shared/ExitDialog";
 import { AiRegisterUploadStep } from "@/features/sell/components/ai-register/AiRegisterUploadStep";
+import { useCreateAiProductMutation } from "@/features/sell/hooks/mutations/useCreateAiProductMutation";
 
 type AiRegisterStep = "upload" | "additional-info";
 
@@ -68,8 +71,19 @@ export function AiRegisterPage() {
     const router = useRouter();
     const [state, dispatch] = useReducer(aiRegisterReducer, initialState);
     const [error, setError] = useState("");
+    const [submissionStatus, setSubmissionStatus] = useState<
+        "idle" | "loading" | "success" | "error"
+    >("idle");
+    const [submissionError, setSubmissionError] = useState("");
     const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
     const imagesRef = useRef(state.images);
+    const createAiProductMutation = useCreateAiProductMutation({
+        onSuccess: () => setSubmissionStatus("success"),
+        onError: (mutationError) => {
+            setSubmissionError(getApiErrorMessage(mutationError));
+            setSubmissionStatus("error");
+        },
+    });
 
     useEffect(() => {
         imagesRef.current = state.images;
@@ -99,6 +113,31 @@ export function AiRegisterPage() {
         setIsExitDialogOpen(false);
         router.push("/sell/register");
     };
+
+    const handleCreate = () => {
+        setSubmissionError("");
+        setSubmissionStatus("loading");
+
+        createAiProductMutation.mutate({
+            images: state.images.map((image) => image.file),
+            purchasedMonths:
+                state.purchasePeriod === "unknown" ? null : Number(state.purchasePeriod),
+            operationStatus: state.operationStatus,
+            includedItems: state.includedItems,
+        });
+    };
+
+    if (submissionStatus !== "idle") {
+        return (
+            <ProductRegistrationProcessing
+                kind="ai"
+                status={submissionStatus}
+                errorMessage={submissionError}
+                onRetry={handleCreate}
+                onGoToManage={() => router.push("/sell/manage")}
+            />
+        );
+    }
 
     const isUploadStep = state.step === "upload";
     const stepActions = (
@@ -138,6 +177,7 @@ export function AiRegisterPage() {
                         key="additional-info-create"
                         type="button"
                         className="h-[54px] rounded-full bg-[#6653fb] px-8 py-3 text-[16px] leading-6 font-semibold text-white hover:bg-[#5745e7]"
+                        onClick={handleCreate}
                     >
                         ✦ AI 판매 글 만들기
                     </Button>
