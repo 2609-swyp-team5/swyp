@@ -4,7 +4,10 @@ import java.util.List;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 
 import lombok.RequiredArgsConstructor;
 
@@ -21,6 +24,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -33,6 +37,7 @@ import com.swyp.team5.product.dto.ProductResponse;
 import com.swyp.team5.product.dto.ProductStatusUpdateRequest;
 import com.swyp.team5.product.dto.ProductSummaryResponse;
 import com.swyp.team5.product.dto.ProductUpdateRequest;
+import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.service.ProductService;
 import com.swyp.team5.search.service.SearchLogService;
@@ -50,28 +55,36 @@ public class ProductController {
     private final SearchLogService searchLogService;
 
     /**
-     * 상품을 직접 등록한다.
+     * 상품을 직접 등록한다. AI 등록({@link #createFromImages})과 동일하게 상품 사진 파일을 직접
+     * 받아 서버가 업로드까지 한 번에 처리한다(별도로 {@code POST /files}를 먼저 호출할 필요 없음).
      *
      * @param currentMember 인증된 요청자
-     * @param request 등록 요청 바디
+     * @param images 등록할 상품 이미지 목록(순서대로 저장)
+     * @param request 등록 요청 정보(JSON, {@code data} 파트)
      * @return 201 Created + 등록된 상품
      */
-    @Operation(summary = "상품 등록")
-    @PostMapping
+    @Operation(summary = "상품 등록", description = "상품 이미지 파일과 등록 정보(JSON, data 파트)를 함께 받아 이미지 업로드부터 등록까지 한 번에 처리한다.")
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<ProductResponse>> create(
-            @AuthenticationPrincipal PrincipalMember currentMember, @Valid @RequestBody ProductCreateRequest request) {
-        ProductResponse response = productService.create(currentMember.memberId(), request);
+            @AuthenticationPrincipal PrincipalMember currentMember,
+            @RequestPart("images") @NotEmpty List<MultipartFile> images,
+            @RequestPart("data") @Valid ProductCreateRequest request) {
+        ProductResponse response = productService.create(currentMember.memberId(), request, images);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
     }
 
     /**
      * 상품 사진을 업로드하면 AI(Gemini)가 상품 정보를 분석해 자동으로 등록한다.
-     * 구매 일시/결함 여부는 AI가 추론하지 않고 사용자가 직접 입력한 값을 그대로 사용한다.
+     * 구매 일시/결함 여부는 AI가 추론하지 않고 사용자가 직접 입력한 값을 그대로 사용하며,
+     * 브랜드는 AI가 사진에서 식별해 채운다(식별 불가 시 null). 태그/구성품은 AI가 사진에서 추론한 목록과
+     * 사용자가 추가로 입력한 목록을 합쳐서 저장한다.
      *
      * @param currentMember 인증된 요청자
      * @param images 분석할 상품 이미지 목록
      * @param purchasedMonths 사용자가 입력한 구매 후 경과 개월 수(선택, 0~6, 등록 시점 기준 구매일시로 변환)
-     * @param hasDefect 사용자가 입력한 결함 여부
+     * @param defectStatus 사용자가 입력한 결함(하자) 상태(NORMAL/ISSUES/UNKNOWN, 대소문자 무관)
+     * @param tags 사용자가 추가로 입력한 태그 이름 목록(선택, AI 추론 결과와 합쳐짐)
+     * @param includedItems 사용자가 추가로 입력한 구성품 이름 목록(선택, AI 추론 결과와 합쳐짐)
      * @return 201 Created + 등록된 상품
      */
     @Operation(summary = "상품 이미지 AI 등록", description = "상품 사진을 업로드하면 AI(Gemini)가 상품 정보를 분석해 자동으로 등록한다.")
@@ -80,9 +93,11 @@ public class ProductController {
             @AuthenticationPrincipal PrincipalMember currentMember,
             @RequestParam("images") List<MultipartFile> images,
             @RequestParam(required = false) @PositiveOrZero @Max(6) Integer purchasedMonths,
-            @RequestParam boolean hasDefect) {
-        ProductResponse response =
-                productService.createFromImages(currentMember.memberId(), images, purchasedMonths, hasDefect);
+            @RequestParam DefectStatus defectStatus,
+            @RequestParam(required = false) List<@NotBlank @Size(max = 50) String> tags,
+            @RequestParam(required = false) List<@NotBlank @Size(max = 50) String> includedItems) {
+        ProductResponse response = productService.createFromImages(
+                currentMember.memberId(), images, purchasedMonths, defectStatus, tags, includedItems);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
     }
 

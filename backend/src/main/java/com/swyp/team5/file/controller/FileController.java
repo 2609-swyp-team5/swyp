@@ -33,12 +33,20 @@ public class FileController {
 
     private final FileStorageService fileStorageService;
 
-    @Operation(summary = "파일 업로드")
+    /**
+     * 파일을 업로드하고 접근 URL을 발급한다. 여러 파일을 한 번에 업로드할 수 있도록 {@code file[]}
+     * 멀티파트 필드로 전달받는다.
+     *
+     * @param files 업로드할 파일 목록
+     * @param directory 저장 디렉터리(선택)
+     * @return 201 Created + 업로드된 파일별 key/url 목록(요청 순서 유지)
+     */
+    @Operation(summary = "파일 업로드", description = "여러 파일을 file[] 멀티파트 필드로 한 번에 업로드하고, 각 파일의 URL을 목록으로 반환한다.")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<FileUploadResponse>> upload(
-            @RequestParam("file") MultipartFile file,
+    public ResponseEntity<ApiResponse<List<FileUploadResponse>>> upload(
+            @RequestParam("file[]") List<MultipartFile> files,
             @RequestParam(value = "directory", required = false) String directory) {
-        FileUploadResponse response = fileStorageService.upload(file, directory);
+        List<FileUploadResponse> response = fileStorageService.uploadAll(files, directory);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
     }
 

@@ -30,6 +30,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import com.swyp.team5.category.entity.Category;
+import com.swyp.team5.component.entity.Component;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.tag.entity.Tag;
 import org.hibernate.annotations.CreationTimestamp;
@@ -62,6 +63,9 @@ public class Product {
     @Column(nullable = false, length = 100)
     private String title; // 상품 제목
 
+    @Column(length = 50)
+    private String brand; // 브랜드(선택)
+
     @Column(columnDefinition = "TEXT")
     private String description; // 상품 설명
 
@@ -78,8 +82,10 @@ public class Product {
     @Column(nullable = false, columnDefinition = "product_condition")
     private ProductCondition condition; // 상품 상태
 
-    @Column(name = "has_defect", nullable = false)
-    private boolean hasDefect; // 상품 결함 여부(하자)
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "defect_status", nullable = false, columnDefinition = "defect_status")
+    private DefectStatus defectStatus; // 상품 결함(하자) 상태
 
     @Column(name = "purchased_at")
     private LocalDate purchasedAt; // 구매 일시(선택)
@@ -111,6 +117,13 @@ public class Product {
             inverseJoinColumns = @JoinColumn(name = "tag_id"))
     private Set<Tag> tags = new LinkedHashSet<>(); // 상품 태그 목록
 
+    @ManyToMany
+    @JoinTable(
+            name = "product_components",
+            joinColumns = @JoinColumn(name = "product_id"),
+            inverseJoinColumns = @JoinColumn(name = "component_id"))
+    private Set<Component> components = new LinkedHashSet<>(); // 상품 구성품 목록
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt; // 상품 등록일
@@ -124,10 +137,11 @@ public class Product {
             Member member,
             Category category,
             String title,
+            String brand,
             String description,
             Long price,
             ProductCondition condition,
-            boolean hasDefect,
+            DefectStatus defectStatus,
             LocalDate purchasedAt,
             boolean allowPriceSuggestion,
             TradeMethod tradeMethod,
@@ -136,11 +150,12 @@ public class Product {
         this.member = member;
         this.category = category;
         this.title = title;
+        this.brand = brand;
         this.description = description;
         this.price = price;
         this.status = ProductStatus.ON_SALE;
         this.condition = condition;
-        this.hasDefect = hasDefect;
+        this.defectStatus = defectStatus;
         this.purchasedAt = purchasedAt;
         this.allowPriceSuggestion = allowPriceSuggestion;
         this.tradeMethod = tradeMethod;
@@ -149,36 +164,40 @@ public class Product {
     }
 
     /**
-     * 신규 상품을 생성한다. 이미지는 전달된 순서대로 {@code image_order}가 부여되고, 태그는 전달된
-     * {@link Tag} 집합이 그대로 연결된다.
+     * 신규 상품을 생성한다. 이미지는 전달된 순서대로 {@code image_order}가 부여되고, 태그/구성품은
+     * 전달된 {@link Tag}/{@link Component} 집합이 그대로 연결된다.
      *
      * @param imageUrls 이미 업로드된 이미지 URL 목록(등록 순서대로 저장)
      * @param tags 연결할 태그 목록
+     * @param components 연결할 구성품 목록
      * @return 생성된 상품
      */
     public static Product create(
             Member member,
             Category category,
             String title,
+            String brand,
             String description,
             Long price,
             ProductCondition condition,
-            boolean hasDefect,
+            DefectStatus defectStatus,
             LocalDate purchasedAt,
             boolean allowPriceSuggestion,
             TradeMethod tradeMethod,
             DeliveryType deliveryType,
             String preferredTradeRegion,
             List<String> imageUrls,
-            Set<Tag> tags) {
+            Set<Tag> tags,
+            Set<Component> components) {
         Product product = Product.builder()
                 .member(member)
                 .category(category)
                 .title(title)
+                .brand(brand)
                 .description(description)
                 .price(price)
                 .condition(condition)
-                .hasDefect(hasDefect)
+                .defectStatus(defectStatus)
                 .purchasedAt(purchasedAt)
                 .allowPriceSuggestion(allowPriceSuggestion)
                 .tradeMethod(tradeMethod)
@@ -187,6 +206,7 @@ public class Product {
                 .build();
         product.replaceImages(imageUrls);
         product.addTags(tags);
+        product.addComponents(components);
         return product;
     }
 
@@ -201,29 +221,32 @@ public class Product {
     }
 
     /**
-     * 상품 정보를 전달된 값으로 전체 갱신한다. 이미지·태그는 이 메소드로 갱신되지 않으므로
-     * {@link #addImages}/{@link #clearImages}, {@link #addTags}/{@link #clearTags}를 별도로 호출해야 한다.
+     * 상품 정보를 전달된 값으로 전체 갱신한다. 이미지·태그·구성품은 이 메소드로 갱신되지 않으므로
+     * {@link #addImages}/{@link #clearImages}, {@link #addTags}/{@link #clearTags},
+     * {@link #addComponents}/{@link #clearComponents}를 별도로 호출해야 한다.
      * 구매 일시({@code purchasedAt})는 등록 시점에 확정되는 값이라 이 메소드로 변경되지 않는다.
      */
     public void update(
             Category category,
             String title,
+            String brand,
             String description,
             Long price,
             ProductStatus status,
             ProductCondition condition,
-            boolean hasDefect,
+            DefectStatus defectStatus,
             boolean allowPriceSuggestion,
             TradeMethod tradeMethod,
             DeliveryType deliveryType,
             String preferredTradeRegion) {
         this.category = category;
         this.title = title;
+        this.brand = brand;
         this.description = description;
         this.price = price;
         this.status = status;
         this.condition = condition;
-        this.hasDefect = hasDefect;
+        this.defectStatus = defectStatus;
         this.allowPriceSuggestion = allowPriceSuggestion;
         this.tradeMethod = tradeMethod;
         this.deliveryType = deliveryType;
@@ -278,5 +301,22 @@ public class Product {
             return;
         }
         this.tags.addAll(tags);
+    }
+
+    /** 연결된 구성품을 모두 제거한다. */
+    public void clearComponents() {
+        this.components.clear();
+    }
+
+    /**
+     * 구성품을 추가한다. {@code components}가 {@code null}이면 아무 동작도 하지 않는다.
+     *
+     * @param components 추가할 구성품 목록
+     */
+    public void addComponents(Set<Component> components) {
+        if (components == null) {
+            return;
+        }
+        this.components.addAll(components);
     }
 }

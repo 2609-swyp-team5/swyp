@@ -33,6 +33,7 @@ import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.platform.error.PlatformListingNotFoundException;
 import com.swyp.team5.platform.repository.PlatformListingRepository;
 import com.swyp.team5.product.dto.ListingSource;
+import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.TradeMethod;
@@ -282,16 +283,18 @@ class InterestServiceTest {
                 member,
                 category,
                 "아이폰 13",
+                null,
                 "설명",
                 500_000L,
                 ProductCondition.A,
-                false,
+                DefectStatus.NORMAL,
                 null,
                 true,
                 TradeMethod.DIRECT,
                 null,
                 null,
                 List.of("https://image.example.com/1.png"),
+                Set.of(),
                 Set.of());
         setField(product, "id", id);
         return product;

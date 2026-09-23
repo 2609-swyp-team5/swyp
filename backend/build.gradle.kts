@@ -59,6 +59,11 @@ dependencies {
 	implementation("com.google.api-client:google-api-client:2.7.2") // 구글 ID Token 검증(소셜 로그인)
 
 	// ==========================================
+	// 외부 플랫폼 매물 자동 등록 (번개장터 판매 등록 화면 브라우저 자동화)
+	// ==========================================
+	implementation("com.microsoft.playwright:playwright:1.52.0")
+
+	// ==========================================
 	// 모니터링
 	// ==========================================
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
@@ -183,4 +188,13 @@ tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
 
 tasks.getByName<Jar>("jar") {
 	enabled = false
+}
+
+// 번개장터 매물 자동 등록(Playwright)에 쓰는 Chromium 설치 - 최초 1회(서버/개발 환경마다) 실행
+tasks.register<JavaExec>("installPlaywrightChromium") {
+	group = "setup"
+	description = "Playwright용 Chromium 브라우저를 설치한다"
+	classpath = sourceSets["main"].runtimeClasspath
+	mainClass.set("com.microsoft.playwright.CLI")
+	args("install", "chromium")
 }

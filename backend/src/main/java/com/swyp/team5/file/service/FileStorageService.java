@@ -26,6 +26,10 @@ public class FileStorageService {
         return strategy().upload(file, directory);
     }
 
+    public List<FileUploadResponse> uploadAll(List<MultipartFile> files, String directory) {
+        return files.stream().map(file -> upload(file, directory)).toList();
+    }
+
     public void delete(String key) {
         strategy().delete(key);
     }

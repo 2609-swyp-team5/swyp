@@ -12,6 +12,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -24,6 +26,8 @@ import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.error.CategoryNotFoundException;
 import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.common.CursorPageResponse;
+import com.swyp.team5.component.entity.Component;
+import com.swyp.team5.component.repository.ComponentRepository;
 import com.swyp.team5.file.service.FileStorageService;
 import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.member.entity.Member;
@@ -36,6 +40,7 @@ import com.swyp.team5.product.dto.ProductListItemResponse;
 import com.swyp.team5.product.dto.ProductResponse;
 import com.swyp.team5.product.dto.ProductSummaryResponse;
 import com.swyp.team5.product.dto.ProductUpdateRequest;
+import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
@@ -52,6 +57,7 @@ import com.swyp.team5.tag.repository.TagRepository;
 /**
  * 상품(Product) 도메인의 등록/조회/수정/삭제를 담당하는 서비스.
  */
+@Slf4j
 @Service
 public class ProductService {
 
@@ -61,6 +67,7 @@ public class ProductService {
     private final FileStorageService fileStorageService;
     private final ProductAiService productAiService;
     private final TagRepository tagRepository;
+    private final ComponentRepository componentRepository;
     private final ProductAnalysisRepository productAnalysisRepository;
     private final PlatformListingRepository platformListingRepository;
     private final InterestRepository interestRepository;
@@ -73,6 +80,7 @@ public class ProductService {
             FileStorageService fileStorageService,
             ProductAiService productAiService,
             TagRepository tagRepository,
+            ComponentRepository componentRepository,
             ProductAnalysisRepository productAnalysisRepository,
             PlatformListingRepository platformListingRepository,
             InterestRepository interestRepository,
@@ -83,6 +91,7 @@ public class ProductService {
         this.fileStorageService = fileStorageService;
         this.productAiService = productAiService;
         this.tagRepository = tagRepository;
+        this.componentRepository = componentRepository;
         this.productAnalysisRepository = productAnalysisRepository;
         this.platformListingRepository = platformListingRepository;
         this.interestRepository = interestRepository;
@@ -90,75 +99,105 @@ public class ProductService {
     }
 
     /**
-     * 상품을 직접 등록한다.
+     * 상품을 직접 등록한다. AI 등록({@link #createFromImages})과 동일하게 이미지 파일을 직접 받아
+     * 업로드까지 이 안에서 처리한다. 판매 가격은 사용자가 입력한 값을 그대로 쓰고, AI 등록과 같은 사진
+     * 분석({@link ProductAiService#analyze})이 추정한 적정가와 그 판단 근거를 응답의 {@code suggestedPrice}/
+     * {@code analysisDescription}으로 함께 제공한다(참고용이라 AI 호출이 실패해도 등록은 성공하며 이때 두
+     * 필드는 null).
      *
      * @param memberId 등록하는 회원 ID
      * @param request 등록 요청 바디
+     * @param images 등록할 상품 이미지 목록(순서대로 저장)
      * @return 등록된 상품
      * @throws CategoryNotFoundException 존재하지 않는 카테고리인 경우
      */
     @Transactional
-    public ProductResponse create(Long memberId, ProductCreateRequest request) {
+    public ProductResponse create(Long memberId, ProductCreateRequest request, List<MultipartFile> images) {
         Member member = memberRepository.getReferenceById(memberId);
         Category category = getCategoryOrThrow(request.categoryId());
+        List<String> imageUrls = uploadImages(images);
 
         Product product = Product.create(
                 member,
                 category,
                 request.title(),
+                request.brand(),
                 request.description(),
                 request.price(),
                 request.condition(),
-                request.hasDefect(),
+                request.defectStatus(),
                 toPurchasedAt(request.purchasedMonths()),
                 request.allowPriceSuggestion(),
                 request.tradeMethod(),
                 request.deliveryType(),
                 request.preferredTradeRegion(),
-                request.imageUrls(),
-                resolveTags(request.tags()));
+                imageUrls,
+                resolveTags(request.tags()),
+                resolveComponents(request.includedItems()));
 
-        return ProductResponse.from(productRepository.save(product));
+        Product saved = productRepository.save(product);
+        ProductAiAnalysisResult analysis = analyzeOrNull(images);
+        return analysis == null
+                ? ProductResponse.from(saved)
+                : ProductResponse.fromAiAnalysis(saved, analysis.suggestedPrice(), analysis.analysisDescription());
+    }
+
+    private ProductAiAnalysisResult analyzeOrNull(List<MultipartFile> images) {
+        try {
+            return productAiService.analyze(images);
+        } catch (RuntimeException e) {
+            log.warn("직접 등록 AI 적정가 추정 실패 - suggestedPrice 없이 등록합니다. reason={}", e.getMessage());
+            return null;
+        }
     }
 
     /**
      * 상품 사진을 AI(Gemini)로 분석해 자동으로 등록한다. 가격은 AI가 추정한 참고용 시세로 채워지며
      * (실제 시세 데이터 기반은 아님, 등록 후 판매자가 직접 수정 가능), 거래 방식은 기본값
      * 직거래(DIRECT)로 등록되며, 배송 방법/희망 거래 지역은 비워둔 채 등록 후 수정으로 채운다.
-     * 구매 일시/결함 여부는 AI가 추론하지 않고 사용자가 직접 입력한 값을 그대로 사용한다.
+     * 구매 일시/결함 여부는 AI가 추론하지 않고 사용자가 직접 입력한 값을 그대로 사용한다. 브랜드는
+     * AI가 사진에서 식별해 채운다(식별 불가 시 null). 태그/구성품은 AI가 사진에서 추론한 목록과 사용자가
+     * 추가로 입력한 목록을 합쳐서 저장한다.
      *
      * @param memberId 등록하는 회원 ID
      * @param images 분석할 상품 이미지 목록
      * @param purchasedMonths 사용자가 입력한 구매 후 경과 개월 수(선택, 등록 시점 기준 구매일시로 변환)
-     * @param hasDefect 사용자가 입력한 결함 여부
+     * @param defectStatus 사용자가 입력한 결함(하자) 상태
+     * @param tags 사용자가 추가로 입력한 태그 이름 목록(선택, AI 추론 결과와 합쳐짐)
+     * @param includedItems 사용자가 추가로 입력한 구성품 이름 목록(선택, AI 추론 결과와 합쳐짐)
      * @return 등록된 상품
      * @throws CategoryNotFoundException 등록된 카테고리가 없거나 AI가 반환한 카테고리가 존재하지 않는 경우
      */
     @Transactional
     public ProductResponse createFromImages(
-            Long memberId, List<MultipartFile> images, Integer purchasedMonths, boolean hasDefect) {
+            Long memberId,
+            List<MultipartFile> images,
+            Integer purchasedMonths,
+            DefectStatus defectStatus,
+            List<String> tags,
+            List<String> includedItems) {
         Member member = memberRepository.getReferenceById(memberId);
         ProductAiAnalysisResult analysis = productAiService.analyze(images);
         Category category = getCategoryOrThrow(analysis.categoryId());
-        List<String> imageUrls = images.stream()
-                .map(image -> fileStorageService.upload(image, "products").url())
-                .toList();
+        List<String> imageUrls = uploadImages(images);
 
         Product product = Product.create(
                 member,
                 category,
                 analysis.title(),
+                analysis.brand(),
                 analysis.description(),
                 analysis.suggestedPrice(),
                 analysis.condition(),
-                hasDefect,
+                defectStatus,
                 toPurchasedAt(purchasedMonths),
                 true,
                 TradeMethod.DIRECT,
                 null,
                 null,
                 imageUrls,
-                resolveTags(analysis.tags()));
+                resolveTags(mergeNames(analysis.tags(), tags)),
+                resolveComponents(mergeNames(analysis.includedItems(), includedItems)));
 
         return ProductResponse.fromAiAnalysis(
                 productRepository.save(product), analysis.suggestedPrice(), analysis.analysisDescription());
@@ -346,11 +385,12 @@ public class ProductService {
         product.update(
                 category,
                 request.title(),
+                request.brand(),
                 request.description(),
                 request.price(),
                 request.status(),
                 request.condition(),
-                request.hasDefect(),
+                request.defectStatus(),
                 request.allowPriceSuggestion(),
                 request.tradeMethod(),
                 request.deliveryType(),
@@ -362,6 +402,9 @@ public class ProductService {
 
         product.clearTags();
         product.addTags(resolveTags(request.tags()));
+
+        product.clearComponents();
+        product.addComponents(resolveComponents(request.includedItems()));
 
         return ProductResponse.from(product);
     }
@@ -410,6 +453,19 @@ public class ProductService {
     }
 
     /**
+     * 이미지 파일 목록을 스토리지에 업로드하고 접근 URL 목록을 반환한다(요청 순서 유지). 직접 등록/AI
+     * 등록 모두 이 메서드로 업로드한다.
+     *
+     * @param images 업로드할 이미지 파일 목록
+     * @return 업로드된 이미지 URL 목록(요청 순서와 동일)
+     */
+    private List<String> uploadImages(List<MultipartFile> images) {
+        return images.stream()
+                .map(image -> fileStorageService.upload(image, "products").url())
+                .toList();
+    }
+
+    /**
      * 구매 후 경과 개월 수를 등록 시점 기준 구매일시로 변환한다. 이 값은 등록 시점에만 계산되며 이후
      * 수정으로는 변경되지 않는다.
      *
@@ -446,6 +502,49 @@ public class ProductService {
         Set<Tag> tags = new LinkedHashSet<>(existingTags);
         tags.addAll(newTags);
         return tags;
+    }
+
+    /**
+     * AI가 추론한 이름 목록(태그/구성품)과 사용자가 직접 입력한 이름 목록을 하나로 합친다(중복은
+     * {@link #resolveTags}/{@link #resolveComponents}에서 제거됨).
+     *
+     * @param aiInferredNames AI가 사진에서 추론한 이름 목록(null 가능)
+     * @param userInputNames 사용자가 직접 입력한 이름 목록(null 가능)
+     * @return 두 목록을 합친 이름 목록
+     */
+    private static List<String> mergeNames(List<String> aiInferredNames, List<String> userInputNames) {
+        return Stream.concat(
+                        aiInferredNames == null ? Stream.<String>empty() : aiInferredNames.stream(),
+                        userInputNames == null ? Stream.<String>empty() : userInputNames.stream())
+                .toList();
+    }
+
+    /**
+     * 구성품 이름 목록을 집합으로 변환한다.
+     * 이미 존재하는 구성품은 재사용한다.
+     * 존재하지 않는 이름은 새 구성품으로 저장한 뒤 함께 반환한다.
+     *
+     * @param componentNames 구성품 이름 목록
+     * @return 기존 구성품과 신규 생성된 구성품을 합친 집합
+     */
+    private Set<Component> resolveComponents(List<String> componentNames) {
+        if (componentNames == null || componentNames.isEmpty()) {
+            return Set.of();
+        }
+        List<String> distinctNames = componentNames.stream().distinct().toList();
+        List<Component> existingComponents = componentRepository.findAllByNameIn(distinctNames);
+        Set<String> existingNames =
+                existingComponents.stream().map(Component::getName).collect(Collectors.toSet());
+
+        List<Component> newComponents = distinctNames.stream()
+                .filter(name -> !existingNames.contains(name))
+                .map(Component::of)
+                .toList();
+        componentRepository.saveAll(newComponents);
+
+        Set<Component> components = new LinkedHashSet<>(existingComponents);
+        components.addAll(newComponents);
+        return components;
     }
 
     /**
