@@ -39,8 +39,8 @@ public record ProductResponse(
         List<String> tags, // 태그 이름 목록
         List<String> includedItems, // 구성품 이름 목록
         AnalysisRecommendation recommendation, // 가장 최근 시세 분석 판단(지금 팔기/기다리기 등), 분석 이력 없으면 null
-        Long suggestedPrice, // AI가 제안한 적정가(AI 등록 응답에만 포함, 그 외에는 null)
-        String analysisDescription, // AI가 상태 등급/적정가를 그렇게 판단한 근거(AI 등록 응답에만 포함, 그 외에는 null)
+        Long suggestedPrice, // AI가 제안한 적정가(직접/AI 등록 응답에만 포함, 그 외에는 null — DB에 저장하지 않음)
+        String analysisDescription, // AI가 상태 등급/적정가를 그렇게 판단한 근거(직접/AI 등록 응답에만 포함, 그 외에는 null)
         LocalDateTime createdAt, // 등록 일시
         LocalDateTime updatedAt) { // 수정 일시
 
@@ -54,8 +54,8 @@ public record ProductResponse(
     }
 
     /**
-     * AI 이미지 분석으로 등록한 직후, AI가 제안한 적정가({@code suggestedPrice})와 판단 근거
-     * ({@code analysisDescription})를 함께 내려줄 때 사용한다.
+     * 등록 직후, AI가 제안한 적정가({@code suggestedPrice})와 판단 근거({@code analysisDescription})를
+     * 함께 내려줄 때 사용한다(AI 등록, 그리고 AI 분석이 성공한 직접 등록).
      */
     public static ProductResponse fromAiAnalysis(Product product, Long suggestedPrice, String analysisDescription) {
         return from(product, null, suggestedPrice, analysisDescription);
