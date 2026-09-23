@@ -32,6 +32,9 @@ import com.swyp.team5.common.common.ErrorDetail;
 import com.swyp.team5.file.error.FileStorageException;
 import com.swyp.team5.interest.error.InterestAlreadyExistsException;
 import com.swyp.team5.interest.error.InterestNotFoundException;
+import com.swyp.team5.member.error.InvalidCurrentPasswordException;
+import com.swyp.team5.member.error.MemberNotFoundException;
+import com.swyp.team5.member.error.PasswordChangeNotAllowedException;
 import com.swyp.team5.platform.error.PlatformListingNotFoundException;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductNotFoundException;
@@ -56,7 +59,8 @@ public class GlobalExceptionHandler {
         InvalidCredentialsException.class,
         InvalidTokenException.class,
         InvalidSocialTokenException.class,
-        InvalidPasswordResetTokenException.class
+        InvalidPasswordResetTokenException.class,
+        InvalidCurrentPasswordException.class
     })
     public ResponseEntity<ApiResponse<Void>> handleAuthenticationFailure(RuntimeException e) {
         log.warn("인증 실패: {}", e.getMessage());
@@ -69,6 +73,12 @@ public class GlobalExceptionHandler {
         return errorResponse(HttpStatus.FORBIDDEN, "FORBIDDEN", e.getMessage());
     }
 
+    @ExceptionHandler(PasswordChangeNotAllowedException.class)
+    public ResponseEntity<ApiResponse<Void>> handlePasswordChangeNotAllowed(PasswordChangeNotAllowedException e) {
+        log.warn("비밀번호 변경 불가: {}", e.getMessage());
+        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
+    }
+
     @ExceptionHandler(UnsupportedSocialProviderException.class)
     public ResponseEntity<ApiResponse<Void>> handleUnsupportedSocialProvider(UnsupportedSocialProviderException e) {
         log.warn("지원하지 않는 소셜 로그인 provider: {}", e.getMessage());
@@ -79,7 +89,8 @@ public class GlobalExceptionHandler {
         ProductNotFoundException.class,
         CategoryNotFoundException.class,
         InterestNotFoundException.class,
-        PlatformListingNotFoundException.class
+        PlatformListingNotFoundException.class,
+        MemberNotFoundException.class
     })
     public ResponseEntity<ApiResponse<Void>> handleNotFound(RuntimeException e) {
         log.warn("리소스를 찾을 수 없음: {}", e.getMessage());
