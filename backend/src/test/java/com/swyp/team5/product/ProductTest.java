@@ -112,12 +112,26 @@ class ProductTest {
         ProductCreateRequest request = createRequest(category.getId());
         when(fileStorageService.upload(any(), eq("products")))
                 .thenReturn(new FileUploadResponse("key", "https://image.example.com/1.png", 3, "image/png"));
+        when(productAiService.analyze(anyList()))
+                .thenReturn(new ProductAiAnalysisResult(
+                        category.getId(),
+                        "AI 제목",
+                        null,
+                        "AI 설명",
+                        ProductCondition.A,
+                        470_000L,
+                        "판단 근거",
+                        List.of(),
+                        List.of()));
 
         mockMvc.perform(multipart("/products")
                         .file(imagePart())
                         .file(requestPart(request))
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.price").value(request.price())) // 사용자가 입력한 판매 가격
+                .andExpect(jsonPath("$.data.suggestedPrice").value(470_000)) // AI가 추정한 적정가
+                .andExpect(jsonPath("$.data.analysisDescription").value("판단 근거")) // 적정가 판단 근거
                 .andExpect(jsonPath("$.data.title").value("아이폰 13"))
                 .andExpect(jsonPath("$.data.brand").value("애플"))
                 .andExpect(jsonPath("$.data.memberId").value(sellerId))
@@ -269,8 +283,8 @@ class ProductTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.title").value("AI가 분석한 상품"))
                 .andExpect(jsonPath("$.data.brand").value("애플"))
-                .andExpect(jsonPath("$.data.price").value(300_000))
-                .andExpect(jsonPath("$.data.suggestedPrice").value(300_000))
+                .andExpect(jsonPath("$.data.price").value(300_000)) // AI가 추정한 적정가가 판매 가격으로
+                .andExpect(jsonPath("$.data.suggestedPrice").value(300_000)) // 같은 값을 AI 제안가로도 제공
                 .andExpect(jsonPath("$.data.analysisDescription").value("외관 상태가 양호해 A급 시세 대비 적정합니다."))
                 .andExpect(jsonPath("$.data.tradeMethod").value("DIRECT"))
                 .andExpect(jsonPath("$.data.defectStatus").value("ISSUES"))
@@ -279,9 +293,9 @@ class ProductTest {
                 .andExpect(jsonPath("$.data.purchasedMonths").value(3));
     }
 
-    // 상품 이미지 AI 분석 등록 성공 - 구성품 포함(AI가 사진에서 추론)
+    // 상품 이미지 AI 분석 등록 성공 - 태그/구성품은 AI 추론 결과와 사용자 입력을 합쳐서 저장
     @Test
-    void createFromImagesSucceedsWithIncludedItems() throws Exception {
+    void createFromImagesMergesUserInputWithAiInference() throws Exception {
         ProductAiAnalysisResult analysis = new ProductAiAnalysisResult(
                 category.getId(),
                 "AI가 분석한 상품",
@@ -290,8 +304,8 @@ class ProductTest {
                 ProductCondition.B,
                 300_000L,
                 "외관 상태가 양호해 A급 시세 대비 적정합니다.",
-                List.of(),
-                List.of("박스", "충전기"));
+                List.of("애플"),
+                List.of("박스"));
         when(productAiService.analyze(anyList())).thenReturn(analysis);
         when(fileStorageService.upload(any(), eq("products")))
                 .thenReturn(new FileUploadResponse("key", "https://image.example.com/ai.png", 3, "image/png"));
@@ -302,8 +316,11 @@ class ProductTest {
                         .file(image)
                         .param("purchasedMonths", "3")
                         .param("defectStatus", "NORMAL")
+                        .param("tags", "급처")
+                        .param("includedItems", "충전기")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.tags", containsInAnyOrder("애플", "급처")))
                 .andExpect(jsonPath("$.data.includedItems", containsInAnyOrder("박스", "충전기")));
     }
 

@@ -22,6 +22,10 @@ jwt:
   secret: ${TEST_JWT_SECRET}
   refresh-secret: ${TEST_JWT_REFRESH_SECRET}
 
+# 외부 플랫폼 세션 암호화 키. CI 테스트 전용 더미 키
+platform:
+  session-encryption-key: ${TEST_PLATFORM_SESSION_ENCRYPTION_KEY:dGVzdC1vbmx5LXNlc3Npb24ta2V5LTAxMjM0NTY3ODk=}
+
 # 시세 데이터 수집은 테스트 중 외부 API를 호출하지 않도록 비활성화
 crawl:
   bunjang:
