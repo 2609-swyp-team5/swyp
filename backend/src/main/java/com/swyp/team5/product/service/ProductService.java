@@ -12,6 +12,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -55,6 +57,7 @@ import com.swyp.team5.tag.repository.TagRepository;
 /**
  * 상품(Product) 도메인의 등록/조회/수정/삭제를 담당하는 서비스.
  */
+@Slf4j
 @Service
 public class ProductService {
 
@@ -97,7 +100,10 @@ public class ProductService {
 
     /**
      * 상품을 직접 등록한다. AI 등록({@link #createFromImages})과 동일하게 이미지 파일을 직접 받아
-     * 업로드까지 이 안에서 처리한다.
+     * 업로드까지 이 안에서 처리한다. 판매 가격은 사용자가 입력한 값을 그대로 쓰고, AI 등록과 같은 사진
+     * 분석({@link ProductAiService#analyze})이 추정한 적정가와 그 판단 근거를 응답의 {@code suggestedPrice}/
+     * {@code analysisDescription}으로 함께 제공한다(참고용이라 AI 호출이 실패해도 등록은 성공하며 이때 두
+     * 필드는 null).
      *
      * @param memberId 등록하는 회원 ID
      * @param request 등록 요청 바디
@@ -129,26 +135,47 @@ public class ProductService {
                 resolveTags(request.tags()),
                 resolveComponents(request.includedItems()));
 
-        return ProductResponse.from(productRepository.save(product));
+        Product saved = productRepository.save(product);
+        ProductAiAnalysisResult analysis = analyzeOrNull(images);
+        return analysis == null
+                ? ProductResponse.from(saved)
+                : ProductResponse.fromAiAnalysis(saved, analysis.suggestedPrice(), analysis.analysisDescription());
+    }
+
+    private ProductAiAnalysisResult analyzeOrNull(List<MultipartFile> images) {
+        try {
+            return productAiService.analyze(images);
+        } catch (RuntimeException e) {
+            log.warn("직접 등록 AI 적정가 추정 실패 - suggestedPrice 없이 등록합니다. reason={}", e.getMessage());
+            return null;
+        }
     }
 
     /**
      * 상품 사진을 AI(Gemini)로 분석해 자동으로 등록한다. 가격은 AI가 추정한 참고용 시세로 채워지며
      * (실제 시세 데이터 기반은 아님, 등록 후 판매자가 직접 수정 가능), 거래 방식은 기본값
      * 직거래(DIRECT)로 등록되며, 배송 방법/희망 거래 지역은 비워둔 채 등록 후 수정으로 채운다.
-     * 구매 일시/결함 여부는 AI가 추론하지 않고 사용자가 직접 입력한 값을 그대로 사용한다. 브랜드/구성품은
-     * AI가 사진에서 식별해 채운다(식별 불가 시 각각 null/빈 목록).
+     * 구매 일시/결함 여부는 AI가 추론하지 않고 사용자가 직접 입력한 값을 그대로 사용한다. 브랜드는
+     * AI가 사진에서 식별해 채운다(식별 불가 시 null). 태그/구성품은 AI가 사진에서 추론한 목록과 사용자가
+     * 추가로 입력한 목록을 합쳐서 저장한다.
      *
      * @param memberId 등록하는 회원 ID
      * @param images 분석할 상품 이미지 목록
      * @param purchasedMonths 사용자가 입력한 구매 후 경과 개월 수(선택, 등록 시점 기준 구매일시로 변환)
      * @param defectStatus 사용자가 입력한 결함(하자) 상태
+     * @param tags 사용자가 추가로 입력한 태그 이름 목록(선택, AI 추론 결과와 합쳐짐)
+     * @param includedItems 사용자가 추가로 입력한 구성품 이름 목록(선택, AI 추론 결과와 합쳐짐)
      * @return 등록된 상품
      * @throws CategoryNotFoundException 등록된 카테고리가 없거나 AI가 반환한 카테고리가 존재하지 않는 경우
      */
     @Transactional
     public ProductResponse createFromImages(
-            Long memberId, List<MultipartFile> images, Integer purchasedMonths, DefectStatus defectStatus) {
+            Long memberId,
+            List<MultipartFile> images,
+            Integer purchasedMonths,
+            DefectStatus defectStatus,
+            List<String> tags,
+            List<String> includedItems) {
         Member member = memberRepository.getReferenceById(memberId);
         ProductAiAnalysisResult analysis = productAiService.analyze(images);
         Category category = getCategoryOrThrow(analysis.categoryId());
@@ -169,8 +196,8 @@ public class ProductService {
                 null,
                 null,
                 imageUrls,
-                resolveTags(analysis.tags()),
-                resolveComponents(analysis.includedItems()));
+                resolveTags(mergeNames(analysis.tags(), tags)),
+                resolveComponents(mergeNames(analysis.includedItems(), includedItems)));
 
         return ProductResponse.fromAiAnalysis(
                 productRepository.save(product), analysis.suggestedPrice(), analysis.analysisDescription());
@@ -475,6 +502,21 @@ public class ProductService {
         Set<Tag> tags = new LinkedHashSet<>(existingTags);
         tags.addAll(newTags);
         return tags;
+    }
+
+    /**
+     * AI가 추론한 이름 목록(태그/구성품)과 사용자가 직접 입력한 이름 목록을 하나로 합친다(중복은
+     * {@link #resolveTags}/{@link #resolveComponents}에서 제거됨).
+     *
+     * @param aiInferredNames AI가 사진에서 추론한 이름 목록(null 가능)
+     * @param userInputNames 사용자가 직접 입력한 이름 목록(null 가능)
+     * @return 두 목록을 합친 이름 목록
+     */
+    private static List<String> mergeNames(List<String> aiInferredNames, List<String> userInputNames) {
+        return Stream.concat(
+                        aiInferredNames == null ? Stream.<String>empty() : aiInferredNames.stream(),
+                        userInputNames == null ? Stream.<String>empty() : userInputNames.stream())
+                .toList();
     }
 
     /**

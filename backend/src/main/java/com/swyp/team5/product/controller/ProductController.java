@@ -4,8 +4,10 @@ import java.util.List;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 
 import lombok.RequiredArgsConstructor;
 
@@ -74,12 +76,15 @@ public class ProductController {
     /**
      * 상품 사진을 업로드하면 AI(Gemini)가 상품 정보를 분석해 자동으로 등록한다.
      * 구매 일시/결함 여부는 AI가 추론하지 않고 사용자가 직접 입력한 값을 그대로 사용하며,
-     * 브랜드/구성품은 AI가 사진에서 식별해 채운다(식별 불가 시 각각 null/빈 목록).
+     * 브랜드는 AI가 사진에서 식별해 채운다(식별 불가 시 null). 태그/구성품은 AI가 사진에서 추론한 목록과
+     * 사용자가 추가로 입력한 목록을 합쳐서 저장한다.
      *
      * @param currentMember 인증된 요청자
      * @param images 분석할 상품 이미지 목록
      * @param purchasedMonths 사용자가 입력한 구매 후 경과 개월 수(선택, 0~6, 등록 시점 기준 구매일시로 변환)
      * @param defectStatus 사용자가 입력한 결함(하자) 상태(NORMAL/ISSUES/UNKNOWN, 대소문자 무관)
+     * @param tags 사용자가 추가로 입력한 태그 이름 목록(선택, AI 추론 결과와 합쳐짐)
+     * @param includedItems 사용자가 추가로 입력한 구성품 이름 목록(선택, AI 추론 결과와 합쳐짐)
      * @return 201 Created + 등록된 상품
      */
     @Operation(summary = "상품 이미지 AI 등록", description = "상품 사진을 업로드하면 AI(Gemini)가 상품 정보를 분석해 자동으로 등록한다.")
@@ -88,9 +93,11 @@ public class ProductController {
             @AuthenticationPrincipal PrincipalMember currentMember,
             @RequestParam("images") List<MultipartFile> images,
             @RequestParam(required = false) @PositiveOrZero @Max(6) Integer purchasedMonths,
-            @RequestParam DefectStatus defectStatus) {
-        ProductResponse response =
-                productService.createFromImages(currentMember.memberId(), images, purchasedMonths, defectStatus);
+            @RequestParam DefectStatus defectStatus,
+            @RequestParam(required = false) List<@NotBlank @Size(max = 50) String> tags,
+            @RequestParam(required = false) List<@NotBlank @Size(max = 50) String> includedItems) {
+        ProductResponse response = productService.createFromImages(
+                currentMember.memberId(), images, purchasedMonths, defectStatus, tags, includedItems);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
     }
 
