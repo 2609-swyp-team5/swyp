@@ -22,6 +22,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.platform.repository.PlatformListingRepository;
+import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.ProductStatus;
@@ -70,6 +71,7 @@ class ProductAnalysisServiceTest {
         lenient().when(product.getTitle()).thenReturn("아이패드 프로");
         lenient().when(product.getPrice()).thenReturn(price);
         lenient().when(product.getCondition()).thenReturn(ProductCondition.A);
+        lenient().when(product.getDefectStatus()).thenReturn(DefectStatus.NORMAL);
         return product;
     }
 

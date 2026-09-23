@@ -1,6 +1,7 @@
 package com.swyp.team5.product;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
@@ -9,7 +10,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -43,6 +43,7 @@ import com.swyp.team5.product.dto.ProductAiAnalysisResult;
 import com.swyp.team5.product.dto.ProductCreateRequest;
 import com.swyp.team5.product.dto.ProductStatusUpdateRequest;
 import com.swyp.team5.product.dto.ProductUpdateRequest;
+import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
@@ -101,22 +102,28 @@ class ProductTest {
         sellerId = seller.getId();
         sellerToken = jwtTokenProvider.createAccessToken(sellerId, MemberRole.USER);
         category = createCategory();
+        when(fileStorageService.upload(any(), eq("products")))
+                .thenReturn(new FileUploadResponse("key", "https://image.example.com/default.png", 3, "image/png"));
     }
 
-    // 상품 등록 성공
+    // 상품 등록 성공 - 이미지 파일을 직접 받아 서버가 업로드까지 처리(AI 등록과 동일한 방식)
     @Test
     void createSucceeds() throws Exception {
         ProductCreateRequest request = createRequest(category.getId());
+        when(fileStorageService.upload(any(), eq("products")))
+                .thenReturn(new FileUploadResponse("key", "https://image.example.com/1.png", 3, "image/png"));
 
-        mockMvc.perform(post("/products")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(multipart("/products")
+                        .file(imagePart())
+                        .file(requestPart(request))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.title").value("아이폰 13"))
+                .andExpect(jsonPath("$.data.brand").value("애플"))
                 .andExpect(jsonPath("$.data.memberId").value(sellerId))
                 .andExpect(jsonPath("$.data.category.id").value(category.getId()))
-                .andExpect(jsonPath("$.data.status").value("ON_SALE"));
+                .andExpect(jsonPath("$.data.status").value("ON_SALE"))
+                .andExpect(jsonPath("$.data.imageUrls[0]").value("https://image.example.com/1.png"));
 
         assertThat(productRepository.count()).isEqualTo(1);
     }
@@ -126,9 +133,7 @@ class ProductTest {
     void createFailsWithoutAuthentication() throws Exception {
         ProductCreateRequest request = createRequest(category.getId());
 
-        mockMvc.perform(post("/products")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(multipart("/products").file(imagePart()).file(requestPart(request)))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -138,23 +143,36 @@ class ProductTest {
         ProductCreateRequest invalidRequest = new ProductCreateRequest(
                 category.getId(),
                 "",
+                null,
                 "설명",
                 500_000L,
                 ProductCondition.A,
-                false,
+                DefectStatus.NORMAL,
                 null,
                 true,
                 TradeMethod.DIRECT,
                 null,
                 null,
-                List.of("https://image.example.com/1.png"),
+                List.of(),
                 List.of());
 
-        mockMvc.perform(post("/products")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(invalidRequest)))
+        mockMvc.perform(multipart("/products")
+                        .file(imagePart())
+                        .file(requestPart(invalidRequest))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isBadRequest());
+    }
+
+    // 상품 등록 실패 - 이미지가 없음
+    @Test
+    void createFailsWhenImagesEmpty() throws Exception {
+        ProductCreateRequest request = createRequest(category.getId());
+
+        mockMvc.perform(multipart("/products")
+                        .file(requestPart(request))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_INPUT_VALUE"));
     }
 
     // 상품 등록 실패 - 존재하지 않는 카테고리
@@ -162,10 +180,10 @@ class ProductTest {
     void createFailsWhenCategoryNotFound() throws Exception {
         ProductCreateRequest request = createRequest(999_999_999L);
 
-        mockMvc.perform(post("/products")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(multipart("/products")
+                        .file(imagePart())
+                        .file(requestPart(request))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value("NOT_FOUND"));
     }
@@ -176,22 +194,23 @@ class ProductTest {
         ProductCreateRequest invalidRequest = new ProductCreateRequest(
                 category.getId(),
                 "아이폰 13",
+                null,
                 "설명",
                 500_000L,
                 ProductCondition.A,
-                false,
+                DefectStatus.NORMAL,
                 -1,
                 true,
                 TradeMethod.DIRECT,
                 null,
                 null,
-                List.of("https://image.example.com/1.png"),
+                List.of(),
                 List.of());
 
-        mockMvc.perform(post("/products")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(invalidRequest)))
+        mockMvc.perform(multipart("/products")
+                        .file(imagePart())
+                        .file(requestPart(invalidRequest))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("INVALID_INPUT_VALUE"));
     }
@@ -202,22 +221,23 @@ class ProductTest {
         ProductCreateRequest invalidRequest = new ProductCreateRequest(
                 category.getId(),
                 "아이폰 13",
+                null,
                 "설명",
                 500_000L,
                 ProductCondition.A,
-                false,
+                DefectStatus.NORMAL,
                 7,
                 true,
                 TradeMethod.DIRECT,
                 null,
                 null,
-                List.of("https://image.example.com/1.png"),
+                List.of(),
                 List.of());
 
-        mockMvc.perform(post("/products")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(invalidRequest)))
+        mockMvc.perform(multipart("/products")
+                        .file(imagePart())
+                        .file(requestPart(invalidRequest))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("INVALID_INPUT_VALUE"));
     }
@@ -228,11 +248,13 @@ class ProductTest {
         ProductAiAnalysisResult analysis = new ProductAiAnalysisResult(
                 category.getId(),
                 "AI가 분석한 상품",
+                "애플",
                 "AI 설명",
                 ProductCondition.B,
                 300_000L,
                 "외관 상태가 양호해 A급 시세 대비 적정합니다.",
-                List.of("가성비"));
+                List.of("가성비"),
+                List.of());
         when(productAiService.analyze(anyList())).thenReturn(analysis);
         when(fileStorageService.upload(any(), eq("products")))
                 .thenReturn(new FileUploadResponse("key", "https://image.example.com/ai.png", 3, "image/png"));
@@ -242,18 +264,47 @@ class ProductTest {
         mockMvc.perform(multipart("/products/analyze")
                         .file(image)
                         .param("purchasedMonths", "3")
-                        .param("hasDefect", "true")
+                        .param("defectStatus", "issues") // 소문자로 보내도 대소문자 무관하게 처리되는지 검증
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.title").value("AI가 분석한 상품"))
+                .andExpect(jsonPath("$.data.brand").value("애플"))
                 .andExpect(jsonPath("$.data.price").value(300_000))
                 .andExpect(jsonPath("$.data.suggestedPrice").value(300_000))
                 .andExpect(jsonPath("$.data.analysisDescription").value("외관 상태가 양호해 A급 시세 대비 적정합니다."))
                 .andExpect(jsonPath("$.data.tradeMethod").value("DIRECT"))
-                .andExpect(jsonPath("$.data.hasDefect").value(true))
+                .andExpect(jsonPath("$.data.defectStatus").value("ISSUES"))
                 .andExpect(jsonPath("$.data.purchasedAt")
                         .value(LocalDate.now().minusMonths(3).toString()))
                 .andExpect(jsonPath("$.data.purchasedMonths").value(3));
+    }
+
+    // 상품 이미지 AI 분석 등록 성공 - 구성품 포함(AI가 사진에서 추론)
+    @Test
+    void createFromImagesSucceedsWithIncludedItems() throws Exception {
+        ProductAiAnalysisResult analysis = new ProductAiAnalysisResult(
+                category.getId(),
+                "AI가 분석한 상품",
+                null,
+                "AI 설명",
+                ProductCondition.B,
+                300_000L,
+                "외관 상태가 양호해 A급 시세 대비 적정합니다.",
+                List.of(),
+                List.of("박스", "충전기"));
+        when(productAiService.analyze(anyList())).thenReturn(analysis);
+        when(fileStorageService.upload(any(), eq("products")))
+                .thenReturn(new FileUploadResponse("key", "https://image.example.com/ai.png", 3, "image/png"));
+
+        MockMultipartFile image = new MockMultipartFile("images", "photo.png", "image/png", new byte[] {1, 2, 3});
+
+        mockMvc.perform(multipart("/products/analyze")
+                        .file(image)
+                        .param("purchasedMonths", "3")
+                        .param("defectStatus", "NORMAL")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.includedItems", containsInAnyOrder("박스", "충전기")));
     }
 
     // 상품 이미지 AI 분석 등록 실패 - 구매 후 경과 개월 수가 음수
@@ -264,7 +315,7 @@ class ProductTest {
         mockMvc.perform(multipart("/products/analyze")
                         .file(image)
                         .param("purchasedMonths", "-1")
-                        .param("hasDefect", "true")
+                        .param("defectStatus", "NORMAL")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("INVALID_INPUT_VALUE"));
@@ -278,7 +329,7 @@ class ProductTest {
         mockMvc.perform(multipart("/products/analyze")
                         .file(image)
                         .param("purchasedMonths", "7")
-                        .param("hasDefect", "true")
+                        .param("defectStatus", "NORMAL")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("INVALID_INPUT_VALUE"));
@@ -399,10 +450,10 @@ class ProductTest {
         Member other = memberRepository.save(Member.ofLocalSignUp(
                 "other-seller2@example.com", null, "encoded-password", "다른판매자2", "otherSeller2", null));
         String otherToken = jwtTokenProvider.createAccessToken(other.getId(), MemberRole.USER);
-        mockMvc.perform(post("/products")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(createRequest(category.getId()))))
+        mockMvc.perform(multipart("/products")
+                        .file(imagePart())
+                        .file(requestPart(createRequest(category.getId())))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(get("/products/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
@@ -533,10 +584,10 @@ class ProductTest {
 
     private Long createProduct(Category productCategory, String title, String token) throws Exception {
         ProductCreateRequest request = createRequest(productCategory.getId(), title);
-        String response = mockMvc.perform(post("/products")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+        String response = mockMvc.perform(multipart("/products")
+                        .file(imagePart())
+                        .file(requestPart(request))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
@@ -551,6 +602,17 @@ class ProductTest {
         return jwtTokenProvider.createAccessToken(other.getId(), MemberRole.USER);
     }
 
+    /** {@code images} 멀티파트 파트로 보낼 더미 이미지 파일 하나. */
+    private MockMultipartFile imagePart() {
+        return new MockMultipartFile("images", "photo.png", "image/png", new byte[] {1, 2, 3});
+    }
+
+    /** {@code data} 멀티파트 파트로 보낼 JSON 본문(등록 정보). */
+    private MockMultipartFile requestPart(ProductCreateRequest request) throws Exception {
+        return new MockMultipartFile(
+                "data", "data.json", MediaType.APPLICATION_JSON_VALUE, objectMapper.writeValueAsBytes(request));
+    }
+
     private ProductCreateRequest createRequest(Long categoryId) {
         return createRequest(categoryId, "아이폰 13");
     }
@@ -559,16 +621,17 @@ class ProductTest {
         return new ProductCreateRequest(
                 categoryId,
                 title,
+                "애플",
                 "설명",
                 500_000L,
                 ProductCondition.A,
-                false,
+                DefectStatus.NORMAL,
                 3,
                 true,
                 TradeMethod.DIRECT,
                 null,
                 "서울시 강남구",
-                List.of("https://image.example.com/1.png"),
+                List.of(),
                 List.of());
     }
 
@@ -576,16 +639,18 @@ class ProductTest {
         return new ProductUpdateRequest(
                 categoryId,
                 "아이폰 13 프로",
+                null,
                 "수정된 설명",
                 450_000L,
                 status,
                 ProductCondition.B,
-                true,
+                DefectStatus.ISSUES,
                 false,
                 TradeMethod.DELIVERY,
                 null,
                 null,
                 List.of("https://image.example.com/2.png"),
+                List.of(),
                 List.of());
     }
 
