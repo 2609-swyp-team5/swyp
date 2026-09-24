@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -24,8 +25,8 @@ export function SiteHeader() {
     return (
         <header className="border-border bg-background border-b">
             <div className="layout-container flex min-h-[var(--header-height)] items-center justify-between gap-6">
-                <Link href={logoHref} className="typography-heading-03 text-primary">
-                    지금이니?
+                <Link href={logoHref} className="shrink-0">
+                    <Image src="/logo.png" alt="지금이니?" width={100} height={55} />
                 </Link>
 
                 <nav
@@ -84,7 +85,7 @@ export function SiteHeader() {
                         <Button
                             type="button"
                             onClick={() => router.push("/login")}
-                            className="typography-body-medium h-auto rounded-full px-3 py-2"
+                            className="typography-body-medium h-auto rounded-full px-[30px] py-2.5"
                         >
                             로그인
                         </Button>

@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CircleAlert, Eye, EyeOff } from "lucide-react";
+import { ArrowRight, CircleAlert, Eye, EyeOff } from "lucide-react";
 
 import {
     AlertDialog,
@@ -102,155 +102,201 @@ export default function LoginPage() {
     }
 
     return (
-        <main className="bg-background flex flex-1 justify-center px-6 pt-16 pb-20 sm:pt-28">
-            <section aria-labelledby="page-title" className="w-full max-w-[1016px]">
-                <div className="mb-16 text-center sm:mb-20">
-                    <p className="text-base font-semibold sm:text-xl">
-                        AI와 함께하는 똑똑한 중고거래
-                    </p>
-                    <p className="text-primary mt-2 text-5xl font-bold tracking-tight sm:text-6xl">
-                        지금이니?
-                    </p>
-                </div>
+        <main className="bg-background flex-1 py-16 lg:py-28 dark:bg-white">
+            <div className="layout-container">
+                <section aria-labelledby="page-title" className="mx-auto w-full max-w-[840px]">
+                    <div className="text-center">
+                        <p className="typography-body-medium leading-[30px] font-semibold text-[#464646]">
+                            AI와 함께하는 똑똑한 중고거래
+                        </p>
+                        <p className="typography-heading-01 text-primary mt-2.5 dark:text-[#6653fb]">
+                            지금이니?
+                        </p>
+                    </div>
 
-                <h1 id="page-title" className="mb-10 text-3xl font-bold tracking-tight">
-                    로그인
-                </h1>
-
-                <form id="login-form" noValidate onSubmit={handleSubmit(onSubmit)}>
-                    <fieldset disabled={isBusy} className="space-y-5">
-                        <div>
-                            <Label className="mb-2 text-sm font-semibold" htmlFor="email">
-                                이메일
-                            </Label>
-                            <Input
-                                id="email"
-                                {...register("email")}
-                                aria-invalid={Boolean(errors.email)}
-                                aria-describedby={errors.email ? "email-error" : undefined}
-                                type="email"
-                                autoComplete="email"
-                                placeholder="이메일 주소를 입력해주세요"
-                                className="bg-background h-10 rounded-md px-5 text-sm"
-                            />
-                            {errors.email ? (
-                                <p
-                                    id="email-error"
-                                    role="alert"
-                                    className="text-destructive mt-1 text-sm"
-                                >
-                                    {errors.email.message}
-                                </p>
-                            ) : null}
-                        </div>
-
-                        <div>
-                            <Label className="mb-2 text-sm font-semibold" htmlFor="password">
-                                비밀번호
-                            </Label>
-                            <div className="relative">
-                                <Input
-                                    id="password"
-                                    {...register("password")}
-                                    aria-invalid={Boolean(errors.password)}
-                                    aria-describedby={
-                                        errors.password ? "password-error" : "password-hint"
-                                    }
-                                    type={showPassword ? "text" : "password"}
-                                    autoComplete="current-password"
-                                    placeholder="8자 이상, 영문/숫자 조합"
-                                    className="bg-background h-10 rounded-md pr-12 pl-5 text-sm"
-                                />
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 표시"}
-                                    aria-pressed={showPassword}
-                                    onClick={() => setShowPassword((value) => !value)}
-                                    className="text-muted-foreground absolute top-1 right-2"
-                                >
-                                    {showPassword ? <Eye /> : <EyeOff />}
-                                </Button>
-                            </div>
-                            {errors.password ? (
-                                <p
-                                    id="password-error"
-                                    role="alert"
-                                    className="text-destructive mt-1 text-sm"
-                                >
-                                    {errors.password.message}
-                                </p>
-                            ) : (
-                                <p
-                                    id="password-hint"
-                                    className="text-destructive mt-2 flex items-center gap-2 text-xs"
-                                >
-                                    <CircleAlert aria-hidden="true" className="size-3 shrink-0" />
-                                    비밀번호는 영문, 숫자, 특수문자를 포함해야 합니다.
-                                </p>
-                            )}
-                        </div>
-                    </fieldset>
-                </form>
-
-                <div className="mt-4 flex items-center gap-2">
-                    <Checkbox
-                        id="remember-login"
-                        checked={rememberEmail}
-                        onCheckedChange={handleRememberEmailChange}
-                        disabled={isBusy}
-                        className="data-[state=checked]:border-foreground data-[state=checked]:bg-foreground data-[state=checked]:text-background size-6"
-                    />
-                    <Label htmlFor="remember-login" className="text-muted-foreground text-base">
-                        아이디 저장
-                    </Label>
-                </div>
-                <PasswordResetModal />
-                <Link
-                    href="/signup"
-                    className="text-primary mt-2 ml-6 inline-block text-base underline underline-offset-2"
-                >
-                    회원가입
-                </Link>
-
-                <SocialLoginButtons {...socialLogin} isBusy={isBusy} />
-
-                <AlertDialog
-                    open={Boolean(errorMessage)}
-                    onOpenChange={(open) => {
-                        if (!open) setErrorMessage("");
-                    }}
-                >
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>로그인 오류</AlertDialogTitle>
-                            <AlertDialogDescription>{errorMessage}</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogAction>확인</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-
-                <div className="mt-14 flex justify-end gap-5">
-                    <Button
-                        asChild
-                        variant="secondary"
-                        className="text-muted-foreground h-14 flex-1 rounded-full bg-[#dedee6] text-lg font-bold sm:w-[216px] sm:flex-none"
+                    <h1
+                        id="page-title"
+                        className="typography-heading-03 mt-20 leading-[42px] font-bold text-[#363636]"
                     >
-                        <Link href="/home">비회원 로그인</Link>
-                    </Button>
+                        로그인
+                    </h1>
+
+                    <form
+                        id="login-form"
+                        noValidate
+                        onSubmit={handleSubmit(onSubmit)}
+                        className="mt-[30px]"
+                    >
+                        <fieldset disabled={isBusy} className="space-y-5">
+                            <div>
+                                <Label
+                                    className="typography-body-medium mb-2 text-[length:var(--type-body-medium-size)] leading-[30px] font-semibold text-[#363636]"
+                                    htmlFor="email"
+                                >
+                                    이메일
+                                </Label>
+                                <Input
+                                    id="email"
+                                    {...register("email")}
+                                    aria-invalid={Boolean(errors.email)}
+                                    aria-describedby={errors.email ? "email-error" : undefined}
+                                    type="email"
+                                    autoComplete="email"
+                                    placeholder="이메일 주소를 입력해주세요"
+                                    className="bg-background h-[41px] rounded-sm border-[#d3d3d3] px-5 text-base leading-[25px] font-normal tracking-normal text-[#363636] placeholder:text-[#6b6c7b] md:text-base dark:bg-white"
+                                />
+                                {errors.email ? (
+                                    <p
+                                        id="email-error"
+                                        role="alert"
+                                        className="mt-2 text-[13px] leading-5 text-[#fa503d]"
+                                    >
+                                        {errors.email.message}
+                                    </p>
+                                ) : null}
+                            </div>
+
+                            <div>
+                                <Label
+                                    className="typography-body-medium mb-2 text-[length:var(--type-body-medium-size)] leading-[30px] font-semibold text-[#363636]"
+                                    htmlFor="password"
+                                >
+                                    비밀번호
+                                </Label>
+                                <div className="relative">
+                                    <Input
+                                        id="password"
+                                        {...register("password")}
+                                        aria-invalid={Boolean(errors.password)}
+                                        aria-describedby={
+                                            errors.password ? "password-error" : "password-hint"
+                                        }
+                                        type={showPassword ? "text" : "password"}
+                                        autoComplete="current-password"
+                                        placeholder="8자 이상, 영문/숫자 조합"
+                                        className="bg-background h-9 rounded-sm border-[#d3d3d3] pr-12 pl-5 text-base leading-[25px] font-normal tracking-normal text-[#363636] placeholder:text-[#6b6c7b] md:text-base dark:bg-white"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        aria-label={
+                                            showPassword ? "비밀번호 숨기기" : "비밀번호 표시"
+                                        }
+                                        aria-pressed={showPassword}
+                                        onClick={() => setShowPassword((value) => !value)}
+                                        className="absolute top-[5px] right-2 text-[#6b6c7b]"
+                                    >
+                                        {showPassword ? (
+                                            <Eye className="size-5" />
+                                        ) : (
+                                            <EyeOff className="size-5" />
+                                        )}
+                                    </Button>
+                                </div>
+                                {errors.password ? (
+                                    <p
+                                        id="password-error"
+                                        role="alert"
+                                        className="mt-2 text-[13px] leading-5 text-[#fa503d]"
+                                    >
+                                        {errors.password.message}
+                                    </p>
+                                ) : (
+                                    <p
+                                        id="password-hint"
+                                        className="mt-2 flex items-center gap-2.5 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#fa503d]"
+                                    >
+                                        <CircleAlert
+                                            aria-hidden="true"
+                                            className="size-[15px] shrink-0"
+                                        />
+                                        비밀번호는 영문, 숫자, 특수문자를 포함해야 합니다.
+                                    </p>
+                                )}
+                            </div>
+                        </fieldset>
+                    </form>
+
                     <Button
                         type="submit"
                         form="login-form"
                         disabled={isBusy}
-                        className="h-14 flex-1 rounded-full text-lg font-bold sm:w-[216px] sm:flex-none"
+                        className="typography-body-medium bg-primary text-primary-foreground mt-[60px] h-[70px] w-full rounded-lg text-lg leading-[30px] font-semibold dark:bg-[#6653fb] dark:text-white"
                     >
-                        {isBusy ? "로그인 중..." : "로그인"}
+                        {isBusy ? "로그인 중..." : "로그인하기"}
                     </Button>
-                </div>
-            </section>
+
+                    <div className="mt-5 flex flex-wrap items-center justify-between gap-x-5 gap-y-3 text-base leading-[25px] font-semibold tracking-[0.5px]">
+                        <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+                            <div className="flex items-center gap-2">
+                                <Checkbox
+                                    id="remember-login"
+                                    checked={rememberEmail}
+                                    onCheckedChange={handleRememberEmailChange}
+                                    disabled={isBusy}
+                                    className="size-6 border-[#d3d3d3] bg-white data-[state=checked]:border-[#272727] data-[state=checked]:bg-[#272727] data-[state=checked]:text-white dark:bg-white dark:data-[state=checked]:bg-[#272727]"
+                                />
+                                <Label
+                                    htmlFor="remember-login"
+                                    className="text-base leading-[25px] font-semibold text-[#6b6c7b]"
+                                >
+                                    아이디 저장
+                                </Label>
+                            </div>
+                            <span
+                                aria-hidden="true"
+                                className="hidden h-6 w-px bg-[#d3d3d3] sm:block"
+                            />
+                            <PasswordResetModal />
+                        </div>
+                        <p className="flex items-center gap-[6px] px-2.5 text-[#6b6c7b]">
+                            <span>회원이 아니신가요?</span>
+                            <Link
+                                href="/signup"
+                                className="text-primary underline underline-offset-2 dark:text-[#6653fb]"
+                            >
+                                회원가입
+                            </Link>
+                        </p>
+                    </div>
+
+                    <div className="mt-[60px] border-t border-[#d3d3d3] pt-5">
+                        <SocialLoginButtons {...socialLogin} isBusy={isBusy} />
+                        <div className="mt-6 flex justify-end">
+                            <Link
+                                href="/home"
+                                className="group hover:text-primary focus-visible:text-primary inline-flex items-center gap-1.5 text-base leading-[25px] font-semibold text-[#6b6c7b]"
+                            >
+                                <span className="underline underline-offset-4">
+                                    비회원으로 둘러보기
+                                </span>
+                                <ArrowRight
+                                    aria-hidden="true"
+                                    className="size-4 transition-transform group-hover:translate-x-0.5"
+                                />
+                            </Link>
+                        </div>
+                    </div>
+
+                    <AlertDialog
+                        open={Boolean(errorMessage)}
+                        onOpenChange={(open) => {
+                            if (!open) setErrorMessage("");
+                        }}
+                    >
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>로그인 오류</AlertDialogTitle>
+                                <AlertDialogDescription>{errorMessage}</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogAction>확인</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </section>
+            </div>
         </main>
     );
 }

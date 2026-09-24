@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CircleHelp, CircleX, Info } from "lucide-react";
+import Image from "next/image";
 
 import { Alert, AlertDescription } from "@/common/components/ui/Alert";
 import {
@@ -71,42 +71,28 @@ export function PasswordResetModal() {
                 <Button
                     type="button"
                     variant="link"
-                    className="text-muted-foreground hover:text-foreground mt-2 h-auto rounded-none p-0 text-base font-medium underline underline-offset-2"
+                    className="h-auto rounded-none p-0 text-base leading-[25px] font-semibold tracking-[0.5px] text-[#6b6c7b] underline underline-offset-2 hover:text-[#363636]"
                 >
                     비밀번호 찾기
                 </Button>
             </DialogTrigger>
-            <DialogContent className="top-[8dvh] max-h-[84dvh] max-w-[640px] translate-y-0 gap-0 overflow-y-auto p-6 sm:p-8">
-                <div className="flex items-start justify-between gap-4">
-                    <div>
-                        <DialogTitle className="text-2xl leading-normal font-bold">
-                            비밀번호 찾기
-                        </DialogTitle>
-                        <DialogDescription className="mt-2">
-                            가입하신 이메일로 비밀번호 재설정 링크를 전송합니다.
-                        </DialogDescription>
-                    </div>
-                    <DialogClose asChild>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            aria-label="비밀번호 찾기 닫기"
-                            disabled={isBusy}
-                            className="text-muted-foreground shrink-0"
-                        >
-                            <CircleX aria-hidden="true" className="size-5" />
-                        </Button>
-                    </DialogClose>
+            <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-[608px] gap-6 overflow-y-auto rounded-xl border-0 bg-white p-6 shadow-[0_10px_12px_rgba(0,0,0,0.1)] sm:top-[45%] sm:p-8 dark:bg-white">
+                <div className="pr-10">
+                    <DialogTitle className="typography-heading-03 text-[length:var(--type-heading-03-size)] leading-[42px] font-bold tracking-[0.5px] text-[#363636]">
+                        비밀번호 찾기
+                    </DialogTitle>
+                    <DialogDescription className="mt-1.5 text-sm leading-[21px] font-semibold tracking-[0.07px] text-[#8f90a6]">
+                        가입하신 이메일로 비밀번호 재설정 링크를 전송합니다.
+                    </DialogDescription>
                 </div>
 
-                <form
-                    id="password-reset-form"
-                    noValidate
-                    onSubmit={handleSubmit(onSubmit)}
-                    className="mt-10"
-                >
-                    <Label htmlFor="password-reset-email" className="mb-2 text-base font-semibold">
+                <div aria-hidden="true" className="h-px w-full bg-[#f2f2f5]" />
+
+                <form id="password-reset-form" noValidate onSubmit={handleSubmit(onSubmit)}>
+                    <Label
+                        htmlFor="password-reset-email"
+                        className="mb-0.5 text-base leading-[25px] font-semibold tracking-[0.5px] text-[#363636]"
+                    >
                         가입 이메일 주소
                     </Label>
                     <Input
@@ -125,29 +111,41 @@ export function PasswordResetModal() {
                         aria-describedby={
                             errors.email ? "password-reset-error" : "password-reset-hint"
                         }
-                        className="h-14 rounded-md px-5 text-sm"
+                        className="bg-background h-[41px] rounded-sm border-[#d3d3d3] px-5 text-base leading-[25px] font-normal tracking-normal text-[#363636] placeholder:text-[#6b6c7b] md:text-base dark:bg-white"
                     />
                     {errors.email ? (
                         <p
                             id="password-reset-error"
                             role="alert"
-                            className="text-destructive mt-1 text-sm"
+                            className="text-destructive mt-2 text-[13px] leading-5"
                         >
                             {errors.email.message}
                         </p>
                     ) : null}
                     <p
                         id="password-reset-hint"
-                        className="text-muted-foreground mt-2 flex items-start gap-2 text-xs leading-5"
+                        className="mt-2 flex items-center gap-2 text-[10px] leading-[15px] tracking-[0.05px] text-[#6b7588]"
                     >
-                        <CircleHelp aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+                        <Image
+                            src="/auth/password-reset/status-info.svg"
+                            alt=""
+                            width={15}
+                            height={15}
+                            className="shrink-0"
+                        />
                         입력하신 이메일로 재설정 링크가 전송됩니다.
                     </p>
                 </form>
 
-                <Alert className="bg-primary/5 mt-6 border-0 px-4 py-4">
-                    <Info aria-hidden="true" className="text-primary size-4" />
-                    <AlertDescription className="text-foreground leading-5">
+                <Alert className="flex items-start gap-3 rounded-md border-0 bg-[#f2f1fa] p-4">
+                    <Image
+                        src="/auth/password-reset/banner-info.svg"
+                        alt=""
+                        width={18}
+                        height={18}
+                        className="shrink-0"
+                    />
+                    <AlertDescription className="text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6b6c7b]">
                         스팸 메일함으로 발송될 수 있으니 메일이 도착하지 않으면 확인해 주세요.
                     </AlertDescription>
                 </Alert>
@@ -174,13 +172,13 @@ export function PasswordResetModal() {
                     </Alert>
                 ) : null}
 
-                <div className="mt-6 flex justify-center gap-4">
+                <div className="flex flex-col-reverse items-stretch justify-center gap-3 sm:flex-row sm:items-center">
                     <DialogClose asChild>
                         <Button
                             type="button"
                             variant="outline"
                             disabled={isBusy}
-                            className="text-muted-foreground h-11 rounded-md px-6"
+                            className="h-11 rounded-full border-[#dedee6] bg-white px-10 text-sm font-semibold text-[#6b7588] dark:border-[#dedee6] dark:bg-white"
                         >
                             취소
                         </Button>
@@ -189,7 +187,7 @@ export function PasswordResetModal() {
                         type="submit"
                         form="password-reset-form"
                         disabled={isBusy}
-                        className="h-11 rounded-md px-6 font-semibold"
+                        className="bg-primary h-11 rounded-full px-6 text-lg font-semibold text-white sm:min-w-[220px] dark:bg-[#6653fb]"
                     >
                         {isBusy ? "전송 중..." : "재설정 링크 보내기"}
                     </Button>

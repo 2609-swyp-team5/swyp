@@ -23,16 +23,22 @@ export function GoogleLoginButton({
     const ariaLabel = isConfigured ? "Google 계정으로 로그인" : "Google 로그인 설정 필요";
 
     return (
-        <div className="relative flex size-9 items-center justify-center">
+        <div className="relative flex size-[45.27px] items-center justify-center">
             <Button
                 type="button"
                 variant="outline"
                 disabled={isDisabled}
                 aria-label={ariaLabel}
                 title={ariaLabel}
-                className={`size-9 rounded-lg border-[#e5e7eb] bg-white p-0 hover:bg-[#f8faff] ${isDisabled ? "opacity-50" : ""}`}
+                className={`size-[45.27px] rounded-[10px] border-[#e5e7eb] bg-white p-0 hover:bg-[#f8faff] ${isDisabled ? "opacity-50" : ""}`}
             >
-                <Image src="/auth/google.svg" alt="" width={20} height={20} />
+                <Image
+                    src="/auth/google.svg"
+                    alt=""
+                    width={20}
+                    height={20}
+                    className="scale-[1.2575]"
+                />
             </Button>
 
             {clientId && !isBusy ? (
@@ -43,13 +49,16 @@ export function GoogleLoginButton({
                             theme="outline"
                             size="large"
                             shape="square"
-                            width={36}
+                            width={45}
                             onSuccess={onSuccess}
                             onError={onError}
                             containerProps={{
                                 "aria-label": "Google 계정으로 로그인",
-                                className: "h-9 w-9 overflow-hidden",
-                                style: { height: 36, width: 36 },
+                                className: "overflow-hidden",
+                                style: {
+                                    height: 45,
+                                    width: 45,
+                                },
                             }}
                         />
                     </div>

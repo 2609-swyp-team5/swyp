@@ -17,7 +17,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 async function fillRequiredFields(page: Page) {
-    await page.getByLabel("이메일", { exact: true }).fill(signupRequest.email);
+    await page.getByLabel("이메일 주소", { exact: true }).fill(signupRequest.email);
     await page.getByLabel("비밀번호", { exact: true }).fill(signupRequest.password);
     await page.getByLabel("이름", { exact: true }).fill(signupRequest.name);
     await page.getByLabel("닉네임", { exact: true }).fill(signupRequest.nickname);
@@ -70,14 +70,14 @@ for (const phone of [signupRequest.phone, null]) {
         expect(request.headers()["content-type"]).toContain("application/json");
         expect(request.postDataJSON()).toEqual({ ...signupRequest, phone });
         await expect(page.getByRole("button", { name: "가입 중..." })).toBeDisabled();
-        await expect(page.getByLabel("이메일", { exact: true })).toBeDisabled();
+        await expect(page.getByLabel("이메일 주소", { exact: true })).toBeDisabled();
         releaseResponse();
         const dialog = page.getByRole("alertdialog", { name: "회원가입 완료" });
         await expect(dialog).toBeVisible();
         await expect(dialog).toContainText("회원가입이 완료되었습니다. 로그인해 주세요.");
         await expect(page).toHaveURL(/\/signup$/);
         await expect(page.locator("form")).toHaveCount(1);
-        await expect(page.getByLabel("이메일", { exact: true })).toHaveValue("");
+        await expect(page.getByLabel("이메일 주소", { exact: true })).toHaveValue("");
         await dialog.getByRole("button", { name: "확인", exact: true }).click();
         await expect(page).toHaveURL(/\/login$/);
         expect(pageErrors).toEqual([]);
@@ -129,9 +129,11 @@ test("shows the backend signup error and allows correcting the form", async ({ p
     await dialog.getByRole("button", { name: "확인", exact: true }).click();
     await expect(dialog).not.toBeVisible();
     await expect(page.locator('button[form="signup-form"]')).toBeEnabled();
-    await expect(page.getByLabel("이메일", { exact: true })).toHaveValue(signupRequest.email);
-    await page.getByLabel("이메일", { exact: true }).fill("another@example.com");
-    await expect(page.getByLabel("이메일", { exact: true })).toHaveValue("another@example.com");
+    await expect(page.getByLabel("이메일 주소", { exact: true })).toHaveValue(signupRequest.email);
+    await page.getByLabel("이메일 주소", { exact: true }).fill("another@example.com");
+    await expect(page.getByLabel("이메일 주소", { exact: true })).toHaveValue(
+        "another@example.com",
+    );
     await expect(page.getByText("회원가입이 완료되었습니다.")).toHaveCount(0);
     await page.getByRole("button", { name: "중복 확인", exact: true }).click();
     await expect(page.locator("#email-check-status")).toBeVisible();

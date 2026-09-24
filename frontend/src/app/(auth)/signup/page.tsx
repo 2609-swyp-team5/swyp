@@ -5,7 +5,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, CircleAlert, Eye, EyeOff } from "lucide-react";
+import { CircleAlert, Eye, EyeOff } from "lucide-react";
 
 import {
     AlertDialog,
@@ -101,25 +101,36 @@ export default function SignupPage() {
     };
 
     return (
-        <main className="bg-background flex flex-1 justify-center px-6 pt-16 pb-20 sm:pt-28">
-            <section aria-labelledby="page-title" className="w-full max-w-[1016px]">
-                <div className="mb-16 text-center sm:mb-20">
-                    <p className="text-base font-semibold sm:text-xl">
+        <main className="bg-background flex-1 pt-16 pb-20 lg:pt-28 dark:bg-white">
+            <section aria-labelledby="page-title" className="layout-container max-w-[840px]">
+                <div className="text-center">
+                    <p className="typography-body-medium leading-[30px] font-semibold text-[#464646]">
                         AI와 함께하는 똑똑한 중고거래
                     </p>
-                    <p className="text-primary mt-2 text-5xl font-bold tracking-tight sm:text-6xl">
+                    <p className="typography-heading-01 text-primary mt-2.5 dark:text-[#6653fb]">
                         지금이니?
                     </p>
                 </div>
 
-                <h1 id="page-title" className="mb-10 text-3xl font-bold tracking-tight">
+                <h1
+                    id="page-title"
+                    className="typography-heading-03 mt-20 leading-[42px] font-bold text-[#363636]"
+                >
                     회원가입
                 </h1>
 
-                <form id="signup-form" noValidate onSubmit={handleSubmit(onSubmit)}>
+                <form
+                    id="signup-form"
+                    noValidate
+                    onSubmit={handleSubmit(onSubmit)}
+                    className="mt-[50px]"
+                >
                     <fieldset disabled={isBusy} className="space-y-5">
                         <div>
-                            <Label className="mb-2 text-sm font-semibold" htmlFor="name">
+                            <Label
+                                className="typography-body-medium mb-2 text-[length:var(--type-body-medium-size)] leading-[30px] font-semibold text-[#363636]"
+                                htmlFor="name"
+                            >
                                 이름
                             </Label>
                             <Input
@@ -130,13 +141,13 @@ export default function SignupPage() {
                                 type="text"
                                 autoComplete="name"
                                 placeholder="이름을 입력하세요"
-                                className="bg-background h-10 rounded-md px-5 text-sm"
+                                className="bg-background h-[41px] rounded-sm border-[#d3d3d3] px-5 text-base leading-[25px] font-normal tracking-normal text-[#363636] placeholder:text-[#6b6c7b] md:text-base dark:bg-white"
                             />
                             {errors.name ? (
                                 <p
                                     id="name-error"
                                     role="alert"
-                                    className="text-destructive mt-1 text-sm"
+                                    className="mt-2 text-[13px] leading-5 text-[#fa503d]"
                                 >
                                     {errors.name.message}
                                 </p>
@@ -144,7 +155,10 @@ export default function SignupPage() {
                         </div>
 
                         <div>
-                            <Label className="mb-2 text-sm font-semibold" htmlFor="nickname">
+                            <Label
+                                className="typography-body-medium mb-2 text-[length:var(--type-body-medium-size)] leading-[30px] font-semibold text-[#363636]"
+                                htmlFor="nickname"
+                            >
                                 닉네임
                             </Label>
                             <Input
@@ -154,13 +168,13 @@ export default function SignupPage() {
                                 aria-describedby={errors.nickname ? "nickname-error" : undefined}
                                 type="text"
                                 placeholder="닉네임을 입력하세요"
-                                className="bg-background h-10 rounded-md px-5 text-sm"
+                                className="bg-background h-[41px] rounded-sm border-[#d3d3d3] px-5 text-base leading-[25px] font-normal tracking-normal text-[#363636] placeholder:text-[#6b6c7b] md:text-base dark:bg-white"
                             />
                             {errors.nickname ? (
                                 <p
                                     id="nickname-error"
                                     role="alert"
-                                    className="text-destructive mt-1 text-sm"
+                                    className="mt-2 text-[13px] leading-5 text-[#fa503d]"
                                 >
                                     {errors.nickname.message}
                                 </p>
@@ -168,7 +182,10 @@ export default function SignupPage() {
                         </div>
 
                         <div>
-                            <Label className="mb-2 text-sm font-semibold" htmlFor="phone">
+                            <Label
+                                className="typography-body-medium mb-2 text-[length:var(--type-body-medium-size)] leading-[30px] font-semibold text-[#363636]"
+                                htmlFor="phone"
+                            >
                                 휴대폰 번호 (선택)
                             </Label>
                             <Input
@@ -179,13 +196,13 @@ export default function SignupPage() {
                                 type="tel"
                                 autoComplete="tel"
                                 placeholder="휴대폰 번호 (- 제외 입력)"
-                                className="bg-background h-10 rounded-md px-5 text-sm"
+                                className="bg-background h-[41px] rounded-sm border-[#d3d3d3] px-5 text-base leading-[25px] font-normal tracking-normal text-[#363636] placeholder:text-[#6b6c7b] md:text-base dark:bg-white"
                             />
                             {errors.phone ? (
                                 <p
                                     id="phone-error"
                                     role="alert"
-                                    className="text-destructive mt-1 text-sm"
+                                    className="mt-2 text-[13px] leading-5 text-[#fa503d]"
                                 >
                                     {errors.phone.message}
                                 </p>
@@ -193,8 +210,11 @@ export default function SignupPage() {
                         </div>
 
                         <div>
-                            <Label className="mb-2 text-sm font-semibold" htmlFor="email">
-                                이메일
+                            <Label
+                                className="typography-body-medium mb-2 text-[length:var(--type-body-medium-size)] leading-[30px] font-semibold text-[#363636]"
+                                htmlFor="email"
+                            >
+                                이메일 주소
                             </Label>
                             <div className="flex gap-2">
                                 <Input
@@ -216,7 +236,7 @@ export default function SignupPage() {
                                     type="email"
                                     autoComplete="email"
                                     placeholder="example@email.com"
-                                    className="bg-background h-10 rounded-md px-5 text-sm"
+                                    className="bg-background h-[41px] rounded-sm border-[#d3d3d3] px-5 text-base leading-[25px] font-normal tracking-normal text-[#363636] placeholder:text-[#6b6c7b] md:text-base dark:bg-white"
                                 />
                                 <Button
                                     type="button"
@@ -231,7 +251,7 @@ export default function SignupPage() {
                                 <p
                                     id="email-error"
                                     role="alert"
-                                    className="text-destructive mt-1 text-sm"
+                                    className="mt-2 text-[13px] leading-5 text-[#fa503d]"
                                 >
                                     {errors.email.message}
                                 </p>
@@ -239,7 +259,7 @@ export default function SignupPage() {
                                 <p
                                     id="email-check-status"
                                     role="status"
-                                    className="mt-1 text-sm text-green-600"
+                                    className="mt-2 text-[13px] leading-5 text-green-600"
                                 >
                                     사용 가능한 이메일입니다.
                                 </p>
@@ -247,7 +267,10 @@ export default function SignupPage() {
                         </div>
 
                         <div>
-                            <Label className="mb-2 text-sm font-semibold" htmlFor="password">
+                            <Label
+                                className="typography-body-medium mb-2 text-[length:var(--type-body-medium-size)] leading-[30px] font-semibold text-[#363636]"
+                                htmlFor="password"
+                            >
                                 비밀번호
                             </Label>
                             <div className="relative">
@@ -261,7 +284,7 @@ export default function SignupPage() {
                                     type={showPassword ? "text" : "password"}
                                     autoComplete="new-password"
                                     placeholder="8자 이상, 영문/숫자 조합"
-                                    className="bg-background h-10 rounded-md pr-12 pl-5 text-sm"
+                                    className="bg-background h-9 rounded-sm border-[#d3d3d3] pr-12 pl-5 text-base leading-[25px] font-normal tracking-normal text-[#363636] placeholder:text-[#6b6c7b] md:text-base dark:bg-white"
                                 />
                                 <Button
                                     type="button"
@@ -270,25 +293,32 @@ export default function SignupPage() {
                                     aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 표시"}
                                     aria-pressed={showPassword}
                                     onClick={() => setShowPassword((value) => !value)}
-                                    className="text-muted-foreground absolute top-1 right-2"
+                                    className="absolute top-0.5 right-2 text-[#6b6c7b]"
                                 >
-                                    {showPassword ? <Eye /> : <EyeOff />}
+                                    {showPassword ? (
+                                        <Eye className="size-5" />
+                                    ) : (
+                                        <EyeOff className="size-5" />
+                                    )}
                                 </Button>
                             </div>
                             {errors.password ? (
                                 <p
                                     id="password-error"
                                     role="alert"
-                                    className="text-destructive mt-1 text-sm"
+                                    className="mt-2 text-[13px] leading-5 text-[#fa503d]"
                                 >
                                     {errors.password.message}
                                 </p>
                             ) : (
                                 <p
                                     id="password-hint"
-                                    className="text-destructive mt-2 flex items-center gap-2 text-xs"
+                                    className="mt-2 flex items-center gap-2.5 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#fa503d]"
                                 >
-                                    <CircleAlert aria-hidden="true" className="size-3 shrink-0" />
+                                    <CircleAlert
+                                        aria-hidden="true"
+                                        className="size-[15px] shrink-0"
+                                    />
                                     비밀번호는 영문과 숫자를 포함해 8~64자로 입력해 주세요.
                                 </p>
                             )}
@@ -298,17 +328,17 @@ export default function SignupPage() {
 
                 <fieldset
                     disabled={isBusy}
-                    className="border-border mt-10 space-y-3 border-y py-10"
+                    className="mt-10 space-y-[15px] border-t border-[#d3d3d3] pt-[50px]"
                 >
                     <div className="flex items-center gap-2">
                         <Checkbox
                             id="terms"
                             defaultChecked
-                            className="data-[state=checked]:border-foreground data-[state=checked]:bg-foreground data-[state=checked]:text-background size-6"
+                            className="size-6 border-[#d3d3d3] bg-[#fafbff] data-[state=checked]:border-[#272727] data-[state=checked]:bg-[#272727] data-[state=checked]:text-white dark:bg-[#fafbff] dark:data-[state=checked]:bg-[#272727] [&_[data-slot=checkbox-indicator]>svg]:size-[18px]"
                         />
                         <Label
                             htmlFor="terms"
-                            className="text-muted-foreground text-base leading-6"
+                            className="text-base leading-[25px] font-semibold tracking-[0.5px] break-keep text-[#6b6c7b]"
                         >
                             이용약관 및 개인정보 처리방침 동의 (필수)
                         </Label>
@@ -316,11 +346,11 @@ export default function SignupPage() {
                     <div className="flex items-center gap-2">
                         <Checkbox
                             id="marketing"
-                            className="data-[state=checked]:border-foreground data-[state=checked]:bg-foreground data-[state=checked]:text-background size-6"
+                            className="size-6 border-[#d3d3d3] bg-[#fafbff] data-[state=checked]:border-[#272727] data-[state=checked]:bg-[#272727] data-[state=checked]:text-white dark:bg-[#fafbff] dark:data-[state=checked]:bg-[#272727] [&_[data-slot=checkbox-indicator]>svg]:size-[18px]"
                         />
                         <Label
                             htmlFor="marketing"
-                            className="text-muted-foreground text-base leading-6"
+                            className="text-base leading-[25px] font-semibold tracking-[0.5px] break-keep text-[#6b6c7b]"
                         >
                             마케팅 정보 수신 및 이벤트 알림 동의 (선택)
                         </Label>
@@ -354,30 +384,27 @@ export default function SignupPage() {
                     </AlertDialogContent>
                 </AlertDialog>
 
-                <p className="text-muted-foreground mt-5 flex flex-wrap items-center gap-x-6 text-base">
-                    이미 계정이 있으신가요?{" "}
-                    <Link
-                        href="/login"
-                        className="text-foreground font-semibold underline underline-offset-2"
-                    >
-                        로그인하기
-                    </Link>
-                </p>
-                <SocialLoginButtons
-                    {...socialLogin}
-                    isBusy={isBusy}
-                    className="mt-4 border-t-0 pt-0"
-                />
+                <div className="mt-10 border-t border-[#d3d3d3] pt-[30px]">
+                    <SocialLoginButtons {...socialLogin} isBusy={isBusy} />
+                </div>
 
-                <div className="mt-14 flex justify-end">
+                <div className="mt-[30px] flex flex-wrap items-center justify-between gap-5">
+                    <p className="flex items-center gap-[6px] text-base leading-[25px] font-semibold text-[#6b6c7b]">
+                        <span>이미 계정이 있으신가요?</span>
+                        <Link
+                            href="/login"
+                            className="text-primary underline underline-offset-2 dark:text-[#6653fb]"
+                        >
+                            로그인하기
+                        </Link>
+                    </p>
                     <Button
                         type="submit"
                         form="signup-form"
                         disabled={isBusy}
-                        className="h-14 w-full gap-2 rounded-full text-base font-bold sm:w-[216px]"
+                        className="bg-primary text-primary-foreground ml-auto h-[58px] rounded-full px-[50px] text-lg leading-[30px] font-semibold tracking-[0.5px] dark:bg-[#6653fb] dark:text-white"
                     >
                         {isBusy ? "가입 중..." : "동의하고 가입하기"}
-                        <ArrowRight aria-hidden="true" />
                     </Button>
                 </div>
             </section>

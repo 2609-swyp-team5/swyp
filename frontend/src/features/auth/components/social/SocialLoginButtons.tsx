@@ -34,10 +34,12 @@ export function SocialLoginButtons({
     onAuthorize,
 }: SocialLoginButtonsProps) {
     return (
-        <div className={cn("border-border mt-10 w-full space-y-4 border-t pt-5", className)}>
-            <p className="text-muted-foreground text-left text-base">또는 소셜 계정으로 로그인</p>
+        <div className={cn("w-full space-y-[15px]", className)}>
+            <p className="typography-body-medium text-lg leading-[30px] font-semibold text-[#6b6c7b]">
+                또는 소셜 계정으로 로그인
+            </p>
 
-            <div className="flex gap-5">
+            <div className="flex gap-[15px]">
                 <NaverLoginButton
                     isConfigured={Boolean(naverClientId)}
                     isBusy={isBusy}
