@@ -247,3 +247,11 @@ npm run test:e2e
 - API 호출이 도메인 API 모듈을 거치는가?
 - 동작 변경에 맞는 단위 테스트 또는 E2E 테스트가 있는가?
 - 구조나 도구를 바꿨다면 이 문서도 함께 갱신했는가?
+
+## 11. 마이페이지 UI
+
+- `/my`, `/my/settings`, `/my/password`, `/my/notifications`, `/my/products`, `/my/platforms`, `/my/withdraw`는 공통 `MySidebar`와 `MyPageContent`를 사용한다.
+- 화면 예시 데이터는 `features/my/myPreviewData.ts`에 둔다. 새 화면의 입력·사진 미리보기·알림 토글·상품 필터·연결 확인·탈퇴 확인은 UI 상태만 변경하며 API를 호출하거나 영구 저장하지 않는다.
+- 기존 로그인 접근 제한과 로그아웃 mutation은 유지한다. 로그아웃은 회원 탈퇴 아래에 배치한다. 비밀번호 변경은 기존 비밀번호와 변경할 비밀번호 입력 UI만 제공하며 실제 변경 API는 호출하지 않는다.
+- 첫 번째 마이페이지 디자인을 기준으로 제목은 기존 `--type-heading-03-size`(30px), 사이드바는 `--type-body-medium-size`(20px), 본문·입력은 16px, 보조 문구는 13px로 통일한다. 색상은 `primary`, `foreground`, `muted-foreground`, `border`, `destructive` 등 기존 토큰을 우선 사용한다.
+- 알림과 상품 표에는 공통 `Switch`, `Table`을 사용하고, 패널은 공통 `Card`를 조합한 `MyPanel`을 사용한다.

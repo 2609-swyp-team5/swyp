@@ -111,7 +111,7 @@ export function PasswordResetModal() {
                         aria-describedby={
                             errors.email ? "password-reset-error" : "password-reset-hint"
                         }
-                        className="bg-background h-[41px] rounded-sm border-[#d3d3d3] px-5 text-base leading-[25px] font-normal tracking-normal text-[#363636] placeholder:text-[#6b6c7b] md:text-base dark:bg-white"
+                        className="text-foreground h-12 rounded-xl px-4 text-base md:text-base"
                     />
                     {errors.email ? (
                         <p

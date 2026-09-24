@@ -1,19 +1,87 @@
+"use client";
+
+import { useState } from "react";
+import { TriangleAlert } from "lucide-react";
+
+import { Button } from "@/common/components/ui/Button";
+import { Checkbox } from "@/common/components/ui/Checkbox";
+import { Label } from "@/common/components/ui/Label";
+import {
+    AlertDialog,
+    AlertDialogContent,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogCancel,
+    AlertDialogAction,
+} from "@/common/components/ui/AlertDialog";
+import { MyPageContent, MyPanel } from "@/features/my/components/MyPageContent";
+
 export default function MyWithdrawPage() {
+    const [agreed, setAgreed] = useState(false);
+    const [open, setOpen] = useState(false);
     return (
-        <main className="bg-muted/20 flex flex-1 px-6 py-12 lg:px-8">
-            <section
-                aria-labelledby="page-title"
-                className="mx-auto flex w-full max-w-7xl flex-col gap-8"
-            >
-                <div className="border-border bg-background rounded-2xl border p-8">
-                    <h1 id="page-title" className="text-3xl font-bold tracking-tight">
-                        회원 탈퇴
-                    </h1>
-                    <p className="text-muted-foreground mt-3 max-w-2xl">
-                        회원 탈퇴를 진행하는 화면입니다.
-                    </p>
+        <MyPageContent eyebrow="계정 관리" title="회원 탈퇴">
+            <div className="w-full space-y-6">
+                <div className="border-destructive/25 bg-destructive/5 text-destructive flex items-start gap-3 rounded-2xl border p-6">
+                    <TriangleAlert className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+                    <div>
+                        <h2 className="mb-2 text-base font-semibold">탈퇴 전 꼭 확인해주세요</h2>
+                        <ul className="list-disc space-y-2 pl-4 text-[13px] leading-5">
+                            <li>등록된 모든 상품과 분석 데이터가 삭제됩니다.</li>
+                            <li>연결된 중고 플랫폼 동기화가 해제됩니다.</li>
+                            <li>AI 추천 알림 이력이 모두 삭제됩니다.</li>
+                            <li>삭제된 계정과 데이터는 복구할 수 없습니다.</li>
+                        </ul>
+                    </div>
                 </div>
-            </section>
-        </main>
+                <MyPanel className="gap-6 p-6 sm:p-8">
+                    <p className="text-muted-foreground">
+                        탈퇴를 계속하려면 아래 내용에 동의하고 다음 단계로 진행해주세요.
+                    </p>
+                    <div className="flex items-start gap-3">
+                        <Checkbox
+                            id="withdraw-agreement"
+                            checked={agreed}
+                            onCheckedChange={(value) => setAgreed(value === true)}
+                            className="mt-1"
+                        />
+                        <Label
+                            htmlFor="withdraw-agreement"
+                            className="text-muted-foreground text-[13px] leading-5 font-normal"
+                        >
+                            위 내용을 모두 확인했으며, 계정 탈퇴에 동의합니다.
+                        </Label>
+                    </div>
+                    <Button
+                        disabled={!agreed}
+                        onClick={() => setOpen(true)}
+                        className="bg-destructive text-primary-foreground hover:bg-destructive/80 h-[50px] rounded-xl text-base font-semibold"
+                    >
+                        다음 단계
+                    </Button>
+                </MyPanel>
+            </div>
+            <AlertDialog open={open} onOpenChange={setOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>회원 탈퇴를 진행할까요?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            탈퇴 시 등록된 상품과 분석 데이터가 삭제되며 복구할 수 없습니다.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>취소</AlertDialogCancel>
+                        <AlertDialogAction
+                            className="bg-destructive text-primary-foreground hover:bg-destructive/80"
+                            onClick={() => setAgreed(false)}
+                        >
+                            탈퇴하기
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </MyPageContent>
     );
 }

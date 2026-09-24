@@ -33,7 +33,9 @@ for (const refreshSucceeds of [true, false]) {
             });
         });
         await page.goto("/my");
-        await expect(page.getByRole("heading", { name: "마이페이지", exact: true })).toBeVisible();
+        await expect(
+            page.getByRole("heading", { name: "안녕하세요, 김민준님 👋", exact: true }),
+        ).toBeVisible();
         await page
             .getByRole("navigation", { name: "마이페이지 메뉴" })
             .getByRole("button", { name: "로그아웃", exact: true })

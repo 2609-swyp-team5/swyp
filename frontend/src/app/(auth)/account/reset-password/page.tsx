@@ -102,7 +102,7 @@ export default function ResetPasswordPage() {
                                         aria-describedby={
                                             errors.newPassword ? "new-password-error" : undefined
                                         }
-                                        className="h-[45px] rounded-md border-[#dde5e9] bg-white pr-12 pl-5 text-base leading-[25px] font-normal text-[#363636] placeholder:text-[#6b7588] md:text-base dark:bg-white"
+                                        className="text-foreground h-12 rounded-xl pr-12 pl-4 text-base md:text-base"
                                     />
                                     <Button
                                         type="button"
@@ -115,7 +115,7 @@ export default function ResetPasswordPage() {
                                         }
                                         aria-pressed={showNewPassword}
                                         onClick={() => setShowNewPassword((value) => !value)}
-                                        className="absolute top-[calc(50%-1rem)] right-2 text-[#6b6c7b]"
+                                        className="text-muted-foreground absolute top-[calc(50%-1rem)] right-2"
                                     >
                                         {showNewPassword ? (
                                             <Eye className="size-5" />
@@ -157,7 +157,7 @@ export default function ResetPasswordPage() {
                                                 ? "confirm-password-error"
                                                 : undefined
                                         }
-                                        className="h-[45px] rounded-md border-[#dde5e9] bg-white pr-12 pl-5 text-base leading-[25px] font-normal text-[#363636] placeholder:text-[#6b7588] md:text-base dark:bg-white"
+                                        className="text-foreground h-12 rounded-xl pr-12 pl-4 text-base md:text-base"
                                     />
                                     <Button
                                         type="button"
@@ -170,7 +170,7 @@ export default function ResetPasswordPage() {
                                         }
                                         aria-pressed={showConfirmPassword}
                                         onClick={() => setShowConfirmPassword((value) => !value)}
-                                        className="absolute top-[calc(50%-1rem)] right-2 text-[#6b6c7b]"
+                                        className="text-muted-foreground absolute top-[calc(50%-1rem)] right-2"
                                     >
                                         {showConfirmPassword ? (
                                             <Eye className="size-5" />

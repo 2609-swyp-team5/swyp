@@ -28,12 +28,16 @@ test("restores my page access on reload and redirects after logout", async ({ pa
     const header = page.getByRole("banner");
     const profile = header.getByRole("link", { name: "프로필", exact: true });
     await expect(profile).toBeVisible();
-    await expect(page.getByRole("heading", { name: "마이페이지", exact: true })).toBeVisible();
+    await expect(
+        page.getByRole("heading", { name: "안녕하세요, 김민준님 👋", exact: true }),
+    ).toBeVisible();
     const menu = page.getByRole("navigation", { name: "마이페이지 메뉴" });
     await expect(menu.getByRole("button", { name: "로그아웃", exact: true })).toBeVisible();
 
     await page.reload();
-    await expect(page.getByRole("heading", { name: "마이페이지", exact: true })).toBeVisible();
+    await expect(
+        page.getByRole("heading", { name: "안녕하세요, 김민준님 👋", exact: true }),
+    ).toBeVisible();
     await expect(page).toHaveURL(/\/my$/);
 
     await page.route("**/auth/logout", (route) =>
