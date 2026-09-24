@@ -169,7 +169,7 @@ export function PasswordResetModal() {
                             type="button"
                             variant="outline"
                             disabled={isBusy}
-                            className="h-11 rounded-full border-[#dedee6] bg-white px-10 text-sm font-semibold text-[#6b7588] dark:border-[#dedee6] dark:bg-white"
+                            className="h-11 rounded-full border-[#dedee6] bg-white px-10 text-lg font-semibold text-[#6b7588] dark:border-[#dedee6] dark:bg-white"
                         >
                             취소
                         </Button>

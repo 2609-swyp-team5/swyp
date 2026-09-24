@@ -6,13 +6,16 @@ test("onboarding connects to the authentication flow", async ({ page }) => {
     await expect(page).toHaveTitle("지금이니?");
     await expect(page.getByRole("heading", { name: "지금 팔까, 더 갖고 있을까?" })).toBeVisible();
 
-    await page.getByRole("link", { name: "시작하기" }).click();
+    await page.getByRole("link", { name: "시작하기", exact: true }).click();
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.getByRole("heading", { name: "로그인" })).toBeVisible();
 
-    await page.getByRole("link", { name: "비회원 로그인" }).click();
+    await page.getByRole("link", { name: "비회원으로 둘러보기" }).click();
     await expect(page).toHaveURL(/\/home$/);
-    await expect(page.getByRole("link", { name: "홈" })).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("banner").getByRole("link", { name: "홈" })).toHaveAttribute(
+        "aria-current",
+        "page",
+    );
 
     await expect(page.getByRole("link", { name: "프로필", exact: true })).toHaveCount(0);
     await page.goto("/my");
@@ -60,5 +63,8 @@ test("home displays its page description", async ({ page }) => {
 
     await expect(page.getByRole("heading", { name: "서비스 홈" })).toBeVisible();
     await expect(page.getByText("서비스 홈 화면입니다.")).toBeVisible();
-    await expect(page.getByRole("link", { name: "홈" })).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("banner").getByRole("link", { name: "홈" })).toHaveAttribute(
+        "aria-current",
+        "page",
+    );
 });

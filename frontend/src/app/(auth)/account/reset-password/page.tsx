@@ -115,7 +115,7 @@ export default function ResetPasswordPage() {
                                         }
                                         aria-pressed={showNewPassword}
                                         onClick={() => setShowNewPassword((value) => !value)}
-                                        className="absolute top-1/2 right-2 -translate-y-1/2 text-[#6b6c7b]"
+                                        className="absolute top-[calc(50%-1rem)] right-2 text-[#6b6c7b]"
                                     >
                                         {showNewPassword ? (
                                             <Eye className="size-5" />
@@ -170,7 +170,7 @@ export default function ResetPasswordPage() {
                                         }
                                         aria-pressed={showConfirmPassword}
                                         onClick={() => setShowConfirmPassword((value) => !value)}
-                                        className="absolute top-1/2 right-2 -translate-y-1/2 text-[#6b6c7b]"
+                                        className="absolute top-[calc(50%-1rem)] right-2 text-[#6b6c7b]"
                                     >
                                         {showConfirmPassword ? (
                                             <Eye className="size-5" />
@@ -220,14 +220,14 @@ export default function ResetPasswordPage() {
                             <Button
                                 asChild
                                 variant="outline"
-                                className="h-11 rounded-full border-[#dedee6] bg-white px-10 text-sm font-semibold text-[#6b7588] dark:border-[#dedee6] dark:bg-white"
+                                className="h-11 rounded-full border-[#dedee6] bg-white px-10 text-lg font-semibold text-[#6b7588] dark:border-[#dedee6] dark:bg-white"
                             >
                                 <Link href="/login">취소</Link>
                             </Button>
                             <Button
                                 type="submit"
                                 disabled={isBusy}
-                                className="h-11 rounded-full px-6 text-sm font-semibold sm:w-[160px] dark:bg-[#6653fb]"
+                                className="h-11 rounded-full px-6 text-lg font-semibold sm:w-[160px] dark:bg-[#6653fb]"
                             >
                                 {isBusy ? "재설정 중..." : "비밀번호 재설정"}
                             </Button>

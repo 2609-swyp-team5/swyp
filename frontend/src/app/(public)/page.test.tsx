@@ -44,6 +44,10 @@ describe("Onboarding page", () => {
             screen.getByRole("heading", { name: "지금 팔까, 더 갖고 있을까?" }),
         ).toBeInTheDocument();
         expect(screen.getByRole("link", { name: "시작하기" })).toHaveAttribute("href", "/login");
+        expect(screen.getByRole("link", { name: "지금 시작하기" })).toHaveAttribute(
+            "href",
+            "/login",
+        );
         expect(mocks.replace).not.toHaveBeenCalled();
     });
 
@@ -53,6 +57,10 @@ describe("Onboarding page", () => {
 
         expect(screen.getByRole("main")).toBeInTheDocument();
         expect(screen.getByRole("link", { name: "시작하기" })).toHaveAttribute("href", "/home");
+        expect(screen.getByRole("link", { name: "지금 시작하기" })).toHaveAttribute(
+            "href",
+            "/home",
+        );
         expect(mocks.replace).not.toHaveBeenCalled();
     });
 
