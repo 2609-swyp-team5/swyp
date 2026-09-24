@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import type { MouseEvent } from "react";
 
 import { useAuthStore } from "@/features/auth/store/authStore";
 
@@ -38,7 +39,7 @@ function SectionHeading({ eyebrow, title }: { eyebrow: string; title: string }) 
     return (
         <div className="space-y-2.5">
             <p className="typography-body-medium text-muted-foreground font-semibold">{eyebrow}</p>
-            <h2 className="typography-heading-01 text-[#363636] max-md:text-[40px] max-md:leading-[1.25]">
+            <h2 className="typography-heading-01 text-[56px] text-[#363636] max-md:text-[40px] max-md:leading-[1.25]">
                 {title}
             </h2>
         </div>
@@ -59,9 +60,10 @@ export default function OnboardingPage() {
     const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
     const isInitialized = useAuthStore((state) => state.isInitialized);
 
-    if (!isInitialized) return null;
-
     const startHref = isLoggedIn ? "/home" : "/login";
+    const handleStartClick = (event: MouseEvent<HTMLAnchorElement>) => {
+        if (!isInitialized) event.preventDefault();
+    };
 
     return (
         <>
@@ -86,20 +88,26 @@ export default function OnboardingPage() {
                             </div>
                             <Link
                                 href={startHref}
+                                aria-disabled={!isInitialized}
+                                tabIndex={isInitialized ? undefined : -1}
+                                onClick={handleStartClick}
                                 className="typography-heading-03 bg-primary text-primary-foreground hover:bg-primary/80 inline-flex min-h-16 items-center justify-center rounded-full px-14 transition-colors"
                             >
                                 시작하기
                             </Link>
                         </div>
-                        <div className="relative mx-auto aspect-square w-full max-w-[543px] min-[1400px]:scale-[1.45]">
-                            <Image
-                                src="/onboarding/hero.png"
-                                alt="돋보기로 물건을 살펴보는 AI 캐릭터"
-                                fill
-                                priority
-                                sizes="(max-width: 1024px) 80vw, 543px"
-                                className="-scale-x-100 object-contain"
-                            />
+                        <div className="relative mx-auto aspect-[583/603] w-full max-w-[583px] overflow-hidden">
+                            <div className="absolute top-[9.95%] right-0 bottom-0 left-[10.29%]">
+                                <Image
+                                    src="/onboarding/hero.png"
+                                    alt="돋보기로 물건을 살펴보는 AI 캐릭터"
+                                    width={1123}
+                                    height={842}
+                                    priority
+                                    unoptimized
+                                    className="absolute top-[-14.17%] left-[-37.94%] h-[114.17%] w-[158.09%] max-w-none -scale-x-100"
+                                />
+                            </div>
                         </div>
                     </section>
 
@@ -203,7 +211,7 @@ export default function OnboardingPage() {
                     <div className="layout-container space-y-10 text-center">
                         <div className="space-y-7">
                             <div className="space-y-2.5">
-                                <h2 className="typography-heading-01 text-[#363636] max-md:text-[40px] max-md:leading-[1.25]">
+                                <h2 className="typography-heading-01 text-[56px] text-[#363636] max-md:text-[40px] max-md:leading-[1.25]">
                                     지금, 타이밍을 확인해보세요.
                                 </h2>
                                 <p className="typography-body-medium text-muted-foreground font-semibold">
@@ -212,6 +220,9 @@ export default function OnboardingPage() {
                             </div>
                             <Link
                                 href={startHref}
+                                aria-disabled={!isInitialized}
+                                tabIndex={isInitialized ? undefined : -1}
+                                onClick={handleStartClick}
                                 aria-label="지금 시작하기"
                                 className="typography-body-medium bg-primary text-primary-foreground hover:bg-primary/80 inline-flex min-h-[54px] items-center justify-center rounded-full px-14 font-semibold transition-colors"
                             >

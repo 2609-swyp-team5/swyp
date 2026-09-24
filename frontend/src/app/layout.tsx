@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { DM_Sans, Inter } from "next/font/google";
 import type { ReactNode } from "react";
 
+import { SiteFooter } from "@/common/components/layout/SiteFooter";
+import { SiteHeader } from "@/common/components/layout/SiteHeader";
 import AuthInitializer from "@/features/auth/components/AuthInitializer";
 import { QueryProvider } from "@/common/providers/QueryProvider";
 
@@ -30,7 +32,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <body className="flex min-h-full flex-col">
                 <QueryProvider>
                     <AuthInitializer />
-                    {children}
+                    <SiteHeader />
+                    <div className="flex flex-1 flex-col">{children}</div>
+                    <SiteFooter />
                 </QueryProvider>
             </body>
         </html>
