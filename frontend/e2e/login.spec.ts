@@ -49,7 +49,7 @@ test("redirects after login and prevents returning to the login page", async ({ 
         }),
     );
     await page.reload();
-    await page.getByRole("link", { name: "지금이니?", exact: true }).click();
+    await page.getByRole("banner").getByRole("link", { name: "지금이니?", exact: true }).click();
     await expect(page).toHaveURL(/\/home$/);
     await page.goto("/login");
     await expect(page).toHaveURL(/\/home$/);
