@@ -51,3 +51,8 @@ export interface EmailAvailabilityResponse {
 export interface PasswordResetRequest {
     email: string;
 }
+
+export interface PasswordResetConfirmRequest {
+    resetToken: string;
+    newPassword: string;
+}

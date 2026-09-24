@@ -5,6 +5,7 @@ import type {
     EmailAvailabilityResponse,
     LoginRequest,
     LoginResponse,
+    PasswordResetConfirmRequest,
     PasswordResetRequest,
     SignUpRequest,
     SignUpResponse,
@@ -40,4 +41,8 @@ export const authApi = {
     // 비밀번호 재설정 메일 발송 요청
     authPasswordReset: (params: PasswordResetRequest) =>
         api.post<ApiResponse<null>>("/auth/password/reset", params),
+
+    // 메일 링크의 토큰과 새 비밀번호로 재설정 확정
+    authPasswordResetConfirm: (params: PasswordResetConfirmRequest) =>
+        api.patch<ApiResponse<null>>("/auth/password/reset", params),
 };

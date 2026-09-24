@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import Image from "next/image";
+import { Info } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/common/components/ui/Alert";
 import {
@@ -126,25 +126,16 @@ export function PasswordResetModal() {
                         id="password-reset-hint"
                         className="mt-2 flex items-center gap-2 text-[10px] leading-[15px] tracking-[0.05px] text-[#6b7588]"
                     >
-                        <Image
-                            src="/auth/password-reset/status-info.svg"
-                            alt=""
-                            width={15}
-                            height={15}
-                            className="shrink-0"
+                        <Info
+                            aria-hidden="true"
+                            className="relative -top-px size-[15px] shrink-0 text-[#8f90a6]"
                         />
                         입력하신 이메일로 재설정 링크가 전송됩니다.
                     </p>
                 </form>
 
-                <Alert className="flex items-start gap-3 rounded-md border-0 bg-[#f2f1fa] p-4">
-                    <Image
-                        src="/auth/password-reset/banner-info.svg"
-                        alt=""
-                        width={18}
-                        height={18}
-                        className="shrink-0"
-                    />
+                <Alert className="flex items-center gap-3 rounded-md border-0 bg-[#f2f1fa] p-4 text-[#6653fb] *:[svg]:translate-y-0">
+                    <Info aria-hidden="true" className="relative -top-px size-[18px] shrink-0" />
                     <AlertDescription className="text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6b6c7b]">
                         스팸 메일함으로 발송될 수 있으니 메일이 도착하지 않으면 확인해 주세요.
                     </AlertDescription>

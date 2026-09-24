@@ -209,7 +209,7 @@ export default function LoginPage() {
                                     >
                                         <CircleAlert
                                             aria-hidden="true"
-                                            className="size-[15px] shrink-0"
+                                            className="relative -top-px size-[15px] shrink-0"
                                         />
                                         비밀번호는 영문, 숫자, 특수문자를 포함해야 합니다.
                                     </p>

@@ -18,7 +18,8 @@ export function SiteHeader() {
     const router = useRouter();
     const isProfileActive = isRouteActive(pathname, "/my");
     const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
-    const isAuthPage = pathname === "/login" || pathname === "/signup";
+    const isAuthPage =
+        pathname === "/login" || pathname === "/signup" || pathname === "/account/reset-password";
     const hideMenus = pathname === "/" || isAuthPage;
     const logoHref = isAuthPage || (pathname === "/" && !isLoggedIn) ? "/" : "/home";
 

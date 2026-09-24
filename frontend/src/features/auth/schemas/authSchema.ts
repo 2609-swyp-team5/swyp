@@ -5,6 +5,14 @@ const emailSchema = z
     .min(1, "이메일을 입력해 주세요.")
     .email("올바른 이메일 형식을 입력해 주세요.");
 
+const passwordSchema = z
+    .string()
+    .min(1, "비밀번호를 입력해 주세요.")
+    .regex(
+        /^(?=.*[A-Za-z])(?=.*\d).{8,64}$/,
+        "비밀번호는 영문과 숫자를 포함해 8~64자로 입력해 주세요.",
+    );
+
 export const loginSchema = z.object({
     email: emailSchema,
     password: z.string().refine((value) => value.trim().length > 0, "비밀번호를 입력해 주세요."),
@@ -12,13 +20,7 @@ export const loginSchema = z.object({
 
 export const signUpSchema = z.object({
     email: emailSchema,
-    password: z
-        .string()
-        .min(1, "비밀번호를 입력해 주세요.")
-        .regex(
-            /^(?=.*[A-Za-z])(?=.*\d).{8,64}$/,
-            "비밀번호는 영문과 숫자를 포함해 8~64자로 입력해 주세요.",
-        ),
+    password: passwordSchema,
     name: z
         .string()
         .max(50, "이름은 50자 이하로 입력해 주세요.")
@@ -38,3 +40,13 @@ export type SignUpFormValues = z.input<typeof signUpSchema>;
 export const passwordResetSchema = z.object({
     email: emailSchema,
 });
+
+export const passwordResetConfirmSchema = z
+    .object({
+        newPassword: passwordSchema,
+        confirmPassword: z.string().min(1, "비밀번호를 다시 입력해 주세요."),
+    })
+    .refine((values) => values.newPassword === values.confirmPassword, {
+        path: ["confirmPassword"],
+        message: "비밀번호가 일치하지 않습니다.",
+    });
