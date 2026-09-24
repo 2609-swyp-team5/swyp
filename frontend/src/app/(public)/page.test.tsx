@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useAuthStore } from "@/features/auth/store/authStore";
@@ -68,7 +68,10 @@ describe("Onboarding page", () => {
         useAuthStore.setState({ isInitialized: false });
         renderOnboarding();
 
-        expect(screen.queryByRole("main")).not.toBeInTheDocument();
+        expect(screen.getByRole("main")).toBeInTheDocument();
+        const startLink = screen.getByRole("link", { name: "시작하기" });
+        expect(startLink).toHaveAttribute("aria-disabled", "true");
+        expect(fireEvent.click(startLink)).toBe(false);
         expect(mocks.replace).not.toHaveBeenCalled();
 
         act(() => {
@@ -77,6 +80,10 @@ describe("Onboarding page", () => {
 
         expect(screen.getByRole("main")).toBeInTheDocument();
         expect(screen.getByRole("link", { name: "시작하기" })).toHaveAttribute("href", "/home");
+        expect(screen.getByRole("link", { name: "시작하기" })).toHaveAttribute(
+            "aria-disabled",
+            "false",
+        );
         expect(mocks.replace).not.toHaveBeenCalled();
     });
 
