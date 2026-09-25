@@ -2,12 +2,27 @@
 
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff } from "lucide-react";
 
 import { Button } from "@/common/components/ui/Button";
 import { Input } from "@/common/components/ui/Input";
 import { Label } from "@/common/components/ui/Label";
 import { MyPageContent, MyPanel } from "@/features/my/components/MyPageContent";
+import {
+    AlertDialog,
+    AlertDialogContent,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogAction,
+} from "@/common/components/ui/AlertDialog";
+import { getApiErrorMessage } from "@/common/lib/api/error";
+import { useAuthStore } from "@/features/auth/store/authStore";
+import { useChangePasswordMutation } from "@/features/member/hooks/mutations/useChangePasswordMutation";
+import { passwordChangeSchema } from "@/features/member/schemas/memberSchema";
+import type { PasswordChangeRequest } from "@/features/member/types";
 
 const fields = [
     { name: "currentPassword", label: "기존 비밀번호", autoComplete: "current-password" },
@@ -16,8 +31,21 @@ const fields = [
 
 export default function MyPasswordPage() {
     const [visible, setVisible] = useState({ currentPassword: false, newPassword: false });
-    const [submitted, setSubmitted] = useState(false);
-    const { register, handleSubmit } = useForm({
+    const clearAuth = useAuthStore((state) => state.clearAuth);
+    const {
+        mutate: changePassword,
+        isPending,
+        isSuccess,
+        error,
+        reset: resetMutation,
+    } = useChangePasswordMutation();
+    const {
+        register,
+        handleSubmit,
+        reset,
+        formState: { errors },
+    } = useForm<PasswordChangeRequest>({
+        resolver: zodResolver(passwordChangeSchema),
         defaultValues: { currentPassword: "", newPassword: "" },
     });
 
@@ -25,8 +53,19 @@ export default function MyPasswordPage() {
         <MyPageContent eyebrow="계정 설정" title="비밀번호 변경">
             <MyPanel className="w-full p-6 sm:p-8">
                 <form
-                    onSubmit={handleSubmit(() => setSubmitted(true))}
-                    onChange={() => setSubmitted(false)}
+                    noValidate
+                    onSubmit={handleSubmit((values) => {
+                        if (isPending || isSuccess) return;
+                        changePassword(values, {
+                            onSuccess: () => {
+                                reset();
+                                setVisible({ currentPassword: false, newPassword: false });
+                            },
+                        });
+                    })}
+                    onChange={() => {
+                        if (error) resetMutation();
+                    }}
                     className="space-y-7"
                 >
                     {fields.map(({ name, label, autoComplete }) => (
@@ -42,8 +81,14 @@ export default function MyPasswordPage() {
                                     autoComplete={autoComplete}
                                     placeholder={`${label}를 입력해 주세요`}
                                     required
+                                    disabled={isPending || isSuccess}
+                                    aria-invalid={Boolean(errors[name])}
                                     aria-describedby={
-                                        name === "newPassword" ? "password-hint" : undefined
+                                        errors[name]
+                                            ? `${name}-error`
+                                            : name === "newPassword"
+                                              ? "password-hint"
+                                              : undefined
                                     }
                                     className="h-12 rounded-xl pr-12 pl-4 text-base md:text-base"
                                 />
@@ -51,6 +96,7 @@ export default function MyPasswordPage() {
                                     type="button"
                                     variant="ghost"
                                     size="icon"
+                                    disabled={isPending || isSuccess}
                                     aria-label={`${label} ${visible[name] ? "숨기기" : "표시"}`}
                                     aria-pressed={visible[name]}
                                     onClick={() =>
@@ -68,6 +114,15 @@ export default function MyPasswordPage() {
                                     )}
                                 </Button>
                             </div>
+                            {errors[name] ? (
+                                <p
+                                    id={`${name}-error`}
+                                    role="alert"
+                                    className="text-destructive text-[13px] leading-5"
+                                >
+                                    {errors[name]?.message}
+                                </p>
+                            ) : null}
                             {name === "newPassword" ? (
                                 <p
                                     id="password-hint"
@@ -80,17 +135,36 @@ export default function MyPasswordPage() {
                     ))}
                     <Button
                         type="submit"
+                        disabled={isPending || isSuccess}
                         className="h-[50px] w-full rounded-xl text-base font-semibold"
                     >
-                        비밀번호 변경
+                        {isPending ? "변경 중..." : "비밀번호 변경"}
                     </Button>
-                    {submitted ? (
-                        <p role="status" className="text-muted-foreground text-center text-[13px]">
-                            비밀번호 변경 기능은 준비 중입니다.
+                    {error ? (
+                        <p role="alert" className="text-destructive text-center text-[13px]">
+                            {getApiErrorMessage(error)}
                         </p>
                     ) : null}
                 </form>
             </MyPanel>
+            <AlertDialog
+                open={isSuccess}
+                onOpenChange={(open) => {
+                    if (!open && isSuccess) clearAuth();
+                }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>비밀번호가 변경되었습니다.</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            변경한 비밀번호로 다시 로그인해 주세요.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogAction>확인</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </MyPageContent>
     );
 }

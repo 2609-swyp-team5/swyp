@@ -1,3 +1,8 @@
+export interface PasswordChangeRequest {
+    currentPassword: string;
+    newPassword: string;
+}
+
 export interface MemberResponse {
     memberId: number;
     email: string | null;
