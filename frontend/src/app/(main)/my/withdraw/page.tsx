@@ -17,10 +17,13 @@ import {
     AlertDialogAction,
 } from "@/common/components/ui/AlertDialog";
 import { MyPageContent, MyPanel } from "@/features/my/components/MyPageContent";
+import { getApiErrorMessage } from "@/common/lib/api/error";
+import { useWithdrawMutation } from "@/features/member/hooks/mutations/useWithdrawMutation";
 
 export default function MyWithdrawPage() {
     const [agreed, setAgreed] = useState(false);
     const [open, setOpen] = useState(false);
+    const { mutate: withdraw, isPending, error, reset } = useWithdrawMutation();
     return (
         <MyPageContent eyebrow="계정 관리" title="회원 탈퇴">
             <div className="w-full space-y-6">
@@ -44,6 +47,7 @@ export default function MyWithdrawPage() {
                         <Checkbox
                             id="withdraw-agreement"
                             checked={agreed}
+                            disabled={isPending}
                             onCheckedChange={(value) => setAgreed(value === true)}
                             className="mt-1"
                         />
@@ -55,15 +59,23 @@ export default function MyWithdrawPage() {
                         </Label>
                     </div>
                     <Button
-                        disabled={!agreed}
-                        onClick={() => setOpen(true)}
+                        disabled={!agreed || isPending}
+                        onClick={() => {
+                            reset();
+                            setOpen(true);
+                        }}
                         className="bg-destructive text-primary-foreground hover:bg-destructive/80 h-[50px] rounded-xl text-base font-semibold"
                     >
                         다음 단계
                     </Button>
                 </MyPanel>
             </div>
-            <AlertDialog open={open} onOpenChange={setOpen}>
+            <AlertDialog
+                open={open}
+                onOpenChange={(value) => {
+                    if (!isPending) setOpen(value);
+                }}
+            >
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>회원 탈퇴를 진행할까요?</AlertDialogTitle>
@@ -71,13 +83,22 @@ export default function MyWithdrawPage() {
                             탈퇴 시 등록된 상품과 분석 데이터가 삭제되며 복구할 수 없습니다.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
+                    {error ? (
+                        <p role="alert" className="text-destructive text-sm">
+                            {getApiErrorMessage(error)}
+                        </p>
+                    ) : null}
                     <AlertDialogFooter>
-                        <AlertDialogCancel>취소</AlertDialogCancel>
+                        <AlertDialogCancel disabled={isPending}>취소</AlertDialogCancel>
                         <AlertDialogAction
                             className="bg-destructive text-primary-foreground hover:bg-destructive/80"
-                            onClick={() => setAgreed(false)}
+                            disabled={!agreed || isPending}
+                            onClick={(event) => {
+                                event.preventDefault();
+                                if (agreed && !isPending) withdraw();
+                            }}
                         >
-                            탈퇴하기
+                            {isPending ? "탈퇴 처리 중..." : "탈퇴하기"}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

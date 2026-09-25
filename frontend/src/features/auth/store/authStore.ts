@@ -11,6 +11,7 @@ interface AuthStore {
     checkStatus: () => Promise<void>;
     refresh: () => Promise<string>;
     setAccessToken: (accessToken: string) => void;
+    clearAuth: () => void;
     logout: () => Promise<void>;
 }
 
@@ -75,6 +76,10 @@ export const useAuthStore = create<AuthStore>()(
                     false,
                     "auth/setAccessToken",
                 );
+            },
+            clearAuth: () => {
+                authVersion++;
+                set({ accessToken: null, isLoggedIn: false }, false, "auth/clearAuth");
             },
             logout: async () => {
                 const accessToken = get().accessToken;

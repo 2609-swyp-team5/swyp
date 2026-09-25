@@ -120,7 +120,7 @@ test("platform connection preview supports confirm and cancel", async ({ page })
     ).toBeVisible();
 });
 
-test("withdrawal requires consent and only opens the UI confirmation", async ({ page }) => {
+test("withdrawal requires consent and cancellation sends no request", async ({ page }) => {
     const writes: string[] = [];
     page.on("request", (request) => {
         if (
@@ -138,4 +138,64 @@ test("withdrawal requires consent and only opens the UI confirmation", async ({ 
     await page.getByRole("alertdialog").getByRole("button", { name: "취소", exact: true }).click();
     await expect(page.getByRole("alertdialog")).toHaveCount(0);
     expect(writes).toEqual([]);
+});
+
+test("withdrawal disables repeat submissions and redirects after success", async ({ page }) => {
+    let finishRequest!: () => void;
+    const responseReady = new Promise<void>((resolve) => {
+        finishRequest = resolve;
+    });
+    let requests = 0;
+    await page.route("**/users/me", async (route) => {
+        if (route.request().method() !== "DELETE") return route.fallback();
+        requests++;
+        expect(route.request().headers().authorization).toBe("Bearer my-ui-preview");
+        await responseReady;
+        await route.fulfill({
+            status: 200,
+            json: { success: true, message: "탈퇴 완료", data: null, error: null },
+        });
+    });
+    await page.goto("/my/withdraw");
+    await page.getByRole("checkbox").check();
+    await page.getByRole("button", { name: "다음 단계", exact: true }).click();
+    const dialog = page.getByRole("alertdialog");
+    await dialog.getByRole("button", { name: "탈퇴하기", exact: true }).click();
+    await expect(
+        dialog.getByRole("button", { name: "탈퇴 처리 중...", exact: true }),
+    ).toBeDisabled();
+    await expect(dialog.getByRole("button", { name: "취소", exact: true })).toBeDisabled();
+    finishRequest();
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(
+        page.getByRole("banner").getByRole("button", { name: "로그인", exact: true }),
+    ).toBeVisible();
+    expect(requests).toBe(1);
+});
+
+test("withdrawal failure keeps the dialog and authenticated session", async ({ page }) => {
+    await page.route("**/users/me", (route) => {
+        if (route.request().method() !== "DELETE") return route.fallback();
+        return route.fulfill({
+            status: 200,
+            json: {
+                success: false,
+                message: "탈퇴 요청을 처리하지 못했습니다.",
+                data: null,
+                error: null,
+            },
+        });
+    });
+    await page.goto("/my/withdraw");
+    await page.getByRole("checkbox").check();
+    await page.getByRole("button", { name: "다음 단계", exact: true }).click();
+    const dialog = page.getByRole("alertdialog");
+    await dialog.getByRole("button", { name: "탈퇴하기", exact: true }).click();
+    await expect(dialog.getByRole("alert")).toHaveText("탈퇴 요청을 처리하지 못했습니다.");
+    await expect(dialog.getByRole("button", { name: "탈퇴하기", exact: true })).toBeEnabled();
+    await dialog.getByRole("button", { name: "취소", exact: true }).click();
+    await expect(page).toHaveURL(/\/my\/withdraw$/);
+    await expect(
+        page.getByRole("banner").getByRole("link", { name: "프로필", exact: true }),
+    ).toBeVisible();
 });

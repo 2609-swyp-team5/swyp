@@ -4,6 +4,8 @@ import type { ApiResponse } from "@/common/lib/api/types";
 import type { MemberResponse } from "../types";
 
 export const memberApi = {
-    memberMe: (params?: AbortSignal) =>
-        api.get<ApiResponse<MemberResponse>>("/users/me", { params }),
+    memberMe: (signal?: AbortSignal) =>
+        api.get<ApiResponse<MemberResponse>>("/users/me", { signal }),
+
+    memberWithdraw: () => api.delete<ApiResponse<null>>("/users/me"),
 };
