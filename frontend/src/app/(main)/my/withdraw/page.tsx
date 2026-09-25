@@ -19,11 +19,13 @@ import {
 import { MyPageContent, MyPanel } from "@/features/my/components/MyPageContent";
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { useWithdrawMutation } from "@/features/member/hooks/mutations/useWithdrawMutation";
+import { useAuthStore } from "@/features/auth/store/authStore";
 
 export default function MyWithdrawPage() {
     const [agreed, setAgreed] = useState(false);
     const [open, setOpen] = useState(false);
-    const { mutate: withdraw, isPending, error, reset } = useWithdrawMutation();
+    const { mutate: withdraw, isPending, isSuccess, error, reset } = useWithdrawMutation();
+    const clearAuth = useAuthStore((state) => state.clearAuth);
     return (
         <MyPageContent eyebrow="계정 관리" title="회원 탈퇴">
             <div className="w-full space-y-6">
@@ -73,33 +75,49 @@ export default function MyWithdrawPage() {
             <AlertDialog
                 open={open}
                 onOpenChange={(value) => {
-                    if (!isPending) setOpen(value);
+                    if (isPending) return;
+                    if (!value && isSuccess) clearAuth();
+                    else {
+                        if (!value) reset();
+                        setOpen(value);
+                    }
                 }}
             >
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>회원 탈퇴를 진행할까요?</AlertDialogTitle>
+                        <AlertDialogTitle>
+                            {isSuccess
+                                ? "회원 탈퇴가 완료되었습니다."
+                                : error
+                                  ? "회원 탈퇴 실패"
+                                  : "회원 탈퇴를 진행할까요?"}
+                        </AlertDialogTitle>
                         <AlertDialogDescription>
-                            탈퇴 시 등록된 상품과 분석 데이터가 삭제되며 복구할 수 없습니다.
+                            {isSuccess
+                                ? "확인을 누르면 로그인 화면으로 이동합니다."
+                                : error
+                                  ? getApiErrorMessage(error)
+                                  : "탈퇴 시 등록된 상품과 분석 데이터가 삭제되며 복구할 수 없습니다."}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
-                    {error ? (
-                        <p role="alert" className="text-destructive text-sm">
-                            {getApiErrorMessage(error)}
-                        </p>
-                    ) : null}
                     <AlertDialogFooter>
-                        <AlertDialogCancel disabled={isPending}>취소</AlertDialogCancel>
-                        <AlertDialogAction
-                            className="bg-destructive text-primary-foreground hover:bg-destructive/80"
-                            disabled={!agreed || isPending}
-                            onClick={(event) => {
-                                event.preventDefault();
-                                if (agreed && !isPending) withdraw();
-                            }}
-                        >
-                            {isPending ? "탈퇴 처리 중..." : "탈퇴하기"}
-                        </AlertDialogAction>
+                        {isSuccess || error ? (
+                            <AlertDialogAction>확인</AlertDialogAction>
+                        ) : (
+                            <>
+                                <AlertDialogCancel disabled={isPending}>취소</AlertDialogCancel>
+                                <AlertDialogAction
+                                    className="bg-destructive text-primary-foreground hover:bg-destructive/80"
+                                    disabled={!agreed || isPending}
+                                    onClick={(event) => {
+                                        event.preventDefault();
+                                        if (agreed && !isPending) withdraw();
+                                    }}
+                                >
+                                    {isPending ? "탈퇴 처리 중..." : "탈퇴하기"}
+                                </AlertDialogAction>
+                            </>
+                        )}
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogOut, Pencil } from "lucide-react";
 
-import { Avatar, AvatarFallback } from "@/common/components/ui/Avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/common/components/ui/Avatar";
 import { Button } from "@/common/components/ui/Button";
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { cn } from "@/common/lib/utils";
@@ -33,6 +33,9 @@ export function MySidebar() {
         <aside className="flex flex-col bg-[#272727] py-8 lg:w-[min(28vw,400px)] lg:shrink-0 lg:py-[50px]">
             <div className="flex flex-col items-center gap-5 border-b border-white/10 px-6 pb-6">
                 <Avatar className="size-[70px] after:border-0">
+                    {member?.profileImageUrl ? (
+                        <AvatarImage src={member.profileImageUrl} alt="프로필 사진" />
+                    ) : null}
                     <AvatarFallback className="bg-primary text-primary-foreground text-base font-semibold">
                         {member?.nickname[0] ?? "?"}
                     </AvatarFallback>

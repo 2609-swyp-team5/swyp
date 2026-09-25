@@ -24,14 +24,14 @@ beforeEach(() => {
     useAuthStore.setState({ accessToken: "token", isLoggedIn: true, isInitialized: true });
 });
 
-it("clears authentication only after successful withdrawal", async () => {
+it("returns success and leaves authentication cleanup to the completion dialog", async () => {
     memberWithdraw.mockResolvedValue({ data: { success: true, message: "탈퇴 완료", data: null } });
     const { result } = setup();
     await act(async () => {
         await result.current.mutateAsync();
     });
     expect(memberWithdraw).toHaveBeenCalledTimes(1);
-    expect(useAuthStore.getState()).toMatchObject({ accessToken: null, isLoggedIn: false });
+    expect(useAuthStore.getState()).toMatchObject({ accessToken: "token", isLoggedIn: true });
 });
 
 it("preserves authentication on a business failure", async () => {

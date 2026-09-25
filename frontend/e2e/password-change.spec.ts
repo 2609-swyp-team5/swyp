@@ -81,7 +81,11 @@ for (const failure of [
         await page.getByLabel("기존 비밀번호", { exact: true }).fill("oldPassword1");
         await page.getByLabel("변경할 비밀번호", { exact: true }).fill("newPassword2");
         await page.getByRole("button", { name: "비밀번호 변경", exact: true }).click();
-        await expect(page.locator("form").getByRole("alert")).toHaveText(failure.message);
+        await expect(page.getByRole("alertdialog")).toContainText(failure.message);
+        await page
+            .getByRole("alertdialog")
+            .getByRole("button", { name: "확인", exact: true })
+            .click();
         await expect(
             page.getByRole("button", { name: "비밀번호 변경", exact: true }),
         ).toBeEnabled();

@@ -252,9 +252,10 @@ npm run test:e2e
 
 - 회원 조회는 `features/member/api/memberApi.ts`의 `memberMe`와 `hooks/queries/useMeQuery.ts`에서 처리한다. 인증 초기화 후 로그인 상태일 때 `/users/me`를 조회하며, `["member", "me"]` 캐시를 공유한다. 마이페이지 홈 인사말과 사이드바 이름·기본 아바타 글자는 실제 응답의 nickname을 사용한다. 로그아웃·인증 만료 시 AuthInitializer에서 회원 조회를 취소하고 캐시를 제거한다.
 - `/my`, `/my/settings`, `/my/password`, `/my/notifications`, `/my/products`, `/my/platforms`, `/my/withdraw`는 공통 `MySidebar`와 `MyPageContent`를 사용한다.
-- 화면 예시 데이터는 `features/my/myPreviewData.ts`에 둔다. 새 화면의 입력·사진 미리보기·알림 토글·상품 필터·연결 확인은 UI 상태만 변경하며 API를 호출하거나 영구 저장하지 않는다.
+- 상품 예시 데이터는 `features/my/myPreviewData.ts`에 둔다. 알림 토글·상품 필터·연결 확인은 UI 상태만 변경하며 API를 호출하거나 영구 저장하지 않는다.
+- 사용자 정보 설정은 회원 조회값을 표시하고, 닉네임·휴대폰 번호를 `PATCH /users/me`로 저장한다. 이메일은 읽기 전용이다. 휴대폰 번호의 하이픈을 제거하고 빈 값은 null로 전송한다. 성공 응답으로 회원 캐시를 갱신하며, 편집 중인 값은 백그라운드 조회로 덮어쓰지 않는다. 사진 선택 시 미리보기만 표시하고 변경 사항 저장을 누르면 회원정보 저장 후 POST /users/profile/image에 multipart의 image 필드로 업로드한다. JPG/PNG 및 5MB 제한을 검사하고, 성공하면 회원 캐시와 사이드바 사진을 갱신한다. 사진 저장 실패 시 서버의 기존 사진과 재시도할 선택 파일을 유지하며 회원정보만 저장된 상태를 안내한다.
 - 기존 로그인 접근 제한과 로그아웃 mutation은 유지한다. 로그아웃은 회원 탈퇴 아래에 배치한다. 비밀번호 변경은 기존 비밀번호와 변경할 비밀번호를 PATCH /users/password로 전송한다. 성공하면 입력값을 지우고 완료 모달을 표시하며, 확인 후 인증 상태를 초기화하고 재로그인하도록 한다.
 - 첫 번째 마이페이지 디자인을 기준으로 제목은 기존 `--type-heading-03-size`(30px), 사이드바는 `--type-body-medium-size`(20px), 본문·입력은 16px, 보조 문구는 13px로 통일한다. 색상은 `primary`, `foreground`, `muted-foreground`, `border`, `destructive` 등 기존 토큰을 우선 사용한다.
 - 알림과 상품 표에는 공통 `Switch`, `Table`을 사용하고, 패널은 공통 `Card`를 조합한 `MyPanel`을 사용한다.
 
-- 회원 탈퇴는 동의 및 확인 후 `memberApi.memberWithdraw`로 `DELETE /users/me`를 요청한다. 성공 시 인증 상태를 초기화하고 기존 AuthInitializer가 회원 캐시 정리와 로그인 화면 이동을 처리한다. 실패 시 인증 상태를 유지하고 확인 모달에 오류를 표시한다. 백엔드는 회원 상태를 DELETED로 변경하고 refresh 토큰·쿠키를 정리한다.
+- 회원 탈퇴는 동의 및 확인 후 `memberApi.memberWithdraw`로 `DELETE /users/me`를 요청한다. 성공 안내 AlertDialog에서 확인을 누르면 인증 상태를 초기화하고 기존 AuthInitializer가 회원 캐시 정리와 로그인 화면 이동을 처리한다. 실패 시 인증 상태를 유지하고 확인 모달에 오류를 표시한다. 백엔드는 회원 상태를 DELETED로 변경하고 refresh 토큰·쿠키를 정리한다.

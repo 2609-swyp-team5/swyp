@@ -140,24 +140,24 @@ export default function MyPasswordPage() {
                     >
                         {isPending ? "변경 중..." : "비밀번호 변경"}
                     </Button>
-                    {error ? (
-                        <p role="alert" className="text-destructive text-center text-[13px]">
-                            {getApiErrorMessage(error)}
-                        </p>
-                    ) : null}
                 </form>
             </MyPanel>
             <AlertDialog
-                open={isSuccess}
+                open={isSuccess || Boolean(error)}
                 onOpenChange={(open) => {
                     if (!open && isSuccess) clearAuth();
+                    else if (!open) resetMutation();
                 }}
             >
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>비밀번호가 변경되었습니다.</AlertDialogTitle>
+                        <AlertDialogTitle>
+                            {isSuccess ? "비밀번호가 변경되었습니다." : "비밀번호 변경 실패"}
+                        </AlertDialogTitle>
                         <AlertDialogDescription>
-                            변경한 비밀번호로 다시 로그인해 주세요.
+                            {isSuccess
+                                ? "변경한 비밀번호로 다시 로그인해 주세요."
+                                : getApiErrorMessage(error)}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

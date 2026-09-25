@@ -1,5 +1,18 @@
 import { z } from "zod";
 
+export const memberUpdateSchema = z.object({
+    nickname: z
+        .string()
+        .max(30, "닉네임은 30자 이하로 입력해 주세요.")
+        .refine((value) => value.trim().length > 0, "닉네임을 입력해 주세요."),
+    phone: z
+        .string()
+        .refine(
+            (value) => /^(?:01[016789]\d{7,8})?$/.test(value.replace(/-/g, "")),
+            "올바른 휴대폰 번호를 입력해 주세요.",
+        ),
+});
+
 export const passwordChangeSchema = z.object({
     currentPassword: z
         .string()

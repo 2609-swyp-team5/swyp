@@ -65,21 +65,45 @@ test("home greets the member returned by the API", async ({ page }) => {
     await expect(page.locator("aside").getByText("다른 닉네임", { exact: true })).toBeVisible();
 });
 
-test("profile accepts local edits and previews a photo", async ({ page }) => {
-    await page.goto("/my/settings");
-    await page.getByLabel("이름 (닉네임)").fill("새 닉네임");
-    await expect(page.getByLabel("이메일", { exact: true })).toHaveAttribute("readonly", "");
-    await page.getByLabel("프로필 사진 선택").setInputFiles({
-        name: "avatar.png",
-        mimeType: "image/png",
-        buffer: Buffer.from(
-            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aXioAAAAASUVORK5CYII=",
-            "base64",
-        ),
+test("profile saves member fields and updates shared nickname", async ({ page }) => {
+    await page.route("**/users/me", (route) => {
+        if (route.request().method() !== "PATCH") return route.fallback();
+        expect(route.request().postDataJSON()).toEqual({
+            nickname: "새 닉네임",
+            phone: "01012345678",
+        });
+        return route.fulfill({
+            status: 200,
+            json: {
+                success: true,
+                data: {
+                    memberId: 1,
+                    name: "김민준",
+                    nickname: "새 닉네임",
+                    email: "minjun.kim@example.com",
+                    phone: "01012345678",
+                    profileImageUrl: null,
+                },
+                error: null,
+            },
+        });
     });
-    await expect(page.getByAltText("프로필 사진 미리보기")).toBeVisible();
+    await page.goto("/my/settings");
+    await expect(page.getByLabel("이름 (닉네임)")).toHaveValue("민준");
+    await page.getByLabel("이름 (닉네임)").fill("새 닉네임");
+    await page.getByLabel("휴대폰 번호").fill("010-1234-5678");
+    await expect(page.getByLabel("이메일", { exact: true })).toHaveAttribute("readonly", "");
     await page.getByRole("button", { name: "변경 사항 저장" }).click();
-    await expect(page.getByRole("status")).toHaveText("변경 사항이 적용되었습니다.");
+    await expect(page.getByRole("alertdialog")).toContainText("변경 사항이 적용되었습니다.");
+    await page.getByRole("alertdialog").getByRole("button", { name: "확인", exact: true }).click();
+    await expect(page.locator("aside").getByText("새 닉네임", { exact: true })).toBeVisible();
+    await page
+        .getByRole("navigation", { name: "마이페이지 메뉴" })
+        .getByRole("link", { name: "홈", exact: true })
+        .click();
+    await expect(
+        page.getByRole("heading", { name: "안녕하세요, 새 닉네임님 👋", exact: true }),
+    ).toBeVisible();
 });
 
 test("notification switches respond to keyboard input", async ({ page }) => {
@@ -166,6 +190,8 @@ test("withdrawal disables repeat submissions and redirects after success", async
     ).toBeDisabled();
     await expect(dialog.getByRole("button", { name: "취소", exact: true })).toBeDisabled();
     finishRequest();
+    await expect(dialog).toContainText("회원 탈퇴가 완료되었습니다.");
+    await dialog.getByRole("button", { name: "확인", exact: true }).click();
     await expect(page).toHaveURL(/\/login$/);
     await expect(
         page.getByRole("banner").getByRole("button", { name: "로그인", exact: true }),
@@ -191,9 +217,8 @@ test("withdrawal failure keeps the dialog and authenticated session", async ({ p
     await page.getByRole("button", { name: "다음 단계", exact: true }).click();
     const dialog = page.getByRole("alertdialog");
     await dialog.getByRole("button", { name: "탈퇴하기", exact: true }).click();
-    await expect(dialog.getByRole("alert")).toHaveText("탈퇴 요청을 처리하지 못했습니다.");
-    await expect(dialog.getByRole("button", { name: "탈퇴하기", exact: true })).toBeEnabled();
-    await dialog.getByRole("button", { name: "취소", exact: true }).click();
+    await expect(dialog).toContainText("탈퇴 요청을 처리하지 못했습니다.");
+    await dialog.getByRole("button", { name: "확인", exact: true }).click();
     await expect(page).toHaveURL(/\/my\/withdraw$/);
     await expect(
         page.getByRole("banner").getByRole("link", { name: "프로필", exact: true }),

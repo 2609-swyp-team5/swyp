@@ -1,10 +1,4 @@
-// UI publishing fixtures. Replace with member data when the API is connected.
-export const MY_PREVIEW_PROFILE = {
-    name: "김민준",
-    email: "minjun.kim@example.com",
-    phone: "010-1234-5678",
-};
-
+// UI publishing fixtures. Replace with product data when the API is connected.
 export const MY_PREVIEW_PRODUCTS = [
     {
         id: 1,
