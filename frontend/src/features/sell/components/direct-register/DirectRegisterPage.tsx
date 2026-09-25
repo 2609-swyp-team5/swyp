@@ -105,6 +105,7 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
         "idle" | "loading" | "success" | "error"
     >("idle");
     const [submissionError, setSubmissionError] = useState("");
+    const [createdProductId, setCreatedProductId] = useState<number | null>(null);
     const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
     const imagesRef = useRef<DirectImagePreview[]>(info.images);
     const {
@@ -113,12 +114,24 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
         isError: isCategoriesError,
     } = useCategoriesQuery();
     const createDirectProductMutation = useCreateDirectProductMutation({
-        onSuccess: () => setSubmissionStatus("success"),
+        onSuccess: (product) => {
+            setCreatedProductId(product.id);
+            setSubmissionStatus("success");
+        },
         onError: (mutationError) => {
             setSubmissionError(getApiErrorMessage(mutationError));
             setSubmissionStatus("error");
         },
     });
+
+    const handleGoToManage = () => {
+        if (createdProductId === null) {
+            router.push("/sell/manage");
+            return;
+        }
+
+        router.push(`/sell/manage/${createdProductId}?method=direct`);
+    };
 
     useEffect(() => {
         imagesRef.current = info.images;
@@ -198,7 +211,7 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
                 status={submissionStatus}
                 errorMessage={submissionError}
                 onRetry={handleStatusPriceSubmit}
-                onGoToManage={() => router.push("/sell/manage")}
+                onGoToManage={handleGoToManage}
             />
         );
     }

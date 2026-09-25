@@ -8,6 +8,16 @@ import {
 } from "../schemas/productSchema";
 import type { AiProductCreateInput, DirectProductCreateInput, ProductResponse } from "../types";
 
+const getProduct = async (id: number): Promise<ProductResponse> => {
+    const { data } = await api.get<ApiResponse<ProductResponse>>(`/products/${id}`);
+
+    if (!data.success) {
+        throw new Error(data.message);
+    }
+
+    return data.data;
+};
+
 const createDirectProduct = async ({ images, request }: DirectProductCreateInput) => {
     const parsedImages = productImagesSchema.safeParse(images);
 
@@ -82,6 +92,7 @@ const createAiProduct = async ({
 };
 
 export const productApi = {
+    getProduct,
     createDirectProduct,
     createAiProduct,
 };

@@ -75,15 +75,28 @@ export function AiRegisterPage() {
         "idle" | "loading" | "success" | "error"
     >("idle");
     const [submissionError, setSubmissionError] = useState("");
+    const [createdProductId, setCreatedProductId] = useState<number | null>(null);
     const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
     const imagesRef = useRef(state.images);
     const createAiProductMutation = useCreateAiProductMutation({
-        onSuccess: () => setSubmissionStatus("success"),
+        onSuccess: (product) => {
+            setCreatedProductId(product.id);
+            setSubmissionStatus("success");
+        },
         onError: (mutationError) => {
             setSubmissionError(getApiErrorMessage(mutationError));
             setSubmissionStatus("error");
         },
     });
+
+    const handleGoToManage = () => {
+        if (createdProductId === null) {
+            router.push("/sell/manage");
+            return;
+        }
+
+        router.push(`/sell/manage/${createdProductId}?method=ai`);
+    };
 
     useEffect(() => {
         imagesRef.current = state.images;
@@ -134,7 +147,7 @@ export function AiRegisterPage() {
                 status={submissionStatus}
                 errorMessage={submissionError}
                 onRetry={handleCreate}
-                onGoToManage={() => router.push("/sell/manage")}
+                onGoToManage={handleGoToManage}
             />
         );
     }

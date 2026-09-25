@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { post } = vi.hoisted(() => ({
+const { get, post } = vi.hoisted(() => ({
+    get: vi.fn(),
     post: vi.fn(),
 }));
 
 vi.mock("@/common/lib/api/client", () => ({
-    api: { post },
+    api: { get, post },
 }));
 
 import { productApi } from "./productApi";
@@ -21,6 +22,14 @@ const readBlob = (blob: Blob) =>
 describe("productApi", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        get.mockResolvedValue({
+            data: {
+                success: true,
+                message: "",
+                data: { id: 42 },
+                error: null,
+            },
+        });
         post.mockResolvedValue({
             data: {
                 success: true,
@@ -29,6 +38,11 @@ describe("productApi", () => {
                 error: null,
             },
         });
+    });
+
+    it("gets a product by id", async () => {
+        await expect(productApi.getProduct(42)).resolves.toEqual({ id: 42 });
+        expect(get).toHaveBeenCalledWith("/products/42");
     });
 
     it("sends direct-registration images and data JSON as multipart fields", async () => {

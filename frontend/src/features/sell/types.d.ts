@@ -38,7 +38,7 @@ export interface ProductResponse {
         parentId: number | null;
     };
     title: string;
-    brand?: string | null;
+    brand: string | null;
     description: string | null;
     price: number;
     status: ProductStatus;
@@ -46,7 +46,7 @@ export interface ProductResponse {
     defectStatus: DefectStatus;
     purchasedAt: string | null;
     purchasedMonths: number | null;
-    includedItems?: string[];
+    includedItems: string[];
     allowPriceSuggestion: boolean;
     tradeMethod: TradeMethod;
     deliveryType: DeliveryType | null;
