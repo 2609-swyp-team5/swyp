@@ -11,6 +11,7 @@ export function useProductQuery(id: number) {
         queryKey: productQueryKey(id),
         queryFn: () => productApi.getProduct(id),
         enabled: Number.isInteger(id) && id > 0,
+        staleTime: 5 * 60 * 1000,
         refetchOnWindowFocus: false,
         retry: false,
     });

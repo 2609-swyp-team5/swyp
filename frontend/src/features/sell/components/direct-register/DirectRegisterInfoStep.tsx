@@ -16,14 +16,12 @@ import {
 } from "@/common/components/ui/Select";
 import { Textarea } from "@/common/components/ui/Textarea";
 import type { Category } from "@/features/sell/api/categoryApi";
-import {
-    DirectImageUpload,
-    type DirectImagePreview,
-} from "@/features/sell/components/direct-register/DirectImageUpload";
+import { DirectImageUpload } from "@/features/sell/components/direct-register/DirectImageUpload";
 import {
     FieldError,
     FieldLabel,
 } from "@/features/sell/components/direct-register/DirectRegisterFields";
+import type { DirectRegisterInfoState } from "@/features/sell/components/direct-register/types";
 
 type FieldErrors = {
     images: string;
@@ -31,16 +29,6 @@ type FieldErrors = {
     parentCategory: string;
     childCategory: string;
     description: string;
-};
-
-export type DirectRegisterInfoState = {
-    images: DirectImagePreview[];
-    parentCategoryId: string;
-    childCategoryId: string;
-    title: string;
-    brand: string;
-    description: string;
-    tags: string[];
 };
 
 type DirectRegisterInfoStepProps = {

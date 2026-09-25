@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 
 import { Button } from "@/common/components/ui/Button";
 import { getApiErrorMessage } from "@/common/lib/api/error";
@@ -160,9 +160,11 @@ function AiRecommendation({ suggestedPrice }: { suggestedPrice: number | null })
 function ProductReview({
     product,
     method,
+    onEdit,
 }: {
     product: ProductResponse;
     method: RegistrationMethod;
+    onEdit: () => void;
 }) {
     return (
         <>
@@ -224,6 +226,7 @@ function ProductReview({
             <div className="flex flex-col-reverse items-stretch justify-end gap-5 sm:flex-row sm:items-center">
                 <Button
                     type="button"
+                    onClick={onEdit}
                     className="h-[54px] rounded-full bg-[#dedee6] px-[70px] py-3 text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#6b6c7b] hover:bg-[#d3d3d3]"
                 >
                     직접 수정하기
@@ -248,6 +251,7 @@ function ReviewStatus({ children }: { children: string }) {
 }
 
 export default function ProductReviewPage() {
+    const router = useRouter();
     const params = useParams<{ id: string }>();
     const searchParams = useSearchParams();
     const productId = Number(params.id);
@@ -287,7 +291,11 @@ export default function ProductReviewPage() {
                     </div>
                 </header>
 
-                <ProductReview product={product} method={method} />
+                <ProductReview
+                    product={product}
+                    method={method}
+                    onEdit={() => router.push(`/sell/manage/${productId}/edit?method=${method}`)}
+                />
             </section>
         </main>
     );

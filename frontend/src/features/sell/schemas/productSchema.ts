@@ -23,6 +23,10 @@ export const productImagesSchema = z
     .min(1, "상품 사진을 1장 이상 업로드해주세요.")
     .max(10, "상품 사진은 최대 10장까지 업로드할 수 있어요.");
 
+export const productUpdateImagesSchema = z
+    .array(productImageFileSchema)
+    .max(10, "상품 사진은 최대 10장까지 업로드할 수 있어요.");
+
 export const productCreateRequestSchema = z.object({
     categoryId: z.number().int().positive("카테고리를 선택해 주세요."),
     title: z.string().trim().min(1, "상품명을 입력해 주세요.").max(100),
@@ -43,6 +47,11 @@ export const productCreateRequestSchema = z.object({
 
 export const directProductCreateRequestSchema = productCreateRequestSchema.omit({
     imageUrls: true,
+});
+
+export const productUpdateRequestSchema = productCreateRequestSchema.extend({
+    status: productStatusSchema,
+    imageUrls: z.array(z.string().trim().min(1)),
 });
 
 export const aiProductCreateInputSchema = z.object({

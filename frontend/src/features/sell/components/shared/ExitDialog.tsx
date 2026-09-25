@@ -15,9 +15,10 @@ type ExitDialogProps = {
     open: boolean;
     onClose: () => void;
     onConfirm: () => void;
+    confirmLabel?: string;
 };
 
-export function ExitDialog({ open, onClose, onConfirm }: ExitDialogProps) {
+export function ExitDialog({ open, onClose, onConfirm, confirmLabel = "나가기" }: ExitDialogProps) {
     return (
         <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
             <DialogContent className="flex w-[calc(100%-3rem)] max-w-[600px] flex-col items-end gap-0 rounded-2xl border-[#dee5ed] bg-white p-10">
@@ -67,7 +68,7 @@ export function ExitDialog({ open, onClose, onConfirm }: ExitDialogProps) {
                         className="h-[35px] w-[120px] rounded-full border-0 bg-[#d3d3d3] px-8 py-1 text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-white hover:bg-[#c6c6c6]"
                         onClick={onConfirm}
                     >
-                        나가기
+                        {confirmLabel}
                     </Button>
                     <DialogClose asChild>
                         <Button

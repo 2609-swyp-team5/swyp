@@ -2,36 +2,43 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
+import { getApiErrorMessage } from "@/common/lib/api/error";
+import type { Category } from "@/features/sell/api/categoryApi";
+import { ProductRegistrationProcessing } from "@/features/sell/components/ProductRegistrationProcessing";
 import { DirectRegisterActions } from "@/features/sell/components/direct-register/DirectRegisterActions";
 import { DirectRegisterInfoStep } from "@/features/sell/components/direct-register/DirectRegisterInfoStep";
 import { DirectStatusPriceStep } from "@/features/sell/components/direct-register/DirectStatusPriceStep";
 import type {
+    DirectDefectStatus,
     DirectImagePreview,
+    DirectPurchasePeriod,
     DirectRegisterInfoState,
     DirectStatusPriceErrors,
     DirectStatusPriceState,
 } from "@/features/sell/components/direct-register/types";
-import { ProductRegistrationProcessing } from "@/features/sell/components/ProductRegistrationProcessing";
 import { ExitDialog } from "@/features/sell/components/shared/ExitDialog";
-import { getApiErrorMessage } from "@/common/lib/api/error";
-import { useCategoriesQuery } from "@/features/sell/hooks/queries/useCategoriesQuery";
-import { useCreateDirectProductMutation } from "@/features/sell/hooks/mutations/useCreateDirectProductMutation";
+import { useUpdateProductMutation } from "@/features/sell/hooks/mutations/useUpdateProductMutation";
+import { productQueryKey } from "@/features/sell/hooks/queries/useProductQuery";
+import type { ProductResponse } from "@/features/sell/types";
 
-export type DirectRegisterStep = "info" | "status";
+type EditStep = "info" | "status";
+type RegistrationMethod = "ai" | "direct";
 
-type DirectRegisterPageProps = {
-    initialStep?: DirectRegisterStep;
+const initialStatusPriceErrors: DirectStatusPriceErrors = {
+    price: "",
+    deliveryType: "",
 };
 
-function RegistrationStepper({ currentStep }: { currentStep: DirectRegisterStep }) {
+function RegistrationStepper({ currentStep }: { currentStep: EditStep }) {
     const steps = ["상품 정보", "상태·가격"];
     const currentStepIndex = currentStep === "info" ? 0 : 1;
 
     return (
-        <ol aria-label="상품 등록 단계" className="flex items-center gap-2.5">
+        <ol aria-label="상품 수정 단계" className="flex items-center gap-2.5">
             {steps.map((step, index) => (
                 <li key={step} className="flex items-center gap-2.5">
                     <div className="flex items-center gap-2">
@@ -66,74 +73,73 @@ function RegistrationStepper({ currentStep }: { currentStep: DirectRegisterStep 
     );
 }
 
-const initialInfoState: DirectRegisterInfoState = {
-    images: [],
-    parentCategoryId: "",
-    childCategoryId: "",
-    title: "",
-    brand: "",
-    description: "",
-    tags: [],
-};
+function getInitialInfo(product: ProductResponse): DirectRegisterInfoState {
+    return {
+        images: product.imageUrls.map((url) => ({ file: null, url })),
+        parentCategoryId:
+            product.category.parentId === null ? "" : String(product.category.parentId),
+        childCategoryId: String(product.category.id),
+        title: product.title,
+        brand: product.brand ?? "",
+        description: product.description ?? "",
+        tags: product.tags,
+    };
+}
 
-const initialStatusPriceState: DirectStatusPriceState = {
-    productCondition: "B",
-    purchasePeriod: "6",
-    includedItems: ["body", "charging-cable"],
-    defectStatus: "none",
-    price: "",
-    allowPriceProposal: false,
-    tradeMethod: "direct",
-    deliveryType: null,
-    tradeLocation: "",
-};
+function getInitialStatusPrice(product: ProductResponse): DirectStatusPriceState {
+    const defectStatus: DirectDefectStatus =
+        product.defectStatus === "ISSUES"
+            ? "has-defect"
+            : product.defectStatus === "UNKNOWN"
+              ? "unknown"
+              : "none";
 
-const initialStatusPriceErrors: DirectStatusPriceErrors = {
-    price: "",
-    deliveryType: "",
-};
+    const purchasePeriod: DirectPurchasePeriod =
+        product.purchasedMonths === null
+            ? "unknown"
+            : (String(product.purchasedMonths) as DirectPurchasePeriod);
 
-export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageProps) {
+    return {
+        productCondition: product.condition,
+        purchasePeriod,
+        includedItems: product.includedItems,
+        defectStatus,
+        price: String(product.price),
+        allowPriceProposal: product.allowPriceSuggestion,
+        tradeMethod: product.tradeMethod === "DIRECT" ? "direct" : "delivery",
+        deliveryType: product.deliveryType,
+        tradeLocation: product.preferredTradeRegion ?? "",
+    };
+}
+
+export function ProductEditForm({
+    product,
+    categories,
+    categoryStatus,
+    method,
+}: {
+    product: ProductResponse;
+    categories: Category[];
+    categoryStatus: "loading" | "error" | "ready";
+    method: RegistrationMethod;
+}) {
     const router = useRouter();
-    const [step, setStep] = useState<DirectRegisterStep>(initialStep);
-    const [info, setInfo] = useState(initialInfoState);
-    const [statusPrice, setStatusPrice] = useState(initialStatusPriceState);
+    const queryClient = useQueryClient();
+    const updateProductMutation = useUpdateProductMutation();
+    const [step, setStep] = useState<EditStep>("info");
+    const [info, setInfo] = useState(() => getInitialInfo(product));
+    const [statusPrice, setStatusPrice] = useState(() => getInitialStatusPrice(product));
     const [statusPriceErrors, setStatusPriceErrors] = useState(initialStatusPriceErrors);
+    const [submissionError, setSubmissionError] = useState("");
     const [submissionStatus, setSubmissionStatus] = useState<
         "idle" | "loading" | "success" | "error"
     >("idle");
-    const [submissionError, setSubmissionError] = useState("");
-    const [createdProductId, setCreatedProductId] = useState<number | null>(null);
     const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
-    const imagesRef = useRef<DirectImagePreview[]>(info.images);
-    const {
-        data: categories = [],
-        isPending: isCategoriesPending,
-        isError: isCategoriesError,
-    } = useCategoriesQuery();
-    const createDirectProductMutation = useCreateDirectProductMutation({
-        onSuccess: (product) => {
-            setCreatedProductId(product.id);
-            setSubmissionStatus("success");
-        },
-        onError: (mutationError) => {
-            setSubmissionError(getApiErrorMessage(mutationError));
-            setSubmissionStatus("error");
-        },
-    });
-
-    const handleGoToManage = () => {
-        if (createdProductId === null) {
-            router.push("/sell/manage");
-            return;
-        }
-
-        router.push(`/sell/manage/${createdProductId}?method=direct`);
-    };
+    const imagesRef = useRef<DirectImagePreview[]>([]);
 
     useEffect(() => {
         imagesRef.current = info.images;
-    }, [info.images]);
+    }, [info]);
 
     useEffect(() => {
         return () => {
@@ -149,22 +155,30 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
         key: K,
         value: DirectRegisterInfoState[K],
     ) => {
-        setInfo((current) => ({ ...current, [key]: value }));
+        setInfo((current) => (current ? { ...current, [key]: value } : current));
     };
 
     const updateStatusPrice = <K extends keyof DirectStatusPriceState>(
         key: K,
         value: DirectStatusPriceState[K],
     ) => {
-        setStatusPrice((current) => ({ ...current, [key]: value }));
+        setStatusPrice((current) => (current ? { ...current, [key]: value } : current));
     };
 
     const handleExit = () => {
-        setIsExitDialogOpen(false);
-        router.push("/sell/register");
+        setIsExitDialogOpen(true);
     };
 
-    const handleStatusPriceSubmit = () => {
+    const handleConfirmExit = () => {
+        setIsExitDialogOpen(false);
+        router.push(`/sell/manage/${product.id}?method=${method}`);
+    };
+
+    const handleGoToManage = () => {
+        router.push(`/sell/manage/${product.id}?method=${method}`);
+    };
+
+    const handleStatusPriceSubmit = async () => {
         const nextErrors: DirectStatusPriceErrors = {
             price: statusPrice.price ? "" : "희망 가격을 입력해 주세요.",
             deliveryType:
@@ -182,39 +196,53 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
         setSubmissionError("");
         setSubmissionStatus("loading");
 
-        createDirectProductMutation.mutate({
-            images: info.images.flatMap((image) => (image.file ? [image.file] : [])),
-            request: {
-                categoryId: Number(info.childCategoryId),
-                title: info.title.trim(),
-                brand: info.brand.trim() || null,
-                description: info.description.trim(),
-                price: Number(statusPrice.price),
-                condition: statusPrice.productCondition,
-                defectStatus:
-                    statusPrice.defectStatus === "has-defect"
-                        ? "ISSUES"
-                        : statusPrice.defectStatus === "unknown"
-                          ? "UNKNOWN"
-                          : "NORMAL",
-                purchasedMonths:
-                    statusPrice.purchasePeriod === "unknown"
-                        ? null
-                        : Number(statusPrice.purchasePeriod),
-                includedItems: statusPrice.includedItems,
-                allowPriceSuggestion: statusPrice.allowPriceProposal,
-                tradeMethod: statusPrice.tradeMethod === "direct" ? "DIRECT" : "DELIVERY",
-                deliveryType: statusPrice.deliveryType,
-                preferredTradeRegion: statusPrice.tradeLocation.trim() || null,
-                tags: info.tags,
-            },
-        });
+        try {
+            const newFiles = info.images.flatMap((image) => (image.file ? [image.file] : []));
+            const imageUrls = info.images.filter((image) => !image.file).map((image) => image.url);
+
+            const updatedProduct = await updateProductMutation.mutateAsync({
+                id: product.id,
+                files: newFiles,
+                request: {
+                    categoryId: Number(info.childCategoryId),
+                    title: info.title.trim(),
+                    brand: info.brand.trim() || null,
+                    description: info.description.trim(),
+                    price: Number(statusPrice.price),
+                    status: product.status,
+                    condition: statusPrice.productCondition,
+                    purchasedMonths:
+                        statusPrice.purchasePeriod === "unknown"
+                            ? null
+                            : Number(statusPrice.purchasePeriod),
+                    defectStatus:
+                        statusPrice.defectStatus === "has-defect"
+                            ? "ISSUES"
+                            : statusPrice.defectStatus === "unknown"
+                              ? "UNKNOWN"
+                              : "NORMAL",
+                    allowPriceSuggestion: statusPrice.allowPriceProposal,
+                    tradeMethod: statusPrice.tradeMethod === "direct" ? "DIRECT" : "DELIVERY",
+                    deliveryType: statusPrice.deliveryType,
+                    preferredTradeRegion: statusPrice.tradeLocation.trim() || null,
+                    imageUrls,
+                    tags: info.tags,
+                    includedItems: statusPrice.includedItems,
+                },
+            });
+
+            queryClient.setQueryData(productQueryKey(product.id), updatedProduct);
+            setSubmissionStatus("success");
+        } catch (updateError) {
+            setSubmissionError(getApiErrorMessage(updateError));
+            setSubmissionStatus("error");
+        }
     };
 
     if (submissionStatus !== "idle") {
         return (
             <ProductRegistrationProcessing
-                kind="direct"
+                kind="ai"
                 status={submissionStatus}
                 errorMessage={submissionError}
                 onRetry={handleStatusPriceSubmit}
@@ -224,7 +252,6 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
     }
 
     const isInfoStep = step === "info";
-    const categoryStatus = isCategoriesPending ? "loading" : isCategoriesError ? "error" : "ready";
 
     return (
         <main className="flex flex-1 flex-col bg-white">
@@ -246,10 +273,10 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
                     )}
                     <div className="grid grid-cols-1 grid-rows-1">
                         <p className="typography-heading-02 col-start-1 row-start-1 self-start text-[#363636]">
-                            직접입력으로
+                            판매글을
                         </p>
                         <h1 className="col-start-1 row-start-1 mt-[52px] self-start text-[60px] leading-[75px] font-bold tracking-[0.5px] text-[#6653fb]">
-                            상품 등록
+                            수정해요
                         </h1>
                     </div>
                 </header>
@@ -270,7 +297,8 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
                                 primaryLabel="다음단계"
                                 primaryType="submit"
                                 primaryForm="direct-register-form"
-                                onExit={() => setIsExitDialogOpen(true)}
+                                onExit={handleExit}
+                                exitLabel="수정 취소"
                             />
                         </>
                     ) : (
@@ -285,16 +313,20 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
                                     updateStatusPrice("purchasePeriod", value)
                                 }
                                 onIncludedItemChange={(value, checked) =>
-                                    setStatusPrice((current) => ({
-                                        ...current,
-                                        includedItems: checked
-                                            ? current.includedItems.includes(value)
-                                                ? current.includedItems
-                                                : [...current.includedItems, value]
-                                            : current.includedItems.filter(
-                                                  (item) => item !== value,
-                                              ),
-                                    }))
+                                    setStatusPrice((current) =>
+                                        current
+                                            ? {
+                                                  ...current,
+                                                  includedItems: checked
+                                                      ? current.includedItems.includes(value)
+                                                          ? current.includedItems
+                                                          : [...current.includedItems, value]
+                                                      : current.includedItems.filter(
+                                                            (item) => item !== value,
+                                                        ),
+                                              }
+                                            : current,
+                                    )
                                 }
                                 onDefectStatusChange={(value) =>
                                     updateStatusPrice("defectStatus", value)
@@ -307,14 +339,18 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
                                     updateStatusPrice("allowPriceProposal", checked)
                                 }
                                 onTradeMethodChange={(value) => {
-                                    setStatusPrice((current) => ({
-                                        ...current,
-                                        tradeMethod: value,
-                                        deliveryType:
-                                            value === "direct" ? null : current.deliveryType,
-                                        tradeLocation:
-                                            value === "delivery" ? "" : current.tradeLocation,
-                                    }));
+                                    setStatusPrice((current) =>
+                                        current
+                                            ? {
+                                                  ...current,
+                                                  tradeMethod: value,
+                                                  deliveryType:
+                                                      value === "direct"
+                                                          ? null
+                                                          : current.deliveryType,
+                                              }
+                                            : current,
+                                    );
                                     setStatusPriceErrors((current) => ({
                                         ...current,
                                         deliveryType: "",
@@ -332,9 +368,10 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
                                 }
                             />
                             <DirectRegisterActions
-                                primaryLabel="AI 분석 & 등록확인"
+                                primaryLabel="AI 분석 & 등록"
                                 onPrimaryClick={handleStatusPriceSubmit}
-                                onExit={() => setIsExitDialogOpen(true)}
+                                onExit={handleExit}
+                                exitLabel="수정 취소"
                             />
                         </>
                     )}
@@ -344,7 +381,8 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
             <ExitDialog
                 open={isExitDialogOpen}
                 onClose={() => setIsExitDialogOpen(false)}
-                onConfirm={handleExit}
+                onConfirm={handleConfirmExit}
+                confirmLabel="수정 취소"
             />
         </main>
     );

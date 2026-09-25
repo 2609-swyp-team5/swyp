@@ -8,6 +8,7 @@ type DirectRegisterActionsProps = {
     primaryForm?: string;
     onPrimaryClick?: () => void;
     onExit: () => void;
+    exitLabel?: string;
 };
 
 export function DirectRegisterActions({
@@ -16,6 +17,7 @@ export function DirectRegisterActions({
     primaryForm,
     onPrimaryClick,
     onExit,
+    exitLabel = "나가기",
 }: DirectRegisterActionsProps) {
     return (
         <div className="flex w-full max-w-[1144px] items-center justify-end gap-3">
@@ -24,7 +26,7 @@ export function DirectRegisterActions({
                 className="h-[54px] rounded-full border-0 bg-[#d3d3d3] px-[50px] py-3 text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-white hover:bg-[#c6c6c6]"
                 onClick={onExit}
             >
-                나가기
+                {exitLabel}
             </Button>
             <Button
                 type={primaryType}

@@ -6,11 +6,7 @@ import {
     ProductImageGrid,
     type ProductImagePreview,
 } from "@/common/components/product/ProductImageGrid";
-
-export type DirectImagePreview = {
-    file: File;
-    url: string;
-};
+import type { DirectImagePreview } from "./types";
 
 type DirectImageUploadProps = {
     images: DirectImagePreview[];
@@ -49,7 +45,9 @@ export function DirectImageUpload({ images, onError, onImagesChange }: DirectIma
             return;
         }
 
-        const existingKeys = new Set(images.map((image) => fileKey(image.file)));
+        const existingKeys = new Set(
+            images.filter((image) => image.file).map((image) => fileKey(image.file as File)),
+        );
         const newFiles = incomingFiles.filter((file) => !existingKeys.has(fileKey(file)));
         const remainingCount = MAX_FILE_COUNT - images.length;
         const exceedsMaxCount = newFiles.length > remainingCount;
@@ -75,7 +73,7 @@ export function DirectImageUpload({ images, onError, onImagesChange }: DirectIma
     const removeImage = (targetUrl: string) => {
         const targetImage = images.find((image) => image.url === targetUrl);
 
-        if (targetImage) {
+        if (targetImage?.file) {
             URL.revokeObjectURL(targetImage.url);
         }
 

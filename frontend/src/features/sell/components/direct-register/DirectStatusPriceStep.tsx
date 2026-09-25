@@ -21,30 +21,16 @@ import {
     FieldLabel,
     FieldLegend,
 } from "@/features/sell/components/direct-register/DirectRegisterFields";
-
-export type DirectProductCondition = "S" | "A" | "B" | "C" | "D";
-export type DirectPurchasePeriod = "1" | "2" | "3" | "4" | "5" | "6" | "unknown";
-export type DirectIncludedItem = string;
-export type DirectDefectStatus = "none" | "has-defect";
-export type DirectTradeMethod = "direct" | "delivery";
-export type DirectDeliveryType = "INCLUDED" | "PREPAID" | null;
-
-export type DirectStatusPriceState = {
-    productCondition: DirectProductCondition;
-    purchasePeriod: DirectPurchasePeriod;
-    includedItems: DirectIncludedItem[];
-    defectStatus: DirectDefectStatus;
-    price: string;
-    allowPriceProposal: boolean;
-    tradeMethod: DirectTradeMethod;
-    deliveryType: DirectDeliveryType;
-    tradeLocation: string;
-};
-
-export type DirectStatusPriceErrors = {
-    price: string;
-    deliveryType: string;
-};
+import type {
+    DirectDefectStatus,
+    DirectDeliveryType,
+    DirectIncludedItem,
+    DirectProductCondition,
+    DirectPurchasePeriod,
+    DirectStatusPriceErrors,
+    DirectStatusPriceState,
+    DirectTradeMethod,
+} from "./types";
 
 type DirectStatusPriceStepProps = DirectStatusPriceState & {
     errors: DirectStatusPriceErrors;
@@ -72,6 +58,7 @@ const productConditionOptions: {
 ];
 
 const purchasePeriodOptions: { value: DirectPurchasePeriod; label: string }[] = [
+    { value: "0", label: "구매 직후" },
     { value: "1", label: "1개월 이내" },
     { value: "2", label: "2개월 이내" },
     { value: "3", label: "3개월 이내" },
@@ -220,18 +207,28 @@ export function DirectStatusPriceStep({
 
                 <fieldset>
                     <FieldLegend required>하자 여부</FieldLegend>
-                    <div className="mt-2.5 flex gap-3" role="radiogroup" aria-label="하자 여부">
+                    <div
+                        className="mt-2.5 grid gap-3 sm:grid-cols-3"
+                        role="radiogroup"
+                        aria-label="하자 여부"
+                    >
                         <ChoiceButton
                             label="하자 없음"
                             selected={defectStatus === "none"}
                             onClick={() => onDefectStatusChange("none")}
-                            className="h-14 flex-1 rounded-lg px-3 py-3 text-[15px] leading-[22px] font-semibold"
+                            className="h-14 rounded-lg px-3 py-3 text-[15px] leading-[22px] font-semibold"
                         />
                         <ChoiceButton
                             label="하자 있음"
                             selected={defectStatus === "has-defect"}
                             onClick={() => onDefectStatusChange("has-defect")}
-                            className="h-14 flex-1 rounded-lg px-3 py-3 text-[15px] leading-[22px] font-semibold"
+                            className="h-14 rounded-lg px-3 py-3 text-[15px] leading-[22px] font-semibold"
+                        />
+                        <ChoiceButton
+                            label="잘 모르겠어요"
+                            selected={defectStatus === "unknown"}
+                            onClick={() => onDefectStatusChange("unknown")}
+                            className="h-14 rounded-lg px-3 py-3 text-[15px] leading-[22px] font-semibold"
                         />
                     </div>
                 </fieldset>

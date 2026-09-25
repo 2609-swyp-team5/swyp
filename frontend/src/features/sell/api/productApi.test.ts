@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { get, post } = vi.hoisted(() => ({
+const { get, patch, post } = vi.hoisted(() => ({
     get: vi.fn(),
+    patch: vi.fn(),
     post: vi.fn(),
 }));
 
 vi.mock("@/common/lib/api/client", () => ({
-    api: { get, post },
+    api: { get, patch, post },
 }));
 
 import { productApi } from "./productApi";
@@ -35,6 +36,14 @@ describe("productApi", () => {
                 success: true,
                 message: "",
                 data: {},
+                error: null,
+            },
+        });
+        patch.mockResolvedValue({
+            data: {
+                success: true,
+                message: "",
+                data: { id: 42 },
                 error: null,
             },
         });
@@ -106,5 +115,43 @@ describe("productApi", () => {
         expect(formData.get("purchasedMonths")).toBe("6");
         expect(formData.get("defectStatus")).toBe("normal");
         expect(formData.getAll("includedItems")).toEqual(["body", "charging-cable"]);
+    });
+
+    it("sends new files and retained image URLs as a multipart update request", async () => {
+        const newImage = new File(["new image"], "new-image.jpg", { type: "image/jpeg" });
+
+        await productApi.updateProduct(42, {
+            files: [newImage],
+            request: {
+                categoryId: 12,
+                title: "수정된 상품명",
+                brand: "Apple",
+                description: "수정된 설명",
+                price: 700000,
+                status: "ON_SALE",
+                condition: "A",
+                purchasedMonths: 3,
+                defectStatus: "NORMAL",
+                allowPriceSuggestion: true,
+                tradeMethod: "DIRECT",
+                deliveryType: null,
+                preferredTradeRegion: "서울 강남구",
+                imageUrls: ["https://example.com/retained-image.jpg"],
+                tags: ["애플"],
+                includedItems: ["body"],
+            },
+        });
+
+        const [, formData] = patch.mock.calls[0] as [string, FormData];
+        const requestPart = formData.get("data");
+
+        expect(patch).toHaveBeenCalledWith("/products/42", formData);
+        expect(formData.getAll("file[]")).toEqual([newImage]);
+        expect(requestPart).toBeInstanceOf(Blob);
+        expect(JSON.parse(await readBlob(requestPart as Blob))).toMatchObject({
+            purchasedMonths: 3,
+            imageUrls: ["https://example.com/retained-image.jpg"],
+            title: "수정된 상품명",
+        });
     });
 });

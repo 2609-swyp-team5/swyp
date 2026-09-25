@@ -9,6 +9,7 @@ import type {
     productConditionSchema,
     productCreateRequestSchema,
     productStatusSchema,
+    productUpdateRequestSchema,
     tradeMethodSchema,
 } from "./schemas/productSchema";
 
@@ -20,10 +21,16 @@ export type DeliveryType = z.infer<typeof deliveryTypeSchema>;
 export type OperationStatus = z.infer<typeof operationStatusSchema>;
 export type ProductCreateRequest = z.infer<typeof productCreateRequestSchema>;
 export type DirectProductCreateRequest = z.infer<typeof directProductCreateRequestSchema>;
+export type ProductUpdateRequest = z.infer<typeof productUpdateRequestSchema>;
 
 export interface DirectProductCreateInput {
     images: File[];
     request: DirectProductCreateRequest;
+}
+
+export interface ProductUpdateInput {
+    files: File[];
+    request: ProductUpdateRequest;
 }
 
 export type AiProductCreateInput = z.infer<typeof aiProductCreateInputSchema>;
