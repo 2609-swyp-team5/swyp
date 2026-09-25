@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 
+import {
+    ProductImageGrid,
+    type ProductImagePreview,
+} from "@/common/components/product/ProductImageGrid";
 import { Button } from "@/common/components/ui/Button";
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { useProductQuery } from "@/features/sell/hooks/queries/useProductQuery";
@@ -52,23 +55,14 @@ function ProductImages({ product }: { product: ProductResponse }) {
         );
     }
 
+    const images: ProductImagePreview[] = product.imageUrls.map((url, index) => ({
+        url,
+        alt: `${product.title} 상품 사진 ${index + 1}`,
+    }));
+
     return (
-        <div
-            className="flex gap-[15px] overflow-x-auto pb-2"
-            tabIndex={product.imageUrls.length > 3 ? 0 : undefined}
-            aria-label="등록한 상품 사진"
-        >
-            {product.imageUrls.map((imageUrl, index) => (
-                <Image
-                    key={`${imageUrl}-${index}`}
-                    src={imageUrl}
-                    alt={`${product.title} 상품 사진 ${index + 1}`}
-                    width={1}
-                    height={1}
-                    unoptimized
-                    className="h-[200px] w-auto max-w-full flex-none rounded-lg border border-[#d3d3d3] object-contain"
-                />
-            ))}
+        <div aria-label="등록한 상품 사진">
+            <ProductImageGrid images={images} maxCount={10} size="review" readOnly />
         </div>
     );
 }

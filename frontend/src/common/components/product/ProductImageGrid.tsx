@@ -15,9 +15,10 @@ export type ProductImagePreview = {
 type ProductImageGridProps = {
     images: ProductImagePreview[];
     maxCount: number;
-    onAdd: () => void;
-    onRemove: (url: string) => void;
-    size?: "default" | "sm" | "direct";
+    onAdd?: () => void;
+    onRemove?: (url: string) => void;
+    readOnly?: boolean;
+    size?: "default" | "sm" | "direct" | "review";
     className?: string;
 };
 
@@ -46,6 +47,14 @@ const sizeStyles = {
         imageSizes: "200px",
         remove: "top-[-12px] right-[-12px] size-[25px]",
     },
+    review: {
+        grid: "grid w-full grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5",
+        item: "aspect-square rounded-[8px]",
+        add: "aspect-square h-auto w-full rounded-[8px]",
+        badge: "h-[29px] rounded-none rounded-b-[8px] text-[16px] leading-[25px]",
+        imageSizes: "(min-width: 1024px) 20vw, (min-width: 640px) 33vw, 50vw",
+        remove: "top-[-12px] right-[-12px] size-[25px]",
+    },
 } as const;
 
 export function ProductImageGrid({
@@ -53,14 +62,16 @@ export function ProductImageGrid({
     maxCount,
     onAdd,
     onRemove,
+    readOnly = false,
     size = "default",
     className,
 }: ProductImageGridProps) {
     const styles = sizeStyles[size];
+    const isEditable = !readOnly && onAdd !== undefined && onRemove !== undefined;
 
     return (
         <div className={cn(styles.grid, className)}>
-            {images.length < maxCount && (
+            {isEditable && images.length < maxCount && (
                 <Button
                     type="button"
                     variant="outline"
@@ -68,7 +79,8 @@ export function ProductImageGrid({
                     aria-label="상품 사진 추가"
                     className={cn(
                         "flex items-center justify-center border-dashed border-[#d3d3d3] bg-white text-center text-[#6653fb] hover:bg-[#f5f4ff]",
-                        (size === "sm" || size === "direct") && "flex-col gap-1",
+                        (size === "sm" || size === "direct" || size === "review") &&
+                            "flex-col gap-1",
                         styles.add,
                     )}
                     onClick={(event) => {
@@ -77,11 +89,11 @@ export function ProductImageGrid({
                     }}
                 >
                     <Plus aria-hidden="true" className={cn(size === "sm" ? "size-6" : "size-8")} />
-                    {(size === "sm" || size === "direct") && (
+                    {(size === "sm" || size === "direct" || size === "review") && (
                         <span
                             className={cn(
                                 "font-normal",
-                                size === "direct"
+                                size === "direct" || size === "review"
                                     ? "text-[13px] leading-5 text-[#d3d3d3]"
                                     : "text-[11px] leading-[16.5px] text-[#8ca2c0]",
                             )}
@@ -112,22 +124,27 @@ export function ProductImageGrid({
                             대표
                         </Badge>
                     )}
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`${index + 1}번 사진 삭제`}
-                        className={cn(
-                            "absolute top-[-8px] right-[-8px] z-10 flex size-5 items-center justify-center rounded-full bg-[#374151] p-0 text-white hover:bg-[#1f2937]",
-                            styles.remove,
-                        )}
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            onRemove(image.url);
-                        }}
-                    >
-                        <X aria-hidden="true" className={cn(size === "sm" ? "size-3" : "size-4")} />
-                    </Button>
+                    {isEditable && (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`${index + 1}번 사진 삭제`}
+                            className={cn(
+                                "absolute top-[-8px] right-[-8px] z-10 flex size-5 items-center justify-center rounded-full bg-[#374151] p-0 text-white hover:bg-[#1f2937]",
+                                styles.remove,
+                            )}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onRemove(image.url);
+                            }}
+                        >
+                            <X
+                                aria-hidden="true"
+                                className={cn(size === "sm" ? "size-3" : "size-4")}
+                            />
+                        </Button>
+                    )}
                 </div>
             ))}
         </div>
