@@ -1,8 +1,10 @@
+"use client";
+
 import Link from "next/link";
 
 import { Button } from "@/common/components/ui/Button";
 import { MyPageContent, MyPanel } from "@/features/my/components/MyPageContent";
-import { MY_PREVIEW_PROFILE } from "@/features/my/myPreviewData";
+import { useMeQuery } from "@/features/member/hooks/queries/useMeQuery";
 
 const summaries = [
     { title: "등록한 물건", value: "6개", description: "판매 중 3 · 관심 2 · 완료 1" },
@@ -17,11 +19,29 @@ const connectionAlerts = [
 ];
 
 export default function MyPage() {
+    const { data: member, isError, isFetching, refetch } = useMeQuery();
+
     return (
         <MyPageContent
             eyebrow="AI와 함께하는 똑똑한 중고거래"
-            title={`안녕하세요, ${MY_PREVIEW_PROFILE.name}님 👋`}
+            title={member ? `안녕하세요, ${member.nickname}님 👋` : "안녕하세요 👋"}
         >
+            {isError ? (
+                <div className="mb-6 flex items-center gap-3">
+                    <p role="alert" className="text-muted-foreground text-[13px]">
+                        회원정보를 불러오지 못했습니다.
+                    </p>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={isFetching}
+                        onClick={() => void refetch()}
+                    >
+                        다시 시도
+                    </Button>
+                </div>
+            ) : null}
             <div className="grid gap-3 sm:grid-cols-2">
                 {summaries.map((item) => (
                     <MyPanel key={item.title} className="min-h-[140px] justify-between gap-3">

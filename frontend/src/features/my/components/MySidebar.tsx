@@ -10,7 +10,7 @@ import { Button } from "@/common/components/ui/Button";
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { cn } from "@/common/lib/utils";
 import { useLogoutMutation } from "@/features/auth/hooks/mutations/useLogoutMutation";
-import { MY_PREVIEW_PROFILE } from "@/features/my/myPreviewData";
+import { useMeQuery } from "@/features/member/hooks/queries/useMeQuery";
 
 const MY_NAVIGATION = [
     { href: "/my", label: "홈" },
@@ -24,6 +24,7 @@ const MY_NAVIGATION = [
 
 export function MySidebar() {
     const pathname = usePathname();
+    const { data: member } = useMeQuery();
     const [errorMessage, setErrorMessage] = useState("");
     const { mutate: logout, isPending: isLoggingOut } = useLogoutMutation({
         onError: (error) => setErrorMessage(getApiErrorMessage(error)),
@@ -33,12 +34,12 @@ export function MySidebar() {
             <div className="flex flex-col items-center gap-5 border-b border-white/10 px-6 pb-6">
                 <Avatar className="size-[70px] after:border-0">
                     <AvatarFallback className="bg-primary text-primary-foreground text-base font-semibold">
-                        {MY_PREVIEW_PROFILE.name[0]}
+                        {member?.nickname[0] ?? "?"}
                     </AvatarFallback>
                 </Avatar>
                 <div className="text-center">
                     <p className="typography-body-medium font-semibold text-white">
-                        {MY_PREVIEW_PROFILE.name}
+                        {member?.nickname ?? "회원"}
                     </p>
                     <Link
                         href="/my/settings"
