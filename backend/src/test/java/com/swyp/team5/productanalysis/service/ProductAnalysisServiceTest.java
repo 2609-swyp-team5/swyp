@@ -95,6 +95,7 @@ class ProductAnalysisServiceTest {
 
         verify(productAnalysisRepository, never()).save(any());
         verify(productAnalysisRepository, never()).findFirstByProductIdOrderByAnalyzedAtDesc(any());
+        verify(productRepository, never()).updateSuggestedPrice(any(), any());
     }
 
     // 분석 성공 - 통계 계산 + AI 결과 반영 + 직전 스냅샷 대비 변동률 계산
@@ -136,6 +137,8 @@ class ProductAnalysisServiceTest {
         assertThat(saved.getRecommendation()).isEqualTo(AnalysisRecommendation.SELL);
         assertThat(saved.getSuggestedPrice()).isEqualTo(3200L);
         assertThat(saved.getDescription()).isEqualTo("시세가 안정적이라 지금 파는 게 좋습니다.");
+        // 시세 분석이 낸 적정가로 상품의 AI 제안가도 갱신
+        verify(productRepository).updateSuggestedPrice(1L, 3200L);
     }
 
     // 분석 성공 - 직전 스냅샷이 없으면 변동률은 null

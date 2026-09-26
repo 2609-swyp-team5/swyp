@@ -12,6 +12,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -43,6 +45,7 @@ import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
+import com.swyp.team5.product.error.ProductImageRequiredException;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
@@ -55,6 +58,7 @@ import com.swyp.team5.tag.repository.TagRepository;
 /**
  * 상품(Product) 도메인의 등록/조회/수정/삭제를 담당하는 서비스.
  */
+@Slf4j
 @Service
 public class ProductService {
 
@@ -97,7 +101,10 @@ public class ProductService {
 
     /**
      * 상품을 직접 등록한다. AI 등록({@link #createFromImages})과 동일하게 이미지 파일을 직접 받아
-     * 업로드까지 이 안에서 처리한다.
+     * 업로드까지 이 안에서 처리한다. 판매 가격은 사용자가 입력한 값을 그대로 쓰고, AI 등록과 같은 사진
+     * 분석({@link ProductAiService#analyze})이 추정한 적정가와 그 판단 근거를 응답의 {@code suggestedPrice}/
+     * {@code analysisDescription}으로 함께 제공한다(참고용이라 AI 호출이 실패해도 등록은 성공하며 이때 두
+     * 필드는 null).
      *
      * @param memberId 등록하는 회원 ID
      * @param request 등록 요청 바디
@@ -129,26 +136,49 @@ public class ProductService {
                 resolveTags(request.tags()),
                 resolveComponents(request.includedItems()));
 
-        return ProductResponse.from(productRepository.save(product));
+        Product saved = productRepository.save(product);
+        ProductAiAnalysisResult analysis = analyzeOrNull(images);
+        if (analysis == null) {
+            return ProductResponse.from(saved);
+        }
+        saved.changeSuggestedPrice(analysis.suggestedPrice());
+        return ProductResponse.fromAiAnalysis(saved, analysis.analysisDescription());
+    }
+
+    private ProductAiAnalysisResult analyzeOrNull(List<MultipartFile> images) {
+        try {
+            return productAiService.analyze(images);
+        } catch (RuntimeException e) {
+            log.warn("직접 등록 AI 적정가 추정 실패 - suggestedPrice 없이 등록합니다. reason={}", e.getMessage());
+            return null;
+        }
     }
 
     /**
      * 상품 사진을 AI(Gemini)로 분석해 자동으로 등록한다. 가격은 AI가 추정한 참고용 시세로 채워지며
      * (실제 시세 데이터 기반은 아님, 등록 후 판매자가 직접 수정 가능), 거래 방식은 기본값
      * 직거래(DIRECT)로 등록되며, 배송 방법/희망 거래 지역은 비워둔 채 등록 후 수정으로 채운다.
-     * 구매 일시/결함 여부는 AI가 추론하지 않고 사용자가 직접 입력한 값을 그대로 사용한다. 브랜드/구성품은
-     * AI가 사진에서 식별해 채운다(식별 불가 시 각각 null/빈 목록).
+     * 구매 일시/결함 여부는 AI가 추론하지 않고 사용자가 직접 입력한 값을 그대로 사용한다. 브랜드는
+     * AI가 사진에서 식별해 채운다(식별 불가 시 null). 태그/구성품은 AI가 사진에서 추론한 목록과 사용자가
+     * 추가로 입력한 목록을 합쳐서 저장한다.
      *
      * @param memberId 등록하는 회원 ID
      * @param images 분석할 상품 이미지 목록
      * @param purchasedMonths 사용자가 입력한 구매 후 경과 개월 수(선택, 등록 시점 기준 구매일시로 변환)
      * @param defectStatus 사용자가 입력한 결함(하자) 상태
+     * @param tags 사용자가 추가로 입력한 태그 이름 목록(선택, AI 추론 결과와 합쳐짐)
+     * @param includedItems 사용자가 추가로 입력한 구성품 이름 목록(선택, AI 추론 결과와 합쳐짐)
      * @return 등록된 상품
      * @throws CategoryNotFoundException 등록된 카테고리가 없거나 AI가 반환한 카테고리가 존재하지 않는 경우
      */
     @Transactional
     public ProductResponse createFromImages(
-            Long memberId, List<MultipartFile> images, Integer purchasedMonths, DefectStatus defectStatus) {
+            Long memberId,
+            List<MultipartFile> images,
+            Integer purchasedMonths,
+            DefectStatus defectStatus,
+            List<String> tags,
+            List<String> includedItems) {
         Member member = memberRepository.getReferenceById(memberId);
         ProductAiAnalysisResult analysis = productAiService.analyze(images);
         Category category = getCategoryOrThrow(analysis.categoryId());
@@ -169,11 +199,11 @@ public class ProductService {
                 null,
                 null,
                 imageUrls,
-                resolveTags(analysis.tags()),
-                resolveComponents(analysis.includedItems()));
+                resolveTags(mergeNames(analysis.tags(), tags)),
+                resolveComponents(mergeNames(analysis.includedItems(), includedItems)));
+        product.changeSuggestedPrice(analysis.suggestedPrice());
 
-        return ProductResponse.fromAiAnalysis(
-                productRepository.save(product), analysis.suggestedPrice(), analysis.analysisDescription());
+        return ProductResponse.fromAiAnalysis(productRepository.save(product), analysis.analysisDescription());
     }
 
     /**
@@ -339,21 +369,36 @@ public class ProductService {
     }
 
     /**
-     * 상품 정보를 수정한다. 본인이 등록한 상품만 수정할 수 있다.
+     * 상품 정보를 수정한다. 본인이 등록한 상품만 수정할 수 있다. 이미지는 유지할 기존 이미지 URL
+     * ({@code request.imageUrls}) 뒤에 새로 업로드한 파일을 이어 붙인 순서로 전체 교체하고, 구매 일시는
+     * {@code purchasedMonths}로 수정 시점 기준 다시 계산한다.
      *
      * @param memberId 요청한 회원 ID
      * @param productId 수정할 상품 ID
      * @param request 수정 요청 바디
+     * @param files 새로 추가할 이미지 파일 목록(선택, {@code null} 허용)
      * @return 수정된 상품
      * @throws ProductNotFoundException 존재하지 않는 상품인 경우
      * @throws ProductAccessDeniedException 본인이 등록한 상품이 아닌 경우
      * @throws CategoryNotFoundException 존재하지 않는 카테고리인 경우
+     * @throws ProductImageRequiredException 유지할 이미지와 새 파일을 합쳐 1장도 없는 경우
      */
     @Transactional
-    public ProductResponse update(Long memberId, Long productId, ProductUpdateRequest request) {
+    public ProductResponse update(
+            Long memberId, Long productId, ProductUpdateRequest request, List<MultipartFile> files) {
         Product product = getProductOrThrow(productId);
         validateRegisteredBy(product, memberId);
         Category category = getCategoryOrThrow(request.categoryId());
+
+        List<String> keptImageUrls = request.imageUrls() == null ? List.of() : request.imageUrls();
+        List<MultipartFile> newFiles = files == null
+                ? List.of()
+                : files.stream().filter(file -> !file.isEmpty()).toList();
+        if (keptImageUrls.isEmpty() && newFiles.isEmpty()) {
+            throw new ProductImageRequiredException();
+        }
+        List<String> imageUrls = Stream.concat(keptImageUrls.stream(), uploadImages(newFiles).stream())
+                .toList();
 
         product.update(
                 category,
@@ -364,6 +409,7 @@ public class ProductService {
                 request.status(),
                 request.condition(),
                 request.defectStatus(),
+                toPurchasedAt(request.purchasedMonths()),
                 request.allowPriceSuggestion(),
                 request.tradeMethod(),
                 request.deliveryType(),
@@ -371,7 +417,7 @@ public class ProductService {
 
         product.clearImages();
         productRepository.flush();
-        product.addImages(request.imageUrls());
+        product.addImages(imageUrls);
 
         product.clearTags();
         product.addTags(resolveTags(request.tags()));
@@ -427,7 +473,7 @@ public class ProductService {
 
     /**
      * 이미지 파일 목록을 스토리지에 업로드하고 접근 URL 목록을 반환한다(요청 순서 유지). 직접 등록/AI
-     * 등록 모두 이 메서드로 업로드한다.
+     * 등록/수정 모두 이 메서드로 업로드한다.
      *
      * @param images 업로드할 이미지 파일 목록
      * @return 업로드된 이미지 URL 목록(요청 순서와 동일)
@@ -439,8 +485,7 @@ public class ProductService {
     }
 
     /**
-     * 구매 후 경과 개월 수를 등록 시점 기준 구매일시로 변환한다. 이 값은 등록 시점에만 계산되며 이후
-     * 수정으로는 변경되지 않는다.
+     * 구매 후 경과 개월 수를 호출 시점(등록/수정) 기준 구매일시로 변환한다.
      *
      * @param purchasedMonths 구매 후 경과 개월 수(선택)
      * @return {@code purchasedMonths}가 {@code null}이면 {@code null}, 아니면 오늘로부터
@@ -475,6 +520,21 @@ public class ProductService {
         Set<Tag> tags = new LinkedHashSet<>(existingTags);
         tags.addAll(newTags);
         return tags;
+    }
+
+    /**
+     * AI가 추론한 이름 목록(태그/구성품)과 사용자가 직접 입력한 이름 목록을 하나로 합친다(중복은
+     * {@link #resolveTags}/{@link #resolveComponents}에서 제거됨).
+     *
+     * @param aiInferredNames AI가 사진에서 추론한 이름 목록(null 가능)
+     * @param userInputNames 사용자가 직접 입력한 이름 목록(null 가능)
+     * @return 두 목록을 합친 이름 목록
+     */
+    private static List<String> mergeNames(List<String> aiInferredNames, List<String> userInputNames) {
+        return Stream.concat(
+                        aiInferredNames == null ? Stream.<String>empty() : aiInferredNames.stream(),
+                        userInputNames == null ? Stream.<String>empty() : userInputNames.stream())
+                .toList();
     }
 
     /**

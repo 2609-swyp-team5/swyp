@@ -163,6 +163,11 @@ public class ProductAnalysisService {
                 aiResult.description(),
                 LocalDateTime.now());
         productAnalysisRepository.save(analysis);
+
+        // 시세 분석이 적정가를 냈으면 상품의 AI 제안가도 최신 값으로 갱신(상세/수정 응답의 suggestedPrice)
+        if (aiResult.suggestedPrice() != null) {
+            productRepository.updateSuggestedPrice(product.getId(), aiResult.suggestedPrice());
+        }
     }
 
     private MarketAnalysisResult requestAiAnalysis(

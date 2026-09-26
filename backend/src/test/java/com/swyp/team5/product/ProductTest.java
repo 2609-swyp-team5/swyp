@@ -23,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -112,12 +113,26 @@ class ProductTest {
         ProductCreateRequest request = createRequest(category.getId());
         when(fileStorageService.upload(any(), eq("products")))
                 .thenReturn(new FileUploadResponse("key", "https://image.example.com/1.png", 3, "image/png"));
+        when(productAiService.analyze(anyList()))
+                .thenReturn(new ProductAiAnalysisResult(
+                        category.getId(),
+                        "AI 제목",
+                        null,
+                        "AI 설명",
+                        ProductCondition.A,
+                        470_000L,
+                        "판단 근거",
+                        List.of(),
+                        List.of()));
 
         mockMvc.perform(multipart("/products")
                         .file(imagePart())
                         .file(requestPart(request))
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.price").value(request.price())) // 사용자가 입력한 판매 가격
+                .andExpect(jsonPath("$.data.suggestedPrice").value(470_000)) // AI가 추정한 적정가
+                .andExpect(jsonPath("$.data.analysisDescription").value("판단 근거")) // 적정가 판단 근거
                 .andExpect(jsonPath("$.data.title").value("아이폰 13"))
                 .andExpect(jsonPath("$.data.brand").value("애플"))
                 .andExpect(jsonPath("$.data.memberId").value(sellerId))
@@ -126,6 +141,40 @@ class ProductTest {
                 .andExpect(jsonPath("$.data.imageUrls[0]").value("https://image.example.com/1.png"));
 
         assertThat(productRepository.count()).isEqualTo(1);
+    }
+
+    // AI 제안가 - 등록 시 AI 추정가가 저장돼 상세 조회/수정 응답에도 포함되고, 시세 분석 갱신값이 반영됨
+    @Test
+    void suggestedPriceIsStoredAndRefreshedByAnalysis() throws Exception {
+        when(productAiService.analyze(anyList()))
+                .thenReturn(new ProductAiAnalysisResult(
+                        category.getId(),
+                        "AI 제목",
+                        null,
+                        "AI 설명",
+                        ProductCondition.A,
+                        470_000L,
+                        "판단 근거",
+                        List.of(),
+                        List.of()));
+        Long productId = createProduct();
+
+        mockMvc.perform(get("/products/{id}", productId).header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.suggestedPrice").value(470_000))
+                .andExpect(jsonPath("$.data.analysisDescription").isEmpty());
+
+        mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{id}", productId)
+                        .file(requestPart(updateRequest(category.getId(), ProductStatus.ON_SALE)))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.suggestedPrice").value(470_000)); // 사용자 수정으로는 바뀌지 않음
+
+        productRepository.updateSuggestedPrice(productId, 430_000L); // 시세 분석의 갱신 경로
+
+        mockMvc.perform(get("/products/{id}", productId).header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.suggestedPrice").value(430_000));
     }
 
     // 상품 등록 실패 - 인증 없음
@@ -269,8 +318,8 @@ class ProductTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.title").value("AI가 분석한 상품"))
                 .andExpect(jsonPath("$.data.brand").value("애플"))
-                .andExpect(jsonPath("$.data.price").value(300_000))
-                .andExpect(jsonPath("$.data.suggestedPrice").value(300_000))
+                .andExpect(jsonPath("$.data.price").value(300_000)) // AI가 추정한 적정가가 판매 가격으로
+                .andExpect(jsonPath("$.data.suggestedPrice").value(300_000)) // 같은 값을 AI 제안가로도 제공
                 .andExpect(jsonPath("$.data.analysisDescription").value("외관 상태가 양호해 A급 시세 대비 적정합니다."))
                 .andExpect(jsonPath("$.data.tradeMethod").value("DIRECT"))
                 .andExpect(jsonPath("$.data.defectStatus").value("ISSUES"))
@@ -279,9 +328,9 @@ class ProductTest {
                 .andExpect(jsonPath("$.data.purchasedMonths").value(3));
     }
 
-    // 상품 이미지 AI 분석 등록 성공 - 구성품 포함(AI가 사진에서 추론)
+    // 상품 이미지 AI 분석 등록 성공 - 태그/구성품은 AI 추론 결과와 사용자 입력을 합쳐서 저장
     @Test
-    void createFromImagesSucceedsWithIncludedItems() throws Exception {
+    void createFromImagesMergesUserInputWithAiInference() throws Exception {
         ProductAiAnalysisResult analysis = new ProductAiAnalysisResult(
                 category.getId(),
                 "AI가 분석한 상품",
@@ -290,8 +339,8 @@ class ProductTest {
                 ProductCondition.B,
                 300_000L,
                 "외관 상태가 양호해 A급 시세 대비 적정합니다.",
-                List.of(),
-                List.of("박스", "충전기"));
+                List.of("애플"),
+                List.of("박스"));
         when(productAiService.analyze(anyList())).thenReturn(analysis);
         when(fileStorageService.upload(any(), eq("products")))
                 .thenReturn(new FileUploadResponse("key", "https://image.example.com/ai.png", 3, "image/png"));
@@ -302,8 +351,11 @@ class ProductTest {
                         .file(image)
                         .param("purchasedMonths", "3")
                         .param("defectStatus", "NORMAL")
+                        .param("tags", "급처")
+                        .param("includedItems", "충전기")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.tags", containsInAnyOrder("애플", "급처")))
                 .andExpect(jsonPath("$.data.includedItems", containsInAnyOrder("박스", "충전기")));
     }
 
@@ -381,7 +433,10 @@ class ProductTest {
                         .param("categoryId", String.valueOf(otherCategory.getId())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content.length()").value(1))
-                .andExpect(jsonPath("$.data.content[0].categoryName").value(otherCategory.getName()));
+                .andExpect(jsonPath("$.data.content[0].categoryName").value(otherCategory.getName()))
+                .andExpect(jsonPath("$.data.content[0].brand").value("애플"))
+                .andExpect(jsonPath("$.data.content[0].defectStatus").value("NORMAL"))
+                .andExpect(jsonPath("$.data.content[0].purchasedMonths").value(3));
     }
 
     // 상품 목록 조회 - 키워드 검색(제목/설명)
@@ -395,7 +450,10 @@ class ProductTest {
                         .param("keyword", "갤럭시"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content.length()").value(1))
-                .andExpect(jsonPath("$.data.content[0].title").value("갤럭시 S24 울트라"));
+                .andExpect(jsonPath("$.data.content[0].title").value("갤럭시 S24 울트라"))
+                .andExpect(jsonPath("$.data.content[0].brand").value("애플"))
+                .andExpect(jsonPath("$.data.content[0].defectStatus").value("NORMAL"))
+                .andExpect(jsonPath("$.data.content[0].purchasedMonths").value(3));
     }
 
     // 상품 목록 조회(공개) - HIDDEN 상태는 항상 제외
@@ -467,13 +525,64 @@ class ProductTest {
         Long productId = createProduct();
         ProductUpdateRequest request = updateRequest(category.getId(), ProductStatus.RESERVED);
 
-        mockMvc.perform(patch("/products/{id}", productId)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{id}", productId)
+                        .file(requestPart(request))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.title").value("아이폰 13 프로"))
-                .andExpect(jsonPath("$.data.status").value("RESERVED"));
+                .andExpect(jsonPath("$.data.brand").value("애플"))
+                .andExpect(jsonPath("$.data.status").value("RESERVED"))
+                .andExpect(jsonPath("$.data.defectStatus").value("ISSUES"))
+                .andExpect(jsonPath("$.data.purchasedMonths").value(1))
+                .andExpect(jsonPath("$.data.includedItems[0]").value("케이블"));
+    }
+
+    // 상품 수정 성공 - 유지할 기존 이미지 뒤에 새 이미지 파일(images)이 이어 붙음
+    @Test
+    void updateAppendsNewImageFiles() throws Exception {
+        Long productId = createProduct();
+        ProductUpdateRequest request = updateRequest(category.getId(), ProductStatus.ON_SALE);
+        when(fileStorageService.upload(any(), eq("products")))
+                .thenReturn(new FileUploadResponse("key", "https://image.example.com/new.png", 3, "image/png"));
+
+        mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{id}", productId)
+                        .file(new MockMultipartFile("images", "new.png", "image/png", new byte[] {1, 2, 3}))
+                        .file(requestPart(request))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.imageUrls.length()").value(2))
+                .andExpect(jsonPath("$.data.imageUrls[0]").value("https://image.example.com/2.png"))
+                .andExpect(jsonPath("$.data.imageUrls[1]").value("https://image.example.com/new.png"));
+    }
+
+    // 상품 수정 실패 - 유지할 이미지도 새 파일도 없음
+    @Test
+    void updateFailsWhenNoImages() throws Exception {
+        Long productId = createProduct();
+        ProductUpdateRequest base = updateRequest(category.getId(), ProductStatus.ON_SALE);
+        ProductUpdateRequest request = new ProductUpdateRequest(
+                base.categoryId(),
+                base.title(),
+                base.brand(),
+                base.description(),
+                base.price(),
+                base.status(),
+                base.condition(),
+                base.defectStatus(),
+                base.purchasedMonths(),
+                base.allowPriceSuggestion(),
+                base.tradeMethod(),
+                base.deliveryType(),
+                base.preferredTradeRegion(),
+                List.of(),
+                base.tags(),
+                base.includedItems());
+
+        mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{id}", productId)
+                        .file(requestPart(request))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_INPUT_VALUE"));
     }
 
     // 상품 수정 실패 - 소유자가 아님
@@ -483,10 +592,9 @@ class ProductTest {
         String otherToken = createOtherMemberToken();
         ProductUpdateRequest request = updateRequest(category.getId(), ProductStatus.RESERVED);
 
-        mockMvc.perform(patch("/products/{id}", productId)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{id}", productId)
+                        .file(requestPart(request))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
     }
@@ -496,10 +604,9 @@ class ProductTest {
     void updateFailsWhenNotFound() throws Exception {
         ProductUpdateRequest request = updateRequest(category.getId(), ProductStatus.RESERVED);
 
-        mockMvc.perform(patch("/products/{id}", 999_999_999L)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{id}", 999_999_999L)
+                        .file(requestPart(request))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isNotFound());
     }
 
@@ -608,7 +715,7 @@ class ProductTest {
     }
 
     /** {@code data} 멀티파트 파트로 보낼 JSON 본문(등록 정보). */
-    private MockMultipartFile requestPart(ProductCreateRequest request) throws Exception {
+    private MockMultipartFile requestPart(Object request) throws Exception {
         return new MockMultipartFile(
                 "data", "data.json", MediaType.APPLICATION_JSON_VALUE, objectMapper.writeValueAsBytes(request));
     }
@@ -639,19 +746,20 @@ class ProductTest {
         return new ProductUpdateRequest(
                 categoryId,
                 "아이폰 13 프로",
-                null,
+                "애플",
                 "수정된 설명",
                 450_000L,
                 status,
                 ProductCondition.B,
                 DefectStatus.ISSUES,
+                1,
                 false,
                 TradeMethod.DELIVERY,
                 null,
                 null,
                 List.of("https://image.example.com/2.png"),
                 List.of(),
-                List.of());
+                List.of("케이블"));
     }
 
     private Category createCategory() {

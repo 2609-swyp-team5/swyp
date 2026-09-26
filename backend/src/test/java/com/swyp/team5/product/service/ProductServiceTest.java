@@ -48,6 +48,7 @@ import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
+import com.swyp.team5.product.error.ProductImageRequiredException;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
@@ -139,17 +140,67 @@ class ProductServiceTest {
         when(fileStorageService.upload(image, "products"))
                 .thenReturn(new FileUploadResponse("key", "https://image.example.com/1.png", 3, "image/png"));
         when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(productAiService.analyze(List.of(image)))
+                .thenReturn(new ProductAiAnalysisResult(
+                        category.getId(),
+                        "AI 제목",
+                        null,
+                        "AI 설명",
+                        ProductCondition.A,
+                        470_000L,
+                        "판단 근거",
+                        List.of(),
+                        List.of()));
 
         ProductResponse response = service().create(1L, request, List.of(image));
 
         assertThat(response.title()).isEqualTo("아이폰 13");
         assertThat(response.brand()).isEqualTo("애플");
+        assertThat(response.price()).isEqualTo(500_000L); // 사용자가 입력한 판매 가격
+        assertThat(response.suggestedPrice()).isEqualTo(470_000L); // AI 사진 분석이 추정한 적정가
+        assertThat(response.analysisDescription()).isEqualTo("판단 근거"); // 같은 AI 분석의 판단 근거
         assertThat(response.memberId()).isEqualTo(1L);
         assertThat(response.category().id()).isEqualTo(category.getId());
         assertThat(response.purchasedAt()).isEqualTo(LocalDate.now().minusMonths(3));
         assertThat(response.purchasedMonths()).isEqualTo(3);
         assertThat(response.imageUrls()).containsExactly("https://image.example.com/1.png");
         assertThat(response.status()).isEqualTo(ProductStatus.ON_SALE);
+    }
+
+    // 상품 등록 성공 - AI 적정가 추정이 실패해도 등록은 성공하고 suggestedPrice만 null
+    @Test
+    void createSucceedsWhenPriceEstimateFails() {
+        Member member = newMember(1L);
+        Category category = newCategory(1L, "전자기기");
+        MockMultipartFile image = new MockMultipartFile("images", "iphone.png", "image/png", new byte[] {1, 2, 3});
+        ProductCreateRequest request = new ProductCreateRequest(
+                category.getId(),
+                "아이폰 13",
+                null,
+                "설명",
+                500_000L,
+                ProductCondition.A,
+                DefectStatus.NORMAL,
+                null,
+                true,
+                TradeMethod.DIRECT,
+                null,
+                null,
+                List.of(),
+                List.of());
+
+        when(memberRepository.getReferenceById(1L)).thenReturn(member);
+        when(categoryRepository.findById(category.getId())).thenReturn(Optional.of(category));
+        when(fileStorageService.upload(image, "products"))
+                .thenReturn(new FileUploadResponse("key", "https://image.example.com/1.png", 3, "image/png"));
+        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(productAiService.analyze(List.of(image))).thenThrow(new IllegalStateException("Gemini 503"));
+
+        ProductResponse response = service().create(1L, request, List.of(image));
+
+        assertThat(response.price()).isEqualTo(500_000L);
+        assertThat(response.suggestedPrice()).isNull();
+        assertThat(response.analysisDescription()).isNull();
     }
 
     // 상품 등록 성공 - 태그 포함(기존 태그 재사용 + 신규 태그 생성)
@@ -277,7 +328,7 @@ class ProductServiceTest {
         when(tagRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ProductResponse response = service().createFromImages(1L, List.of(image), 3, DefectStatus.ISSUES);
+        ProductResponse response = service().createFromImages(1L, List.of(image), 3, DefectStatus.ISSUES, null, null);
 
         assertThat(response.title()).isEqualTo("아이폰 13");
         assertThat(response.brand()).isEqualTo("애플");
@@ -287,8 +338,8 @@ class ProductServiceTest {
         assertThat(response.defectStatus()).isEqualTo(DefectStatus.ISSUES);
         assertThat(response.purchasedAt()).isEqualTo(LocalDate.now().minusMonths(3));
         assertThat(response.purchasedMonths()).isEqualTo(3);
-        assertThat(response.price()).isEqualTo(450_000L);
-        assertThat(response.suggestedPrice()).isEqualTo(450_000L);
+        assertThat(response.price()).isEqualTo(450_000L); // AI가 추정한 적정가가 판매 가격으로
+        assertThat(response.suggestedPrice()).isEqualTo(450_000L); // 같은 값을 AI 제안가로도 제공
         assertThat(response.analysisDescription()).isEqualTo("외관 스크래치가 거의 없어 A급으로 판단했습니다.");
         assertThat(response.tradeMethod()).isEqualTo(TradeMethod.DIRECT);
         assertThat(response.imageUrls()).containsExactly("https://image.example.com/iphone.png");
@@ -296,7 +347,7 @@ class ProductServiceTest {
         assertThat(response.includedItems()).isEmpty();
     }
 
-    // 상품 이미지 AI 분석 등록 성공 - 구성품 포함(AI가 사진에서 추론)
+    // 상품 이미지 AI 분석 등록 성공 - 구성품은 AI 추론 결과와 사용자 입력을 합쳐서 저장
     @Test
     void createFromImagesSucceedsWithIncludedItems() {
         Member member = newMember(1L);
@@ -312,7 +363,7 @@ class ProductServiceTest {
                 450_000L,
                 "외관 스크래치가 거의 없어 A급으로 판단했습니다.",
                 List.of(),
-                List.of("박스", "충전기"));
+                List.of("박스"));
 
         when(memberRepository.getReferenceById(1L)).thenReturn(member);
         when(productAiService.analyze(List.of(image))).thenReturn(analysis);
@@ -323,9 +374,42 @@ class ProductServiceTest {
         when(componentRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ProductResponse response = service().createFromImages(1L, List.of(image), 3, DefectStatus.NORMAL);
+        ProductResponse response =
+                service().createFromImages(1L, List.of(image), 3, DefectStatus.NORMAL, null, List.of("충전기"));
 
         assertThat(response.includedItems()).containsExactlyInAnyOrder("박스", "충전기");
+    }
+
+    // 상품 이미지 AI 분석 등록 성공 - 태그는 AI 추론 결과와 사용자 입력을 합쳐서 저장(중복은 한 번만)
+    @Test
+    void createFromImagesSucceedsWithUserTags() {
+        Member member = newMember(1L);
+        Category category = newCategory(1L, "전자기기");
+        MockMultipartFile image = new MockMultipartFile("images", "iphone.png", "image/png", new byte[] {1, 2, 3});
+        ProductAiAnalysisResult analysis = new ProductAiAnalysisResult(
+                category.getId(),
+                "아이폰 13",
+                null,
+                "AI가 분석한 설명",
+                ProductCondition.A,
+                450_000L,
+                "외관 스크래치가 거의 없어 A급으로 판단했습니다.",
+                List.of("애플", "아이폰"),
+                List.of());
+
+        when(memberRepository.getReferenceById(1L)).thenReturn(member);
+        when(productAiService.analyze(List.of(image))).thenReturn(analysis);
+        when(categoryRepository.findById(category.getId())).thenReturn(Optional.of(category));
+        when(fileStorageService.upload(image, "products"))
+                .thenReturn(new FileUploadResponse("key", "https://image.example.com/iphone.png", 3, "image/png"));
+        when(tagRepository.findAllByNameIn(List.of("애플", "아이폰", "급처"))).thenReturn(List.of());
+        when(tagRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ProductResponse response =
+                service().createFromImages(1L, List.of(image), 3, DefectStatus.NORMAL, List.of("급처", "애플"), null);
+
+        assertThat(response.tags()).containsExactlyInAnyOrder("애플", "아이폰", "급처");
     }
 
     // 상품 이미지 AI 분석 등록 실패 - AI가 존재하지 않는 카테고리를 추론
@@ -339,7 +423,7 @@ class ProductServiceTest {
         when(productAiService.analyze(List.of(image))).thenReturn(analysis);
         when(categoryRepository.findById(99L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service().createFromImages(1L, List.of(image), null, DefectStatus.NORMAL))
+        assertThatThrownBy(() -> service().createFromImages(1L, List.of(image), null, DefectStatus.NORMAL, null, null))
                 .isInstanceOf(CategoryNotFoundException.class);
     }
 
@@ -503,8 +587,8 @@ class ProductServiceTest {
     void updateSucceedsWhenOwner() {
         Category category = newCategory(1L, "전자기기");
         Product product = newProduct(1L, newMember(1L), category);
-        LocalDate registeredPurchasedAt = LocalDate.now().minusMonths(5);
-        setField(product, "purchasedAt", registeredPurchasedAt);
+        setField(product, "purchasedAt", LocalDate.now().minusMonths(5));
+        MockMultipartFile newImage = new MockMultipartFile("images", "new.png", "image/png", new byte[] {1, 2, 3});
 
         ProductUpdateRequest request = new ProductUpdateRequest(
                 category.getId(),
@@ -515,6 +599,7 @@ class ProductServiceTest {
                 ProductStatus.RESERVED,
                 ProductCondition.B,
                 DefectStatus.ISSUES,
+                2,
                 false,
                 TradeMethod.DELIVERY,
                 null,
@@ -529,14 +614,21 @@ class ProductServiceTest {
         when(tagRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(componentRepository.findAllByNameIn(List.of("박스"))).thenReturn(List.of());
         when(componentRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(fileStorageService.upload(newImage, "products"))
+                .thenReturn(new FileUploadResponse("key", "https://image.example.com/new.png", 3, "image/png"));
 
-        ProductResponse response = service().update(1L, 1L, request);
+        ProductResponse response = service().update(1L, 1L, request, List.of(newImage));
 
         assertThat(response.title()).isEqualTo("아이폰 13 프로");
         assertThat(response.brand()).isEqualTo("애플");
         assertThat(response.status()).isEqualTo(ProductStatus.RESERVED);
-        assertThat(response.purchasedAt()).isEqualTo(registeredPurchasedAt);
-        assertThat(response.imageUrls()).containsExactly("https://image.example.com/2.png");
+        assertThat(response.defectStatus()).isEqualTo(DefectStatus.ISSUES);
+        // 구매 일시는 수정 요청의 purchasedMonths로 수정 시점 기준 다시 계산됨
+        assertThat(response.purchasedAt()).isEqualTo(LocalDate.now().minusMonths(2));
+        assertThat(response.purchasedMonths()).isEqualTo(2);
+        // 유지할 기존 이미지 뒤에 새로 업로드한 이미지가 이어 붙음
+        assertThat(response.imageUrls())
+                .containsExactly("https://image.example.com/2.png", "https://image.example.com/new.png");
         assertThat(response.tags()).containsExactly("가성비");
         assertThat(response.includedItems()).containsExactly("박스");
     }
@@ -556,6 +648,7 @@ class ProductServiceTest {
                 ProductStatus.RESERVED,
                 ProductCondition.B,
                 DefectStatus.ISSUES,
+                null,
                 false,
                 TradeMethod.DELIVERY,
                 null,
@@ -566,7 +659,39 @@ class ProductServiceTest {
 
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
 
-        assertThatThrownBy(() -> service().update(2L, 1L, request)).isInstanceOf(ProductAccessDeniedException.class);
+        assertThatThrownBy(() -> service().update(2L, 1L, request, null))
+                .isInstanceOf(ProductAccessDeniedException.class);
+    }
+
+    // 상품 수정 실패 - 유지할 이미지도 새 파일도 없음
+    @Test
+    void updateFailsWhenNoImages() {
+        Category category = newCategory(1L, "전자기기");
+        Product product = newProduct(1L, newMember(1L), category);
+
+        ProductUpdateRequest request = new ProductUpdateRequest(
+                category.getId(),
+                "아이폰 13 프로",
+                null,
+                "수정된 설명",
+                450_000L,
+                ProductStatus.ON_SALE,
+                ProductCondition.B,
+                DefectStatus.NORMAL,
+                null,
+                false,
+                TradeMethod.DIRECT,
+                null,
+                null,
+                List.of(),
+                List.of(),
+                List.of());
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(categoryRepository.findById(category.getId())).thenReturn(Optional.of(category));
+
+        assertThatThrownBy(() -> service().update(1L, 1L, request, null))
+                .isInstanceOf(ProductImageRequiredException.class);
     }
 
     // 상품 상태 변경 성공 - 소유자 본인
