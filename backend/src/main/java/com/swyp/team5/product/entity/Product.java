@@ -2,6 +2,7 @@ package com.swyp.team5.product.entity;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -224,7 +225,7 @@ public class Product {
      * 상품 정보를 전달된 값으로 전체 갱신한다. 이미지·태그·구성품은 이 메소드로 갱신되지 않으므로
      * {@link #addImages}/{@link #clearImages}, {@link #addTags}/{@link #clearTags},
      * {@link #addComponents}/{@link #clearComponents}를 별도로 호출해야 한다.
-     * 구매 일시({@code purchasedAt})는 등록 시점에 확정되는 값이라 이 메소드로 변경되지 않는다.
+     * 구매 일시({@code purchasedAt})는 호출 측이 수정 시점 기준으로 다시 계산한 값을 넘긴다.
      */
     public void update(
             Category category,
@@ -235,6 +236,7 @@ public class Product {
             ProductStatus status,
             ProductCondition condition,
             DefectStatus defectStatus,
+            LocalDate purchasedAt,
             boolean allowPriceSuggestion,
             TradeMethod tradeMethod,
             DeliveryType deliveryType,
@@ -247,10 +249,20 @@ public class Product {
         this.status = status;
         this.condition = condition;
         this.defectStatus = defectStatus;
+        this.purchasedAt = purchasedAt;
         this.allowPriceSuggestion = allowPriceSuggestion;
         this.tradeMethod = tradeMethod;
         this.deliveryType = deliveryType;
         this.preferredTradeRegion = preferredTradeRegion;
+    }
+
+    /**
+     * 구매 일시로부터 오늘까지 경과한 개월 수를 계산한다(응답용, 조회할 때마다 다시 계산).
+     *
+     * @return 구매 일시가 없으면 {@code null}
+     */
+    public Integer calculatePurchasedMonths() {
+        return purchasedAt == null ? null : (int) ChronoUnit.MONTHS.between(purchasedAt, LocalDate.now());
     }
 
     /**

@@ -23,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -398,7 +399,10 @@ class ProductTest {
                         .param("categoryId", String.valueOf(otherCategory.getId())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content.length()").value(1))
-                .andExpect(jsonPath("$.data.content[0].categoryName").value(otherCategory.getName()));
+                .andExpect(jsonPath("$.data.content[0].categoryName").value(otherCategory.getName()))
+                .andExpect(jsonPath("$.data.content[0].brand").value("애플"))
+                .andExpect(jsonPath("$.data.content[0].defectStatus").value("NORMAL"))
+                .andExpect(jsonPath("$.data.content[0].purchasedMonths").value(3));
     }
 
     // 상품 목록 조회 - 키워드 검색(제목/설명)
@@ -412,7 +416,10 @@ class ProductTest {
                         .param("keyword", "갤럭시"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content.length()").value(1))
-                .andExpect(jsonPath("$.data.content[0].title").value("갤럭시 S24 울트라"));
+                .andExpect(jsonPath("$.data.content[0].title").value("갤럭시 S24 울트라"))
+                .andExpect(jsonPath("$.data.content[0].brand").value("애플"))
+                .andExpect(jsonPath("$.data.content[0].defectStatus").value("NORMAL"))
+                .andExpect(jsonPath("$.data.content[0].purchasedMonths").value(3));
     }
 
     // 상품 목록 조회(공개) - HIDDEN 상태는 항상 제외
@@ -484,13 +491,64 @@ class ProductTest {
         Long productId = createProduct();
         ProductUpdateRequest request = updateRequest(category.getId(), ProductStatus.RESERVED);
 
-        mockMvc.perform(patch("/products/{id}", productId)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{id}", productId)
+                        .file(requestPart(request))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.title").value("아이폰 13 프로"))
-                .andExpect(jsonPath("$.data.status").value("RESERVED"));
+                .andExpect(jsonPath("$.data.brand").value("애플"))
+                .andExpect(jsonPath("$.data.status").value("RESERVED"))
+                .andExpect(jsonPath("$.data.defectStatus").value("ISSUES"))
+                .andExpect(jsonPath("$.data.purchasedMonths").value(1))
+                .andExpect(jsonPath("$.data.includedItems[0]").value("케이블"));
+    }
+
+    // 상품 수정 성공 - 유지할 기존 이미지 뒤에 새 이미지 파일(images)이 이어 붙음
+    @Test
+    void updateAppendsNewImageFiles() throws Exception {
+        Long productId = createProduct();
+        ProductUpdateRequest request = updateRequest(category.getId(), ProductStatus.ON_SALE);
+        when(fileStorageService.upload(any(), eq("products")))
+                .thenReturn(new FileUploadResponse("key", "https://image.example.com/new.png", 3, "image/png"));
+
+        mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{id}", productId)
+                        .file(new MockMultipartFile("images", "new.png", "image/png", new byte[] {1, 2, 3}))
+                        .file(requestPart(request))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.imageUrls.length()").value(2))
+                .andExpect(jsonPath("$.data.imageUrls[0]").value("https://image.example.com/2.png"))
+                .andExpect(jsonPath("$.data.imageUrls[1]").value("https://image.example.com/new.png"));
+    }
+
+    // 상품 수정 실패 - 유지할 이미지도 새 파일도 없음
+    @Test
+    void updateFailsWhenNoImages() throws Exception {
+        Long productId = createProduct();
+        ProductUpdateRequest base = updateRequest(category.getId(), ProductStatus.ON_SALE);
+        ProductUpdateRequest request = new ProductUpdateRequest(
+                base.categoryId(),
+                base.title(),
+                base.brand(),
+                base.description(),
+                base.price(),
+                base.status(),
+                base.condition(),
+                base.defectStatus(),
+                base.purchasedMonths(),
+                base.allowPriceSuggestion(),
+                base.tradeMethod(),
+                base.deliveryType(),
+                base.preferredTradeRegion(),
+                List.of(),
+                base.tags(),
+                base.includedItems());
+
+        mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{id}", productId)
+                        .file(requestPart(request))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_INPUT_VALUE"));
     }
 
     // 상품 수정 실패 - 소유자가 아님
@@ -500,10 +558,9 @@ class ProductTest {
         String otherToken = createOtherMemberToken();
         ProductUpdateRequest request = updateRequest(category.getId(), ProductStatus.RESERVED);
 
-        mockMvc.perform(patch("/products/{id}", productId)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{id}", productId)
+                        .file(requestPart(request))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
     }
@@ -513,10 +570,9 @@ class ProductTest {
     void updateFailsWhenNotFound() throws Exception {
         ProductUpdateRequest request = updateRequest(category.getId(), ProductStatus.RESERVED);
 
-        mockMvc.perform(patch("/products/{id}", 999_999_999L)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{id}", 999_999_999L)
+                        .file(requestPart(request))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isNotFound());
     }
 
@@ -625,7 +681,7 @@ class ProductTest {
     }
 
     /** {@code data} 멀티파트 파트로 보낼 JSON 본문(등록 정보). */
-    private MockMultipartFile requestPart(ProductCreateRequest request) throws Exception {
+    private MockMultipartFile requestPart(Object request) throws Exception {
         return new MockMultipartFile(
                 "data", "data.json", MediaType.APPLICATION_JSON_VALUE, objectMapper.writeValueAsBytes(request));
     }
@@ -656,19 +712,20 @@ class ProductTest {
         return new ProductUpdateRequest(
                 categoryId,
                 "아이폰 13 프로",
-                null,
+                "애플",
                 "수정된 설명",
                 450_000L,
                 status,
                 ProductCondition.B,
                 DefectStatus.ISSUES,
+                1,
                 false,
                 TradeMethod.DELIVERY,
                 null,
                 null,
                 List.of("https://image.example.com/2.png"),
                 List.of(),
-                List.of());
+                List.of("케이블"));
     }
 
     private Category createCategory() {

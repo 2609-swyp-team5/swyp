@@ -45,6 +45,7 @@ import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
+import com.swyp.team5.product.error.ProductImageRequiredException;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
@@ -366,21 +367,36 @@ public class ProductService {
     }
 
     /**
-     * 상품 정보를 수정한다. 본인이 등록한 상품만 수정할 수 있다.
+     * 상품 정보를 수정한다. 본인이 등록한 상품만 수정할 수 있다. 이미지는 유지할 기존 이미지 URL
+     * ({@code request.imageUrls}) 뒤에 새로 업로드한 파일을 이어 붙인 순서로 전체 교체하고, 구매 일시는
+     * {@code purchasedMonths}로 수정 시점 기준 다시 계산한다.
      *
      * @param memberId 요청한 회원 ID
      * @param productId 수정할 상품 ID
      * @param request 수정 요청 바디
+     * @param files 새로 추가할 이미지 파일 목록(선택, {@code null} 허용)
      * @return 수정된 상품
      * @throws ProductNotFoundException 존재하지 않는 상품인 경우
      * @throws ProductAccessDeniedException 본인이 등록한 상품이 아닌 경우
      * @throws CategoryNotFoundException 존재하지 않는 카테고리인 경우
+     * @throws ProductImageRequiredException 유지할 이미지와 새 파일을 합쳐 1장도 없는 경우
      */
     @Transactional
-    public ProductResponse update(Long memberId, Long productId, ProductUpdateRequest request) {
+    public ProductResponse update(
+            Long memberId, Long productId, ProductUpdateRequest request, List<MultipartFile> files) {
         Product product = getProductOrThrow(productId);
         validateRegisteredBy(product, memberId);
         Category category = getCategoryOrThrow(request.categoryId());
+
+        List<String> keptImageUrls = request.imageUrls() == null ? List.of() : request.imageUrls();
+        List<MultipartFile> newFiles = files == null
+                ? List.of()
+                : files.stream().filter(file -> !file.isEmpty()).toList();
+        if (keptImageUrls.isEmpty() && newFiles.isEmpty()) {
+            throw new ProductImageRequiredException();
+        }
+        List<String> imageUrls = Stream.concat(keptImageUrls.stream(), uploadImages(newFiles).stream())
+                .toList();
 
         product.update(
                 category,
@@ -391,6 +407,7 @@ public class ProductService {
                 request.status(),
                 request.condition(),
                 request.defectStatus(),
+                toPurchasedAt(request.purchasedMonths()),
                 request.allowPriceSuggestion(),
                 request.tradeMethod(),
                 request.deliveryType(),
@@ -398,7 +415,7 @@ public class ProductService {
 
         product.clearImages();
         productRepository.flush();
-        product.addImages(request.imageUrls());
+        product.addImages(imageUrls);
 
         product.clearTags();
         product.addTags(resolveTags(request.tags()));
@@ -454,7 +471,7 @@ public class ProductService {
 
     /**
      * 이미지 파일 목록을 스토리지에 업로드하고 접근 URL 목록을 반환한다(요청 순서 유지). 직접 등록/AI
-     * 등록 모두 이 메서드로 업로드한다.
+     * 등록/수정 모두 이 메서드로 업로드한다.
      *
      * @param images 업로드할 이미지 파일 목록
      * @return 업로드된 이미지 URL 목록(요청 순서와 동일)
@@ -466,8 +483,7 @@ public class ProductService {
     }
 
     /**
-     * 구매 후 경과 개월 수를 등록 시점 기준 구매일시로 변환한다. 이 값은 등록 시점에만 계산되며 이후
-     * 수정으로는 변경되지 않는다.
+     * 구매 후 경과 개월 수를 호출 시점(등록/수정) 기준 구매일시로 변환한다.
      *
      * @param purchasedMonths 구매 후 경과 개월 수(선택)
      * @return {@code purchasedMonths}가 {@code null}이면 {@code null}, 아니면 오늘로부터
