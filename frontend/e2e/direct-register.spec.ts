@@ -3,6 +3,60 @@ import { expect, test } from "./fixtures";
 test("direct registration keeps the product information while moving to status and price", async ({
     page,
 }) => {
+    await page.route("**/products", (route) => {
+        if (route.request().method() !== "POST") {
+            return route.continue();
+        }
+
+        return route.fulfill({
+            status: 201,
+            json: {
+                success: true,
+                message: "상품 등록 성공",
+                data: { id: 42 },
+                error: null,
+            },
+        });
+    });
+
+    await page.route("**/products/42", (route) =>
+        route.fulfill({
+            status: 200,
+            json: {
+                success: true,
+                message: "상품 조회 성공",
+                data: {
+                    id: 42,
+                    memberId: 1,
+                    nickname: "판매자",
+                    category: { id: 2, name: "스마트폰", parentId: 1 },
+                    title: "필름카메라 FM2 니콘",
+                    brand: null,
+                    description: "사용감이 적고 정상적으로 작동하는 상품입니다.",
+                    price: 1234567,
+                    status: "ON_SALE",
+                    condition: "B",
+                    defectStatus: "NORMAL",
+                    purchasedAt: null,
+                    purchasedMonths: null,
+                    includedItems: ["body", "charging-cable", "케이스", "설명서", "스트랩"],
+                    allowPriceSuggestion: true,
+                    tradeMethod: "DIRECT",
+                    deliveryType: null,
+                    preferredTradeRegion: null,
+                    imageUrls: ["https://example.com/product.png"],
+                    tags: [],
+                    recommendation: null,
+                    suggestedPrice: null,
+                    analysisDescription: null,
+                    createdAt: "2026-09-27T00:00:00",
+                    updatedAt: "2026-09-27T00:00:00",
+                },
+                error: null,
+            },
+        }),
+    );
+
     await page.route("**/categories", (route) =>
         route.fulfill({
             status: 200,
@@ -85,4 +139,13 @@ test("direct registration keeps the product information while moving to status a
     await expect(page.getByLabel("상품 설명", { exact: false })).toHaveValue(
         "사용감이 적고 정상적으로 작동하는 상품입니다.",
     );
+
+    await page.getByRole("button", { name: "다음단계", exact: true }).click();
+    await page.getByRole("button", { name: "AI 분석 & 등록확인" }).click();
+
+    await expect(page.getByRole("heading", { name: "상품을 등록했어요" })).toBeVisible();
+    await page.getByRole("button", { name: "확인하러 가기" }).click();
+
+    await expect(page).toHaveURL(/\/sell\/manage\/42\?method=direct/);
+    await expect(page.getByRole("heading", { name: "판매글 확인" })).toBeVisible();
 });

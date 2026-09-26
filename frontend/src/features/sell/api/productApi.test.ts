@@ -92,6 +92,7 @@ describe("productApi", () => {
             categoryId: 12,
             brand: "Apple",
             includedItems: ["body", "charging-cable"],
+            tags: ["애플", "아이패드"],
             title: "아이패드 프로 11인치",
         });
     });
@@ -117,6 +118,22 @@ describe("productApi", () => {
         expect(formData.get("purchasedMonths")).toBe("6");
         expect(formData.get("defectStatus")).toBe("normal");
         expect(formData.getAll("includedItems")).toEqual(["body", "charging-cable"]);
+    });
+
+    it("omits purchasedMonths when AI registration purchase period is unknown", async () => {
+        const image = new File(["one"], "one.png", { type: "image/png" });
+
+        await productApi.createAiProduct({
+            images: [image],
+            purchasedMonths: null,
+            operationStatus: "unknown",
+            includedItems: ["body"],
+        });
+
+        const [, formData] = post.mock.calls[0] as [string, FormData];
+
+        expect(formData.get("purchasedMonths")).toBeNull();
+        expect(formData.get("defectStatus")).toBe("unknown");
     });
 
     it("sends new files and retained image URLs as a multipart update request", async () => {
@@ -155,5 +172,65 @@ describe("productApi", () => {
             imageUrls: ["https://example.com/retained-image.jpg"],
             title: "수정된 상품명",
         });
+    });
+
+    it("allows updates that replace every existing image with new files", async () => {
+        const newImage = new File(["new image"], "new-image.jpg", { type: "image/jpeg" });
+
+        await productApi.updateProduct(42, {
+            files: [newImage],
+            request: {
+                categoryId: 12,
+                title: "수정된 상품명",
+                brand: "Apple",
+                description: "수정된 설명",
+                price: 700000,
+                status: "ON_SALE",
+                condition: "A",
+                purchasedMonths: null,
+                defectStatus: "NORMAL",
+                allowPriceSuggestion: true,
+                tradeMethod: "DIRECT",
+                deliveryType: null,
+                preferredTradeRegion: null,
+                imageUrls: [],
+                tags: [],
+                includedItems: [],
+            },
+        });
+
+        const [, formData] = patch.mock.calls[0] as [string, FormData];
+        const requestPart = formData.get("data");
+
+        expect(formData.getAll("images")).toEqual([newImage]);
+        expect(JSON.parse(await readBlob(requestPart as Blob))).toMatchObject({ imageUrls: [] });
+    });
+
+    it("rejects updates that have neither retained nor new images", async () => {
+        await expect(
+            productApi.updateProduct(42, {
+                files: [],
+                request: {
+                    categoryId: 12,
+                    title: "수정된 상품명",
+                    brand: "Apple",
+                    description: "수정된 설명",
+                    price: 700000,
+                    status: "ON_SALE",
+                    condition: "A",
+                    purchasedMonths: null,
+                    defectStatus: "NORMAL",
+                    allowPriceSuggestion: true,
+                    tradeMethod: "DIRECT",
+                    deliveryType: null,
+                    preferredTradeRegion: null,
+                    imageUrls: [],
+                    tags: [],
+                    includedItems: [],
+                },
+            }),
+        ).rejects.toThrow("상품 사진을 1장 이상 업로드해주세요.");
+
+        expect(patch).not.toHaveBeenCalled();
     });
 });
