@@ -34,7 +34,7 @@ for (const refreshSucceeds of [true, false]) {
         });
         await page.goto("/my");
         await expect(
-            page.getByRole("heading", { name: "안녕하세요, 민준님 👋", exact: true }),
+            page.getByRole("heading", { name: "안녕하세요, 민준님", exact: true }),
         ).toBeVisible();
         await page
             .getByRole("navigation", { name: "마이페이지 메뉴" })

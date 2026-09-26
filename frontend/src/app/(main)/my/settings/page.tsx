@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { UserRound } from "lucide-react";
 
 import { Button } from "@/common/components/ui/Button";
 import { Input } from "@/common/components/ui/Input";
@@ -24,6 +22,7 @@ import { useMeQuery } from "@/features/member/hooks/queries/useMeQuery";
 import { useUpdateMemberMutation } from "@/features/member/hooks/mutations/useUpdateMemberMutation";
 import { memberUpdateSchema } from "@/features/member/schemas/memberSchema";
 import { useUpdateProfileImageMutation } from "@/features/member/hooks/mutations/useUpdateProfileImageMutation";
+import { ProfileAvatar } from "@/features/member/components/ProfileAvatar";
 
 export default function MySettingsPage() {
     const fileInput = useRef<HTMLInputElement>(null);
@@ -138,19 +137,11 @@ export default function MySettingsPage() {
                     className="space-y-7"
                 >
                     <div className="flex items-center gap-5 border-b pb-8">
-                        <div className="bg-primary/10 text-primary relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full">
-                            {profileImageUrl ? (
-                                <Image
-                                    src={profileImageUrl}
-                                    alt={photo ? "프로필 사진 미리보기" : "프로필 사진"}
-                                    fill
-                                    unoptimized
-                                    className="object-cover"
-                                />
-                            ) : (
-                                <UserRound className="size-7" aria-hidden="true" />
-                            )}
-                        </div>
+                        <ProfileAvatar
+                            src={profileImageUrl}
+                            alt={photo ? "프로필 사진 미리보기" : "프로필 사진"}
+                            size="settings"
+                        />
                         <div className="space-y-1">
                             <h2 className="font-semibold">프로필 사진</h2>
                             <p className="text-muted-foreground text-[13px] leading-5">

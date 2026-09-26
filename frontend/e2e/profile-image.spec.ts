@@ -52,6 +52,15 @@ test("uploads selected image only on save and updates avatars", async ({ page })
     });
     await page.goto("/my/settings");
     await expect(page.getByLabel("이름 (닉네임)")).toHaveValue("민준");
+    await expect(page.getByRole("banner").locator('[data-slot="avatar-fallback"]')).toBeVisible();
+    await expect(page.locator("aside [data-slot='avatar-fallback']")).toBeVisible();
+    await expect(page.locator("main [data-slot='avatar-fallback']")).toBeVisible();
+    await expect(page.getByRole("banner").locator('[data-slot="avatar"]')).toHaveCSS(
+        "width",
+        "36px",
+    );
+    await expect(page.locator("aside [data-slot='avatar']")).toHaveCSS("width", "96px");
+    await expect(page.locator("main [data-slot='avatar']")).toHaveCSS("width", "88px");
     await page.getByLabel("이름 (닉네임)").fill("수정 중인 닉네임");
     await page.getByLabel("프로필 사진 선택").setInputFiles(file);
     await expect(page.getByAltText("프로필 사진 미리보기")).toBeVisible();
@@ -68,6 +77,10 @@ test("uploads selected image only on save and updates avatars", async ({ page })
         photoUrl,
     );
     await expect(page.locator("aside").getByAltText("프로필 사진", { exact: true })).toBeVisible();
+    await expect(page.getByRole("banner").getByAltText("프로필 사진")).toHaveAttribute(
+        "src",
+        photoUrl,
+    );
     await expect(page.getByLabel("이름 (닉네임)")).toHaveValue("수정 중인 닉네임");
 });
 

@@ -4,10 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
-import { Avatar, AvatarFallback } from "@/common/components/ui/Avatar";
 import { Button } from "@/common/components/ui/Button";
 import { HEADER_LINKS } from "@/constants/routes";
 import { useAuthStore } from "@/features/auth/store/authStore";
+import { ProfileAvatar } from "@/features/member/components/ProfileAvatar";
+import { useMeQuery } from "@/features/member/hooks/queries/useMeQuery";
 
 function isRouteActive(pathname: string, href: string) {
     return pathname === href || pathname.startsWith(`${href}/`);
@@ -18,6 +19,7 @@ export function SiteHeader() {
     const router = useRouter();
     const isProfileActive = isRouteActive(pathname, "/my");
     const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
+    const { data: member } = useMeQuery();
     const isAuthPage =
         pathname === "/login" || pathname === "/signup" || pathname === "/account/reset-password";
     const hideMenus = pathname === "/" || isAuthPage;
@@ -25,7 +27,7 @@ export function SiteHeader() {
 
     return (
         <header className="border-border bg-background border-b">
-            <div className="layout-container flex min-h-[var(--header-height)] items-center justify-between gap-6">
+            <div className="layout-container flex min-h-[var(--header-height)] items-center justify-between gap-6 py-5">
                 <Link href={logoHref} className="shrink-0">
                     <Image src="/logo.png" alt="지금이니?" width={100} height={55} />
                 </Link>
@@ -62,11 +64,7 @@ export function SiteHeader() {
                             asChild
                             variant="ghost"
                             size="icon-lg"
-                            className={`rounded-full p-0 ${
-                                isProfileActive
-                                    ? "bg-primary text-primary-foreground hover:bg-primary/80"
-                                    : "bg-muted text-foreground"
-                            }`}
+                            className={`rounded-full p-0 ${isProfileActive ? "ring-primary ring-2" : ""}`}
                         >
                             <Link
                                 href="/my"
@@ -74,11 +72,7 @@ export function SiteHeader() {
                                 title="프로필"
                                 aria-current={isProfileActive ? "page" : undefined}
                             >
-                                <Avatar aria-hidden="true" className="size-full after:border-0">
-                                    <AvatarFallback className="bg-transparent font-semibold text-inherit">
-                                        P
-                                    </AvatarFallback>
-                                </Avatar>
+                                <ProfileAvatar src={member?.profileImageUrl} size="header" />
                             </Link>
                         </Button>
                     ) : null}

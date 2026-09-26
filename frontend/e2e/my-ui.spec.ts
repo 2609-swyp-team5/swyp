@@ -11,7 +11,7 @@ test.beforeEach(async ({ page }) => {
 
 test("my pages share navigation and fit a mobile content area", async ({ page }) => {
     const routes = [
-        ["/my", "안녕하세요, 민준님 👋"],
+        ["/my", "안녕하세요, 민준님"],
         ["/my/settings", "사용자 정보 설정"],
         ["/my/password", "비밀번호 변경"],
         ["/my/notifications", "알림 설정"],
@@ -60,8 +60,11 @@ test("home greets the member returned by the API", async ({ page }) => {
     );
     await page.goto("/my");
     await expect(
-        page.getByRole("heading", { name: "안녕하세요, 다른 닉네임님 👋", exact: true }),
+        page.getByRole("heading", { name: "안녕하세요, 다른 닉네임님", exact: true }),
     ).toBeVisible();
+    await expect(page.locator('main img[src*="mascot.png"]')).toBeVisible();
+    await expect(page.getByRole("heading", { name: "등록한 물건" })).toBeVisible();
+    await expect(page.locator("main").getByRole("link", { name: /다시 연결/ })).toHaveCount(3);
     await expect(page.locator("aside").getByText("다른 닉네임", { exact: true })).toBeVisible();
 });
 
@@ -102,7 +105,7 @@ test("profile saves member fields and updates shared nickname", async ({ page })
         .getByRole("link", { name: "홈", exact: true })
         .click();
     await expect(
-        page.getByRole("heading", { name: "안녕하세요, 새 닉네임님 👋", exact: true }),
+        page.getByRole("heading", { name: "안녕하세요, 새 닉네임님", exact: true }),
     ).toBeVisible();
 });
 
