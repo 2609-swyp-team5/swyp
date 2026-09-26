@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -17,8 +19,12 @@ vi.mock("@/features/auth/api/authApi", () => ({
     authApi: { authLogin: vi.fn(), authLogout: vi.fn() },
 }));
 
+function renderWithQueryClient(children: ReactNode) {
+    return render(<QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>);
+}
+
 function renderOnboarding() {
-    return render(
+    return renderWithQueryClient(
         <>
             <AuthInitializer />
             <OnboardingPage />
@@ -89,7 +95,7 @@ describe("Onboarding page", () => {
 
     it("still redirects guests from protected routes to login", () => {
         mocks.pathname = "/my/settings";
-        render(<AuthInitializer />);
+        renderWithQueryClient(<AuthInitializer />);
 
         expect(mocks.replace).toHaveBeenCalledWith("/login");
     });
@@ -97,7 +103,7 @@ describe("Onboarding page", () => {
     it("does not redirect logged-in users from home", () => {
         mocks.pathname = "/home";
         useAuthStore.setState({ isLoggedIn: true });
-        render(<AuthInitializer />);
+        renderWithQueryClient(<AuthInitializer />);
 
         expect(mocks.replace).not.toHaveBeenCalled();
     });
