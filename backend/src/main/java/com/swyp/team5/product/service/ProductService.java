@@ -138,9 +138,11 @@ public class ProductService {
 
         Product saved = productRepository.save(product);
         ProductAiAnalysisResult analysis = analyzeOrNull(images);
-        return analysis == null
-                ? ProductResponse.from(saved)
-                : ProductResponse.fromAiAnalysis(saved, analysis.suggestedPrice(), analysis.analysisDescription());
+        if (analysis == null) {
+            return ProductResponse.from(saved);
+        }
+        saved.changeSuggestedPrice(analysis.suggestedPrice());
+        return ProductResponse.fromAiAnalysis(saved, analysis.analysisDescription());
     }
 
     private ProductAiAnalysisResult analyzeOrNull(List<MultipartFile> images) {
@@ -199,9 +201,9 @@ public class ProductService {
                 imageUrls,
                 resolveTags(mergeNames(analysis.tags(), tags)),
                 resolveComponents(mergeNames(analysis.includedItems(), includedItems)));
+        product.changeSuggestedPrice(analysis.suggestedPrice());
 
-        return ProductResponse.fromAiAnalysis(
-                productRepository.save(product), analysis.suggestedPrice(), analysis.analysisDescription());
+        return ProductResponse.fromAiAnalysis(productRepository.save(product), analysis.analysisDescription());
     }
 
     /**

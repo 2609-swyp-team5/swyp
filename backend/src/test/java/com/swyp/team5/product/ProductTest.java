@@ -143,6 +143,40 @@ class ProductTest {
         assertThat(productRepository.count()).isEqualTo(1);
     }
 
+    // AI 제안가 - 등록 시 AI 추정가가 저장돼 상세 조회/수정 응답에도 포함되고, 시세 분석 갱신값이 반영됨
+    @Test
+    void suggestedPriceIsStoredAndRefreshedByAnalysis() throws Exception {
+        when(productAiService.analyze(anyList()))
+                .thenReturn(new ProductAiAnalysisResult(
+                        category.getId(),
+                        "AI 제목",
+                        null,
+                        "AI 설명",
+                        ProductCondition.A,
+                        470_000L,
+                        "판단 근거",
+                        List.of(),
+                        List.of()));
+        Long productId = createProduct();
+
+        mockMvc.perform(get("/products/{id}", productId).header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.suggestedPrice").value(470_000))
+                .andExpect(jsonPath("$.data.analysisDescription").isEmpty());
+
+        mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{id}", productId)
+                        .file(requestPart(updateRequest(category.getId(), ProductStatus.ON_SALE)))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.suggestedPrice").value(470_000)); // 사용자 수정으로는 바뀌지 않음
+
+        productRepository.updateSuggestedPrice(productId, 430_000L); // 시세 분석의 갱신 경로
+
+        mockMvc.perform(get("/products/{id}", productId).header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.suggestedPrice").value(430_000));
+    }
+
     // 상품 등록 실패 - 인증 없음
     @Test
     void createFailsWithoutAuthentication() throws Exception {

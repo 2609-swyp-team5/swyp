@@ -73,6 +73,9 @@ public class Product {
     @Column(nullable = false)
     private Long price; // 상품 가격
 
+    @Column(name = "suggested_price")
+    private Long suggestedPrice; // AI 제안가(등록 시 AI 사진 분석 추정가, 이후 시세 분석이 적정가를 내면 갱신)
+
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "product_status")
@@ -263,6 +266,15 @@ public class Product {
      */
     public Integer calculatePurchasedMonths() {
         return purchasedAt == null ? null : (int) ChronoUnit.MONTHS.between(purchasedAt, LocalDate.now());
+    }
+
+    /**
+     * AI 제안가를 변경한다. 사용자 수정({@link #update})으로는 바뀌지 않는 값이다.
+     *
+     * @param suggestedPrice AI가 추정한 적정가({@code null}이면 제안가 없음)
+     */
+    public void changeSuggestedPrice(Long suggestedPrice) {
+        this.suggestedPrice = suggestedPrice;
     }
 
     /**
