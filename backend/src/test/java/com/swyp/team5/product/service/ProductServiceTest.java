@@ -48,6 +48,7 @@ import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
+import com.swyp.team5.product.error.ProductImageRequiredException;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
@@ -586,8 +587,8 @@ class ProductServiceTest {
     void updateSucceedsWhenOwner() {
         Category category = newCategory(1L, "전자기기");
         Product product = newProduct(1L, newMember(1L), category);
-        LocalDate registeredPurchasedAt = LocalDate.now().minusMonths(5);
-        setField(product, "purchasedAt", registeredPurchasedAt);
+        setField(product, "purchasedAt", LocalDate.now().minusMonths(5));
+        MockMultipartFile newImage = new MockMultipartFile("images", "new.png", "image/png", new byte[] {1, 2, 3});
 
         ProductUpdateRequest request = new ProductUpdateRequest(
                 category.getId(),
@@ -598,6 +599,7 @@ class ProductServiceTest {
                 ProductStatus.RESERVED,
                 ProductCondition.B,
                 DefectStatus.ISSUES,
+                2,
                 false,
                 TradeMethod.DELIVERY,
                 null,
@@ -612,14 +614,21 @@ class ProductServiceTest {
         when(tagRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(componentRepository.findAllByNameIn(List.of("박스"))).thenReturn(List.of());
         when(componentRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(fileStorageService.upload(newImage, "products"))
+                .thenReturn(new FileUploadResponse("key", "https://image.example.com/new.png", 3, "image/png"));
 
-        ProductResponse response = service().update(1L, 1L, request);
+        ProductResponse response = service().update(1L, 1L, request, List.of(newImage));
 
         assertThat(response.title()).isEqualTo("아이폰 13 프로");
         assertThat(response.brand()).isEqualTo("애플");
         assertThat(response.status()).isEqualTo(ProductStatus.RESERVED);
-        assertThat(response.purchasedAt()).isEqualTo(registeredPurchasedAt);
-        assertThat(response.imageUrls()).containsExactly("https://image.example.com/2.png");
+        assertThat(response.defectStatus()).isEqualTo(DefectStatus.ISSUES);
+        // 구매 일시는 수정 요청의 purchasedMonths로 수정 시점 기준 다시 계산됨
+        assertThat(response.purchasedAt()).isEqualTo(LocalDate.now().minusMonths(2));
+        assertThat(response.purchasedMonths()).isEqualTo(2);
+        // 유지할 기존 이미지 뒤에 새로 업로드한 이미지가 이어 붙음
+        assertThat(response.imageUrls())
+                .containsExactly("https://image.example.com/2.png", "https://image.example.com/new.png");
         assertThat(response.tags()).containsExactly("가성비");
         assertThat(response.includedItems()).containsExactly("박스");
     }
@@ -639,6 +648,7 @@ class ProductServiceTest {
                 ProductStatus.RESERVED,
                 ProductCondition.B,
                 DefectStatus.ISSUES,
+                null,
                 false,
                 TradeMethod.DELIVERY,
                 null,
@@ -649,7 +659,39 @@ class ProductServiceTest {
 
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
 
-        assertThatThrownBy(() -> service().update(2L, 1L, request)).isInstanceOf(ProductAccessDeniedException.class);
+        assertThatThrownBy(() -> service().update(2L, 1L, request, null))
+                .isInstanceOf(ProductAccessDeniedException.class);
+    }
+
+    // 상품 수정 실패 - 유지할 이미지도 새 파일도 없음
+    @Test
+    void updateFailsWhenNoImages() {
+        Category category = newCategory(1L, "전자기기");
+        Product product = newProduct(1L, newMember(1L), category);
+
+        ProductUpdateRequest request = new ProductUpdateRequest(
+                category.getId(),
+                "아이폰 13 프로",
+                null,
+                "수정된 설명",
+                450_000L,
+                ProductStatus.ON_SALE,
+                ProductCondition.B,
+                DefectStatus.NORMAL,
+                null,
+                false,
+                TradeMethod.DIRECT,
+                null,
+                null,
+                List.of(),
+                List.of(),
+                List.of());
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(categoryRepository.findById(category.getId())).thenReturn(Optional.of(category));
+
+        assertThatThrownBy(() -> service().update(1L, 1L, request, null))
+                .isInstanceOf(ProductImageRequiredException.class);
     }
 
     // 상품 상태 변경 성공 - 소유자 본인

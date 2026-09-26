@@ -189,18 +189,26 @@ public class ProductController {
     /**
      * 상품 정보를 수정한다. 본인이 등록한 상품만 수정할 수 있다.
      *
+     * 이미지는 {@code data.imageUrls}(유지할 기존 이미지 URL)와 {@code images}(새로 추가할 이미지 파일)를
+     * 이 순서대로 합친 목록으로 전체 교체된다.
+     *
      * @param currentMember 인증된 요청자
      * @param productId 수정할 상품 ID
-     * @param request 수정 요청 바디
+     * @param images 새로 추가할 이미지 파일 목록(선택)
+     * @param request 수정 정보(JSON, {@code data} 파트)
      * @return 200 OK + 수정된 상품
      */
-    @Operation(summary = "상품 수정")
-    @PatchMapping("/{productId}")
+    @Operation(
+            summary = "상품 수정",
+            description =
+                    "수정 정보(JSON, data 파트)와 새로 추가할 이미지 파일(images, 선택)을 함께 받는다. 이미지는 data.imageUrls(유지할 기존 이미지) 뒤에 새 파일을 이어 붙인 순서로 전체 교체된다.")
+    @PatchMapping(value = "/{productId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<ProductResponse>> update(
             @AuthenticationPrincipal PrincipalMember currentMember,
             @PathVariable Long productId,
-            @Valid @RequestBody ProductUpdateRequest request) {
-        ProductResponse response = productService.update(currentMember.memberId(), productId, request);
+            @RequestPart(value = "images", required = false) List<MultipartFile> images,
+            @RequestPart("data") @Valid ProductUpdateRequest request) {
+        ProductResponse response = productService.update(currentMember.memberId(), productId, request, images);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
