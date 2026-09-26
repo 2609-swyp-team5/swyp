@@ -48,7 +48,9 @@ const createDirectProduct = async ({ images, request }: DirectProductCreateInput
         new Blob([JSON.stringify(parsedRequest.data)], { type: "application/json" }),
     );
 
-    const { data } = await api.post<ApiResponse<ProductResponse>>("/products", formData);
+    const { data } = await api.post<ApiResponse<ProductResponse>>("/products", formData, {
+        timeout: 120_000,
+    });
 
     if (!data.success) {
         throw new Error(data.message);
@@ -117,7 +119,7 @@ const updateProduct = async (id: number, { files, request }: ProductUpdateInput)
 
     const formData = new FormData();
 
-    parsedFiles.data.forEach((file) => formData.append("file[]", file));
+    parsedFiles.data.forEach((file) => formData.append("images", file));
     formData.append(
         "data",
         new Blob([JSON.stringify(parsedRequest.data)], { type: "application/json" }),

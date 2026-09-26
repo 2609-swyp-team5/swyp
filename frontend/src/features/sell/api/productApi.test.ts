@@ -83,7 +83,9 @@ describe("productApi", () => {
         const [, formData] = post.mock.calls[0] as [string, FormData];
         const requestPart = formData.get("data");
 
-        expect(post).toHaveBeenCalledWith("/products", formData);
+        expect(post).toHaveBeenCalledWith("/products", formData, {
+            timeout: 120_000,
+        });
         expect(formData.getAll("images")).toEqual(images);
         expect(requestPart).toBeInstanceOf(Blob);
         expect(JSON.parse(await readBlob(requestPart as Blob))).toMatchObject({
@@ -146,7 +148,7 @@ describe("productApi", () => {
         const requestPart = formData.get("data");
 
         expect(patch).toHaveBeenCalledWith("/products/42", formData);
-        expect(formData.getAll("file[]")).toEqual([newImage]);
+        expect(formData.getAll("images")).toEqual([newImage]);
         expect(requestPart).toBeInstanceOf(Blob);
         expect(JSON.parse(await readBlob(requestPart as Blob))).toMatchObject({
             purchasedMonths: 3,
