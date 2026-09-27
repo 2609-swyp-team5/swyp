@@ -13,40 +13,55 @@ const summaries = [
     { title: "최근 분석일", value: "오늘", description: "2026년 9월 9일 오전 9:12" },
 ];
 const connectionAlerts = [
-    { platform: "번개장터", message: "번개장터의 로그인이 만료됐어요.", time: "2시간 전" },
-    { platform: "중고나라", message: "중고나라의 세션이 만료됐어요.", time: "3시간 전" },
-    { platform: "당근마켓", message: "당근마켓의 로그인이 만료됐어요.", time: "5시간 전" },
+    {
+        platform: "번개장터",
+        icon: "/my/home/bunjang.svg",
+        message: "번개장터의 로그인이 만료됐어요.",
+        time: "2시간 전",
+    },
+    {
+        platform: "당근마켓",
+        icon: "/my/home/daangn.svg",
+        message: "당근마켓의 로그인이 만료됐어요.",
+        time: "5시간 전",
+    },
+    {
+        platform: "중고나라",
+        icon: "/my/home/joonggonara.png",
+        message: "중고나라의 로그인이 만료됐어요.",
+        time: "2시간 전",
+    },
 ];
 
 export default function MyPage() {
     const { data: member, isError, isFetching, refetch } = useMeQuery();
 
     return (
-        <main className="text-foreground min-w-0 bg-white px-6 py-12 text-base leading-[25px] font-normal break-keep sm:px-10 lg:py-[60px] xl:px-[min(7vw,var(--grid-margin))]">
-            <div className="mx-auto flex w-full max-w-[960px] flex-col gap-[10px]">
-                <header className="flex flex-col-reverse items-center justify-between gap-5 py-5 text-center sm:flex-row sm:px-10 sm:text-left">
-                    <div className="break-keep">
-                        <p className="text-[20px] leading-8 font-medium tracking-[0.5px] text-[#8ca2c0]">
+        <main className="min-w-0 flex-1 bg-white text-[#464646]">
+            <div className="bg-gradient-to-b from-[#ededfd] to-white px-6 pt-12 pb-[50px] sm:px-10 xl:px-[100px] xl:pt-[70px]">
+                <header className="flex flex-col-reverse items-center gap-[30px] px-[10px] text-center sm:flex-row sm:items-end sm:text-left">
+                    <div className="min-w-0 break-keep">
+                        <p className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#83889e]">
                             AI와 함께하는 똑똑한 중고거래
                         </p>
-                        <h1 className="mt-[5px] text-[30px] leading-[42px] font-bold tracking-[0.5px] text-[#363636]">
+                        <h1 className="mt-[10px] text-[32px] leading-tight font-bold tracking-[0.5px] text-[#464646] lg:text-[42px] xl:text-[53px] xl:leading-[75px]">
                             {member ? `안녕하세요, ${member.nickname}님` : "안녕하세요"}
                         </h1>
                     </div>
-                    <div className="relative h-[237px] w-[267px] shrink-0 overflow-hidden">
+                    <div className="relative h-[199px] w-[235px] shrink-0 overflow-hidden">
                         <Image
                             src="/my/mascot.png"
                             alt=""
-                            width={282}
-                            height={282}
+                            width={248}
+                            height={248}
                             priority
-                            className="absolute -top-[12px] left-[5px] max-w-none -scale-x-100"
+                            className="absolute -top-[14px] -left-[13px] max-w-none -scale-x-100"
                         />
                     </div>
                 </header>
 
                 {isError ? (
-                    <div className="flex items-center gap-3 px-1">
+                    <div className="mt-6 flex items-center gap-3 px-[10px]">
                         <p role="alert" className="text-[13px] text-[#6b7395]">
                             회원정보를 불러오지 못했습니다.
                         </p>
@@ -62,11 +77,14 @@ export default function MyPage() {
                     </div>
                 ) : null}
 
-                <section aria-label="거래 요약" className="grid gap-[10px] sm:grid-cols-2">
+                <section
+                    aria-label="거래 요약"
+                    className="mt-[60px] grid gap-[10px] sm:grid-cols-2"
+                >
                     {summaries.map((item) => (
                         <article
                             key={item.title}
-                            className="flex min-h-[158px] flex-col justify-between rounded-[10px] border border-[#d3d3d3] bg-white p-6"
+                            className="flex flex-col justify-between gap-3 rounded-[10px] border border-[#d3d3d3] bg-white p-6"
                         >
                             <div>
                                 <h2 className="text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#464646]">
@@ -82,49 +100,70 @@ export default function MyPage() {
                         </article>
                     ))}
                 </section>
+            </div>
 
-                <section aria-labelledby="connection-alerts-title" className="my-[50px]">
+            <section
+                aria-labelledby="connection-alerts-title"
+                className="mt-10 px-6 pt-[30px] pb-[100px] sm:px-10 xl:px-[100px]"
+            >
+                <div className="mb-[30px] flex items-center gap-[11px]">
+                    <div className="flex flex-col items-start gap-[5px]">
+                        <Image src="/my/home/connection-bell.svg" alt="" width={29} height={29} />
+                        <span className="text-[16px] leading-[25px] text-[#d3d3d3]">3건</span>
+                    </div>
                     <h2
                         id="connection-alerts-title"
-                        className="mb-[10px] text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#545d82]"
+                        className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#545d82]"
                     >
-                        연결 알림
-                        <span className="ml-[10px] text-base font-normal text-[#8ca2c0]">3건</span>
+                        연결 알림을
+                        <br />
+                        확인해주세요
                     </h2>
-                    <div className="grid gap-[30px] lg:grid-cols-3">
-                        {connectionAlerts.map((item) => (
-                            <article
-                                key={item.platform}
-                                className="flex min-h-[166px] flex-col items-start rounded-[16px] border border-[#eef0f6] bg-white p-5 shadow-[0_1px_4px_rgba(0,0,0,0.04)]"
-                            >
-                                <div className="flex w-full items-start justify-between gap-1">
-                                    <h3 className="min-w-0 text-[13px] leading-[19.5px] font-semibold tracking-[-0.5px] text-[#545d82]">
+                </div>
+                <div className="grid gap-[10px] sm:grid-cols-2 xl:grid-cols-3">
+                    {connectionAlerts.map((item) => (
+                        <article
+                            key={item.platform}
+                            className="flex min-h-[154px] min-w-0 flex-col rounded-[10px] border border-[#dedee6] bg-white px-5 pt-5 pb-[15px]"
+                        >
+                            <div className="flex min-w-0 items-center gap-[10px]">
+                                <Image
+                                    src={item.icon}
+                                    alt=""
+                                    width={37}
+                                    height={37}
+                                    className="size-[37px] shrink-0 rounded-[8px]"
+                                />
+                                <div className="min-w-0">
+                                    <h3 className="text-[13px] leading-[20px] font-semibold tracking-[-0.5px] text-[#6b6c7b]">
                                         {item.message}
                                     </h3>
-                                    <span className="shrink-0 text-[11px] leading-[17px] text-[#8ca2c0]">
+                                    <p className="text-[10px] leading-[15px] text-[#83889e]">
                                         {item.time}
-                                    </span>
+                                    </p>
                                 </div>
-                                <p className="mt-[8px] text-[12px] leading-[18px] text-[#6b7395]">
-                                    판매 상태 동기화를 위해 다시 연결해 주세요.
-                                </p>
-                                <Button
-                                    asChild
-                                    variant="outline"
-                                    className="mt-auto h-8 rounded-full border-[#5d55fe] px-4 text-[12px] text-[#5d55fe]"
+                            </div>
+                            <p className="mt-[18px] text-[10px] leading-[15px] tracking-[-0.5px] text-[#83889e]">
+                                판매 상태 동기화를 위해
+                                <br />
+                                다시 연결해 주세요.
+                            </p>
+                            <Button
+                                asChild
+                                variant="outline"
+                                className="mt-auto h-auto self-end rounded-full border-[#6b6c7b] px-[10px] py-[3px] text-[10px] leading-[15px] text-[#6b6c7b]"
+                            >
+                                <Link
+                                    href="/my/platforms"
+                                    aria-label={`${item.platform} 다시 연결`}
                                 >
-                                    <Link
-                                        href="/my/platforms"
-                                        aria-label={`${item.platform} 다시 연결`}
-                                    >
-                                        다시 연결
-                                    </Link>
-                                </Button>
-                            </article>
-                        ))}
-                    </div>
-                </section>
-            </div>
+                                    다시 연결
+                                </Link>
+                            </Button>
+                        </article>
+                    ))}
+                </div>
+            </section>
         </main>
     );
 }

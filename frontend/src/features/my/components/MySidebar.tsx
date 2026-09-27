@@ -15,11 +15,11 @@ import { ProfileAvatar } from "@/features/member/components/ProfileAvatar";
 const MY_NAVIGATION = [
     { href: "/my", label: "홈" },
     { href: "/my/settings", label: "사용자 정보 설정" },
-    { href: "/my/password", label: "비밀번호 변경" },
     { href: "/my/notifications", label: "알림 설정" },
     { href: "/my/products", label: "등록된 상품 확인" },
     { href: "/my/platforms", label: "플랫폼 별 연동 확인" },
     { href: "/my/withdraw", label: "회원 탈퇴" },
+    { href: "/my/password", label: "비밀번호 변경" },
 ] as const;
 
 export function MySidebar() {
@@ -35,16 +35,16 @@ export function MySidebar() {
     };
 
     return (
-        <aside className="flex flex-col bg-[#272727] py-8 lg:w-[min(28vw,400px)] lg:shrink-0 lg:py-[50px]">
-            <div className="flex flex-col items-center gap-5 border-b border-white/10 px-6 pb-6">
+        <aside className="flex flex-col bg-[#fafbff] py-8 lg:w-[min(28vw,400px)] lg:shrink-0 lg:py-[50px]">
+            <div className="flex flex-col items-center gap-5 border-b border-[#dedee6] px-6 pb-6">
                 <ProfileAvatar src={member?.profileImageUrl} size="sidebar" />
-                <div className="text-center">
-                    <p className="typography-body-medium font-semibold text-white">
+                <div className="flex w-fit flex-col items-start">
+                    <p className="typography-body-medium font-semibold text-[#6653fb]">
                         {member?.nickname ?? "회원"}
                     </p>
                     <Link
                         href="/my/settings"
-                        className="mx-auto flex w-fit items-center gap-1 text-[13px] leading-5 text-white/50 underline underline-offset-2 hover:text-white"
+                        className="flex w-fit items-center gap-1 text-[13px] leading-5 text-[#6b6c7b] underline underline-offset-2 hover:text-[#6653fb]"
                     >
                         프로필 보기 <Pencil className="size-3" aria-hidden="true" />
                     </Link>
@@ -60,8 +60,8 @@ export function MySidebar() {
                         const className = cn(
                             "typography-body-medium h-auto min-h-[50px] w-full rounded-none px-3 py-2 text-center text-[length:var(--type-body-medium-size)] font-semibold whitespace-normal",
                             active
-                                ? "bg-[#dedee6] text-primary hover:bg-[#dedee6]"
-                                : "text-[#a1a5b7] hover:bg-white/5 hover:text-white",
+                                ? "bg-[#dedee6] text-[#6653fb] hover:bg-[#dedee6]"
+                                : "text-[#83889e] hover:bg-[#dedee6] hover:text-[#6653fb] dark:hover:bg-[#dedee6]",
                         );
                         return (
                             <Button key={item.label} asChild variant="ghost" className={className}>
@@ -74,7 +74,7 @@ export function MySidebar() {
                 </div>
                 <div className="space-y-5 px-6">
                     {errorMessage ? (
-                        <p role="alert" className="text-sm text-red-300">
+                        <p role="alert" className="text-sm text-red-600">
                             {errorMessage}
                         </p>
                     ) : null}
@@ -83,7 +83,7 @@ export function MySidebar() {
                         variant="ghost"
                         disabled={isLoggingOut}
                         onClick={handleLogout}
-                        className="h-12 w-full gap-2 border-t border-white/10 text-base text-white/60 hover:bg-white/5 hover:text-white"
+                        className="h-12 w-full gap-2 border-t border-[#dedee6] text-base text-[#363636] hover:bg-[#dedee6] hover:text-[#363636] dark:hover:bg-[#dedee6]"
                     >
                         <LogOut className="size-4" aria-hidden="true" />
                         {isLoggingOut ? "로그아웃 중..." : "로그아웃"}

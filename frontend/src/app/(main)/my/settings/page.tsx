@@ -67,7 +67,12 @@ export default function MySettingsPage() {
     );
 
     return (
-        <MyPageContent eyebrow="계정 설정" title="사용자 정보 설정">
+        <MyPageContent
+            eyebrow="계정 설정"
+            title="사용자 정보 설정"
+            eyebrowClassName="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#83889e]"
+            titleClassName="text-[32px] leading-[42px] tracking-[0.5px] text-[#464646] sm:text-[40px] sm:leading-[50px] xl:text-[53px] xl:leading-[75px]"
+        >
             <MyPanel className="w-full p-6 sm:p-8">
                 {isError ? (
                     <div className="mb-6 flex items-center gap-3">
@@ -178,7 +183,7 @@ export default function MySettingsPage() {
                                 variant="outline"
                                 disabled={!member || isBusy}
                                 onClick={() => fileInput.current?.click()}
-                                className="text-primary mt-2 h-9 px-4 text-[13px]"
+                                className="mt-2 h-auto rounded-full border-[#d3d3d3] px-[15px] py-[3px] text-[13px] leading-[20px] font-semibold tracking-[-0.5px] text-[#6b6c7b] hover:bg-[#fafbff] hover:text-[#6b6c7b]"
                             >
                                 {isUploading ? "업로드 중..." : "사진 변경"}
                             </Button>
@@ -218,7 +223,10 @@ export default function MySettingsPage() {
                             aria-describedby="email-hint"
                             className="bg-muted text-muted-foreground h-12 rounded-xl px-4 text-base md:text-base"
                         />
-                        <p id="email-hint" className="text-muted-foreground text-[13px] leading-5">
+                        <p
+                            id="email-hint"
+                            className="text-[14px] leading-[15px] tracking-[-0.5px] text-[#fa503d]"
+                        >
                             이메일은 변경할 수 없습니다.
                         </p>
                     </div>

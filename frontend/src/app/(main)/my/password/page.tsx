@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff } from "lucide-react";
+import { CircleAlert, Eye, EyeOff } from "lucide-react";
+import { z } from "zod";
 
 import { Button } from "@/common/components/ui/Button";
 import { Input } from "@/common/components/ui/Input";
 import { Label } from "@/common/components/ui/Label";
-import { MyPageContent, MyPanel } from "@/features/my/components/MyPageContent";
+import { MyPageContent } from "@/features/my/components/MyPageContent";
 import {
     AlertDialog,
     AlertDialogContent,
@@ -22,15 +23,27 @@ import { getApiErrorMessage } from "@/common/lib/api/error";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { useChangePasswordMutation } from "@/features/member/hooks/mutations/useChangePasswordMutation";
 import { passwordChangeSchema } from "@/features/member/schemas/memberSchema";
-import type { PasswordChangeRequest } from "@/features/member/types";
-
 const fields = [
     { name: "currentPassword", label: "기존 비밀번호", autoComplete: "current-password" },
-    { name: "newPassword", label: "변경할 비밀번호", autoComplete: "new-password" },
+    { name: "newPassword", label: "새 비밀번호", autoComplete: "new-password" },
+    { name: "confirmPassword", label: "새 비밀번호 확인", autoComplete: "new-password" },
 ] as const;
 
+const passwordChangeFormSchema = passwordChangeSchema
+    .extend({
+        confirmPassword: z.string().min(1, "새 비밀번호를 다시 입력해 주세요."),
+    })
+    .refine((values) => values.newPassword === values.confirmPassword, {
+        path: ["confirmPassword"],
+        message: "새 비밀번호가 일치하지 않습니다.",
+    });
+
 export default function MyPasswordPage() {
-    const [visible, setVisible] = useState({ currentPassword: false, newPassword: false });
+    const [visible, setVisible] = useState({
+        currentPassword: false,
+        newPassword: false,
+        confirmPassword: false,
+    });
     const clearAuth = useAuthStore((state) => state.clearAuth);
     const {
         mutate: changePassword,
@@ -44,104 +57,138 @@ export default function MyPasswordPage() {
         handleSubmit,
         reset,
         formState: { errors },
-    } = useForm<PasswordChangeRequest>({
-        resolver: zodResolver(passwordChangeSchema),
-        defaultValues: { currentPassword: "", newPassword: "" },
+    } = useForm<z.infer<typeof passwordChangeFormSchema>>({
+        resolver: zodResolver(passwordChangeFormSchema),
+        defaultValues: { currentPassword: "", newPassword: "", confirmPassword: "" },
     });
 
     return (
-        <MyPageContent eyebrow="계정 설정" title="비밀번호 변경">
-            <MyPanel className="w-full p-6 sm:p-8">
+        <MyPageContent
+            eyebrow=""
+            title="비밀번호 변경"
+            eyebrowClassName="hidden"
+            titleClassName="text-[32px] leading-[42px] tracking-[0.5px] text-[#363636] sm:text-[40px] sm:leading-[50px] xl:text-[53px] xl:leading-[75px]"
+        >
+            <div className="pt-10">
                 <form
                     noValidate
                     onSubmit={handleSubmit((values) => {
                         if (isPending || isSuccess) return;
-                        changePassword(values, {
-                            onSuccess: () => {
-                                reset();
-                                setVisible({ currentPassword: false, newPassword: false });
+                        changePassword(
+                            {
+                                currentPassword: values.currentPassword,
+                                newPassword: values.newPassword,
                             },
-                        });
+                            {
+                                onSuccess: () => {
+                                    reset();
+                                    setVisible({
+                                        currentPassword: false,
+                                        newPassword: false,
+                                        confirmPassword: false,
+                                    });
+                                },
+                            },
+                        );
                     })}
                     onChange={() => {
                         if (error) resetMutation();
                     }}
-                    className="space-y-7"
+                    className="space-y-10"
                 >
-                    {fields.map(({ name, label, autoComplete }) => (
-                        <div key={name} className="space-y-2">
-                            <Label htmlFor={name} className="text-[13px] font-semibold">
-                                {label}
-                            </Label>
-                            <div className="relative">
-                                <Input
-                                    id={name}
-                                    {...register(name)}
-                                    type={visible[name] ? "text" : "password"}
-                                    autoComplete={autoComplete}
-                                    placeholder={`${label}를 입력해 주세요`}
-                                    required
-                                    disabled={isPending || isSuccess}
-                                    aria-invalid={Boolean(errors[name])}
-                                    aria-describedby={
-                                        errors[name]
-                                            ? `${name}-error`
-                                            : name === "newPassword"
-                                              ? "password-hint"
-                                              : undefined
-                                    }
-                                    className="h-12 rounded-xl pr-12 pl-4 text-base md:text-base"
-                                />
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    disabled={isPending || isSuccess}
-                                    aria-label={`${label} ${visible[name] ? "숨기기" : "표시"}`}
-                                    aria-pressed={visible[name]}
-                                    onClick={() =>
-                                        setVisible((previous) => ({
-                                            ...previous,
-                                            [name]: !previous[name],
-                                        }))
-                                    }
-                                    className="text-muted-foreground absolute top-[calc(50%-1rem)] right-2"
+                    <div className="space-y-5">
+                        {fields.map(({ name, label, autoComplete }) => (
+                            <div key={name} className="space-y-[5px]">
+                                <Label
+                                    htmlFor={name}
+                                    className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#363636]"
                                 >
-                                    {visible[name] ? (
-                                        <Eye className="size-5" />
-                                    ) : (
-                                        <EyeOff className="size-5" />
-                                    )}
-                                </Button>
+                                    {label}
+                                </Label>
+                                <div className="relative">
+                                    <Input
+                                        id={name}
+                                        {...register(name)}
+                                        type={visible[name] ? "text" : "password"}
+                                        autoComplete={autoComplete}
+                                        placeholder={
+                                            name === "confirmPassword"
+                                                ? "비밀번호를 확인해 주세요"
+                                                : `${label}를 입력해 주세요`
+                                        }
+                                        required
+                                        disabled={isPending || isSuccess}
+                                        aria-invalid={Boolean(errors[name])}
+                                        aria-describedby={
+                                            errors[name]
+                                                ? `${name}-error`
+                                                : name === "newPassword"
+                                                  ? "password-conditions"
+                                                  : undefined
+                                        }
+                                        className="h-[45px] rounded-[6px] border-[#dde5e9] bg-white pr-12 pl-5 text-[16px] placeholder:text-[#6b7588] md:text-[16px]"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        disabled={isPending || isSuccess}
+                                        aria-label={`${label} ${visible[name] ? "숨기기" : "표시"}`}
+                                        aria-pressed={visible[name]}
+                                        onClick={() =>
+                                            setVisible((previous) => ({
+                                                ...previous,
+                                                [name]: !previous[name],
+                                            }))
+                                        }
+                                        className="text-muted-foreground absolute top-[calc(50%-1rem)] right-2"
+                                    >
+                                        {visible[name] ? (
+                                            <Eye className="size-5" />
+                                        ) : (
+                                            <EyeOff className="size-5" />
+                                        )}
+                                    </Button>
+                                </div>
+                                {errors[name] ? (
+                                    <p
+                                        id={`${name}-error`}
+                                        role="alert"
+                                        className="text-destructive text-[13px] leading-5"
+                                    >
+                                        {errors[name]?.message}
+                                    </p>
+                                ) : null}
                             </div>
-                            {errors[name] ? (
-                                <p
-                                    id={`${name}-error`}
-                                    role="alert"
-                                    className="text-destructive text-[13px] leading-5"
-                                >
-                                    {errors[name]?.message}
-                                </p>
-                            ) : null}
-                            {name === "newPassword" ? (
-                                <p
-                                    id="password-hint"
-                                    className="text-muted-foreground text-[13px] leading-5"
-                                >
-                                    영문과 숫자를 포함해 8~64자로 입력해 주세요.
-                                </p>
-                            ) : null}
-                        </div>
-                    ))}
-                    <Button
-                        type="submit"
-                        disabled={isPending || isSuccess}
-                        className="h-[50px] w-full rounded-xl text-base font-semibold"
+                        ))}
+                        {Object.values(visible).some((value) => !value) && (
+                            <p className="flex items-center gap-2 pt-[10px] text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#fa503d]">
+                                <CircleAlert aria-hidden="true" className="size-4 shrink-0" />
+                                비밀번호 숨김 모드가 활성화되어 있습니다.
+                            </p>
+                        )}
+                    </div>
+                    <div
+                        id="password-conditions"
+                        className="space-y-2 rounded-[6px] bg-[#fafbff] p-4 text-[16px] leading-[25px] text-[#6b7588]"
                     >
-                        {isPending ? "변경 중..." : "비밀번호 변경"}
-                    </Button>
+                        <p className="font-semibold tracking-[0.5px] text-[#6b6c7b]">
+                            비밀번호 조건
+                        </p>
+                        <p>• 영문과 숫자를 포함해 8~64자로 입력해 주세요.</p>
+                        <p>• 새 비밀번호 확인 값과 일치해야 합니다.</p>
+                    </div>
+                    <div className="flex justify-end pt-10">
+                        <Button
+                            type="submit"
+                            disabled={isPending || isSuccess}
+                            className="h-[41px] min-w-[160px] rounded-full bg-[#6653fb] px-6 text-[14px] font-semibold text-white hover:bg-[#5844e8]"
+                        >
+                            {isPending ? "변경 중..." : "비밀번호 변경"}
+                        </Button>
+                    </div>
                 </form>
-            </MyPanel>
+            </div>
             <AlertDialog
                 open={isSuccess || Boolean(error)}
                 onOpenChange={(open) => {

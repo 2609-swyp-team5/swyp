@@ -7,17 +7,30 @@ export function MyPageContent({
     eyebrow,
     title,
     children,
+    eyebrowClassName,
+    titleClassName,
 }: {
     eyebrow: string;
     title: string;
     children: ReactNode;
+    eyebrowClassName?: string;
+    titleClassName?: string;
 }) {
     return (
         <main className="text-foreground px-6 py-12 text-base leading-[25px] font-normal break-keep sm:px-10 lg:py-[60px] xl:px-[min(7vw,var(--grid-margin))]">
             <div className="mx-auto w-full max-w-[960px]">
                 <header className="mb-10">
-                    <p className="text-muted-foreground mb-1 font-normal">{eyebrow}</p>
-                    <h1 className="typography-heading-03 leading-[42px] font-bold">{title}</h1>
+                    <p className={cn("text-muted-foreground mb-1 font-normal", eyebrowClassName)}>
+                        {eyebrow}
+                    </p>
+                    <h1
+                        className={cn(
+                            "typography-heading-03 leading-[42px] font-bold",
+                            titleClassName,
+                        )}
+                    >
+                        {title}
+                    </h1>
                 </header>
                 {children}
             </div>

@@ -157,12 +157,17 @@ test("withdrawal requires consent and cancellation sends no request", async ({ p
             writes.push(request.url());
     });
     await page.goto("/my/withdraw");
-    const next = page.getByRole("button", { name: "다음 단계", exact: true });
+    const next = page.getByRole("button", { name: "탈퇴 요청", exact: true });
     await expect(next).toBeDisabled();
-    await page.getByRole("checkbox").check();
+    await page.getByRole("checkbox", { name: /위 안내 사항을 모두 확인/ }).check();
+    await expect(next).toBeDisabled();
+    await page.getByRole("checkbox", { name: /개인 정보 및 서비스 이용 기록/ }).check();
     await next.click();
     await expect(page.getByRole("alertdialog")).toBeVisible();
-    await page.getByRole("alertdialog").getByRole("button", { name: "취소", exact: true }).click();
+    await page
+        .getByRole("alertdialog")
+        .getByRole("button", { name: "나가기", exact: true })
+        .click();
     await expect(page.getByRole("alertdialog")).toHaveCount(0);
     expect(writes).toEqual([]);
 });
@@ -184,8 +189,9 @@ test("withdrawal disables repeat submissions and redirects after success", async
         });
     });
     await page.goto("/my/withdraw");
-    await page.getByRole("checkbox").check();
-    await page.getByRole("button", { name: "다음 단계", exact: true }).click();
+    await page.getByRole("checkbox", { name: /위 안내 사항을 모두 확인/ }).check();
+    await page.getByRole("checkbox", { name: /개인 정보 및 서비스 이용 기록/ }).check();
+    await page.getByRole("button", { name: "탈퇴 요청", exact: true }).click();
     const dialog = page.getByRole("alertdialog");
     await dialog.getByRole("button", { name: "탈퇴하기", exact: true }).click();
     await expect(
@@ -216,8 +222,9 @@ test("withdrawal failure keeps the dialog and authenticated session", async ({ p
         });
     });
     await page.goto("/my/withdraw");
-    await page.getByRole("checkbox").check();
-    await page.getByRole("button", { name: "다음 단계", exact: true }).click();
+    await page.getByRole("checkbox", { name: /위 안내 사항을 모두 확인/ }).check();
+    await page.getByRole("checkbox", { name: /개인 정보 및 서비스 이용 기록/ }).check();
+    await page.getByRole("button", { name: "탈퇴 요청", exact: true }).click();
     const dialog = page.getByRole("alertdialog");
     await dialog.getByRole("button", { name: "탈퇴하기", exact: true }).click();
     await expect(dialog).toContainText("탈퇴 요청을 처리하지 못했습니다.");

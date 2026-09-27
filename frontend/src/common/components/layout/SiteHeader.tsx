@@ -44,10 +44,8 @@ export function SiteHeader() {
                                 key={link.href}
                                 asChild
                                 variant="ghost"
-                                className={`typography-body-medium h-auto rounded-lg px-3 py-2 whitespace-nowrap ${
-                                    isActive
-                                        ? "bg-primary/10 text-primary font-semibold"
-                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                className={`hover:text-primary h-auto rounded-lg px-3 py-2 text-[16px] leading-[25px] font-semibold tracking-[0.5px] whitespace-nowrap hover:bg-transparent ${
+                                    isActive ? "text-primary" : "text-[#464646]"
                                 }`}
                             >
                                 <Link href={link.href} aria-current={isActive ? "page" : undefined}>

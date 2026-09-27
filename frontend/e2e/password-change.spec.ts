@@ -16,14 +16,22 @@ test("validates passwords before sending a request", async ({ page }) => {
         return route.abort();
     });
     await page.goto("/my/password");
+    await expect(page.getByRole("button", { name: "취소", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "변경 링크 보내기" })).toHaveCount(0);
     await page.getByRole("button", { name: "비밀번호 변경", exact: true }).click();
     await expect(page.getByText("기존 비밀번호를 입력해 주세요.", { exact: true })).toBeVisible();
     await page.getByLabel("기존 비밀번호", { exact: true }).fill("oldPassword1");
-    await page.getByLabel("변경할 비밀번호", { exact: true }).fill("short");
+    await page.getByLabel("새 비밀번호", { exact: true }).fill("short");
+    await page.getByLabel("새 비밀번호 확인", { exact: true }).fill("short");
     await page.getByRole("button", { name: "비밀번호 변경", exact: true }).click();
-    await expect(page.locator("form").getByRole("alert")).toHaveText(
-        "비밀번호는 영문과 숫자를 포함해 8~64자로 입력해 주세요.",
-    );
+    await expect(
+        page.getByText("비밀번호는 영문과 숫자를 포함해 8~64자로 입력해 주세요.", {
+            exact: true,
+        }),
+    ).toBeVisible();
+    await page.getByLabel("새 비밀번호", { exact: true }).fill("newPassword2");
+    await page.getByRole("button", { name: "비밀번호 변경", exact: true }).click();
+    await expect(page.getByText("새 비밀번호가 일치하지 않습니다.")).toBeVisible();
     expect(requests).toBe(0);
 });
 
@@ -49,12 +57,10 @@ test("submits passwords, blocks repeats and requests login after success", async
     });
     await page.goto("/my/password");
     await page.getByLabel("기존 비밀번호", { exact: true }).fill(" oldPassword1 ");
-    await page.getByLabel("변경할 비밀번호", { exact: true }).fill("newPassword2");
-    await page.getByRole("button", { name: "변경할 비밀번호 표시", exact: true }).click();
-    await expect(page.getByLabel("변경할 비밀번호", { exact: true })).toHaveAttribute(
-        "type",
-        "text",
-    );
+    await page.getByLabel("새 비밀번호", { exact: true }).fill("newPassword2");
+    await page.getByLabel("새 비밀번호 확인", { exact: true }).fill("newPassword2");
+    await page.getByRole("button", { name: "새 비밀번호 표시", exact: true }).click();
+    await expect(page.getByLabel("새 비밀번호", { exact: true })).toHaveAttribute("type", "text");
     await page.getByRole("button", { name: "비밀번호 변경", exact: true }).click();
     await expect(page.getByRole("button", { name: "변경 중...", exact: true })).toBeDisabled();
     finishRequest();
@@ -79,7 +85,8 @@ for (const failure of [
         );
         await page.goto("/my/password");
         await page.getByLabel("기존 비밀번호", { exact: true }).fill("oldPassword1");
-        await page.getByLabel("변경할 비밀번호", { exact: true }).fill("newPassword2");
+        await page.getByLabel("새 비밀번호", { exact: true }).fill("newPassword2");
+        await page.getByLabel("새 비밀번호 확인", { exact: true }).fill("newPassword2");
         await page.getByRole("button", { name: "비밀번호 변경", exact: true }).click();
         await expect(page.getByRole("alertdialog")).toContainText(failure.message);
         await page
