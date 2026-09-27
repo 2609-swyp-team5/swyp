@@ -12,9 +12,6 @@ import { useLogoutMutation } from "@/features/auth/hooks/mutations/useLogoutMuta
 import { useMeQuery } from "@/features/member/hooks/queries/useMeQuery";
 import { ProfileAvatar } from "@/features/member/components/ProfileAvatar";
 
-import { getApiErrorMessage } from "@/common/lib/api/error";
-import { useLogoutMutation } from "@/features/auth/hooks/mutations/useLogoutMutation";
-
 const MY_NAVIGATION = [
     { href: "/my", label: "홈" },
     { href: "/my/settings", label: "사용자 정보 설정" },
@@ -32,6 +29,11 @@ export function MySidebar() {
     const { mutate: logout, isPending: isLoggingOut } = useLogoutMutation({
         onError: (error) => setErrorMessage(getApiErrorMessage(error)),
     });
+    const handleLogout = () => {
+        setErrorMessage("");
+        logout();
+    };
+
     return (
         <aside className="flex flex-col bg-[#272727] py-8 lg:w-[min(28vw,400px)] lg:shrink-0 lg:py-[50px]">
             <div className="flex flex-col items-center gap-5 border-b border-white/10 px-6 pb-6">
@@ -69,14 +71,6 @@ export function MySidebar() {
                             </Button>
                         );
                     })}
-                    <button
-                        type="button"
-                        onClick={handleLogout}
-                        disabled={isLoggingOut}
-                        className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg px-3 py-2 text-left text-sm whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                        {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
-                    </button>
                 </div>
                 <div className="space-y-5 px-6">
                     {errorMessage ? (
@@ -88,10 +82,7 @@ export function MySidebar() {
                         type="button"
                         variant="ghost"
                         disabled={isLoggingOut}
-                        onClick={() => {
-                            setErrorMessage("");
-                            logout();
-                        }}
+                        onClick={handleLogout}
                         className="h-12 w-full gap-2 border-t border-white/10 text-base text-white/60 hover:bg-white/5 hover:text-white"
                     >
                         <LogOut className="size-4" aria-hidden="true" />
