@@ -24,6 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.error.CategoryNotFoundException;
+import com.swyp.team5.category.error.CategoryNotLeafException;
 import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.component.entity.Component;
@@ -111,11 +112,12 @@ public class ProductService {
      * @param images 등록할 상품 이미지 목록(순서대로 저장)
      * @return 등록된 상품
      * @throws CategoryNotFoundException 존재하지 않는 카테고리인 경우
+     * @throws CategoryNotLeafException 최하위 카테고리가 아닌 경우
      */
     @Transactional
     public ProductResponse create(Long memberId, ProductCreateRequest request, List<MultipartFile> images) {
         Member member = memberRepository.getReferenceById(memberId);
-        Category category = getCategoryOrThrow(request.categoryId());
+        Category category = getLeafCategoryOrThrow(request.categoryId());
         List<String> imageUrls = uploadImages(images);
 
         Product product = Product.create(
@@ -181,7 +183,7 @@ public class ProductService {
             List<String> includedItems) {
         Member member = memberRepository.getReferenceById(memberId);
         ProductAiAnalysisResult analysis = productAiService.analyze(images);
-        Category category = getCategoryOrThrow(analysis.categoryId());
+        Category category = getLeafCategoryOrThrow(analysis.categoryId());
         List<String> imageUrls = uploadImages(images);
 
         Product product = Product.create(
@@ -388,7 +390,7 @@ public class ProductService {
             Long memberId, Long productId, ProductUpdateRequest request, List<MultipartFile> files) {
         Product product = getProductOrThrow(productId);
         validateRegisteredBy(product, memberId);
-        Category category = getCategoryOrThrow(request.categoryId());
+        Category category = getLeafCategoryOrThrow(request.categoryId());
 
         List<String> keptImageUrls = request.imageUrls() == null ? List.of() : request.imageUrls();
         List<MultipartFile> newFiles = files == null
@@ -467,8 +469,14 @@ public class ProductService {
         return productRepository.findById(productId).orElseThrow(() -> new ProductNotFoundException(productId));
     }
 
-    private Category getCategoryOrThrow(Long categoryId) {
-        return categoryRepository.findById(categoryId).orElseThrow(() -> new CategoryNotFoundException(categoryId));
+    /** 상품은 최하위 카테고리에만 등록할 수 있다(번개장터 등록 화면이 최하위까지 선택을 요구). */
+    private Category getLeafCategoryOrThrow(Long categoryId) {
+        Category category =
+                categoryRepository.findById(categoryId).orElseThrow(() -> new CategoryNotFoundException(categoryId));
+        if (!category.isLeaf()) {
+            throw new CategoryNotLeafException(categoryId);
+        }
+        return category;
     }
 
     /**

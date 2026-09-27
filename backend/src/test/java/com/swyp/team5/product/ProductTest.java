@@ -40,6 +40,8 @@ import com.swyp.team5.file.service.FileStorageService;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.entity.MemberRole;
 import com.swyp.team5.member.repository.MemberRepository;
+import com.swyp.team5.platform.entity.CategoryPlatform;
+import com.swyp.team5.platform.repository.CategoryPlatformRepository;
 import com.swyp.team5.product.dto.ProductAiAnalysisResult;
 import com.swyp.team5.product.dto.ProductCreateRequest;
 import com.swyp.team5.product.dto.ProductStatusUpdateRequest;
@@ -69,6 +71,9 @@ class ProductTest {
 
     @Autowired
     private CategoryRepository categoryRepository;
+
+    @Autowired
+    private CategoryPlatformRepository categoryPlatformRepository;
 
     @Autowired
     private MemberRepository memberRepository;
@@ -137,6 +142,7 @@ class ProductTest {
                 .andExpect(jsonPath("$.data.brand").value("애플"))
                 .andExpect(jsonPath("$.data.memberId").value(sellerId))
                 .andExpect(jsonPath("$.data.category.id").value(category.getId()))
+                .andExpect(jsonPath("$.data.category.leaf").value(true))
                 .andExpect(jsonPath("$.data.status").value("ON_SALE"))
                 .andExpect(jsonPath("$.data.imageUrls[0]").value("https://image.example.com/1.png"));
 
@@ -681,6 +687,37 @@ class ProductTest {
                 .andExpect(status().isNotFound());
     }
 
+    // 상품 등록 실패 - 하위 카테고리가 있는(최하위가 아닌) 카테고리
+    @Test
+    void createFailsWhenCategoryNotLeaf() throws Exception {
+        Category parent = createCategory();
+        createChildCategory(parent);
+
+        mockMvc.perform(multipart("/products")
+                        .file(imagePart())
+                        .file(requestPart(createRequest(parent.getId())))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_INPUT_VALUE"));
+
+        assertThat(productRepository.count()).isZero();
+    }
+
+    // 시세 수집 대상은 판매중인 우리 상품이 있는 카테고리의 번개장터 매핑뿐(V13 시드: 스마트폰 = 600700001)
+    @Test
+    void collectTargetsOnlyCategoriesWithOnSaleProducts() throws Exception {
+        Category smartphone = categoryRepository.findAll().stream()
+                .filter(c -> c.getName().equals("스마트폰") && c.getParent() != null)
+                .filter(c -> c.getParent().getName().equals("휴대폰"))
+                .findFirst()
+                .orElseThrow();
+        createProduct(smartphone);
+
+        List<CategoryPlatform> targets = categoryPlatformRepository.findCollectTargets("번개장터", ProductStatus.ON_SALE);
+
+        assertThat(targets).extracting(CategoryPlatform::getExternalCategoryId).containsExactly("600700001");
+    }
+
     private Long createProduct() throws Exception {
         return createProduct(category);
     }
@@ -760,6 +797,23 @@ class ProductTest {
                 List.of("https://image.example.com/2.png"),
                 List.of(),
                 List.of("케이블"));
+    }
+
+    private Category createChildCategory(Category parent) {
+        try {
+            Constructor<Category> constructor = Category.class.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            Category child = constructor.newInstance();
+            Field nameField = Category.class.getDeclaredField("name");
+            nameField.setAccessible(true);
+            nameField.set(child, "테스트카테고리-" + UUID.randomUUID());
+            Field parentField = Category.class.getDeclaredField("parent");
+            parentField.setAccessible(true);
+            parentField.set(child, parent);
+            return categoryRepository.save(child);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private Category createCategory() {
