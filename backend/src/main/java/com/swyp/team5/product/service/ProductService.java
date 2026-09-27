@@ -161,14 +161,13 @@ public class ProductService {
      * (실제 시세 데이터 기반은 아님, 등록 후 판매자가 직접 수정 가능), 거래 방식은 기본값
      * 직거래(DIRECT)로 등록되며, 배송 방법/희망 거래 지역은 비워둔 채 등록 후 수정으로 채운다.
      * 구매 일시/결함 여부는 AI가 추론하지 않고 사용자가 직접 입력한 값을 그대로 사용한다. 브랜드는
-     * AI가 사진에서 식별해 채운다(식별 불가 시 null). 태그/구성품은 AI가 사진에서 추론한 목록과 사용자가
-     * 추가로 입력한 목록을 합쳐서 저장한다.
+     * AI가 사진에서 식별해 채운다(식별 불가 시 null). 태그는 AI가 추론한 목록만 저장하고(사용자 입력 없음),
+     * 구성품은 AI가 사진에서 추론한 목록과 사용자가 추가로 입력한 목록을 합쳐서 저장한다.
      *
      * @param memberId 등록하는 회원 ID
      * @param images 분석할 상품 이미지 목록
      * @param purchasedMonths 사용자가 입력한 구매 후 경과 개월 수(선택, 등록 시점 기준 구매일시로 변환)
      * @param defectStatus 사용자가 입력한 결함(하자) 상태
-     * @param tags 사용자가 추가로 입력한 태그 이름 목록(선택, AI 추론 결과와 합쳐짐)
      * @param includedItems 사용자가 추가로 입력한 구성품 이름 목록(선택, AI 추론 결과와 합쳐짐)
      * @return 등록된 상품
      * @throws CategoryNotFoundException 등록된 카테고리가 없거나 AI가 반환한 카테고리가 존재하지 않는 경우
@@ -179,7 +178,6 @@ public class ProductService {
             List<MultipartFile> images,
             Integer purchasedMonths,
             DefectStatus defectStatus,
-            List<String> tags,
             List<String> includedItems) {
         Member member = memberRepository.getReferenceById(memberId);
         ProductAiAnalysisResult analysis = productAiService.analyze(images);
@@ -201,7 +199,7 @@ public class ProductService {
                 null,
                 null,
                 imageUrls,
-                resolveTags(mergeNames(analysis.tags(), tags)),
+                resolveTags(analysis.tags()),
                 resolveComponents(mergeNames(analysis.includedItems(), includedItems)));
         product.changeSuggestedPrice(analysis.suggestedPrice());
 
