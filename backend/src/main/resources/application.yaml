@@ -56,6 +56,12 @@ spring:
 
 # AI 모델 설정 (Gemini, GPT)
   ai:
+    # AI 호출 재시도. 기본값(10회, 2초부터 5배씩 대기)이면 Gemini 장애 시 GPT 대체 호출까지 수 분이 걸려 줄인다
+    retry:
+      max-attempts: ${SPRING_AI_RETRY_MAX_ATTEMPTS:2}
+      backoff:
+        initial-interval: ${SPRING_AI_RETRY_INITIAL_INTERVAL:1s}
+        max-interval: ${SPRING_AI_RETRY_MAX_INTERVAL:5s}
     openai:
       api-key: ${OPENAI_API_KEY:}
       chat:
