@@ -1,5 +1,8 @@
 package com.swyp.team5.platform.bunjang.controller;
 
+import java.util.Arrays;
+import java.util.List;
+
 import jakarta.validation.Valid;
 
 import lombok.RequiredArgsConstructor;
@@ -19,6 +22,7 @@ import com.swyp.team5.common.common.ApiResponse;
 import com.swyp.team5.common.passport.PrincipalMember;
 import com.swyp.team5.platform.bunjang.dto.BunjangConnectRequest;
 import com.swyp.team5.platform.bunjang.dto.BunjangConnectionResponse;
+import com.swyp.team5.platform.bunjang.dto.PlatformConnectionResponse;
 import com.swyp.team5.platform.bunjang.dto.ProductPlatformLinkRequest;
 import com.swyp.team5.platform.bunjang.dto.ProductPlatformResponse;
 import com.swyp.team5.platform.bunjang.service.BunjangConnectionService;
@@ -52,6 +56,16 @@ public class BunjangController {
             @Valid @RequestBody BunjangConnectRequest request) {
         BunjangConnectionResponse response =
                 bunjangConnectionService.connect(currentMember.memberId(), request.cookie());
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @Operation(summary = "외부 플랫폼 연동 목록 조회")
+    @GetMapping("/platforms")
+    public ResponseEntity<ApiResponse<List<PlatformConnectionResponse>>> getConnections(
+            @AuthenticationPrincipal PrincipalMember currentMember) {
+        List<PlatformConnectionResponse> response = Arrays.stream(PlatformType.values())
+                .map(platform -> PlatformConnectionResponse.of(platform, statusOf(platform, currentMember.memberId())))
+                .toList();
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
@@ -100,5 +114,12 @@ public class BunjangController {
             @PathVariable PlatformType platform) {
         ProductPlatformResponse response = bunjangProductLinkService.syncStatus(currentMember.memberId(), productId);
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    // 플랫폼별 연동 서비스 선택 — 새 플랫폼 추가 시 컴파일러가 누락된 case를 알려준다
+    private BunjangConnectionResponse statusOf(PlatformType platform, Long memberId) {
+        return switch (platform) {
+            case BUNJANG -> bunjangConnectionService.getStatus(memberId);
+        };
     }
 }
