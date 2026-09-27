@@ -120,10 +120,10 @@ class ProductAiServiceTest {
         assertThatThrownBy(() -> service().analyze(List.of(image))).isInstanceOf(CategoryNotFoundException.class);
     }
 
-    // AI에는 최하위 카테고리만 대분류부터의 경로로 보여준다
+    // AI에는 최하위 카테고리만, 같은 부모 경로끼리 한 줄로 묶어 보여준다
     @Test
     @SuppressWarnings("unchecked")
-    void analyzeShowsOnlyLeafCategoriesWithPath() {
+    void analyzeShowsOnlyLeafCategoriesGroupedByParentPath() {
         MockMultipartFile image = new MockMultipartFile("images", "phone.png", "image/png", new byte[] {1, 2, 3});
         ProductAiAnalysisResult analysis = new ProductAiAnalysisResult(
                 3L, "아이폰 13", "애플", "설명", ProductCondition.A, 500_000L, "판단 근거", List.of(), List.of());
@@ -142,9 +142,10 @@ class ProductAiServiceTest {
         // 딥 스텁 설정 호출(anyString)도 기록되므로 실제 호출인 마지막 값을 본다
         verify(geminiAiClient.prompt(), atLeastOnce()).system(systemPrompt.capture());
         assertThat(systemPrompt.getValue())
-                .contains("- 3: 디지털 > 휴대폰 > 스마트폰")
-                .doesNotContain("- 1:")
-                .doesNotContain("- 2:");
+                .contains("디지털 > 휴대폰: 스마트폰=3, 태블릿=4")
+                .contains("(대분류): 기타=5")
+                .doesNotContain("=1")
+                .doesNotContain("=2");
     }
 
     // AI 분석 실패 - AI가 최하위가 아닌 카테고리를 추론한 경우
@@ -166,16 +167,19 @@ class ProductAiServiceTest {
         assertThatThrownBy(() -> service().analyze(List.of(image))).isInstanceOf(CategoryNotLeafException.class);
     }
 
-    // 디지털(1) > 휴대폰(2) > 스마트폰(3, 최하위)
+    // 디지털(1) > 휴대폰(2) > 스마트폰(3)/태블릿(4) 최하위, 기타(5)는 상위 없는 최하위
     private List<Category> digitalTree() {
         Category digital = newCategory(1L, "디지털");
         Category phone = newCategory(2L, "휴대폰");
         Category smartphone = newCategory(3L, "스마트폰");
+        Category tablet = newCategory(4L, "태블릿");
+        Category etc = newCategory(5L, "기타");
         setField(digital, "hasChildren", true);
         setField(phone, "hasChildren", true);
         setField(phone, "parent", digital);
         setField(smartphone, "parent", phone);
-        return List.of(digital, phone, smartphone);
+        setField(tablet, "parent", phone);
+        return List.of(digital, phone, smartphone, tablet, etc);
     }
 
     private Category newCategory(Long id, String name) {

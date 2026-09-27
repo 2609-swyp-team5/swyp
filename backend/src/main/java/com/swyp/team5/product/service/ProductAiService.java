@@ -3,6 +3,7 @@ package com.swyp.team5.product.service;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -33,8 +34,9 @@ public class ProductAiService {
             """
             너는 중고거래 플랫폼의 상품 등록을 돕는 AI야. 업로드된 상품 사진들을 분석해서
             상품 제목, 브랜드, 설명, 카테고리, 상태 등급, 추정 판매가, 판단 근거, 태그, 구성품을 정확하게 추론해.
-            categoryId는 반드시 아래 카테고리 목록(최하위 카테고리, "대분류 > 중분류 > 소분류" 경로로 표기)에 있는
-            값 중 하나여야 해.
+            categoryId는 반드시 아래 카테고리 목록에 있는 최하위 카테고리 ID 중 하나여야 해. 목록은 한 줄에
+            "상위 경로: 최하위 이름=ID, 최하위 이름=ID, ..." 형식이야(예: "디지털 > 휴대폰: 스마트폰=3"이면
+            디지털 > 휴대폰 > 스마트폰의 ID가 3). 상위가 없는 최하위 카테고리는 "(대분류)" 줄에 있어.
             brand는 로고/각인 등 사진에서 브랜드를 명확히 식별할 수 있을 때만 채우고, 확인할 수 없으면
             null로 남겨(추측해서 지어내지 마).
             includedItems는 사진에 실제로 함께 찍혀 있는 구성품(박스, 충전기, 케이블, 이어폰, 설명서 등)만
@@ -75,12 +77,10 @@ public class ProductAiService {
         }
 
         // 상품은 최하위 카테고리에만 등록할 수 있고, 최하위 이름만으로는 중복이 있어(케이스/보호필름/액세서리 등)
-        // 대분류부터의 경로로 보여준다
+        // 상위 경로를 함께 보여준다. 최하위마다 전체 경로를 반복하면 프롬프트가 커져(669개 기준 약 1.4만 토큰)
+        // 같은 부모의 최하위를 한 줄로 묶는다(약 7천 토큰)
         Map<Long, Category> byId = categories.stream().collect(Collectors.toMap(Category::getId, Function.identity()));
-        List<Category> leaves = categories.stream().filter(Category::isLeaf).toList();
-        String categoryList = leaves.stream()
-                .map(category -> "- %d: %s".formatted(category.getId(), pathOf(category, byId)))
-                .collect(Collectors.joining("\n"));
+        String categoryList = groupedLeafList(categories, byId);
 
         // Gemini가 실패하면 같은 요청을 OpenAI GPT로 대체 호출
         ProductAiAnalysisResult result = aiChatExecutor.call("상품 이미지 분석", client -> client.prompt()
@@ -100,6 +100,25 @@ public class ProductAiService {
             throw new CategoryNotLeafException(result.categoryId());
         }
         return result;
+    }
+
+    /** 최하위 카테고리를 부모 경로별로 묶어 "디지털 > 휴대폰: 스마트폰=3, 태블릿=4" 형태의 줄로 만든다(조회 순서 유지). */
+    private static String groupedLeafList(List<Category> categories, Map<Long, Category> byId) {
+        Map<String, List<String>> leavesByParentPath = new LinkedHashMap<>();
+        for (Category category : categories) {
+            if (!category.isLeaf()) {
+                continue;
+            }
+            String parentPath = category.getParent() == null
+                    ? "(대분류)"
+                    : pathOf(byId.get(category.getParent().getId()), byId);
+            leavesByParentPath
+                    .computeIfAbsent(parentPath, key -> new ArrayList<>())
+                    .add("%s=%d".formatted(category.getName(), category.getId()));
+        }
+        return leavesByParentPath.entrySet().stream()
+                .map(entry -> entry.getKey() + ": " + String.join(", ", entry.getValue()))
+                .collect(Collectors.joining("\n"));
     }
 
     // 부모는 지연 로딩 프록시라 이름 대신 ID만 꺼내고, 이름은 이미 조회한 목록에서 찾는다
