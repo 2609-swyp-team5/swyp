@@ -5,59 +5,51 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { CredentialResponse } from "@react-oauth/google";
+import { ArrowRight, CircleAlert, Eye, EyeOff } from "lucide-react";
 
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/common/components/ui/AlertDialog";
 import { Button } from "@/common/components/ui/Button";
-import { Card } from "@/common/components/ui/Card";
+import { Checkbox } from "@/common/components/ui/Checkbox";
 import { Input } from "@/common/components/ui/Input";
 import { Label } from "@/common/components/ui/Label";
 
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { SocialLoginButtons } from "@/features/auth/components/social/SocialLoginButtons";
+import { PasswordResetModal } from "@/features/auth/components/PasswordResetModal";
 import { useLoginMutation } from "@/features/auth/hooks/mutations/useLoginMutation";
-import { useSocialLoginMutation } from "@/features/auth/hooks/mutations/useSocialLoginMutation";
+import { useSocialLogin } from "@/features/auth/hooks/useSocialLogin";
 import { useAuthStore } from "@/features/auth/store/authStore";
-import type { LoginRequest, SocialProvider } from "@/features/auth/types";
+import type { LoginRequest } from "@/features/auth/types";
 import { loginSchema } from "@/features/auth/schemas/authSchema";
 
-type OAuthProvider = Exclude<SocialProvider, "GOOGLE">;
-
-const oauthConfig: Record<
-    OAuthProvider,
-    {
-        clientId: string | undefined;
-        authorizeUri: string;
-        redirectUri: string | undefined;
-        redirectPath: string;
-        state?: string;
-    }
-> = {
-    KAKAO: {
-        clientId: process.env.NEXT_PUBLIC_KAKAO_CLIENT_ID,
-        authorizeUri: "https://kauth.kakao.com/oauth/authorize",
-        redirectUri: process.env.NEXT_PUBLIC_KAKAO_REDIRECT_URI,
-        redirectPath: "/oauth/kakao",
-    },
-    NAVER: {
-        clientId: process.env.NEXT_PUBLIC_NAVER_CLIENT_ID,
-        authorizeUri: "https://nid.naver.com/oauth2.0/authorize",
-        redirectUri: process.env.NEXT_PUBLIC_NAVER_REDIRECT_URI,
-        redirectPath: "/oauth/naver",
-        state: process.env.NEXT_PUBLIC_NAVER_STATE ?? "swyp",
-    },
-};
+const SAVED_EMAIL_KEY = "savedLoginEmail";
 
 export default function LoginPage() {
     const router = useRouter();
     const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
     const isInitialized = useAuthStore((state) => state.isInitialized);
-    const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     const [errorMessage, setErrorMessage] = useState("");
-    const [socialRedirecting, setSocialRedirecting] = useState<OAuthProvider | null>(null);
-    const { mutate: login, isPending } = useLoginMutation({
-        onError: (error) => setErrorMessage(getApiErrorMessage(error)),
+    const [showPassword, setShowPassword] = useState(false);
+    const [savedEmail] = useState(() => {
+        try {
+            return typeof window === "undefined"
+                ? ""
+                : (localStorage.getItem(SAVED_EMAIL_KEY) ?? "");
+        } catch {
+            return "";
+        }
     });
-    const { mutate: socialLogin, isPending: isSocialPending } = useSocialLoginMutation({
+    const [rememberEmail, setRememberEmail] = useState(Boolean(savedEmail));
+    const socialLogin = useSocialLogin(setErrorMessage);
+    const { mutate: login, isPending } = useLoginMutation({
         onError: (error) => setErrorMessage(getApiErrorMessage(error)),
     });
     const {
@@ -66,53 +58,43 @@ export default function LoginPage() {
         formState: { errors, isSubmitting },
     } = useForm<LoginRequest>({
         resolver: zodResolver(loginSchema),
-        defaultValues: { email: "", password: "" },
+        defaultValues: { email: savedEmail, password: "" },
     });
 
-    const isBusy = isSubmitting || isPending || isSocialPending || socialRedirecting !== null;
+    const isBusy = isSubmitting || isPending || socialLogin.isBusy;
 
     useEffect(() => {
         if (isInitialized && isLoggedIn) {
-            router.replace("/");
+            router.replace("/home");
         }
     }, [isInitialized, isLoggedIn, router]);
 
     const onSubmit = (params: LoginRequest) => {
         setErrorMessage("");
-        login(params);
-    };
-
-    // 구글 ID 토큰을 백엔드에 전달해 서비스 로그인 처리
-    const handleGoogleSuccess = (response: CredentialResponse) => {
-        if (!response.credential) {
-            setErrorMessage("구글 인증 정보를 받지 못했습니다.");
-            return;
-        }
-
-        setErrorMessage("");
-        socialLogin({ provider: "GOOGLE", token: response.credential });
-    };
-
-    const handleSocialAuthorize = (provider: OAuthProvider) => {
-        setErrorMessage("");
-        const config = oauthConfig[provider];
-        if (!config.clientId) {
-            setErrorMessage(
-                `${provider === "KAKAO" ? "카카오" : "네이버"} 로그인 설정이 필요합니다.`,
-            );
-            return;
-        }
-
-        const redirectUri = config.redirectUri ?? `${window.location.origin}${config.redirectPath}`;
-        const params = new URLSearchParams({
-            client_id: config.clientId,
-            redirect_uri: redirectUri,
-            response_type: "code",
-            ...(config.state ? { state: config.state } : {}),
+        login(params, {
+            onSuccess: () => {
+                try {
+                    if (rememberEmail) {
+                        localStorage.setItem(SAVED_EMAIL_KEY, params.email);
+                    } else {
+                        localStorage.removeItem(SAVED_EMAIL_KEY);
+                    }
+                } catch {
+                    // 이메일 저장 실패는 로그인 성공에 영향을 주지 않습니다.
+                }
+            },
         });
+    };
 
-        setSocialRedirecting(provider);
-        window.open(`${config.authorizeUri}?${params.toString()}`, "_self");
+    const handleRememberEmailChange = (checked: boolean | "indeterminate") => {
+        setRememberEmail(checked === true);
+        if (checked !== true) {
+            try {
+                localStorage.removeItem(SAVED_EMAIL_KEY);
+            } catch {
+                // 저장소 접근이 차단된 경우에도 체크 해제는 반영합니다.
+            }
+        }
     };
 
     if (!isInitialized || isLoggedIn) {
@@ -120,24 +102,37 @@ export default function LoginPage() {
     }
 
     return (
-        <main className="bg-muted/20 flex flex-1 items-center justify-center px-6 py-14 lg:px-8">
-            <section aria-labelledby="page-title" className="w-full max-w-[500px]">
-                <div className="mb-10 text-center">
-                    <p className="text-muted-foreground text-sm font-semibold">
-                        AI와 함께하는 똑똑한 중고거래
-                    </p>
-                    <p className="text-primary mt-2 text-4xl font-bold tracking-tight">지금이니?</p>
-                </div>
+        <main className="bg-background flex-1 py-16 lg:py-28 dark:bg-white">
+            <div className="layout-container">
+                <section aria-labelledby="page-title" className="mx-auto w-full max-w-[840px]">
+                    <div className="text-center">
+                        <p className="typography-body-medium leading-[30px] font-semibold text-[#464646]">
+                            AI와 함께하는 똑똑한 중고거래
+                        </p>
+                        <p className="typography-heading-01 text-primary mt-2.5 dark:text-[#6653fb]">
+                            지금이니?
+                        </p>
+                    </div>
 
-                <Card className="bg-background block rounded-2xl border p-7 shadow-xl ring-0 shadow-black/5 sm:p-10">
-                    <h1 id="page-title" className="mb-10 text-3xl font-bold tracking-tight">
+                    <h1
+                        id="page-title"
+                        className="typography-heading-03 mt-20 leading-[42px] font-bold text-[#363636]"
+                    >
                         로그인
                     </h1>
 
-                    <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-                        <fieldset disabled={isBusy} className="space-y-3">
+                    <form
+                        id="login-form"
+                        noValidate
+                        onSubmit={handleSubmit(onSubmit)}
+                        className="mt-[30px]"
+                    >
+                        <fieldset disabled={isBusy} className="space-y-5">
                             <div>
-                                <Label className="sr-only" htmlFor="email">
+                                <Label
+                                    className="typography-body-medium mb-2 text-[length:var(--type-body-medium-size)] leading-[30px] font-semibold text-[#363636]"
+                                    htmlFor="email"
+                                >
                                     이메일
                                 </Label>
                                 <Input
@@ -147,14 +142,14 @@ export default function LoginPage() {
                                     aria-describedby={errors.email ? "email-error" : undefined}
                                     type="email"
                                     autoComplete="email"
-                                    placeholder="이메일"
-                                    className="bg-background h-12 rounded-lg px-5 text-sm"
+                                    placeholder="이메일 주소를 입력해주세요"
+                                    className="bg-background h-[41px] rounded-sm border-[#d3d3d3] px-5 text-base leading-[25px] font-normal tracking-normal text-[#363636] placeholder:text-[#6b6c7b] md:text-base dark:bg-white"
                                 />
                                 {errors.email ? (
                                     <p
                                         id="email-error"
                                         role="alert"
-                                        className="text-destructive mt-1 text-sm"
+                                        className="mt-2 text-[13px] leading-5 text-[#fa503d]"
                                     >
                                         {errors.email.message}
                                     </p>
@@ -162,86 +157,146 @@ export default function LoginPage() {
                             </div>
 
                             <div>
-                                <Label className="sr-only" htmlFor="password">
+                                <Label
+                                    className="typography-body-medium mb-2 text-[length:var(--type-body-medium-size)] leading-[30px] font-semibold text-[#363636]"
+                                    htmlFor="password"
+                                >
                                     비밀번호
                                 </Label>
-                                <Input
-                                    id="password"
-                                    {...register("password")}
-                                    aria-invalid={Boolean(errors.password)}
-                                    aria-describedby={
-                                        errors.password ? "password-error" : undefined
-                                    }
-                                    type="password"
-                                    autoComplete="current-password"
-                                    placeholder="비밀번호"
-                                    className="bg-background h-12 rounded-lg px-5 text-sm"
-                                />
+                                <div className="relative">
+                                    <Input
+                                        id="password"
+                                        {...register("password")}
+                                        aria-invalid={Boolean(errors.password)}
+                                        aria-describedby={
+                                            errors.password ? "password-error" : "password-hint"
+                                        }
+                                        type={showPassword ? "text" : "password"}
+                                        autoComplete="current-password"
+                                        placeholder="8자 이상, 영문/숫자 조합"
+                                        className="bg-background h-9 rounded-sm border-[#d3d3d3] pr-12 pl-5 text-base leading-[25px] font-normal tracking-normal text-[#363636] placeholder:text-[#6b6c7b] md:text-base dark:bg-white"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        aria-label={
+                                            showPassword ? "비밀번호 숨기기" : "비밀번호 표시"
+                                        }
+                                        aria-pressed={showPassword}
+                                        onClick={() => setShowPassword((value) => !value)}
+                                        className="absolute top-[5px] right-2 text-[#6b6c7b]"
+                                    >
+                                        {showPassword ? (
+                                            <Eye className="size-5" />
+                                        ) : (
+                                            <EyeOff className="size-5" />
+                                        )}
+                                    </Button>
+                                </div>
                                 {errors.password ? (
                                     <p
                                         id="password-error"
                                         role="alert"
-                                        className="text-destructive mt-1 text-sm"
+                                        className="mt-2 text-[13px] leading-5 text-[#fa503d]"
                                     >
                                         {errors.password.message}
                                     </p>
-                                ) : null}
+                                ) : (
+                                    <p
+                                        id="password-hint"
+                                        className="mt-2 flex items-center gap-2.5 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#fa503d]"
+                                    >
+                                        <CircleAlert
+                                            aria-hidden="true"
+                                            className="relative -top-px size-[15px] shrink-0"
+                                        />
+                                        비밀번호는 영문, 숫자, 특수문자를 포함해야 합니다.
+                                    </p>
+                                )}
                             </div>
                         </fieldset>
-
-                        <Button
-                            type="submit"
-                            disabled={isBusy}
-                            className="h-12 w-full rounded-lg text-sm font-bold"
-                        >
-                            {isBusy ? "로그인 중..." : "로그인"}
-                        </Button>
                     </form>
 
-                    <SocialLoginButtons
-                        googleClientId={googleClientId}
-                        kakaoClientId={oauthConfig.KAKAO.clientId}
-                        naverClientId={oauthConfig.NAVER.clientId}
-                        isBusy={isBusy}
-                        socialRedirecting={socialRedirecting}
-                        onGoogleSuccess={handleGoogleSuccess}
-                        onGoogleError={() => {
-                            setErrorMessage("구글 인증에 실패했습니다.");
-                        }}
-                        onAuthorize={handleSocialAuthorize}
-                    />
+                    <Button
+                        type="submit"
+                        form="login-form"
+                        disabled={isBusy}
+                        className="typography-body-medium bg-primary text-primary-foreground mt-[60px] h-[70px] w-full rounded-lg text-lg leading-[30px] font-semibold dark:bg-[#6653fb] dark:text-white"
+                    >
+                        {isBusy ? "로그인 중..." : "로그인하기"}
+                    </Button>
 
-                    {errorMessage ? (
-                        <p role="alert" className="text-destructive mt-5 text-center text-sm">
-                            {errorMessage}
+                    <div className="mt-5 flex flex-wrap items-center justify-between gap-x-5 gap-y-3 text-base leading-[25px] font-semibold tracking-[0.5px]">
+                        <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+                            <div className="flex items-center gap-2">
+                                <Checkbox
+                                    id="remember-login"
+                                    checked={rememberEmail}
+                                    onCheckedChange={handleRememberEmailChange}
+                                    disabled={isBusy}
+                                    className="size-6 border-[#d3d3d3] bg-white data-[state=checked]:border-[#272727] data-[state=checked]:bg-[#272727] data-[state=checked]:text-white dark:bg-white dark:data-[state=checked]:bg-[#272727]"
+                                />
+                                <Label
+                                    htmlFor="remember-login"
+                                    className="text-base leading-[25px] font-semibold text-[#6b6c7b]"
+                                >
+                                    아이디 저장
+                                </Label>
+                            </div>
+                            <span
+                                aria-hidden="true"
+                                className="hidden h-6 w-px bg-[#d3d3d3] sm:block"
+                            />
+                            <PasswordResetModal />
+                        </div>
+                        <p className="flex items-center gap-[6px] px-2.5 text-[#6b6c7b]">
+                            <span>회원이 아니신가요?</span>
+                            <Link
+                                href="/signup"
+                                className="text-primary underline underline-offset-2 dark:text-[#6653fb]"
+                            >
+                                회원가입
+                            </Link>
                         </p>
-                    ) : null}
-
-                    <div className="mx-auto mt-7 w-full max-w-[400px] space-y-3">
-                        <Button
-                            asChild
-                            variant="secondary"
-                            className="h-10 w-full rounded-lg text-sm font-semibold"
-                        >
-                            <Link href="/home">비회원 로그인</Link>
-                        </Button>
-                        <Button
-                            asChild
-                            variant="secondary"
-                            className="h-10 w-full rounded-lg text-sm font-semibold"
-                        >
-                            <Link href="/signup">회원가입</Link>
-                        </Button>
                     </div>
 
-                    <Link
-                        href="/account/recovery"
-                        className="text-muted-foreground hover:text-foreground mt-5 inline-block text-sm hover:underline"
+                    <div className="mt-[60px] border-t border-[#d3d3d3] pt-5">
+                        <SocialLoginButtons {...socialLogin} isBusy={isBusy} />
+                        <div className="mt-6 flex justify-end">
+                            <Link
+                                href="/home"
+                                className="group hover:text-primary focus-visible:text-primary inline-flex items-center gap-1.5 text-base leading-[25px] font-semibold text-[#6b6c7b]"
+                            >
+                                <span className="underline underline-offset-4">
+                                    비회원으로 둘러보기
+                                </span>
+                                <ArrowRight
+                                    aria-hidden="true"
+                                    className="size-4 transition-transform group-hover:translate-x-0.5"
+                                />
+                            </Link>
+                        </div>
+                    </div>
+
+                    <AlertDialog
+                        open={Boolean(errorMessage)}
+                        onOpenChange={(open) => {
+                            if (!open) setErrorMessage("");
+                        }}
                     >
-                        아이디/비밀번호 찾기
-                    </Link>
-                </Card>
-            </section>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>로그인 오류</AlertDialogTitle>
+                                <AlertDialogDescription>{errorMessage}</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogAction>확인</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </section>
+            </div>
         </main>
     );
 }

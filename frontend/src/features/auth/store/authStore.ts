@@ -2,7 +2,6 @@ import { CanceledError } from "axios";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 
-import type { ApiResponse } from "@/common/lib/api/types";
 import { authApi } from "@/features/auth/api/authApi";
 
 interface AuthStore {
@@ -12,7 +11,7 @@ interface AuthStore {
     checkStatus: () => Promise<void>;
     refresh: () => Promise<string>;
     setAccessToken: (accessToken: string) => void;
-    logout: () => Promise<ApiResponse<null> | undefined>;
+    logout: () => Promise<void>;
 }
 
 let refreshPromise: Promise<string> | null = null;
@@ -41,7 +40,9 @@ export const useAuthStore = create<AuthStore>()(
                 refreshPromise = (async () => {
                     try {
                         const result = await authApi.authRefresh();
-                        if (!result.data.success) throw new Error(result.data.message);
+                        if (!result.data.success) {
+                            throw new Error(result.data.message);
+                        }
                         if (version !== authVersion || get().accessToken !== accessToken) {
                             throw new CanceledError("재발급 중 로그인 상태가 변경되었습니다.");
                         }
@@ -85,13 +86,12 @@ export const useAuthStore = create<AuthStore>()(
                 }
 
                 const result = await authApi.authLogout();
-
-                if (result.data.success) {
-                    authVersion++;
-                    set({ accessToken: null, isLoggedIn: false }, false, "auth/logout");
+                if (!result.data.success) {
+                    throw new Error(result.data.message);
                 }
 
-                return result.data;
+                authVersion++;
+                set({ accessToken: null, isLoggedIn: false }, false, "auth/logout");
             },
         }),
         { name: "AuthStore", enabled: process.env.NODE_ENV === "development" },

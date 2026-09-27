@@ -23,6 +23,66 @@ beforeEach(() => {
 const refreshed = () =>
     HttpResponse.json({ success: true, data: { accessToken: "new-token" }, error: null });
 
+describe("common API response handling", () => {
+    it.each(["/auth/login", "/auth/signup", "/auth/social/login", "/auth/logout", "/auth/refresh"])(
+        "passes HTTP 200 business failures from %s to the caller",
+        async (path) => {
+            const body = {
+                success: false,
+                message: "요청을 처리할 수 없습니다.",
+                data: null,
+                error: { status: "BAD_REQUEST", code: "AUTH_ERROR", details: [] },
+            };
+            server.use(http.post(`${baseURL}${path}`, () => HttpResponse.json(body)));
+
+            await expect(api.post(path)).resolves.toMatchObject({
+                status: 200,
+                data: body,
+            });
+        },
+    );
+
+    it("returns full Axios responses from auth API functions", async () => {
+        const { authApi } = await import("@/features/auth/api/authApi");
+        server.use(
+            http.post(`${baseURL}/auth/login`, refreshed),
+            http.post(`${baseURL}/auth/refresh`, refreshed),
+            http.post(`${baseURL}/auth/logout`, () =>
+                HttpResponse.json({ success: true, data: null, error: null }),
+            ),
+        );
+
+        await expect(
+            authApi.authLogin({ email: "test@example.com", password: "password" }),
+        ).resolves.toMatchObject({
+            status: 200,
+            data: { success: true, data: { accessToken: "new-token" } },
+        });
+        await expect(authApi.authRefresh()).resolves.toMatchObject({
+            status: 200,
+            data: { success: true, data: { accessToken: "new-token" } },
+        });
+        await expect(authApi.authLogout()).resolves.toMatchObject({
+            status: 200,
+            data: { success: true, data: null },
+        });
+    });
+
+    it("preserves login when logout returns an HTTP 200 business failure", async () => {
+        server.use(
+            http.post(`${baseURL}/auth/logout`, () =>
+                HttpResponse.json({ success: false, message: "Logout rejected", data: null }),
+            ),
+        );
+
+        await expect(useAuthStore.getState().logout()).rejects.toThrow("Logout rejected");
+        expect(useAuthStore.getState()).toMatchObject({
+            accessToken: "old-token",
+            isLoggedIn: true,
+        });
+    });
+});
+
 describe("access token refresh", () => {
     it("restores login from a cookie without a stored token and shares initialization", async () => {
         useAuthStore.setState({ accessToken: null, isLoggedIn: false, isInitialized: false });

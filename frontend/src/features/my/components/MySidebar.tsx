@@ -1,7 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+
+import { getApiErrorMessage } from "@/common/lib/api/error";
+import { useLogoutMutation } from "@/features/auth/hooks/mutations/useLogoutMutation";
 
 const MY_NAVIGATION = [
     { href: "/my", label: "마이페이지" },
@@ -20,6 +24,15 @@ function isMyNavigationActive(pathname: string, href: string) {
 
 export function MySidebar() {
     const pathname = usePathname();
+    const [errorMessage, setErrorMessage] = useState("");
+    const { mutate: logout, isPending: isLoggingOut } = useLogoutMutation({
+        onError: (error) => setErrorMessage(getApiErrorMessage(error)),
+    });
+
+    const handleLogout = () => {
+        setErrorMessage("");
+        logout();
+    };
 
     return (
         <aside className="border-border bg-background border-b px-6 py-6 md:w-64 md:shrink-0 md:border-r md:border-b-0 md:px-4 md:py-10">
@@ -44,7 +57,20 @@ export function MySidebar() {
                             </Link>
                         );
                     })}
+                    <button
+                        type="button"
+                        onClick={handleLogout}
+                        disabled={isLoggingOut}
+                        className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg px-3 py-2 text-left text-sm whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
+                    </button>
                 </div>
+                {errorMessage ? (
+                    <p role="alert" className="mt-3 px-3 text-sm text-red-600">
+                        {errorMessage}
+                    </p>
+                ) : null}
             </nav>
         </aside>
     );
