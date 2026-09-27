@@ -1,6 +1,7 @@
 package com.swyp.team5.notification;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -177,26 +178,29 @@ class NotificationTest {
         assertThat(notificationRepository.existsById(notification.getId())).isFalse();
     }
 
-    // 추천 전환 알림 - BUY는 관심 등록 회원에게, SELL은 판매자에게(실제 DB로 수신자 조회 쿼리 검증)
+    // 추천 전환 알림 - SELL/HOLD는 판매자와 관심 등록 회원 모두에게, BUY/WAIT는 관심 등록 회원에게(실제 DB로 수신자 조회 쿼리와 enum 값 검증)
     @Test
     void recommendationChangeCreatesNotificationsForRecipients() throws Exception {
         Product product = productRepository.save(newProduct(owner));
         interestRepository.save(Interest.ofProduct(other, product));
 
+        notificationService.notifyRecommendationChanged(product, null, AnalysisRecommendation.HOLD);
         notificationService.notifyRecommendationChanged(
                 product, AnalysisRecommendation.HOLD, AnalysisRecommendation.BUY);
         notificationService.notifyRecommendationChanged(
-                product, AnalysisRecommendation.BUY, AnalysisRecommendation.SELL);
+                product, AnalysisRecommendation.BUY, AnalysisRecommendation.WAIT);
+        notificationService.notifyRecommendationChanged(
+                product, AnalysisRecommendation.WAIT, AnalysisRecommendation.SELL);
 
         mockMvc.perform(get("/notifications").header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(1))
-                .andExpect(jsonPath("$.data[0].type").value("BUY"))
+                .andExpect(jsonPath("$.data.length()").value(4))
+                .andExpect(jsonPath("$.data[*].type", containsInAnyOrder("HOLD", "BUY", "WAIT", "SELL")))
                 .andExpect(jsonPath("$.data[0].productId").value(product.getId()));
         mockMvc.perform(get("/notifications").header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(1))
-                .andExpect(jsonPath("$.data[0].type").value("SELL"));
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[*].type", containsInAnyOrder("HOLD", "SELL")));
     }
 
     private static Member newMember(String prefix) {
