@@ -22,6 +22,7 @@ import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.error.CategoryNotFoundException;
 import com.swyp.team5.category.error.CategoryNotLeafException;
 import com.swyp.team5.category.repository.CategoryRepository;
+import com.swyp.team5.common.ai.AiChatExecutor;
 import com.swyp.team5.product.dto.ProductAiAnalysisResult;
 import com.swyp.team5.product.entity.ProductCondition;
 import org.junit.jupiter.api.Test;
@@ -38,9 +39,10 @@ class ProductAiServiceTest {
     private CategoryRepository categoryRepository;
 
     private final ChatClient geminiAiClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
+    private final ChatClient openAiClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
 
     private ProductAiService service() {
-        return new ProductAiService(geminiAiClient, categoryRepository);
+        return new ProductAiService(new AiChatExecutor(geminiAiClient, openAiClient), categoryRepository);
     }
 
     // AI 분석 성공
@@ -53,6 +55,29 @@ class ProductAiServiceTest {
 
         when(categoryRepository.findAllByOrderByIdAsc()).thenReturn(List.of(newCategory(1L, "전자기기")));
         when(geminiAiClient
+                        .prompt()
+                        .system(anyString())
+                        .user(any(Consumer.class))
+                        .call()
+                        .entity(ProductAiAnalysisResult.class))
+                .thenReturn(analysis);
+
+        ProductAiAnalysisResult result = service().analyze(List.of(image));
+
+        assertThat(result).isEqualTo(analysis);
+    }
+
+    // AI 분석 성공 - Gemini 호출이 실패하면 같은 요청을 GPT로 대체 호출
+    @Test
+    @SuppressWarnings("unchecked")
+    void analyzeFallsBackToGptWhenGeminiFails() {
+        MockMultipartFile image = new MockMultipartFile("images", "phone.png", "image/png", new byte[] {1, 2, 3});
+        ProductAiAnalysisResult analysis = new ProductAiAnalysisResult(
+                1L, "아이폰 13", "애플", "설명", ProductCondition.A, 500_000L, "판단 근거", List.of("애플"), List.of());
+
+        when(categoryRepository.findAllByOrderByIdAsc()).thenReturn(List.of(newCategory(1L, "전자기기")));
+        when(geminiAiClient.prompt()).thenThrow(new IllegalStateException("429 RESOURCE_EXHAUSTED"));
+        when(openAiClient
                         .prompt()
                         .system(anyString())
                         .user(any(Consumer.class))
@@ -95,10 +120,10 @@ class ProductAiServiceTest {
         assertThatThrownBy(() -> service().analyze(List.of(image))).isInstanceOf(CategoryNotFoundException.class);
     }
 
-    // AI에는 최하위 카테고리만 대분류부터의 경로로 보여준다
+    // AI에는 최하위 카테고리만, 같은 부모 경로끼리 한 줄로 묶어 보여준다
     @Test
     @SuppressWarnings("unchecked")
-    void analyzeShowsOnlyLeafCategoriesWithPath() {
+    void analyzeShowsOnlyLeafCategoriesGroupedByParentPath() {
         MockMultipartFile image = new MockMultipartFile("images", "phone.png", "image/png", new byte[] {1, 2, 3});
         ProductAiAnalysisResult analysis = new ProductAiAnalysisResult(
                 3L, "아이폰 13", "애플", "설명", ProductCondition.A, 500_000L, "판단 근거", List.of(), List.of());
@@ -117,9 +142,10 @@ class ProductAiServiceTest {
         // 딥 스텁 설정 호출(anyString)도 기록되므로 실제 호출인 마지막 값을 본다
         verify(geminiAiClient.prompt(), atLeastOnce()).system(systemPrompt.capture());
         assertThat(systemPrompt.getValue())
-                .contains("- 3: 디지털 > 휴대폰 > 스마트폰")
-                .doesNotContain("- 1:")
-                .doesNotContain("- 2:");
+                .contains("디지털 > 휴대폰: 스마트폰=3, 태블릿=4")
+                .contains("(대분류): 기타=5")
+                .doesNotContain("=1")
+                .doesNotContain("=2");
     }
 
     // AI 분석 실패 - AI가 최하위가 아닌 카테고리를 추론한 경우
@@ -141,16 +167,19 @@ class ProductAiServiceTest {
         assertThatThrownBy(() -> service().analyze(List.of(image))).isInstanceOf(CategoryNotLeafException.class);
     }
 
-    // 디지털(1) > 휴대폰(2) > 스마트폰(3, 최하위)
+    // 디지털(1) > 휴대폰(2) > 스마트폰(3)/태블릿(4) 최하위, 기타(5)는 상위 없는 최하위
     private List<Category> digitalTree() {
         Category digital = newCategory(1L, "디지털");
         Category phone = newCategory(2L, "휴대폰");
         Category smartphone = newCategory(3L, "스마트폰");
+        Category tablet = newCategory(4L, "태블릿");
+        Category etc = newCategory(5L, "기타");
         setField(digital, "hasChildren", true);
         setField(phone, "hasChildren", true);
         setField(phone, "parent", digital);
         setField(smartphone, "parent", phone);
-        return List.of(digital, phone, smartphone);
+        setField(tablet, "parent", phone);
+        return List.of(digital, phone, smartphone, tablet, etc);
     }
 
     private Category newCategory(Long id, String name) {
