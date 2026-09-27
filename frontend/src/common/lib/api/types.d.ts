@@ -11,11 +11,12 @@ export interface ApiErrorResponse {
     error: ApiError;
 }
 
-export type ApiResponse<T> =
-    | {
-          success: true;
-          message: string;
-          data: T;
-          error: null;
-      }
-    | ApiErrorResponse;
+// API 성공 응답 본문
+export interface ApiSuccessResponse<T> {
+    success: true;
+    message: string;
+    data: T;
+    error: null;
+}
+
+export type ApiResponse<T> = ApiSuccessResponse<T> | ApiErrorResponse;

@@ -3,6 +3,7 @@
 import { useMutation } from "@tanstack/react-query";
 
 import { authApi } from "@/features/auth/api/authApi";
+import type { LoginRequest } from "@/features/auth/types";
 import { useAuthStore } from "@/features/auth/store/authStore";
 
 interface UseLoginMutationCallbacks {
@@ -14,7 +15,13 @@ export function useLoginMutation(callbacks?: UseLoginMutationCallbacks) {
     const setAccessToken = useAuthStore((state) => state.setAccessToken);
 
     return useMutation({
-        mutationFn: authApi.authLogin,
+        mutationFn: async (params: LoginRequest) => {
+            const { data } = await authApi.authLogin(params);
+            if (!data.success) {
+                throw new Error(data.message);
+            }
+            return data.data;
+        },
         retry: false,
         onSuccess: (data) => setAccessToken(data.accessToken),
         onError: (error) => callbacks?.onError?.(error),

@@ -1,6 +1,7 @@
 "use client";
 
 import type { CredentialResponse } from "@react-oauth/google";
+import { cn } from "@/common/lib/utils";
 
 import { GoogleLoginButton } from "@/features/auth/components/social/GoogleLoginButton";
 import { KakaoLoginButton } from "@/features/auth/components/social/KakaoLoginButton";
@@ -10,6 +11,7 @@ import type { SocialProvider } from "@/features/auth/types";
 type OAuthProvider = Exclude<SocialProvider, "GOOGLE">;
 
 interface SocialLoginButtonsProps {
+    className?: string;
     googleClientId?: string;
     kakaoClientId?: string;
     naverClientId?: string;
@@ -21,6 +23,7 @@ interface SocialLoginButtonsProps {
 }
 
 export function SocialLoginButtons({
+    className,
     googleClientId,
     kakaoClientId,
     naverClientId,
@@ -31,15 +34,17 @@ export function SocialLoginButtons({
     onAuthorize,
 }: SocialLoginButtonsProps) {
     return (
-        <div className="mx-auto mt-5 w-full max-w-[400px] space-y-2">
-            <p className="text-muted-foreground text-left text-xs">소셜 로그인</p>
+        <div className={cn("w-full space-y-[15px]", className)}>
+            <p className="typography-body-medium text-lg leading-[30px] font-semibold text-[#6b6c7b]">
+                또는 소셜 계정으로 로그인
+            </p>
 
-            <div className="flex gap-5">
-                <GoogleLoginButton
-                    clientId={googleClientId}
+            <div className="flex gap-[15px]">
+                <NaverLoginButton
+                    isConfigured={Boolean(naverClientId)}
                     isBusy={isBusy}
-                    onSuccess={onGoogleSuccess}
-                    onError={onGoogleError}
+                    isRedirecting={socialRedirecting === "NAVER"}
+                    onClick={() => onAuthorize("NAVER")}
                 />
                 <KakaoLoginButton
                     isConfigured={Boolean(kakaoClientId)}
@@ -47,11 +52,11 @@ export function SocialLoginButtons({
                     isRedirecting={socialRedirecting === "KAKAO"}
                     onClick={() => onAuthorize("KAKAO")}
                 />
-                <NaverLoginButton
-                    isConfigured={Boolean(naverClientId)}
+                <GoogleLoginButton
+                    clientId={googleClientId}
                     isBusy={isBusy}
-                    isRedirecting={socialRedirecting === "NAVER"}
-                    onClick={() => onAuthorize("NAVER")}
+                    onSuccess={onGoogleSuccess}
+                    onError={onGoogleError}
                 />
             </div>
         </div>

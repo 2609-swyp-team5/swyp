@@ -1,4 +1,6 @@
 .next
+.npm
+next-env.d.ts
 coverage
 test-results
 playwright-report
