@@ -37,6 +37,7 @@ import com.swyp.team5.interest.error.InterestNotFoundException;
 import com.swyp.team5.member.error.InvalidCurrentPasswordException;
 import com.swyp.team5.member.error.MemberNotFoundException;
 import com.swyp.team5.member.error.PasswordChangeNotAllowedException;
+import com.swyp.team5.notification.error.NotificationNotFoundException;
 import com.swyp.team5.platform.error.InvalidPlatformSessionException;
 import com.swyp.team5.platform.error.InvalidProductUrlException;
 import com.swyp.team5.platform.error.MemberPlatformNotFoundException;
@@ -103,7 +104,8 @@ public class GlobalExceptionHandler {
         PlatformListingNotFoundException.class,
         MemberPlatformNotFoundException.class,
         ProductPlatformNotFoundException.class,
-        MemberNotFoundException.class
+        MemberNotFoundException.class,
+        NotificationNotFoundException.class
     })
     public ResponseEntity<ApiResponse<Void>> handleNotFound(RuntimeException e) {
         log.warn("리소스를 찾을 수 없음: {}", e.getMessage());
