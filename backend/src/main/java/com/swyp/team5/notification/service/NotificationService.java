@@ -1,5 +1,6 @@
 package com.swyp.team5.notification.service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -61,12 +62,11 @@ public class NotificationService {
     }
 
     /**
-     * 시세 분석 추천이 직전 스냅샷과 달라졌을 때만 알림을 만든다(같은 추천이 반복되면 재알림하지 않음, 첫 분석은
+     * 알림을 생성한다. 시세 분석 추천이 직전 스냅샷과 달라졌을 때만 알림을 만든다(같은 추천이 반복되면 재알림하지 않음, 첫 분석은
      * 직전 값이 없어 전환으로 본다). 목표가 설정 여부와 무관하다.
      * <ul>
-     *   <li>SELL: 상품을 등록한 판매자에게
-     *   <li>BUY: 이 상품을 관심 등록한 회원 전원에게
-     *   <li>HOLD/WAIT: 알림 없음
+     *   <li>SELL/HOLD: 상품을 등록한 판매자와, 이 상품을 관심 등록한 회원 전원에게(각자 관점의 문구로)
+     *   <li>BUY/WAIT: 이 상품을 관심 등록한 회원 전원에게
      * </ul>
      *
      * @return 만든 알림 수
@@ -76,18 +76,34 @@ public class NotificationService {
         if (current == null || Objects.equals(previous, current)) {
             return 0;
         }
+        String title = product.getTitle();
         List<Notification> notifications =
                 switch (current) {
-                    case SELL -> List.of(Notification.create(
-                            product.getMember(),
+                    case SELL -> ownerAndInterestedMemberNotifications(
                             product,
                             NotificationType.SELL,
-                            "지금 팔기 좋은 시점이에요",
-                            "등록하신 '%s'의 AI 시세 분석 결과, 지금 판매를 추천해요.".formatted(product.getTitle())));
-                    case BUY -> interestRepository.findMembersByProductId(product.getId()).stream()
-                            .map(member -> buyNotification(member, product))
-                            .toList();
-                    case HOLD, WAIT -> List.of();
+                            new Content("지금 팔기 좋은 시점이에요", "등록하신 '%s'의 AI 시세 분석 결과, 지금 판매를 추천해요.".formatted(title)),
+                            new Content(
+                                    "관심 상품이 곧 팔릴 수 있어요",
+                                    "관심 상품 '%s'의 AI 시세 분석 결과, 판매하기 좋은 시점이라 곧 거래될 수 있어요.".formatted(title)));
+                    case HOLD -> ownerAndInterestedMemberNotifications(
+                            product,
+                            NotificationType.HOLD,
+                            new Content("판매를 잠시 미뤄 보세요", "등록하신 '%s'의 AI 시세 분석 결과, 지금은 판매를 보류하길 추천해요.".formatted(title)),
+                            new Content(
+                                    "관심 상품 시세를 지켜보세요",
+                                    "관심 상품 '%s'의 AI 시세 분석 결과, 지금은 시세를 좀 더 지켜보길 추천해요.".formatted(title)));
+                    case BUY -> interestedMemberNotifications(
+                            product,
+                            NotificationType.BUY,
+                            new Content(
+                                    "관심 상품을 사기 좋은 시점이에요", "관심 상품 '%s'의 AI 시세 분석 결과, 지금 구매를 추천해요.".formatted(title)));
+                    case WAIT -> interestedMemberNotifications(
+                            product,
+                            NotificationType.WAIT,
+                            new Content(
+                                    "관심 상품은 조금 더 기다려 보세요",
+                                    "관심 상품 '%s'의 AI 시세 분석 결과, 지금은 구매를 보류하길 추천해요.".formatted(title)));
                 };
         notificationRepository.saveAll(notifications);
         if (!notifications.isEmpty()) {
@@ -96,13 +112,27 @@ public class NotificationService {
         return notifications.size();
     }
 
-    private Notification buyNotification(Member member, Product product) {
-        return Notification.create(
-                member,
-                product,
-                NotificationType.BUY,
-                "관심 상품을 사기 좋은 시점이에요",
-                "관심 상품 '%s'의 AI 시세 분석 결과, 지금 구매를 추천해요.".formatted(product.getTitle()));
+    /** 알림 제목/본문. */
+    private record Content(String title, String message) {}
+
+    /** 판매자 1건 + 관심 등록 회원 전원(판매자 본인이 관심 등록했어도 판매자용 알림만). */
+    private List<Notification> ownerAndInterestedMemberNotifications(
+            Product product, NotificationType type, Content forOwner, Content forInterestedMembers) {
+        Member owner = product.getMember();
+        List<Notification> notifications = new ArrayList<>();
+        notifications.add(Notification.create(owner, product, type, forOwner.title(), forOwner.message()));
+        interestRepository.findMembersByProductId(product.getId()).stream()
+                .filter(member -> !Objects.equals(member.getId(), owner.getId()))
+                .map(member -> Notification.create(
+                        member, product, type, forInterestedMembers.title(), forInterestedMembers.message()))
+                .forEach(notifications::add);
+        return notifications;
+    }
+
+    private List<Notification> interestedMemberNotifications(Product product, NotificationType type, Content content) {
+        return interestRepository.findMembersByProductId(product.getId()).stream()
+                .map(member -> Notification.create(member, product, type, content.title(), content.message()))
+                .toList();
     }
 
     private Notification getNotificationOrThrow(Long memberId, Long notificationId) {
