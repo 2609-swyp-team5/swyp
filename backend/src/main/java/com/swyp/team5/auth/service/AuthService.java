@@ -63,10 +63,11 @@ public class AuthService {
 
     @Transactional
     public SignUpResponse signUp(SignUpRequest request) {
-        if (memberRepository.existsByEmail(request.email())) {
+        if (memberRepository.existsByEmailAndStatusNot(request.email(), MemberStatus.DELETED)) {
             throw new DuplicateEmailException(request.email());
         }
-        if (request.phone() != null && memberRepository.existsByPhone(request.phone())) {
+        if (request.phone() != null
+                && memberRepository.existsByPhoneAndStatusNot(request.phone(), MemberStatus.DELETED)) {
             throw new DuplicatePhoneException(request.phone());
         }
 
@@ -91,7 +92,9 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public AuthResult login(LoginRequest request) {
-        Member member = memberRepository.findByEmail(request.email()).orElseThrow(InvalidCredentialsException::new);
+        Member member = memberRepository
+                .findByEmailAndStatusNot(request.email(), MemberStatus.DELETED)
+                .orElseThrow(InvalidCredentialsException::new);
 
         if (member.getPassword() == null || !passwordEncoder.matches(request.password(), member.getPassword())) {
             throw new InvalidCredentialsException();
@@ -138,13 +141,13 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public boolean isEmailAvailable(String email) {
-        return !memberRepository.existsByEmail(email);
+        return !memberRepository.existsByEmailAndStatusNot(email, MemberStatus.DELETED);
     }
 
     // 이메일이 같은 기존 회원이 있으면 그 계정에 연결하고, 없으면 신규 가입
     private Member linkOrCreateSocialMember(SocialProvider provider, SocialUserInfo userInfo) {
         Member member = memberRepository
-                .findByEmail(userInfo.email())
+                .findByEmailAndStatusNot(userInfo.email(), MemberStatus.DELETED)
                 .orElseGet(() -> memberRepository.save(Member.ofSocialSignUp(
                         userInfo.email(), userInfo.name(), userInfo.name(), userInfo.profileImageUrl())));
 

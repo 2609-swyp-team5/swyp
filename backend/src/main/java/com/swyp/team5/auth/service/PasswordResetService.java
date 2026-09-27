@@ -42,7 +42,7 @@ public class PasswordResetService {
             return;
         }
 
-        Optional<Member> found = memberRepository.findByEmail(email);
+        Optional<Member> found = memberRepository.findByEmailAndStatusNot(email, MemberStatus.DELETED);
         if (found.isEmpty()) {
             return;
         }
