@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.format.support.DefaultFormattingConversionService;
@@ -24,6 +25,7 @@ import com.swyp.team5.platform.bunjang.dto.BunjangConnectionResponse;
 import com.swyp.team5.platform.bunjang.service.BunjangConnectionService;
 import com.swyp.team5.platform.bunjang.service.BunjangProductLinkService;
 import com.swyp.team5.platform.bunjang.service.BunjangProductPublishService;
+import com.swyp.team5.platform.entity.MemberPlatformStatus;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -85,5 +87,32 @@ class BunjangControllerTest {
                 .andExpect(jsonPath("$.error.details[0].content").value("지원하지 않는 플랫폼입니다: karrot"));
 
         verify(bunjangConnectionService, never()).getStatus(2L);
+    }
+
+    // 지원 플랫폼 전체를 연동 상태와 함께 반환(연동 이력이 없으면 DISCONNECTED)
+    @Test
+    void listsAllSupportedPlatformsWithStatus() throws Exception {
+        LocalDateTime updatedAt = LocalDateTime.of(2026, 9, 27, 10, 0);
+        when(bunjangConnectionService.getStatus(2L))
+                .thenReturn(new BunjangConnectionResponse(MemberPlatformStatus.CONNECTED, updatedAt));
+
+        mockMvc.perform(get("/platforms"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].platform").value("BUNJANG"))
+                .andExpect(jsonPath("$.data[0].platformName").value("번개장터"))
+                .andExpect(jsonPath("$.data[0].status").value("CONNECTED"))
+                .andExpect(jsonPath("$.data[0].updatedAt").exists());
+    }
+
+    @Test
+    void listsDisconnectedPlatformWhenNeverConnected() throws Exception {
+        when(bunjangConnectionService.getStatus(2L)).thenReturn(BunjangConnectionResponse.disconnected());
+
+        mockMvc.perform(get("/platforms"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].platform").value("BUNJANG"))
+                .andExpect(jsonPath("$.data[0].status").value("DISCONNECTED"))
+                .andExpect(jsonPath("$.data[0].updatedAt").doesNotExist());
     }
 }

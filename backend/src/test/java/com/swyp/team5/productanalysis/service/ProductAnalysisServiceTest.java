@@ -20,6 +20,7 @@ import java.util.Optional;
 import org.springframework.ai.chat.client.ChatClient;
 
 import com.swyp.team5.category.entity.Category;
+import com.swyp.team5.notification.service.NotificationService;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.platform.repository.PlatformListingRepository;
 import com.swyp.team5.product.entity.DefectStatus;
@@ -57,9 +58,17 @@ class ProductAnalysisServiceTest {
     @Mock
     private ProductAnalysisRepository productAnalysisRepository;
 
+    @Mock
+    private NotificationService notificationService;
+
     private ProductAnalysisService service() {
         return new ProductAnalysisService(
-                geminiAiClient, productRepository, platformListingRepository, productAnalysisRepository, PROPERTIES);
+                geminiAiClient,
+                productRepository,
+                platformListingRepository,
+                productAnalysisRepository,
+                PROPERTIES,
+                notificationService);
     }
 
     private static Product product(Long productId, Long categoryId, Long price) {
@@ -95,6 +104,8 @@ class ProductAnalysisServiceTest {
 
         verify(productAnalysisRepository, never()).save(any());
         verify(productAnalysisRepository, never()).findFirstByProductIdOrderByAnalyzedAtDesc(any());
+        verify(productRepository, never()).updateSuggestedPrice(any(), any());
+        verify(notificationService, never()).notifyRecommendationChanged(any(), any(), any());
     }
 
     // 분석 성공 - 통계 계산 + AI 결과 반영 + 직전 스냅샷 대비 변동률 계산
@@ -112,6 +123,7 @@ class ProductAnalysisServiceTest {
                 .thenReturn(listings);
         ProductAnalysis previous = mock(ProductAnalysis.class);
         when(previous.getAveragePrice()).thenReturn(2000L);
+        when(previous.getRecommendation()).thenReturn(AnalysisRecommendation.HOLD);
         when(productAnalysisRepository.findFirstByProductIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.of(previous));
         MarketAnalysisResult aiResult =
@@ -136,6 +148,11 @@ class ProductAnalysisServiceTest {
         assertThat(saved.getRecommendation()).isEqualTo(AnalysisRecommendation.SELL);
         assertThat(saved.getSuggestedPrice()).isEqualTo(3200L);
         assertThat(saved.getDescription()).isEqualTo("시세가 안정적이라 지금 파는 게 좋습니다.");
+        // 시세 분석이 낸 적정가로 상품의 AI 제안가도 갱신
+        verify(productRepository).updateSuggestedPrice(1L, 3200L);
+        // 직전 추천(HOLD)과 이번 추천(SELL)을 넘겨 전환 알림 판단
+        verify(notificationService)
+                .notifyRecommendationChanged(product, AnalysisRecommendation.HOLD, AnalysisRecommendation.SELL);
     }
 
     // 분석 성공 - 직전 스냅샷이 없으면 변동률은 null
@@ -161,6 +178,8 @@ class ProductAnalysisServiceTest {
         ArgumentCaptor<ProductAnalysis> captor = ArgumentCaptor.forClass(ProductAnalysis.class);
         verify(productAnalysisRepository).save(captor.capture());
         assertThat(captor.getValue().getChangeRate()).isNull();
+        // 첫 분석은 직전 추천이 없음(null)
+        verify(notificationService).notifyRecommendationChanged(product, null, AnalysisRecommendation.HOLD);
     }
 
     // 배치 - 한 상품이 실패해도 나머지 상품은 계속 분석

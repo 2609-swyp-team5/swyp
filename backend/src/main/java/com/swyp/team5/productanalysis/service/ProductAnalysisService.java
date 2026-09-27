@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.LongSummaryStatistics;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +15,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.swyp.team5.notification.service.NotificationService;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.platform.repository.PlatformListingRepository;
 import com.swyp.team5.product.entity.DefectStatus;
@@ -66,18 +68,21 @@ public class ProductAnalysisService {
     private final PlatformListingRepository platformListingRepository;
     private final ProductAnalysisRepository productAnalysisRepository;
     private final ProductAnalysisProperties properties;
+    private final NotificationService notificationService;
 
     public ProductAnalysisService(
             @Qualifier("geminiAiClient") ChatClient geminiAiClient,
             ProductRepository productRepository,
             PlatformListingRepository platformListingRepository,
             ProductAnalysisRepository productAnalysisRepository,
-            ProductAnalysisProperties properties) {
+            ProductAnalysisProperties properties,
+            NotificationService notificationService) {
         this.geminiAiClient = geminiAiClient;
         this.productRepository = productRepository;
         this.platformListingRepository = platformListingRepository;
         this.productAnalysisRepository = productAnalysisRepository;
         this.properties = properties;
+        this.notificationService = notificationService;
     }
 
     /**
@@ -145,9 +150,9 @@ public class ProductAnalysisService {
         long averagePrice = Math.round(stats.getAverage());
         long maxPrice = stats.getMax();
 
-        BigDecimal changeRate = productAnalysisRepository
-                .findFirstByProductIdOrderByAnalyzedAtDesc(product.getId())
-                .map(previous -> calculateChangeRate(previous.getAveragePrice(), averagePrice))
+        Optional<ProductAnalysis> previous =
+                productAnalysisRepository.findFirstByProductIdOrderByAnalyzedAtDesc(product.getId());
+        BigDecimal changeRate = previous.map(p -> calculateChangeRate(p.getAveragePrice(), averagePrice))
                 .orElse(null);
 
         MarketAnalysisResult aiResult = requestAiAnalysis(product, listings, minPrice, averagePrice, maxPrice);
@@ -163,6 +168,15 @@ public class ProductAnalysisService {
                 aiResult.description(),
                 LocalDateTime.now());
         productAnalysisRepository.save(analysis);
+
+        // 시세 분석이 적정가를 냈으면 상품의 AI 제안가도 최신 값으로 갱신(상세/수정 응답의 suggestedPrice)
+        if (aiResult.suggestedPrice() != null) {
+            productRepository.updateSuggestedPrice(product.getId(), aiResult.suggestedPrice());
+        }
+
+        // 추천이 직전 스냅샷과 달라졌으면 판매자(SELL)/관심 등록 회원(BUY)에게 알림
+        notificationService.notifyRecommendationChanged(
+                product, previous.map(ProductAnalysis::getRecommendation).orElse(null), aiResult.recommendation());
     }
 
     private MarketAnalysisResult requestAiAnalysis(

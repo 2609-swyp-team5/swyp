@@ -17,6 +17,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Formula;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
@@ -37,6 +38,11 @@ public class Category {
     @JoinColumn(name = "parent_id")
     private Category parent;
 
+    // 하위 카테고리 존재 여부. 상품은 최하위(리프) 카테고리에만 등록할 수 있다(번개장터 등록 화면이 최하위까지 선택을 요구)
+    @Getter(AccessLevel.NONE)
+    @Formula("(exists (select 1 from categories child where child.parent_id = category_id))")
+    private boolean hasChildren;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -44,4 +50,8 @@ public class Category {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    public boolean isLeaf() {
+        return !hasChildren;
+    }
 }

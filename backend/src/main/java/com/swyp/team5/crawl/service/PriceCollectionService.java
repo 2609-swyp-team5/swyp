@@ -17,6 +17,7 @@ import com.swyp.team5.platform.entity.Platform;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.platform.repository.CategoryPlatformRepository;
 import com.swyp.team5.platform.repository.PlatformListingRepository;
+import com.swyp.team5.product.entity.ProductStatus;
 
 /**
  * 번개장터 카테고리별 매물을 광범위 수집해 {@link PlatformListing}으로 upsert한다.
@@ -36,11 +37,12 @@ public class PriceCollectionService {
     private final PlatformListingRepository platformListingRepository;
     private final BunjangCrawlProperties properties;
 
-    /** 등록된 카테고리 전체를 순회하며 수집한다. 매핑이 없으면 아무 것도 하지 않는다. */
+    /** 판매중인 우리 상품이 있는 카테고리만 순회하며 수집한다. 대상이 없으면 아무 것도 하지 않는다. */
     public void collectAll() {
-        List<CategoryPlatform> mappings = categoryPlatformRepository.findByPlatformName(PLATFORM_NAME);
+        List<CategoryPlatform> mappings =
+                categoryPlatformRepository.findCollectTargets(PLATFORM_NAME, ProductStatus.ON_SALE);
         if (mappings.isEmpty()) {
-            log.info("번개장터 카테고리 매핑이 비어있어 시세 수집을 건너뜁니다.");
+            log.info("판매중인 상품이 있는 번개장터 매핑 카테고리가 없어 시세 수집을 건너뜁니다.");
             return;
         }
         mappings.forEach(this::collectCategorySafely);

@@ -12,6 +12,9 @@ import { useLogoutMutation } from "@/features/auth/hooks/mutations/useLogoutMuta
 import { useMeQuery } from "@/features/member/hooks/queries/useMeQuery";
 import { ProfileAvatar } from "@/features/member/components/ProfileAvatar";
 
+import { getApiErrorMessage } from "@/common/lib/api/error";
+import { useLogoutMutation } from "@/features/auth/hooks/mutations/useLogoutMutation";
+
 const MY_NAVIGATION = [
     { href: "/my", label: "홈" },
     { href: "/my/settings", label: "사용자 정보 설정" },
@@ -66,6 +69,14 @@ export function MySidebar() {
                             </Button>
                         );
                     })}
+                    <button
+                        type="button"
+                        onClick={handleLogout}
+                        disabled={isLoggingOut}
+                        className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg px-3 py-2 text-left text-sm whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
+                    </button>
                 </div>
                 <div className="space-y-5 px-6">
                     {errorMessage ? (

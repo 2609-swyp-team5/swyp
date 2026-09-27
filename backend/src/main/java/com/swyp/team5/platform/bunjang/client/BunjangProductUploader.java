@@ -483,8 +483,13 @@ public class BunjangProductUploader {
     /** 번개장터 화면 문구의 띄어쓰기 차이(예: "새 상품(미사용)"/"새 상품 (미사용)")를 무시하고 매칭하는 패턴. */
     private static Pattern looseTextPattern(String text) {
         StringBuilder regex = new StringBuilder();
-        text.replace(" ", "").codePoints().forEach(c -> regex.append(Pattern.quote(Character.toString(c)))
-                .append("\\s*"));
+        // Playwright는 정규식을 JS로 넘기므로 JS가 모르는 Pattern.quote()의 \Q...\E 대신 메타문자만 이스케이프한다
+        text.replace(" ", "").codePoints().forEach(c -> {
+            if ("\\^$.|?*+()[]{}/".indexOf(c) >= 0) {
+                regex.append('\\');
+            }
+            regex.appendCodePoint(c).append("\\s*");
+        });
         return Pattern.compile(regex.toString());
     }
 
