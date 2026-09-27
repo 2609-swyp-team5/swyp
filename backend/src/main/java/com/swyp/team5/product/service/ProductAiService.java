@@ -8,8 +8,6 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
@@ -21,10 +19,11 @@ import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.error.CategoryNotFoundException;
 import com.swyp.team5.category.error.CategoryNotLeafException;
 import com.swyp.team5.category.repository.CategoryRepository;
+import com.swyp.team5.common.ai.AiChatExecutor;
 import com.swyp.team5.product.dto.ProductAiAnalysisResult;
 
 /**
- * 상품 이미지를 Gemini에 전달해 상품 정보(제목/브랜드/설명/카테고리/상태 등급/추정 판매가/태그/구성품)를
+ * 상품 이미지를 AI(Gemini, 실패 시 OpenAI GPT)에 전달해 상품 정보(제목/브랜드/설명/카테고리/상태 등급/추정 판매가/태그/구성품)를
  * 자동으로 추론하는 서비스. 구매 일시/결함 여부는 AI가 추론하지 않고 사용자가 직접 입력한다.
  */
 @Service
@@ -51,12 +50,11 @@ public class ProductAiService {
 
     private static final String USER_PROMPT = "첨부된 상품 사진들을 분석해서 상품 정보를 추론해줘.";
 
-    private final ChatClient geminiAiClient;
+    private final AiChatExecutor aiChatExecutor;
     private final CategoryRepository categoryRepository;
 
-    public ProductAiService(
-            @Qualifier("geminiAiClient") ChatClient geminiAiClient, CategoryRepository categoryRepository) {
-        this.geminiAiClient = geminiAiClient;
+    public ProductAiService(AiChatExecutor aiChatExecutor, CategoryRepository categoryRepository) {
+        this.aiChatExecutor = aiChatExecutor;
         this.categoryRepository = categoryRepository;
     }
 
@@ -84,15 +82,15 @@ public class ProductAiService {
                 .map(category -> "- %d: %s".formatted(category.getId(), pathOf(category, byId)))
                 .collect(Collectors.joining("\n"));
 
-        ProductAiAnalysisResult result = geminiAiClient
-                .prompt()
+        // Gemini가 실패하면 같은 요청을 OpenAI GPT로 대체 호출
+        ProductAiAnalysisResult result = aiChatExecutor.call("상품 이미지 분석", client -> client.prompt()
                 .system(SYSTEM_PROMPT.formatted(categoryList))
                 .user(user -> {
                     user.text(USER_PROMPT);
                     images.forEach(image -> user.media(mimeTypeOf(image), toResource(image)));
                 })
                 .call()
-                .entity(ProductAiAnalysisResult.class);
+                .entity(ProductAiAnalysisResult.class));
 
         assert result != null;
         if (!byId.containsKey(result.categoryId())) {

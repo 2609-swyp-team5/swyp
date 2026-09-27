@@ -10,11 +10,10 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.swyp.team5.common.ai.AiChatExecutor;
 import com.swyp.team5.notification.service.NotificationService;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.platform.repository.PlatformListingRepository;
@@ -32,7 +31,7 @@ import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
 /**
  * 등록된 상품과 같은 카테고리에서 수집된 매물({@link PlatformListing})을 근거로 시세를 분석해
  * {@link ProductAnalysis} 스냅샷을 생성한다. 통계(최저/평균/최고가)는 직접 계산하고,
- * 추천(SELL/HOLD/BUY/WAIT)/적정가/판단 근거는 AI(Gemini)에게 위임한다.
+ * 추천(SELL/HOLD/BUY/WAIT)/적정가/판단 근거는 AI(Gemini, 실패 시 OpenAI GPT)에게 위임한다.
  */
 @Slf4j
 @Service
@@ -63,7 +62,7 @@ public class ProductAnalysisService {
             %s
             """;
 
-    private final ChatClient geminiAiClient;
+    private final AiChatExecutor aiChatExecutor;
     private final ProductRepository productRepository;
     private final PlatformListingRepository platformListingRepository;
     private final ProductAnalysisRepository productAnalysisRepository;
@@ -71,13 +70,13 @@ public class ProductAnalysisService {
     private final NotificationService notificationService;
 
     public ProductAnalysisService(
-            @Qualifier("geminiAiClient") ChatClient geminiAiClient,
+            AiChatExecutor aiChatExecutor,
             ProductRepository productRepository,
             PlatformListingRepository platformListingRepository,
             ProductAnalysisRepository productAnalysisRepository,
             ProductAnalysisProperties properties,
             NotificationService notificationService) {
-        this.geminiAiClient = geminiAiClient;
+        this.aiChatExecutor = aiChatExecutor;
         this.productRepository = productRepository;
         this.platformListingRepository = platformListingRepository;
         this.productAnalysisRepository = productAnalysisRepository;
@@ -197,12 +196,12 @@ public class ProductAnalysisService {
                 Math.min(listings.size(), properties.sampleSize()),
                 sample);
 
-        MarketAnalysisResult result = geminiAiClient
-                .prompt()
+        // Gemini가 실패하면 같은 요청을 OpenAI GPT로 대체 호출
+        MarketAnalysisResult result = aiChatExecutor.call("시세 분석", client -> client.prompt()
                 .system(SYSTEM_PROMPT)
                 .user(userPrompt)
                 .call()
-                .entity(MarketAnalysisResult.class);
+                .entity(MarketAnalysisResult.class));
         assert result != null;
         return result;
     }

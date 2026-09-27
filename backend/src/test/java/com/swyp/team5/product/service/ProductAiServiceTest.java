@@ -22,6 +22,7 @@ import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.error.CategoryNotFoundException;
 import com.swyp.team5.category.error.CategoryNotLeafException;
 import com.swyp.team5.category.repository.CategoryRepository;
+import com.swyp.team5.common.ai.AiChatExecutor;
 import com.swyp.team5.product.dto.ProductAiAnalysisResult;
 import com.swyp.team5.product.entity.ProductCondition;
 import org.junit.jupiter.api.Test;
@@ -38,9 +39,10 @@ class ProductAiServiceTest {
     private CategoryRepository categoryRepository;
 
     private final ChatClient geminiAiClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
+    private final ChatClient openAiClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
 
     private ProductAiService service() {
-        return new ProductAiService(geminiAiClient, categoryRepository);
+        return new ProductAiService(new AiChatExecutor(geminiAiClient, openAiClient), categoryRepository);
     }
 
     // AI 분석 성공
@@ -53,6 +55,29 @@ class ProductAiServiceTest {
 
         when(categoryRepository.findAllByOrderByIdAsc()).thenReturn(List.of(newCategory(1L, "전자기기")));
         when(geminiAiClient
+                        .prompt()
+                        .system(anyString())
+                        .user(any(Consumer.class))
+                        .call()
+                        .entity(ProductAiAnalysisResult.class))
+                .thenReturn(analysis);
+
+        ProductAiAnalysisResult result = service().analyze(List.of(image));
+
+        assertThat(result).isEqualTo(analysis);
+    }
+
+    // AI 분석 성공 - Gemini 호출이 실패하면 같은 요청을 GPT로 대체 호출
+    @Test
+    @SuppressWarnings("unchecked")
+    void analyzeFallsBackToGptWhenGeminiFails() {
+        MockMultipartFile image = new MockMultipartFile("images", "phone.png", "image/png", new byte[] {1, 2, 3});
+        ProductAiAnalysisResult analysis = new ProductAiAnalysisResult(
+                1L, "아이폰 13", "애플", "설명", ProductCondition.A, 500_000L, "판단 근거", List.of("애플"), List.of());
+
+        when(categoryRepository.findAllByOrderByIdAsc()).thenReturn(List.of(newCategory(1L, "전자기기")));
+        when(geminiAiClient.prompt()).thenThrow(new IllegalStateException("429 RESOURCE_EXHAUSTED"));
+        when(openAiClient
                         .prompt()
                         .system(anyString())
                         .user(any(Consumer.class))
