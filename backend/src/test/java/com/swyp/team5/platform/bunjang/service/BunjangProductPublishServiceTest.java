@@ -20,6 +20,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.swyp.team5.category.entity.Category;
+import com.swyp.team5.category.error.CategoryNotLeafException;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.platform.bunjang.client.BunjangProductUploader;
 import com.swyp.team5.platform.bunjang.dto.BunjangListingForm;
@@ -249,6 +250,18 @@ class BunjangProductPublishServiceTest {
         givenProduct(newMember(99L));
 
         assertThatThrownBy(() -> service().publish(2L, 5L)).isInstanceOf(ProductAccessDeniedException.class);
+        verify(bunjangProductUploader, never()).upload(any(), any());
+    }
+
+    // 번개장터는 최하위 카테고리까지 골라야 등록되므로 중간 카테고리 상품은 브라우저를 띄우기 전에 거절
+    @Test
+    void publishFailsWhenCategoryNotLeaf() {
+        givenConnectedMemberPlatform();
+        Product product = givenProduct(newMember(2L));
+        setField(product.getCategory(), "hasChildren", true);
+
+        assertThatThrownBy(() -> service().publish(2L, 5L)).isInstanceOf(CategoryNotLeafException.class);
+        verify(productPlatformRepository, never()).save(any());
         verify(bunjangProductUploader, never()).upload(any(), any());
     }
 

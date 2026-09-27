@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.swyp.team5.category.entity.Category;
+import com.swyp.team5.category.error.CategoryNotLeafException;
 import com.swyp.team5.platform.bunjang.client.BunjangProductUploader;
 import com.swyp.team5.platform.bunjang.dto.BunjangListingForm;
 import com.swyp.team5.platform.bunjang.dto.BunjangUploadResult;
@@ -66,6 +67,7 @@ public class BunjangProductPublishService {
      * @throws InvalidPlatformSessionException 세션이 만료/해제 상태이거나, 등록 중 세션 만료가 확인된 경우
      * @throws ProductNotFoundException 존재하지 않는 상품인 경우
      * @throws ProductAccessDeniedException 본인이 등록한 상품이 아닌 경우
+     * @throws CategoryNotLeafException 상품 카테고리가 최하위가 아닌 경우
      * @throws ProductPlatformAlreadyLinkedException 이미 번개장터에 게시된 상품인 경우
      * @throws ProductPlatformPublishInProgressException 같은 상품의 등록이 이미 진행 중인 경우
      * @throws PlatformPublishFailedException 번개장터 화면 입력/등록 요청이 실패한 경우
@@ -88,6 +90,11 @@ public class BunjangProductPublishService {
                 productRepository.findById(productId).orElseThrow(() -> new ProductNotFoundException(productId));
         if (!product.isRegisteredBy(memberId)) {
             throw new ProductAccessDeniedException(productId);
+        }
+        // 번개장터는 최하위 카테고리까지 선택해야 등록되므로 브라우저를 띄우기 전에 거절한다
+        // (카테고리 전환 전 상품이 중간 카테고리로 옮겨진 경우 — 상품 수정으로 최하위를 다시 골라야 한다)
+        if (!product.getCategory().isLeaf()) {
+            throw new CategoryNotLeafException(product.getCategory().getId());
         }
 
         ProductPlatform productPlatform = productPlatformRepository
@@ -147,7 +154,7 @@ public class BunjangProductPublishService {
                 imageUrls);
     }
 
-    /** 우리 카테고리는 번개장터 메뉴를 기준으로 시드돼 이름이 같으므로, 대분류부터의 이름 경로를 그대로 쓴다. */
+    /** 우리 카테고리는 번개장터 카테고리 트리와 같으므로(V13), 대분류부터의 이름 경로를 그대로 클릭한다. */
     private List<String> categoryPath(Category category) {
         List<String> path = new ArrayList<>();
         for (Category current = category; current != null; current = current.getParent()) {

@@ -5,7 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Constructor;
@@ -18,11 +20,13 @@ import org.springframework.mock.web.MockMultipartFile;
 
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.error.CategoryNotFoundException;
+import com.swyp.team5.category.error.CategoryNotLeafException;
 import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.product.dto.ProductAiAnalysisResult;
 import com.swyp.team5.product.entity.ProductCondition;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -55,7 +59,6 @@ class ProductAiServiceTest {
                         .call()
                         .entity(ProductAiAnalysisResult.class))
                 .thenReturn(analysis);
-        when(categoryRepository.existsById(1L)).thenReturn(true);
 
         ProductAiAnalysisResult result = service().analyze(List.of(image));
 
@@ -88,9 +91,66 @@ class ProductAiServiceTest {
                         .call()
                         .entity(ProductAiAnalysisResult.class))
                 .thenReturn(analysis);
-        when(categoryRepository.existsById(99L)).thenReturn(false);
 
         assertThatThrownBy(() -> service().analyze(List.of(image))).isInstanceOf(CategoryNotFoundException.class);
+    }
+
+    // AI에는 최하위 카테고리만 대분류부터의 경로로 보여준다
+    @Test
+    @SuppressWarnings("unchecked")
+    void analyzeShowsOnlyLeafCategoriesWithPath() {
+        MockMultipartFile image = new MockMultipartFile("images", "phone.png", "image/png", new byte[] {1, 2, 3});
+        ProductAiAnalysisResult analysis = new ProductAiAnalysisResult(
+                3L, "아이폰 13", "애플", "설명", ProductCondition.A, 500_000L, "판단 근거", List.of(), List.of());
+        when(categoryRepository.findAllByOrderByIdAsc()).thenReturn(digitalTree());
+        when(geminiAiClient
+                        .prompt()
+                        .system(anyString())
+                        .user(any(Consumer.class))
+                        .call()
+                        .entity(ProductAiAnalysisResult.class))
+                .thenReturn(analysis);
+
+        service().analyze(List.of(image));
+
+        ArgumentCaptor<String> systemPrompt = ArgumentCaptor.forClass(String.class);
+        // 딥 스텁 설정 호출(anyString)도 기록되므로 실제 호출인 마지막 값을 본다
+        verify(geminiAiClient.prompt(), atLeastOnce()).system(systemPrompt.capture());
+        assertThat(systemPrompt.getValue())
+                .contains("- 3: 디지털 > 휴대폰 > 스마트폰")
+                .doesNotContain("- 1:")
+                .doesNotContain("- 2:");
+    }
+
+    // AI 분석 실패 - AI가 최하위가 아닌 카테고리를 추론한 경우
+    @Test
+    @SuppressWarnings("unchecked")
+    void analyzeFailsWhenCategoryNotLeaf() {
+        MockMultipartFile image = new MockMultipartFile("images", "phone.png", "image/png", new byte[] {1, 2, 3});
+        ProductAiAnalysisResult analysis = new ProductAiAnalysisResult(
+                2L, "아이폰 13", "애플", "설명", ProductCondition.A, 500_000L, "판단 근거", List.of(), List.of());
+        when(categoryRepository.findAllByOrderByIdAsc()).thenReturn(digitalTree());
+        when(geminiAiClient
+                        .prompt()
+                        .system(anyString())
+                        .user(any(Consumer.class))
+                        .call()
+                        .entity(ProductAiAnalysisResult.class))
+                .thenReturn(analysis);
+
+        assertThatThrownBy(() -> service().analyze(List.of(image))).isInstanceOf(CategoryNotLeafException.class);
+    }
+
+    // 디지털(1) > 휴대폰(2) > 스마트폰(3, 최하위)
+    private List<Category> digitalTree() {
+        Category digital = newCategory(1L, "디지털");
+        Category phone = newCategory(2L, "휴대폰");
+        Category smartphone = newCategory(3L, "스마트폰");
+        setField(digital, "hasChildren", true);
+        setField(phone, "hasChildren", true);
+        setField(phone, "parent", digital);
+        setField(smartphone, "parent", phone);
+        return List.of(digital, phone, smartphone);
     }
 
     private Category newCategory(Long id, String name) {

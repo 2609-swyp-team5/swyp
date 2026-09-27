@@ -2,7 +2,10 @@ package com.swyp.team5.product.service;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.springframework.ai.chat.client.ChatClient;
@@ -16,6 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.error.CategoryNotFoundException;
+import com.swyp.team5.category.error.CategoryNotLeafException;
 import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.product.dto.ProductAiAnalysisResult;
 
@@ -30,7 +34,8 @@ public class ProductAiService {
             """
             너는 중고거래 플랫폼의 상품 등록을 돕는 AI야. 업로드된 상품 사진들을 분석해서
             상품 제목, 브랜드, 설명, 카테고리, 상태 등급, 추정 판매가, 판단 근거, 태그, 구성품을 정확하게 추론해.
-            categoryId는 반드시 아래 카테고리 목록에 있는 값 중 하나여야 해.
+            categoryId는 반드시 아래 카테고리 목록(최하위 카테고리, "대분류 > 중분류 > 소분류" 경로로 표기)에 있는
+            값 중 하나여야 해.
             brand는 로고/각인 등 사진에서 브랜드를 명확히 식별할 수 있을 때만 채우고, 확인할 수 없으면
             null로 남겨(추측해서 지어내지 마).
             includedItems는 사진에 실제로 함께 찍혀 있는 구성품(박스, 충전기, 케이블, 이어폰, 설명서 등)만
@@ -57,12 +62,13 @@ public class ProductAiService {
 
     /**
      * 상품 이미지들을 분석해 상품 정보를 추론한다. 등록된 카테고리가 하나도 없으면 AI 호출 전에
-     * 즉시 실패하며, AI가 반환한 {@code categoryId}도 실제 존재 여부를 검증한다.
+     * 즉시 실패하며, AI에는 최하위 카테고리만 보여주고 반환한 {@code categoryId}도 존재·최하위 여부를 검증한다.
      *
      * @param images 분석할 상품 이미지 목록
      * @return AI가 추론한 상품 정보
      * @throws CategoryNotFoundException 등록된 카테고리가 없거나, AI가 반환한 카테고리가 존재하지
      *     않는 경우
+     * @throws CategoryNotLeafException AI가 최하위가 아닌 카테고리를 반환한 경우
      */
     public ProductAiAnalysisResult analyze(List<MultipartFile> images) {
         List<Category> categories = categoryRepository.findAllByOrderByIdAsc();
@@ -70,8 +76,12 @@ public class ProductAiService {
             throw new CategoryNotFoundException();
         }
 
-        String categoryList = categories.stream()
-                .map(category -> "- %d: %s".formatted(category.getId(), category.getName()))
+        // 상품은 최하위 카테고리에만 등록할 수 있고, 최하위 이름만으로는 중복이 있어(케이스/보호필름/액세서리 등)
+        // 대분류부터의 경로로 보여준다
+        Map<Long, Category> byId = categories.stream().collect(Collectors.toMap(Category::getId, Function.identity()));
+        List<Category> leaves = categories.stream().filter(Category::isLeaf).toList();
+        String categoryList = leaves.stream()
+                .map(category -> "- %d: %s".formatted(category.getId(), pathOf(category, byId)))
                 .collect(Collectors.joining("\n"));
 
         ProductAiAnalysisResult result = geminiAiClient
@@ -85,10 +95,25 @@ public class ProductAiService {
                 .entity(ProductAiAnalysisResult.class);
 
         assert result != null;
-        if (!categoryRepository.existsById(result.categoryId())) {
+        if (!byId.containsKey(result.categoryId())) {
             throw new CategoryNotFoundException(result.categoryId());
         }
+        if (!byId.get(result.categoryId()).isLeaf()) {
+            throw new CategoryNotLeafException(result.categoryId());
+        }
         return result;
+    }
+
+    // 부모는 지연 로딩 프록시라 이름 대신 ID만 꺼내고, 이름은 이미 조회한 목록에서 찾는다
+    private static String pathOf(Category category, Map<Long, Category> byId) {
+        List<String> names = new ArrayList<>();
+        for (Category current = category; current != null; ) {
+            names.addFirst(current.getName());
+            current = current.getParent() == null
+                    ? null
+                    : byId.get(current.getParent().getId());
+        }
+        return String.join(" > ", names);
     }
 
     private static MimeType mimeTypeOf(MultipartFile image) {

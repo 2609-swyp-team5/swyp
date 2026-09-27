@@ -23,6 +23,7 @@ import org.springframework.mock.web.MockMultipartFile;
 
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.error.CategoryNotFoundException;
+import com.swyp.team5.category.error.CategoryNotLeafException;
 import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.component.entity.Component;
@@ -631,6 +632,63 @@ class ProductServiceTest {
                 .containsExactly("https://image.example.com/2.png", "https://image.example.com/new.png");
         assertThat(response.tags()).containsExactly("가성비");
         assertThat(response.includedItems()).containsExactly("박스");
+    }
+
+    // 상품 등록 실패 - 최하위가 아닌(하위가 있는) 카테고리
+    @Test
+    void createFailsWhenCategoryNotLeaf() {
+        Category digital = newCategory(1L, "디지털");
+        setField(digital, "hasChildren", true);
+        ProductCreateRequest request = new ProductCreateRequest(
+                1L,
+                "아이폰 13",
+                null,
+                "설명",
+                500_000L,
+                ProductCondition.A,
+                DefectStatus.NORMAL,
+                null,
+                true,
+                TradeMethod.DIRECT,
+                null,
+                null,
+                List.of(),
+                List.of());
+
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(digital));
+
+        assertThatThrownBy(() -> service().create(1L, request, List.of())).isInstanceOf(CategoryNotLeafException.class);
+        verify(productRepository, never()).save(any());
+    }
+
+    // 상품 수정 실패 - 중간 카테고리(카테고리 전환으로 옮겨진 상품 등)로는 수정할 수 없음
+    @Test
+    void updateFailsWhenCategoryNotLeaf() {
+        Category digital = newCategory(1L, "디지털");
+        setField(digital, "hasChildren", true);
+        Product product = newProduct(1L, newMember(1L), digital);
+        ProductUpdateRequest request = new ProductUpdateRequest(
+                digital.getId(),
+                "아이폰 13 프로",
+                null,
+                "수정된 설명",
+                450_000L,
+                ProductStatus.ON_SALE,
+                ProductCondition.B,
+                DefectStatus.NORMAL,
+                null,
+                false,
+                TradeMethod.DELIVERY,
+                null,
+                null,
+                List.of("https://image.example.com/2.png"),
+                List.of(),
+                List.of());
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(digital));
+
+        assertThatThrownBy(() -> service().update(1L, 1L, request, null)).isInstanceOf(CategoryNotLeafException.class);
     }
 
     // 상품 수정 실패 - 소유자가 아님
