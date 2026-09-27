@@ -334,9 +334,9 @@ class ProductTest {
                 .andExpect(jsonPath("$.data.purchasedMonths").value(3));
     }
 
-    // 상품 이미지 AI 분석 등록 성공 - 태그/구성품은 AI 추론 결과와 사용자 입력을 합쳐서 저장
+    // 상품 이미지 AI 분석 등록 성공 - 태그는 AI 추론 결과만(tags 파라미터를 보내도 무시), 구성품은 AI 추론과 사용자 입력을 합쳐서 저장
     @Test
-    void createFromImagesMergesUserInputWithAiInference() throws Exception {
+    void createFromImagesUsesAiTagsAndMergesIncludedItems() throws Exception {
         ProductAiAnalysisResult analysis = new ProductAiAnalysisResult(
                 category.getId(),
                 "AI가 분석한 상품",
@@ -361,7 +361,7 @@ class ProductTest {
                         .param("includedItems", "충전기")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.data.tags", containsInAnyOrder("애플", "급처")))
+                .andExpect(jsonPath("$.data.tags", containsInAnyOrder("애플")))
                 .andExpect(jsonPath("$.data.includedItems", containsInAnyOrder("박스", "충전기")));
     }
 
