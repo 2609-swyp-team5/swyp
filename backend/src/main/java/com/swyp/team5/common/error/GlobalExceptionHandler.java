@@ -27,6 +27,7 @@ import com.swyp.team5.auth.error.InvalidSocialTokenException;
 import com.swyp.team5.auth.error.InvalidTokenException;
 import com.swyp.team5.auth.error.UnsupportedSocialProviderException;
 import com.swyp.team5.category.error.CategoryNotFoundException;
+import com.swyp.team5.category.error.CategoryNotLeafException;
 import com.swyp.team5.common.common.ApiError;
 import com.swyp.team5.common.common.ApiResponse;
 import com.swyp.team5.common.common.ErrorDetail;
@@ -46,6 +47,7 @@ import com.swyp.team5.platform.error.ProductPlatformNotFoundException;
 import com.swyp.team5.platform.error.ProductPlatformPublishInProgressException;
 import com.swyp.team5.platform.error.UnsupportedPlatformException;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
+import com.swyp.team5.product.error.ProductImageRequiredException;
 import com.swyp.team5.product.error.ProductNotFoundException;
 
 @Slf4j
@@ -115,6 +117,18 @@ public class GlobalExceptionHandler {
     })
     public ResponseEntity<ApiResponse<Void>> handleInvalidPlatformInput(RuntimeException e) {
         log.warn("외부 플랫폼 연동 입력값 오류: {}", e.getMessage());
+        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
+    }
+
+    @ExceptionHandler(CategoryNotLeafException.class)
+    public ResponseEntity<ApiResponse<Void>> handleCategoryNotLeaf(CategoryNotLeafException e) {
+        log.warn("최하위가 아닌 카테고리: {}", e.getMessage());
+        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
+    }
+
+    @ExceptionHandler(ProductImageRequiredException.class)
+    public ResponseEntity<ApiResponse<Void>> handleProductImageRequired(ProductImageRequiredException e) {
+        log.warn("상품 이미지 누락: {}", e.getMessage());
         return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
     }
 

@@ -24,6 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.error.CategoryNotFoundException;
+import com.swyp.team5.category.error.CategoryNotLeafException;
 import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.component.entity.Component;
@@ -45,6 +46,7 @@ import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
+import com.swyp.team5.product.error.ProductImageRequiredException;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
@@ -110,11 +112,12 @@ public class ProductService {
      * @param images 등록할 상품 이미지 목록(순서대로 저장)
      * @return 등록된 상품
      * @throws CategoryNotFoundException 존재하지 않는 카테고리인 경우
+     * @throws CategoryNotLeafException 최하위 카테고리가 아닌 경우
      */
     @Transactional
     public ProductResponse create(Long memberId, ProductCreateRequest request, List<MultipartFile> images) {
         Member member = memberRepository.getReferenceById(memberId);
-        Category category = getCategoryOrThrow(request.categoryId());
+        Category category = getLeafCategoryOrThrow(request.categoryId());
         List<String> imageUrls = uploadImages(images);
 
         Product product = Product.create(
@@ -137,9 +140,11 @@ public class ProductService {
 
         Product saved = productRepository.save(product);
         ProductAiAnalysisResult analysis = analyzeOrNull(images);
-        return analysis == null
-                ? ProductResponse.from(saved)
-                : ProductResponse.fromAiAnalysis(saved, analysis.suggestedPrice(), analysis.analysisDescription());
+        if (analysis == null) {
+            return ProductResponse.from(saved);
+        }
+        saved.changeSuggestedPrice(analysis.suggestedPrice());
+        return ProductResponse.fromAiAnalysis(saved, analysis.analysisDescription());
     }
 
     private ProductAiAnalysisResult analyzeOrNull(List<MultipartFile> images) {
@@ -156,14 +161,13 @@ public class ProductService {
      * (실제 시세 데이터 기반은 아님, 등록 후 판매자가 직접 수정 가능), 거래 방식은 기본값
      * 직거래(DIRECT)로 등록되며, 배송 방법/희망 거래 지역은 비워둔 채 등록 후 수정으로 채운다.
      * 구매 일시/결함 여부는 AI가 추론하지 않고 사용자가 직접 입력한 값을 그대로 사용한다. 브랜드는
-     * AI가 사진에서 식별해 채운다(식별 불가 시 null). 태그/구성품은 AI가 사진에서 추론한 목록과 사용자가
-     * 추가로 입력한 목록을 합쳐서 저장한다.
+     * AI가 사진에서 식별해 채운다(식별 불가 시 null). 태그는 AI가 추론한 목록만 저장하고(사용자 입력 없음),
+     * 구성품은 AI가 사진에서 추론한 목록과 사용자가 추가로 입력한 목록을 합쳐서 저장한다.
      *
      * @param memberId 등록하는 회원 ID
      * @param images 분석할 상품 이미지 목록
      * @param purchasedMonths 사용자가 입력한 구매 후 경과 개월 수(선택, 등록 시점 기준 구매일시로 변환)
      * @param defectStatus 사용자가 입력한 결함(하자) 상태
-     * @param tags 사용자가 추가로 입력한 태그 이름 목록(선택, AI 추론 결과와 합쳐짐)
      * @param includedItems 사용자가 추가로 입력한 구성품 이름 목록(선택, AI 추론 결과와 합쳐짐)
      * @return 등록된 상품
      * @throws CategoryNotFoundException 등록된 카테고리가 없거나 AI가 반환한 카테고리가 존재하지 않는 경우
@@ -174,11 +178,10 @@ public class ProductService {
             List<MultipartFile> images,
             Integer purchasedMonths,
             DefectStatus defectStatus,
-            List<String> tags,
             List<String> includedItems) {
         Member member = memberRepository.getReferenceById(memberId);
         ProductAiAnalysisResult analysis = productAiService.analyze(images);
-        Category category = getCategoryOrThrow(analysis.categoryId());
+        Category category = getLeafCategoryOrThrow(analysis.categoryId());
         List<String> imageUrls = uploadImages(images);
 
         Product product = Product.create(
@@ -196,11 +199,11 @@ public class ProductService {
                 null,
                 null,
                 imageUrls,
-                resolveTags(mergeNames(analysis.tags(), tags)),
+                resolveTags(analysis.tags()),
                 resolveComponents(mergeNames(analysis.includedItems(), includedItems)));
+        product.changeSuggestedPrice(analysis.suggestedPrice());
 
-        return ProductResponse.fromAiAnalysis(
-                productRepository.save(product), analysis.suggestedPrice(), analysis.analysisDescription());
+        return ProductResponse.fromAiAnalysis(productRepository.save(product), analysis.analysisDescription());
     }
 
     /**
@@ -366,21 +369,36 @@ public class ProductService {
     }
 
     /**
-     * 상품 정보를 수정한다. 본인이 등록한 상품만 수정할 수 있다.
+     * 상품 정보를 수정한다. 본인이 등록한 상품만 수정할 수 있다. 이미지는 유지할 기존 이미지 URL
+     * ({@code request.imageUrls}) 뒤에 새로 업로드한 파일을 이어 붙인 순서로 전체 교체하고, 구매 일시는
+     * {@code purchasedMonths}로 수정 시점 기준 다시 계산한다.
      *
      * @param memberId 요청한 회원 ID
      * @param productId 수정할 상품 ID
      * @param request 수정 요청 바디
+     * @param files 새로 추가할 이미지 파일 목록(선택, {@code null} 허용)
      * @return 수정된 상품
      * @throws ProductNotFoundException 존재하지 않는 상품인 경우
      * @throws ProductAccessDeniedException 본인이 등록한 상품이 아닌 경우
      * @throws CategoryNotFoundException 존재하지 않는 카테고리인 경우
+     * @throws ProductImageRequiredException 유지할 이미지와 새 파일을 합쳐 1장도 없는 경우
      */
     @Transactional
-    public ProductResponse update(Long memberId, Long productId, ProductUpdateRequest request) {
+    public ProductResponse update(
+            Long memberId, Long productId, ProductUpdateRequest request, List<MultipartFile> files) {
         Product product = getProductOrThrow(productId);
         validateRegisteredBy(product, memberId);
-        Category category = getCategoryOrThrow(request.categoryId());
+        Category category = getLeafCategoryOrThrow(request.categoryId());
+
+        List<String> keptImageUrls = request.imageUrls() == null ? List.of() : request.imageUrls();
+        List<MultipartFile> newFiles = files == null
+                ? List.of()
+                : files.stream().filter(file -> !file.isEmpty()).toList();
+        if (keptImageUrls.isEmpty() && newFiles.isEmpty()) {
+            throw new ProductImageRequiredException();
+        }
+        List<String> imageUrls = Stream.concat(keptImageUrls.stream(), uploadImages(newFiles).stream())
+                .toList();
 
         product.update(
                 category,
@@ -391,6 +409,7 @@ public class ProductService {
                 request.status(),
                 request.condition(),
                 request.defectStatus(),
+                toPurchasedAt(request.purchasedMonths()),
                 request.allowPriceSuggestion(),
                 request.tradeMethod(),
                 request.deliveryType(),
@@ -398,7 +417,7 @@ public class ProductService {
 
         product.clearImages();
         productRepository.flush();
-        product.addImages(request.imageUrls());
+        product.addImages(imageUrls);
 
         product.clearTags();
         product.addTags(resolveTags(request.tags()));
@@ -448,13 +467,19 @@ public class ProductService {
         return productRepository.findById(productId).orElseThrow(() -> new ProductNotFoundException(productId));
     }
 
-    private Category getCategoryOrThrow(Long categoryId) {
-        return categoryRepository.findById(categoryId).orElseThrow(() -> new CategoryNotFoundException(categoryId));
+    /** 상품은 최하위 카테고리에만 등록할 수 있다(번개장터 등록 화면이 최하위까지 선택을 요구). */
+    private Category getLeafCategoryOrThrow(Long categoryId) {
+        Category category =
+                categoryRepository.findById(categoryId).orElseThrow(() -> new CategoryNotFoundException(categoryId));
+        if (!category.isLeaf()) {
+            throw new CategoryNotLeafException(categoryId);
+        }
+        return category;
     }
 
     /**
      * 이미지 파일 목록을 스토리지에 업로드하고 접근 URL 목록을 반환한다(요청 순서 유지). 직접 등록/AI
-     * 등록 모두 이 메서드로 업로드한다.
+     * 등록/수정 모두 이 메서드로 업로드한다.
      *
      * @param images 업로드할 이미지 파일 목록
      * @return 업로드된 이미지 URL 목록(요청 순서와 동일)
@@ -466,8 +491,7 @@ public class ProductService {
     }
 
     /**
-     * 구매 후 경과 개월 수를 등록 시점 기준 구매일시로 변환한다. 이 값은 등록 시점에만 계산되며 이후
-     * 수정으로는 변경되지 않는다.
+     * 구매 후 경과 개월 수를 호출 시점(등록/수정) 기준 구매일시로 변환한다.
      *
      * @param purchasedMonths 구매 후 경과 개월 수(선택)
      * @return {@code purchasedMonths}가 {@code null}이면 {@code null}, 아니면 오늘로부터
