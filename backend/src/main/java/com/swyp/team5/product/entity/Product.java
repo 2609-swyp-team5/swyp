@@ -76,6 +76,9 @@ public class Product {
     @Column(name = "suggested_price")
     private Long suggestedPrice; // AI 제안가(등록 시 AI 사진 분석 추정가, 이후 시세 분석이 적정가를 내면 갱신)
 
+    @Column(name = "analysis_description", columnDefinition = "TEXT")
+    private String analysisDescription; // 등록 시 AI 사진 분석의 상태 등급/제안가 판단 근거(시세 분석으로는 바뀌지 않음)
+
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "product_status")
@@ -275,6 +278,15 @@ public class Product {
      */
     public void changeSuggestedPrice(Long suggestedPrice) {
         this.suggestedPrice = suggestedPrice;
+    }
+
+    /**
+     * 등록 시 AI 사진 분석의 판단 근거를 기록한다. 사용자 수정({@link #update})이나 시세 분석으로는 바뀌지 않는 값이다.
+     *
+     * @param analysisDescription AI가 상태 등급/제안가를 그렇게 판단한 근거({@code null}이면 근거 없음)
+     */
+    public void changeAnalysisDescription(String analysisDescription) {
+        this.analysisDescription = analysisDescription;
     }
 
     /**
