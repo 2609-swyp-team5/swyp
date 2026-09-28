@@ -141,7 +141,7 @@ export default function SignupPage() {
                                 type="text"
                                 autoComplete="name"
                                 placeholder="이름을 입력하세요"
-                                className="bg-background h-[41px] rounded-sm border-[#d3d3d3] px-5 text-base leading-[25px] font-normal tracking-normal text-[#363636] placeholder:text-[#6b6c7b] md:text-base dark:bg-white"
+                                className="text-foreground h-12 rounded-xl px-4 text-base md:text-base"
                             />
                             {errors.name ? (
                                 <p
@@ -168,7 +168,7 @@ export default function SignupPage() {
                                 aria-describedby={errors.nickname ? "nickname-error" : undefined}
                                 type="text"
                                 placeholder="닉네임을 입력하세요"
-                                className="bg-background h-[41px] rounded-sm border-[#d3d3d3] px-5 text-base leading-[25px] font-normal tracking-normal text-[#363636] placeholder:text-[#6b6c7b] md:text-base dark:bg-white"
+                                className="text-foreground h-12 rounded-xl px-4 text-base md:text-base"
                             />
                             {errors.nickname ? (
                                 <p
@@ -196,7 +196,7 @@ export default function SignupPage() {
                                 type="tel"
                                 autoComplete="tel"
                                 placeholder="휴대폰 번호 (- 제외 입력)"
-                                className="bg-background h-[41px] rounded-sm border-[#d3d3d3] px-5 text-base leading-[25px] font-normal tracking-normal text-[#363636] placeholder:text-[#6b6c7b] md:text-base dark:bg-white"
+                                className="text-foreground h-12 rounded-xl px-4 text-base md:text-base"
                             />
                             {errors.phone ? (
                                 <p
@@ -236,13 +236,13 @@ export default function SignupPage() {
                                     type="email"
                                     autoComplete="email"
                                     placeholder="example@email.com"
-                                    className="bg-background h-[41px] rounded-sm border-[#d3d3d3] px-5 text-base leading-[25px] font-normal tracking-normal text-[#363636] placeholder:text-[#6b6c7b] md:text-base dark:bg-white"
+                                    className="text-foreground h-12 rounded-xl px-4 text-base md:text-base"
                                 />
                                 <Button
                                     type="button"
                                     variant="outline"
                                     onClick={handleCheckEmail}
-                                    className="h-10 shrink-0"
+                                    className="h-12 shrink-0"
                                 >
                                     {isCheckingEmail ? "확인 중..." : "중복 확인"}
                                 </Button>
@@ -284,7 +284,7 @@ export default function SignupPage() {
                                     type={showPassword ? "text" : "password"}
                                     autoComplete="new-password"
                                     placeholder="8자 이상, 영문/숫자 조합"
-                                    className="bg-background h-9 rounded-sm border-[#d3d3d3] pr-12 pl-5 text-base leading-[25px] font-normal tracking-normal text-[#363636] placeholder:text-[#6b6c7b] md:text-base dark:bg-white"
+                                    className="text-foreground h-12 rounded-xl pr-12 pl-4 text-base md:text-base"
                                 />
                                 <Button
                                     type="button"
@@ -293,7 +293,7 @@ export default function SignupPage() {
                                     aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 표시"}
                                     aria-pressed={showPassword}
                                     onClick={() => setShowPassword((value) => !value)}
-                                    className="absolute top-0.5 right-2 text-[#6b6c7b]"
+                                    className="text-muted-foreground absolute top-[calc(50%-1rem)] right-2"
                                 >
                                     {showPassword ? (
                                         <Eye className="size-5" />

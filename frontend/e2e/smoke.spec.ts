@@ -46,10 +46,11 @@ test("authenticated members can navigate the profile menu", async ({ page }) => 
         "aria-current",
         "page",
     );
-    await expect(page.getByRole("link", { name: "마이페이지", exact: true })).toHaveAttribute(
-        "aria-current",
-        "page",
-    );
+    await expect(
+        page
+            .getByRole("navigation", { name: "마이페이지 메뉴" })
+            .getByRole("link", { name: "홈", exact: true }),
+    ).toHaveAttribute("aria-current", "page");
     await page.getByRole("link", { name: "등록된 상품" }).click();
     await expect(page).toHaveURL(/\/my\/products$/);
     await expect(page.getByRole("link", { name: "등록된 상품" })).toHaveAttribute(
