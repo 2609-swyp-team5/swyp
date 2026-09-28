@@ -143,7 +143,7 @@ export default function LoginPage() {
                                     type="email"
                                     autoComplete="email"
                                     placeholder="이메일 주소를 입력해주세요"
-                                    className="bg-background h-[41px] rounded-sm border-[#d3d3d3] px-5 text-base leading-[25px] font-normal tracking-normal text-[#363636] placeholder:text-[#6b6c7b] md:text-base dark:bg-white"
+                                    className="text-foreground h-12 rounded-xl px-4 text-base md:text-base"
                                 />
                                 {errors.email ? (
                                     <p
@@ -174,7 +174,7 @@ export default function LoginPage() {
                                         type={showPassword ? "text" : "password"}
                                         autoComplete="current-password"
                                         placeholder="8자 이상, 영문/숫자 조합"
-                                        className="bg-background h-9 rounded-sm border-[#d3d3d3] pr-12 pl-5 text-base leading-[25px] font-normal tracking-normal text-[#363636] placeholder:text-[#6b6c7b] md:text-base dark:bg-white"
+                                        className="text-foreground h-12 rounded-xl pr-12 pl-4 text-base md:text-base"
                                     />
                                     <Button
                                         type="button"
@@ -185,7 +185,7 @@ export default function LoginPage() {
                                         }
                                         aria-pressed={showPassword}
                                         onClick={() => setShowPassword((value) => !value)}
-                                        className="absolute top-[5px] right-2 text-[#6b6c7b]"
+                                        className="text-muted-foreground absolute top-[calc(50%-1rem)] right-2"
                                     >
                                         {showPassword ? (
                                             <Eye className="size-5" />
