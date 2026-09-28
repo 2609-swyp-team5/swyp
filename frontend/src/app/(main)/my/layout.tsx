@@ -14,7 +14,7 @@ export default function MyLayout({ children }: { children: ReactNode }) {
     }
 
     return (
-        <div className="bg-muted/20 flex flex-1 flex-col md:flex-row">
+        <div className="bg-background flex flex-1 flex-col lg:min-h-[1000px] lg:flex-row">
             <MySidebar />
             <div className="min-w-0 flex-1">{children}</div>
         </div>

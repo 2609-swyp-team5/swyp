@@ -3,6 +3,7 @@
 import { useMutation } from "@tanstack/react-query";
 
 import { authApi } from "@/features/auth/api/authApi";
+import type { SocialLoginRequest } from "@/features/auth/types";
 import { useAuthStore } from "@/features/auth/store/authStore";
 
 interface UseSocialLoginMutationCallbacks {
@@ -14,7 +15,13 @@ export function useSocialLoginMutation(callbacks?: UseSocialLoginMutationCallbac
     const setAccessToken = useAuthStore((state) => state.setAccessToken);
 
     return useMutation({
-        mutationFn: authApi.authSocialLogin,
+        mutationFn: async (params: SocialLoginRequest) => {
+            const { data } = await authApi.authSocialLogin(params);
+            if (!data.success) {
+                throw new Error(data.message);
+            }
+            return data.data;
+        },
         retry: false,
         onSuccess: (data) => setAccessToken(data.accessToken),
         onError: (error) => callbacks?.onError?.(error),

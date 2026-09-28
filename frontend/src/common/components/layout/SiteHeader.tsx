@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
-import { Avatar, AvatarFallback } from "@/common/components/ui/Avatar";
 import { Button } from "@/common/components/ui/Button";
 import { HEADER_LINKS } from "@/constants/routes";
-import { getApiErrorMessage } from "@/common/lib/api/error";
 import { useAuthStore } from "@/features/auth/store/authStore";
+import { ProfileAvatar } from "@/features/member/components/ProfileAvatar";
+import { useMeQuery } from "@/features/member/hooks/queries/useMeQuery";
 
 function isRouteActive(pathname: string, href: string) {
     return pathname === href || pathname.startsWith(`${href}/`);
@@ -16,38 +16,25 @@ function isRouteActive(pathname: string, href: string) {
 
 export function SiteHeader() {
     const pathname = usePathname();
+    const router = useRouter();
     const isProfileActive = isRouteActive(pathname, "/my");
     const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
-    const logout = useAuthStore((state) => state.logout);
-    const [isLoggingOut, setIsLoggingOut] = useState(false);
-    const [errorMessage, setErrorMessage] = useState("");
-
-    const handleLogout = async () => {
-        setIsLoggingOut(true);
-        setErrorMessage("");
-
-        try {
-            const result = await logout();
-            if (result && !result.success) {
-                setErrorMessage(result.message);
-            }
-        } catch (error) {
-            setErrorMessage(getApiErrorMessage(error));
-        } finally {
-            setIsLoggingOut(false);
-        }
-    };
+    const { data: member } = useMeQuery();
+    const isAuthPage =
+        pathname === "/login" || pathname === "/signup" || pathname === "/account/reset-password";
+    const hideMenus = pathname === "/" || isAuthPage;
+    const logoHref = isAuthPage || (pathname === "/" && !isLoggedIn) ? "/" : "/home";
 
     return (
         <header className="border-border bg-background border-b">
-            <div className="layout-container flex min-h-[var(--header-height)] items-center justify-between gap-6">
-                <Link href="/" className="typography-heading-03 text-primary">
-                    지금이니?
+            <div className="layout-container flex min-h-[var(--header-height)] items-center justify-between gap-6 py-5">
+                <Link href={logoHref} className="shrink-0">
+                    <Image src="/logo.png" alt="지금이니?" width={100} height={55} />
                 </Link>
 
                 <nav
                     aria-label="주요 메뉴"
-                    className="flex min-w-0 flex-1 items-center justify-end gap-1"
+                    className={`flex min-w-0 flex-1 items-center justify-end gap-1 ${hideMenus ? "invisible" : ""}`}
                 >
                     {HEADER_LINKS.map((link) => {
                         const isActive = isRouteActive(pathname, link.href);
@@ -57,10 +44,8 @@ export function SiteHeader() {
                                 key={link.href}
                                 asChild
                                 variant="ghost"
-                                className={`typography-body-medium h-auto rounded-lg px-3 py-2 whitespace-nowrap ${
-                                    isActive
-                                        ? "bg-primary/10 text-primary font-semibold"
-                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                className={`hover:text-primary h-auto rounded-lg px-3 py-2 text-[16px] leading-[25px] font-semibold tracking-[0.5px] whitespace-nowrap hover:bg-transparent ${
+                                    isActive ? "text-primary" : "text-[#464646]"
                                 }`}
                             >
                                 <Link href={link.href} aria-current={isActive ? "page" : undefined}>
@@ -72,16 +57,12 @@ export function SiteHeader() {
                 </nav>
 
                 <div className="typography-body-medium flex items-center gap-2">
-                    {isLoggedIn ? (
+                    {isLoggedIn && !isAuthPage ? (
                         <Button
                             asChild
                             variant="ghost"
                             size="icon-lg"
-                            className={`rounded-full p-0 ${
-                                isProfileActive
-                                    ? "bg-primary text-primary-foreground hover:bg-primary/80"
-                                    : "bg-muted text-foreground"
-                            }`}
+                            className={`rounded-full p-0 ${isProfileActive ? "ring-primary ring-2" : ""}`}
                         >
                             <Link
                                 href="/my"
@@ -89,40 +70,21 @@ export function SiteHeader() {
                                 title="프로필"
                                 aria-current={isProfileActive ? "page" : undefined}
                             >
-                                <Avatar aria-hidden="true" className="size-full after:border-0">
-                                    <AvatarFallback className="bg-transparent font-semibold text-inherit">
-                                        P
-                                    </AvatarFallback>
-                                </Avatar>
+                                <ProfileAvatar src={member?.profileImageUrl} size="header" />
                             </Link>
                         </Button>
                     ) : null}
-                    {isLoggedIn ? (
+                    {!isLoggedIn || isAuthPage ? (
                         <Button
                             type="button"
-                            variant="ghost"
-                            onClick={handleLogout}
-                            disabled={isLoggingOut}
-                            className="typography-body-medium text-muted-foreground hover:text-foreground h-auto rounded-full px-3 py-2"
+                            onClick={() => router.push("/login")}
+                            className="typography-body-medium h-auto rounded-full px-[30px] py-2.5"
                         >
-                            {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
+                            로그인
                         </Button>
-                    ) : (
-                        <Button
-                            asChild
-                            variant="ghost"
-                            className="typography-body-medium text-muted-foreground hover:text-foreground h-auto rounded-full px-3 py-2"
-                        >
-                            <Link href="/login">로그인</Link>
-                        </Button>
-                    )}
+                    ) : null}
                 </div>
             </div>
-            {errorMessage ? (
-                <p role="alert" className="px-6 pb-3 text-sm text-red-600 lg:px-8">
-                    {errorMessage}
-                </p>
-            ) : null}
         </header>
     );
 }

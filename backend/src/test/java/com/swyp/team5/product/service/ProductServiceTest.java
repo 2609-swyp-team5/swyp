@@ -23,6 +23,7 @@ import org.springframework.mock.web.MockMultipartFile;
 
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.error.CategoryNotFoundException;
+import com.swyp.team5.category.error.CategoryNotLeafException;
 import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.component.entity.Component;
@@ -328,7 +329,7 @@ class ProductServiceTest {
         when(tagRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ProductResponse response = service().createFromImages(1L, List.of(image), 3, DefectStatus.ISSUES, null, null);
+        ProductResponse response = service().createFromImages(1L, List.of(image), 3, DefectStatus.ISSUES, null);
 
         assertThat(response.title()).isEqualTo("아이폰 13");
         assertThat(response.brand()).isEqualTo("애플");
@@ -375,14 +376,14 @@ class ProductServiceTest {
         when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ProductResponse response =
-                service().createFromImages(1L, List.of(image), 3, DefectStatus.NORMAL, null, List.of("충전기"));
+                service().createFromImages(1L, List.of(image), 3, DefectStatus.NORMAL, List.of("충전기"));
 
         assertThat(response.includedItems()).containsExactlyInAnyOrder("박스", "충전기");
     }
 
-    // 상품 이미지 AI 분석 등록 성공 - 태그는 AI 추론 결과와 사용자 입력을 합쳐서 저장(중복은 한 번만)
+    // 상품 이미지 AI 분석 등록 성공 - 태그는 사용자 입력 없이 AI가 추론한 목록만 저장
     @Test
-    void createFromImagesSucceedsWithUserTags() {
+    void createFromImagesSavesAiInferredTags() {
         Member member = newMember(1L);
         Category category = newCategory(1L, "전자기기");
         MockMultipartFile image = new MockMultipartFile("images", "iphone.png", "image/png", new byte[] {1, 2, 3});
@@ -402,14 +403,13 @@ class ProductServiceTest {
         when(categoryRepository.findById(category.getId())).thenReturn(Optional.of(category));
         when(fileStorageService.upload(image, "products"))
                 .thenReturn(new FileUploadResponse("key", "https://image.example.com/iphone.png", 3, "image/png"));
-        when(tagRepository.findAllByNameIn(List.of("애플", "아이폰", "급처"))).thenReturn(List.of());
+        when(tagRepository.findAllByNameIn(List.of("애플", "아이폰"))).thenReturn(List.of());
         when(tagRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ProductResponse response =
-                service().createFromImages(1L, List.of(image), 3, DefectStatus.NORMAL, List.of("급처", "애플"), null);
+        ProductResponse response = service().createFromImages(1L, List.of(image), 3, DefectStatus.NORMAL, null);
 
-        assertThat(response.tags()).containsExactlyInAnyOrder("애플", "아이폰", "급처");
+        assertThat(response.tags()).containsExactlyInAnyOrder("애플", "아이폰");
     }
 
     // 상품 이미지 AI 분석 등록 실패 - AI가 존재하지 않는 카테고리를 추론
@@ -423,7 +423,7 @@ class ProductServiceTest {
         when(productAiService.analyze(List.of(image))).thenReturn(analysis);
         when(categoryRepository.findById(99L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service().createFromImages(1L, List.of(image), null, DefectStatus.NORMAL, null, null))
+        assertThatThrownBy(() -> service().createFromImages(1L, List.of(image), null, DefectStatus.NORMAL, null))
                 .isInstanceOf(CategoryNotFoundException.class);
     }
 
@@ -631,6 +631,63 @@ class ProductServiceTest {
                 .containsExactly("https://image.example.com/2.png", "https://image.example.com/new.png");
         assertThat(response.tags()).containsExactly("가성비");
         assertThat(response.includedItems()).containsExactly("박스");
+    }
+
+    // 상품 등록 실패 - 최하위가 아닌(하위가 있는) 카테고리
+    @Test
+    void createFailsWhenCategoryNotLeaf() {
+        Category digital = newCategory(1L, "디지털");
+        setField(digital, "hasChildren", true);
+        ProductCreateRequest request = new ProductCreateRequest(
+                1L,
+                "아이폰 13",
+                null,
+                "설명",
+                500_000L,
+                ProductCondition.A,
+                DefectStatus.NORMAL,
+                null,
+                true,
+                TradeMethod.DIRECT,
+                null,
+                null,
+                List.of(),
+                List.of());
+
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(digital));
+
+        assertThatThrownBy(() -> service().create(1L, request, List.of())).isInstanceOf(CategoryNotLeafException.class);
+        verify(productRepository, never()).save(any());
+    }
+
+    // 상품 수정 실패 - 중간 카테고리(카테고리 전환으로 옮겨진 상품 등)로는 수정할 수 없음
+    @Test
+    void updateFailsWhenCategoryNotLeaf() {
+        Category digital = newCategory(1L, "디지털");
+        setField(digital, "hasChildren", true);
+        Product product = newProduct(1L, newMember(1L), digital);
+        ProductUpdateRequest request = new ProductUpdateRequest(
+                digital.getId(),
+                "아이폰 13 프로",
+                null,
+                "수정된 설명",
+                450_000L,
+                ProductStatus.ON_SALE,
+                ProductCondition.B,
+                DefectStatus.NORMAL,
+                null,
+                false,
+                TradeMethod.DELIVERY,
+                null,
+                null,
+                List.of("https://image.example.com/2.png"),
+                List.of(),
+                List.of());
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(digital));
+
+        assertThatThrownBy(() -> service().update(1L, 1L, request, null)).isInstanceOf(CategoryNotLeafException.class);
     }
 
     // 상품 수정 실패 - 소유자가 아님

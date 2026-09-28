@@ -32,9 +32,9 @@ export function NaverLoginButton({
             onClick={onClick}
             aria-label={ariaLabel}
             title={ariaLabel}
-            className="size-9 rounded-lg border-transparent bg-[#03C75A] p-0 hover:bg-[#03C75A]/80"
+            className="size-[45.27px] rounded-[10px] border-transparent bg-[#03C75A] p-0 hover:bg-[#03C75A]/80"
         >
-            <Image src="/auth/naver.svg" alt="" width={20} height={20} />
+            <Image src="/auth/naver.svg" alt="" width={20} height={20} className="scale-[1.2575]" />
         </Button>
     );
 }

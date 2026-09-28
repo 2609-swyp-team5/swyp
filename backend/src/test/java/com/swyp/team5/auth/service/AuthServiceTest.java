@@ -92,8 +92,10 @@ class AuthServiceTest {
     @Test
     void signUpSucceeds() {
         SignUpRequest request = new SignUpRequest("test@example.com", "01012345678", "password1234", "홍길동", "gildong");
-        when(memberRepository.existsByEmail(request.email())).thenReturn(false);
-        when(memberRepository.existsByPhone(request.phone())).thenReturn(false);
+        when(memberRepository.existsByEmailAndStatusNot(request.email(), MemberStatus.DELETED))
+                .thenReturn(false);
+        when(memberRepository.existsByPhoneAndStatusNot(request.phone(), MemberStatus.DELETED))
+                .thenReturn(false);
         when(passwordEncoder.encode(request.password())).thenReturn("encoded-password");
         when(memberRepository.save(any(Member.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -111,7 +113,8 @@ class AuthServiceTest {
     @Test
     void signUpFailsWhenEmailDuplicated() {
         SignUpRequest request = new SignUpRequest("test@example.com", "01012345678", "password1234", "홍길동", "gildong");
-        when(memberRepository.existsByEmail(request.email())).thenReturn(true);
+        when(memberRepository.existsByEmailAndStatusNot(request.email(), MemberStatus.DELETED))
+                .thenReturn(true);
 
         assertThatThrownBy(() -> authService.signUp(request)).isInstanceOf(DuplicateEmailException.class);
     }
@@ -120,8 +123,10 @@ class AuthServiceTest {
     @Test
     void signUpFailsWhenPhoneDuplicated() {
         SignUpRequest request = new SignUpRequest("test@example.com", "01012345678", "password1234", "홍길동", "gildong");
-        when(memberRepository.existsByEmail(request.email())).thenReturn(false);
-        when(memberRepository.existsByPhone(request.phone())).thenReturn(true);
+        when(memberRepository.existsByEmailAndStatusNot(request.email(), MemberStatus.DELETED))
+                .thenReturn(false);
+        when(memberRepository.existsByPhoneAndStatusNot(request.phone(), MemberStatus.DELETED))
+                .thenReturn(true);
 
         assertThatThrownBy(() -> authService.signUp(request)).isInstanceOf(DuplicatePhoneException.class);
     }
@@ -134,7 +139,8 @@ class AuthServiceTest {
                 request.email(), "01012345678", "encoded-password", "홍길동", "gildong", DEFAULT_PROFILE_IMAGE_URL);
         setId(member, 1L);
 
-        when(memberRepository.findByEmail(request.email())).thenReturn(Optional.of(member));
+        when(memberRepository.findByEmailAndStatusNot(request.email(), MemberStatus.DELETED))
+                .thenReturn(Optional.of(member));
         when(passwordEncoder.matches(request.password(), member.getPassword())).thenReturn(true);
         when(jwtTokenProvider.createAccessToken(member.getId(), member.getRole()))
                 .thenReturn("access-token");
@@ -150,7 +156,8 @@ class AuthServiceTest {
     @Test
     void loginFailsWhenEmailNotFound() {
         LoginRequest request = new LoginRequest("unknown@example.com", "password1234");
-        when(memberRepository.findByEmail(request.email())).thenReturn(Optional.empty());
+        when(memberRepository.findByEmailAndStatusNot(request.email(), MemberStatus.DELETED))
+                .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> authService.login(request)).isInstanceOf(InvalidCredentialsException.class);
     }
@@ -162,7 +169,8 @@ class AuthServiceTest {
         Member member = Member.ofLocalSignUp(
                 request.email(), "01012345678", "encoded-password", "홍길동", "gildong", DEFAULT_PROFILE_IMAGE_URL);
 
-        when(memberRepository.findByEmail(request.email())).thenReturn(Optional.of(member));
+        when(memberRepository.findByEmailAndStatusNot(request.email(), MemberStatus.DELETED))
+                .thenReturn(Optional.of(member));
         when(passwordEncoder.matches(anyString(), anyString())).thenReturn(false);
 
         assertThatThrownBy(() -> authService.login(request)).isInstanceOf(InvalidCredentialsException.class);
@@ -220,7 +228,8 @@ class AuthServiceTest {
         when(googleLoginStrategy.verify(request.token())).thenReturn(userInfo);
         when(socialRepository.findByProviderAndProviderId(SocialProvider.GOOGLE, userInfo.providerId()))
                 .thenReturn(Optional.empty());
-        when(memberRepository.findByEmail(userInfo.email())).thenReturn(Optional.of(existingMember));
+        when(memberRepository.findByEmailAndStatusNot(userInfo.email(), MemberStatus.DELETED))
+                .thenReturn(Optional.of(existingMember));
         when(jwtTokenProvider.createAccessToken(existingMember.getId(), existingMember.getRole()))
                 .thenReturn("access-token");
         when(jwtTokenProvider.createRefreshToken(existingMember.getId())).thenReturn("refresh-token");
@@ -241,7 +250,8 @@ class AuthServiceTest {
         when(googleLoginStrategy.verify(request.token())).thenReturn(userInfo);
         when(socialRepository.findByProviderAndProviderId(SocialProvider.GOOGLE, userInfo.providerId()))
                 .thenReturn(Optional.empty());
-        when(memberRepository.findByEmail(userInfo.email())).thenReturn(Optional.empty());
+        when(memberRepository.findByEmailAndStatusNot(userInfo.email(), MemberStatus.DELETED))
+                .thenReturn(Optional.empty());
         when(memberRepository.save(any(Member.class))).thenAnswer(invocation -> {
             Member saved = invocation.getArgument(0);
             setId(saved, 3L);

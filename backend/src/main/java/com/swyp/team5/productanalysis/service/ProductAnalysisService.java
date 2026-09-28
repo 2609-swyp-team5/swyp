@@ -5,15 +5,16 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.LongSummaryStatistics;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.swyp.team5.common.ai.AiChatExecutor;
+import com.swyp.team5.notification.service.NotificationService;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.platform.repository.PlatformListingRepository;
 import com.swyp.team5.product.entity.DefectStatus;
@@ -30,7 +31,7 @@ import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
 /**
  * 등록된 상품과 같은 카테고리에서 수집된 매물({@link PlatformListing})을 근거로 시세를 분석해
  * {@link ProductAnalysis} 스냅샷을 생성한다. 통계(최저/평균/최고가)는 직접 계산하고,
- * 추천(SELL/HOLD/BUY/WAIT)/적정가/판단 근거는 AI(Gemini)에게 위임한다.
+ * 추천(SELL/HOLD/BUY/WAIT)/적정가/판단 근거는 AI(Gemini, 실패 시 OpenAI GPT)에게 위임한다.
  */
 @Slf4j
 @Service
@@ -61,23 +62,26 @@ public class ProductAnalysisService {
             %s
             """;
 
-    private final ChatClient geminiAiClient;
+    private final AiChatExecutor aiChatExecutor;
     private final ProductRepository productRepository;
     private final PlatformListingRepository platformListingRepository;
     private final ProductAnalysisRepository productAnalysisRepository;
     private final ProductAnalysisProperties properties;
+    private final NotificationService notificationService;
 
     public ProductAnalysisService(
-            @Qualifier("geminiAiClient") ChatClient geminiAiClient,
+            AiChatExecutor aiChatExecutor,
             ProductRepository productRepository,
             PlatformListingRepository platformListingRepository,
             ProductAnalysisRepository productAnalysisRepository,
-            ProductAnalysisProperties properties) {
-        this.geminiAiClient = geminiAiClient;
+            ProductAnalysisProperties properties,
+            NotificationService notificationService) {
+        this.aiChatExecutor = aiChatExecutor;
         this.productRepository = productRepository;
         this.platformListingRepository = platformListingRepository;
         this.productAnalysisRepository = productAnalysisRepository;
         this.properties = properties;
+        this.notificationService = notificationService;
     }
 
     /**
@@ -145,9 +149,9 @@ public class ProductAnalysisService {
         long averagePrice = Math.round(stats.getAverage());
         long maxPrice = stats.getMax();
 
-        BigDecimal changeRate = productAnalysisRepository
-                .findFirstByProductIdOrderByAnalyzedAtDesc(product.getId())
-                .map(previous -> calculateChangeRate(previous.getAveragePrice(), averagePrice))
+        Optional<ProductAnalysis> previous =
+                productAnalysisRepository.findFirstByProductIdOrderByAnalyzedAtDesc(product.getId());
+        BigDecimal changeRate = previous.map(p -> calculateChangeRate(p.getAveragePrice(), averagePrice))
                 .orElse(null);
 
         MarketAnalysisResult aiResult = requestAiAnalysis(product, listings, minPrice, averagePrice, maxPrice);
@@ -168,6 +172,10 @@ public class ProductAnalysisService {
         if (aiResult.suggestedPrice() != null) {
             productRepository.updateSuggestedPrice(product.getId(), aiResult.suggestedPrice());
         }
+
+        // 추천이 직전 스냅샷과 달라졌으면 판매자(SELL)/관심 등록 회원(BUY)에게 알림
+        notificationService.notifyRecommendationChanged(
+                product, previous.map(ProductAnalysis::getRecommendation).orElse(null), aiResult.recommendation());
     }
 
     private MarketAnalysisResult requestAiAnalysis(
@@ -188,12 +196,12 @@ public class ProductAnalysisService {
                 Math.min(listings.size(), properties.sampleSize()),
                 sample);
 
-        MarketAnalysisResult result = geminiAiClient
-                .prompt()
+        // Gemini가 실패하면 같은 요청을 OpenAI GPT로 대체 호출
+        MarketAnalysisResult result = aiChatExecutor.call("시세 분석", client -> client.prompt()
                 .system(SYSTEM_PROMPT)
                 .user(userPrompt)
                 .call()
-                .entity(MarketAnalysisResult.class);
+                .entity(MarketAnalysisResult.class));
         assert result != null;
         return result;
     }

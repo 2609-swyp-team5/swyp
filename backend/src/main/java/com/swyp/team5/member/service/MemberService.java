@@ -16,6 +16,7 @@ import com.swyp.team5.member.dto.MemberResponse;
 import com.swyp.team5.member.dto.MemberUpdateRequest;
 import com.swyp.team5.member.dto.PasswordChangeRequest;
 import com.swyp.team5.member.entity.Member;
+import com.swyp.team5.member.entity.MemberStatus;
 import com.swyp.team5.member.error.InvalidCurrentPasswordException;
 import com.swyp.team5.member.error.MemberNotFoundException;
 import com.swyp.team5.member.error.PasswordChangeNotAllowedException;
@@ -45,7 +46,9 @@ public class MemberService {
         Member member = findMember(memberId);
 
         String phone = request.phone();
-        if (phone != null && !phone.equals(member.getPhone()) && memberRepository.existsByPhone(phone)) {
+        if (phone != null
+                && !phone.equals(member.getPhone())
+                && memberRepository.existsByPhoneAndStatusNot(phone, MemberStatus.DELETED)) {
             throw new DuplicatePhoneException(phone);
         }
 
