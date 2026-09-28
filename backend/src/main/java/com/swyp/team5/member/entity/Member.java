@@ -120,6 +120,15 @@ public class Member {
         this.status = status;
     }
 
+    /**
+     * 회원 권한을 변경한다. 최초 관리자 지정({@code admin.emails})에만 쓴다.
+     *
+     * @param role 변경할 권한
+     */
+    public void changeRole(MemberRole role) {
+        this.role = role;
+    }
+
     public void changeProfileImage(String profileImageUrl) {
         this.profileImageUrl = profileImageUrl;
     }
