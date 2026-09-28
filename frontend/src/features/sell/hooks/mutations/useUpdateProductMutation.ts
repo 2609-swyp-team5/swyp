@@ -11,7 +11,13 @@ export interface UpdateProductInput extends ProductUpdateInput {
 
 export function useUpdateProductMutation() {
     return useMutation<ProductResponse, Error, UpdateProductInput>({
-        mutationFn: ({ id, files, request }) => productApi.updateProduct(id, { files, request }),
+        mutationFn: async ({ id, files, request }) => {
+            const { data } = await productApi.updateProduct(id, { files, request });
+            if (!data.success) {
+                throw new Error(data.message);
+            }
+            return data.data;
+        },
         retry: false,
     });
 }

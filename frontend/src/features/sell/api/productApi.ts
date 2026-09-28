@@ -15,15 +15,7 @@ import type {
     ProductUpdateInput,
 } from "../types";
 
-const getProduct = async (id: number): Promise<ProductResponse> => {
-    const { data } = await api.get<ApiResponse<ProductResponse>>(`/products/${id}`);
-
-    if (!data.success) {
-        throw new Error(data.message);
-    }
-
-    return data.data;
-};
+const getProduct = (id: number) => api.get<ApiResponse<ProductResponse>>(`/products/${id}`);
 
 const createDirectProduct = async ({ images, request }: DirectProductCreateInput) => {
     const parsedImages = productImagesSchema.safeParse(images);
@@ -48,15 +40,9 @@ const createDirectProduct = async ({ images, request }: DirectProductCreateInput
         new Blob([JSON.stringify(parsedRequest.data)], { type: "application/json" }),
     );
 
-    const { data } = await api.post<ApiResponse<ProductResponse>>("/products", formData, {
+    return api.post<ApiResponse<ProductResponse>>("/products", formData, {
         timeout: 120_000,
     });
-
-    if (!data.success) {
-        throw new Error(data.message);
-    }
-
-    return data.data;
 };
 
 const createAiProduct = async ({
@@ -89,15 +75,9 @@ const createAiProduct = async ({
     formData.append("defectStatus", parsedInput.data.operationStatus);
     parsedInput.data.includedItems.forEach((item) => formData.append("includedItems", item));
 
-    const { data } = await api.post<ApiResponse<ProductResponse>>("/products/analyze", formData, {
+    return api.post<ApiResponse<ProductResponse>>("/products/analyze", formData, {
         timeout: 120_000,
     });
-
-    if (!data.success) {
-        throw new Error(data.message);
-    }
-
-    return data.data;
 };
 
 const updateProduct = async (id: number, { files, request }: ProductUpdateInput) => {
@@ -125,13 +105,7 @@ const updateProduct = async (id: number, { files, request }: ProductUpdateInput)
         new Blob([JSON.stringify(parsedRequest.data)], { type: "application/json" }),
     );
 
-    const { data } = await api.patch<ApiResponse<ProductResponse>>(`/products/${id}`, formData);
-
-    if (!data.success) {
-        throw new Error(data.message);
-    }
-
-    return data.data;
+    return api.patch<ApiResponse<ProductResponse>>(`/products/${id}`, formData);
 };
 
 export const productApi = {

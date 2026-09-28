@@ -9,7 +9,13 @@ export const categoriesQueryKey = ["categories"] as const;
 export function useCategoriesQuery() {
     return useQuery({
         queryKey: categoriesQueryKey,
-        queryFn: categoryApi.getCategories,
+        queryFn: async () => {
+            const { data } = await categoryApi.getCategories();
+            if (!data.success) {
+                throw new Error(data.message);
+            }
+            return data.data;
+        },
         staleTime: 10 * 60 * 1000,
         retry: 1,
     });

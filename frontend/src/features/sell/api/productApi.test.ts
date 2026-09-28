@@ -50,7 +50,14 @@ describe("productApi", () => {
     });
 
     it("gets a product by id", async () => {
-        await expect(productApi.getProduct(42)).resolves.toEqual({ id: 42 });
+        await expect(productApi.getProduct(42)).resolves.toEqual({
+            data: {
+                success: true,
+                message: "",
+                data: { id: 42 },
+                error: null,
+            },
+        });
         expect(get).toHaveBeenCalledWith("/products/42");
     });
 

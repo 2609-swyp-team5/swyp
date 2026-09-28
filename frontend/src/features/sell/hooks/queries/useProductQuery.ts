@@ -9,7 +9,13 @@ export const productQueryKey = (id: number) => ["product", id] as const;
 export function useProductQuery(id: number) {
     return useQuery({
         queryKey: productQueryKey(id),
-        queryFn: () => productApi.getProduct(id),
+        queryFn: async () => {
+            const { data } = await productApi.getProduct(id);
+            if (!data.success) {
+                throw new Error(data.message);
+            }
+            return data.data;
+        },
         enabled: Number.isInteger(id) && id > 0,
         staleTime: 5 * 60 * 1000,
         refetchOnWindowFocus: false,
