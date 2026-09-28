@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 import { Button } from "@/common/components/ui/Button";
+import { Skeleton } from "@/common/components/ui/Skeleton";
 import { HEADER_LINKS } from "@/constants/routes";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { ProfileAvatar } from "@/features/member/components/ProfileAvatar";
@@ -19,11 +20,13 @@ export function SiteHeader() {
     const router = useRouter();
     const isProfileActive = isRouteActive(pathname, "/my");
     const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
-    const { data: member } = useMeQuery();
+    const isInitialized = useAuthStore((state) => state.isInitialized);
+    const { data: member, isPending } = useMeQuery();
     const isAuthPage =
         pathname === "/login" || pathname === "/signup" || pathname === "/account/reset-password";
     const hideMenus = pathname === "/" || isAuthPage;
     const logoHref = isAuthPage || (pathname === "/" && !isLoggedIn) ? "/" : "/home";
+    const isProfileLoading = !isAuthPage && (!isInitialized || (isLoggedIn && isPending));
 
     return (
         <header className="border-border bg-background border-b">
@@ -56,8 +59,14 @@ export function SiteHeader() {
                     })}
                 </nav>
 
-                <div className="typography-body-medium flex items-center gap-2">
-                    {isLoggedIn && !isAuthPage ? (
+                <div className="typography-body-medium flex w-[120px] shrink-0 items-center justify-end gap-2">
+                    {isProfileLoading ? (
+                        <Skeleton
+                            role="status"
+                            aria-label="로그인 상태 확인 중"
+                            className="size-9 rounded-full bg-[#efeeff]"
+                        />
+                    ) : isLoggedIn && !isAuthPage ? (
                         <Button
                             asChild
                             variant="ghost"
@@ -73,8 +82,7 @@ export function SiteHeader() {
                                 <ProfileAvatar src={member?.profileImageUrl} size="header" />
                             </Link>
                         </Button>
-                    ) : null}
-                    {!isLoggedIn || isAuthPage ? (
+                    ) : (
                         <Button
                             type="button"
                             onClick={() => router.push("/login")}
@@ -82,7 +90,7 @@ export function SiteHeader() {
                         >
                             로그인
                         </Button>
-                    ) : null}
+                    )}
                 </div>
             </div>
         </header>

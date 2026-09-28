@@ -8,7 +8,7 @@ interface AuthStore {
     accessToken: string | null;
     isLoggedIn: boolean;
     isInitialized: boolean;
-    checkStatus: () => Promise<void>;
+    checkStatus: (force?: boolean) => Promise<void>;
     refresh: () => Promise<string>;
     setAccessToken: (accessToken: string) => void;
     clearAuth: () => void;
@@ -18,14 +18,39 @@ interface AuthStore {
 let refreshPromise: Promise<string> | null = null;
 let authVersion = 0;
 
+export const AUTH_LOGGED_OUT_KEY = "auth:loggedOut";
+
+function isExplicitlyLoggedOut() {
+    try {
+        return localStorage.getItem(AUTH_LOGGED_OUT_KEY) === "true";
+    } catch {
+        return false;
+    }
+}
+
+function setLoggedOutHint(loggedOut: boolean) {
+    try {
+        if (loggedOut) localStorage.setItem(AUTH_LOGGED_OUT_KEY, "true");
+        else localStorage.removeItem(AUTH_LOGGED_OUT_KEY);
+    } catch {
+        // 저장소를 사용할 수 없어도 로그인·로그아웃 처리는 완료합니다.
+    }
+}
+
 export const useAuthStore = create<AuthStore>()(
     devtools(
         (set, get) => ({
             accessToken: null,
             isLoggedIn: false,
             isInitialized: false,
-            checkStatus: async () => {
-                if (get().isInitialized) return;
+            checkStatus: async (force = false) => {
+                if (!force && get().isInitialized) return;
+                if (isExplicitlyLoggedOut()) {
+                    get().clearAuth();
+                    set({ isInitialized: true }, false, "auth/checkStatus");
+                    return;
+                }
+                if (force && get().isLoggedIn) return;
                 try {
                     await get().refresh();
                 } catch {
@@ -71,6 +96,7 @@ export const useAuthStore = create<AuthStore>()(
             },
             setAccessToken: (accessToken) => {
                 authVersion++;
+                if (accessToken) setLoggedOutHint(false);
                 set(
                     { accessToken, isLoggedIn: Boolean(accessToken) },
                     false,
@@ -96,6 +122,7 @@ export const useAuthStore = create<AuthStore>()(
                 }
 
                 authVersion++;
+                setLoggedOutHint(true);
                 set({ accessToken: null, isLoggedIn: false }, false, "auth/logout");
             },
         }),

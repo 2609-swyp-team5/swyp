@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { ROUTES } from "@/constants/routes";
-import { useAuthStore } from "@/features/auth/store/authStore";
+import { AUTH_LOGGED_OUT_KEY, useAuthStore } from "@/features/auth/store/authStore";
 
 export default function AuthInitializer() {
     const pathname = usePathname();
@@ -32,7 +32,17 @@ export default function AuthInitializer() {
     );
 
     useEffect(() => {
+        const handleStorage = (event: StorageEvent) => {
+            if (
+                event.storageArea === window.localStorage &&
+                (event.key === AUTH_LOGGED_OUT_KEY || event.key === null)
+            ) {
+                void checkStatus(true);
+            }
+        };
+        window.addEventListener("storage", handleStorage);
         void checkStatus();
+        return () => window.removeEventListener("storage", handleStorage);
     }, [checkStatus]);
 
     useEffect(() => {
