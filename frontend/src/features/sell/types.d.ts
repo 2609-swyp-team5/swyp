@@ -43,6 +43,7 @@ export interface ProductResponse {
         id: number;
         name: string;
         parentId: number | null;
+        leaf: boolean;
     };
     title: string;
     brand: string | null;

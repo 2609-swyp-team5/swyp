@@ -28,6 +28,7 @@ type FieldErrors = {
     title: string;
     parentCategory: string;
     childCategory: string;
+    subCategory: string;
     description: string;
 };
 
@@ -64,14 +65,20 @@ export function DirectRegisterInfoStep({
         title: "",
         parentCategory: "",
         childCategory: "",
+        subCategory: "",
         description: "",
     });
     const isTagComposingRef = useRef(false);
+    const [tagError, setTagError] = useState("");
 
     const parentCategories = categories.filter((category) => category.parentId === null);
     const childCategories = categories.filter(
         (category) => category.parentId === Number(value.parentCategoryId),
     );
+    const subCategories = categories.filter(
+        (category) => category.parentId === Number(value.childCategoryId) && category.leaf,
+    );
+    const hasSubCategories = subCategories.length > 0;
 
     const addTag = (tagValue: string) => {
         const nextTag = tagValue.trim();
@@ -80,8 +87,19 @@ export function DirectRegisterInfoStep({
             return;
         }
 
-        onChange("tags", value.tags.includes(nextTag) ? value.tags : [...value.tags, nextTag]);
+        if (value.tags.includes(nextTag)) {
+            setTagInput("");
+            return;
+        }
+
+        if (value.tags.length >= 10) {
+            setTagError("태그는 최대 10개까지 추가할 수 있습니다.");
+            return;
+        }
+
+        onChange("tags", [...value.tags, nextTag]);
         setTagInput("");
+        setTagError("");
     };
 
     const handleTagKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -97,6 +115,14 @@ export function DirectRegisterInfoStep({
         addTag(event.currentTarget.value);
     };
 
+    const removeTag = (tag: string) => {
+        onChange(
+            "tags",
+            value.tags.filter((currentTag) => currentTag !== tag),
+        );
+        setTagError("");
+    };
+
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
@@ -105,6 +131,10 @@ export function DirectRegisterInfoStep({
             title: value.title.trim() ? "" : "상품명을 입력해 주세요.",
             parentCategory: value.parentCategoryId ? "" : "대분류를 선택해 주세요.",
             childCategory: value.childCategoryId ? "" : "중분류를 선택해 주세요.",
+            subCategory:
+                !value.childCategoryId || (hasSubCategories && !value.subCategoryId)
+                    ? "소분류를 선택해 주세요."
+                    : "",
             description: value.description.trim() ? "" : "상품 설명을 입력해 주세요.",
         };
 
@@ -172,16 +202,19 @@ export function DirectRegisterInfoStep({
 
             <section className="flex flex-col gap-1.5">
                 <FieldLabel required>카테고리</FieldLabel>
-                <div className="grid gap-3 lg:grid-cols-2">
+                <div className="grid gap-3 lg:grid-cols-3">
                     <div className="flex flex-col gap-1.5">
                         <Select
                             value={value.parentCategoryId}
                             onValueChange={(nextValue) => {
                                 onChange("parentCategoryId", nextValue);
                                 onChange("childCategoryId", "");
+                                onChange("subCategoryId", "");
                                 setFieldErrors((current) => {
                                     const hasCategoryError = Boolean(
-                                        current.parentCategory || current.childCategory,
+                                        current.parentCategory ||
+                                        current.childCategory ||
+                                        current.subCategory,
                                     );
 
                                     return {
@@ -190,6 +223,7 @@ export function DirectRegisterInfoStep({
                                         childCategory: hasCategoryError
                                             ? "중분류를 선택해 주세요."
                                             : "",
+                                        subCategory: "",
                                     };
                                 });
                             }}
@@ -233,9 +267,18 @@ export function DirectRegisterInfoStep({
                             value={value.childCategoryId}
                             onValueChange={(nextValue) => {
                                 onChange("childCategoryId", nextValue);
+                                onChange("subCategoryId", "");
+                                const nextSubCategories = categories.filter(
+                                    (category) =>
+                                        category.parentId === Number(nextValue) && category.leaf,
+                                );
                                 setFieldErrors((current) => ({
                                     ...current,
                                     childCategory: "",
+                                    subCategory:
+                                        nextSubCategories.length > 0 && current.subCategory
+                                            ? "소분류를 선택해 주세요."
+                                            : "",
                                 }));
                             }}
                             disabled={!value.parentCategoryId}
@@ -266,6 +309,64 @@ export function DirectRegisterInfoStep({
                             </SelectContent>
                         </Select>
                         <FieldError message={fieldErrors.childCategory} />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                        <Select
+                            value={value.subCategoryId}
+                            onValueChange={(nextValue) => {
+                                onChange("subCategoryId", nextValue);
+                                setFieldErrors((current) => ({
+                                    ...current,
+                                    subCategory: "",
+                                }));
+                            }}
+                            disabled={!value.childCategoryId || !hasSubCategories}
+                        >
+                            <SelectTrigger
+                                className={selectClassName}
+                                aria-label="소분류"
+                                aria-invalid={Boolean(fieldErrors.subCategory)}
+                            >
+                                <SelectValue
+                                    placeholder={
+                                        value.childCategoryId && !hasSubCategories
+                                            ? "소분류 없음"
+                                            : "소분류 선택"
+                                    }
+                                />
+                            </SelectTrigger>
+                            <SelectContent
+                                position="popper"
+                                side="bottom"
+                                sideOffset={4}
+                                align="start"
+                                className="!max-h-60 !w-[var(--radix-select-trigger-width)] !overflow-y-auto !bg-white !text-[#6b6c7b]"
+                            >
+                                {hasSubCategories ? (
+                                    subCategories.map((category) => (
+                                        <SelectItem key={category.id} value={String(category.id)}>
+                                            {category.name}
+                                        </SelectItem>
+                                    ))
+                                ) : (
+                                    <EmptySelectItem
+                                        message={
+                                            value.childCategoryId
+                                                ? "소분류가 없는 카테고리입니다."
+                                                : "중분류를 먼저 선택해 주세요."
+                                        }
+                                    />
+                                )}
+                            </SelectContent>
+                        </Select>
+                        <FieldError
+                            message={
+                                hasSubCategories || !value.childCategoryId
+                                    ? fieldErrors.subCategory
+                                    : ""
+                            }
+                        />
                     </div>
                 </div>
             </section>
@@ -303,12 +404,17 @@ export function DirectRegisterInfoStep({
             </section>
 
             <section className="flex flex-col gap-1.5">
-                <FieldLabel>태그</FieldLabel>
+                <div className="flex items-center gap-[5px]">
+                    <FieldLabel>태그</FieldLabel>
+                    <span className="text-[10px] leading-[15px] tracking-[-0.5px] text-[#545d82]">
+                        *최대 10개까지 추가 가능합니다.
+                    </span>
+                </div>
                 <div className="flex flex-wrap items-center gap-2 pt-0.5">
                     {value.tags.map((tag) => (
                         <Badge
                             key={tag}
-                            className="h-7 gap-1 rounded-full border-[#6b6c7b] bg-white px-3 py-1 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6b6c7b] hover:bg-white"
+                            className="h-7 gap-1 rounded-full border-[#6b6c7b] bg-white px-[15px] py-1 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6b6c7b] hover:bg-white"
                         >
                             #{tag}
                             <Button
@@ -317,21 +423,19 @@ export function DirectRegisterInfoStep({
                                 size="icon-xs"
                                 aria-label={`${tag} 태그 삭제`}
                                 className="size-4 rounded-full p-0 text-[#6b6c7b]/60 hover:bg-transparent hover:text-[#6b6c7b]"
-                                onClick={() =>
-                                    onChange(
-                                        "tags",
-                                        value.tags.filter((currentTag) => currentTag !== tag),
-                                    )
-                                }
+                                onClick={() => removeTag(tag)}
                             >
                                 <X aria-hidden="true" className="size-3" />
                             </Button>
                         </Badge>
                     ))}
-                    <div className="flex h-7 items-center rounded-full border border-dashed border-[#d3d3d3] px-3">
+                    <div className="flex h-7 items-center rounded-full border border-dashed border-[#d3d3d3] px-[15px] py-1">
                         <input
                             value={tagInput}
-                            onChange={(event) => setTagInput(event.target.value)}
+                            onChange={(event) => {
+                                setTagInput(event.target.value);
+                                setTagError("");
+                            }}
                             onKeyDown={handleTagKeyDown}
                             onCompositionStart={() => {
                                 isTagComposingRef.current = true;
@@ -347,10 +451,11 @@ export function DirectRegisterInfoStep({
                             }}
                             aria-label="태그 추가"
                             placeholder="태그 추가"
-                            className="w-20 bg-transparent text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6b6c7b] outline-none placeholder:text-[#d3d3d3]"
+                            className="w-[52px] bg-transparent text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6b6c7b] outline-none placeholder:text-[#d3d3d3]"
                         />
                     </div>
                 </div>
+                <FieldError message={tagError} />
             </section>
         </form>
     );

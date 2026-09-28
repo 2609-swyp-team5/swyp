@@ -92,7 +92,7 @@ const product: ProductResponse = {
     id: 42,
     memberId: 1,
     nickname: "판매자",
-    category: { id: 2, name: "태블릿", parentId: 1 },
+    category: { id: 3, name: "아이패드", parentId: 2, leaf: true },
     title: "아이패드 프로",
     brand: "Apple",
     description: "수정 전 설명",

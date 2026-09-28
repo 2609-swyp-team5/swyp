@@ -192,7 +192,12 @@ export function DirectStatusPriceStep({
                     </div>
 
                     <fieldset>
-                        <FieldLegend>구성품</FieldLegend>
+                        <FieldLegend className="flex items-center gap-2">
+                            구성품
+                            <span className="text-[10px] leading-[15px] font-normal tracking-[-0.5px] text-[#545d82]">
+                                *최대 10개까지 추가 가능합니다.
+                            </span>
+                        </FieldLegend>
                         <div className="mt-2.5 flex min-h-[50px] items-center" aria-label="구성품">
                             <IncludedItemsField
                                 items={includedItems}
@@ -237,8 +242,8 @@ export function DirectStatusPriceStep({
                     <FieldLabel htmlFor="direct-price" required>
                         희망 가격
                     </FieldLabel>
-                    <div className="flex items-center gap-3">
-                        <div className="relative flex-1">
+                    <div className="flex flex-col items-start gap-3">
+                        <div className="relative w-full">
                             <Input
                                 id="direct-price"
                                 type="text"
@@ -255,14 +260,14 @@ export function DirectStatusPriceStep({
                                 원
                             </span>
                         </div>
-                        <label className="flex shrink-0 cursor-pointer items-center gap-2 text-[16px] leading-[25px] text-[#545d82] transition-colors hover:text-[#6653fb]">
+                        <label className="flex cursor-pointer items-center gap-2 text-[16px] leading-[25px] text-[#545d82] transition-colors hover:text-[#6653fb]">
                             <Checkbox
                                 checked={allowPriceProposal}
                                 onCheckedChange={(nextChecked) =>
                                     onAllowPriceProposalChange(nextChecked === true)
                                 }
                                 aria-label="가격 제안 허용"
-                                className="size-[13px] rounded-[2px] border-[#767676] data-[state=checked]:border-[#5d55fe] data-[state=checked]:bg-[#5d55fe] [&_svg]:size-[11px]"
+                                className="size-[13px] rounded-[2px] border-[#d3d3d3] data-[state=checked]:border-[#5d55fe] data-[state=checked]:bg-[#5d55fe] [&_svg]:size-[11px]"
                             />
                             <span>가격 제안 허용</span>
                         </label>

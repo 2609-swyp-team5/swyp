@@ -5,6 +5,7 @@ export type Category = {
     id: number;
     name: string;
     parentId: number | null;
+    leaf: boolean;
 };
 
 const getCategories = () => api.get<ApiResponse<Category[]>>("/categories");

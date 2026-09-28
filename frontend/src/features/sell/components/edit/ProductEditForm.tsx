@@ -73,12 +73,25 @@ function RegistrationStepper({ currentStep }: { currentStep: EditStep }) {
     );
 }
 
-function getInitialInfo(product: ProductResponse): DirectRegisterInfoState {
+function getInitialInfo(product: ProductResponse, categories: Category[]): DirectRegisterInfoState {
+    const selectedCategory =
+        categories.find((category) => category.id === product.category.id) ?? product.category;
+    const parentCategory = categories.find((category) => category.id === selectedCategory.parentId);
+    const grandparentCategory = parentCategory
+        ? categories.find((category) => category.id === parentCategory.parentId)
+        : undefined;
     return {
         images: product.imageUrls.map((url) => ({ file: null, url })),
-        parentCategoryId:
-            product.category.parentId === null ? "" : String(product.category.parentId),
-        childCategoryId: String(product.category.id),
+        parentCategoryId: grandparentCategory
+            ? String(grandparentCategory.id)
+            : parentCategory
+              ? String(parentCategory.id)
+              : "",
+        childCategoryId:
+            grandparentCategory && parentCategory
+                ? String(parentCategory.id)
+                : String(product.category.id),
+        subCategoryId: grandparentCategory ? String(product.category.id) : "",
         title: product.title,
         brand: product.brand ?? "",
         description: product.description ?? "",
@@ -127,7 +140,7 @@ export function ProductEditForm({
     const queryClient = useQueryClient();
     const updateProductMutation = useUpdateProductMutation();
     const [step, setStep] = useState<EditStep>("info");
-    const [info, setInfo] = useState(() => getInitialInfo(product));
+    const [info, setInfo] = useState(() => getInitialInfo(product, categories));
     const [statusPrice, setStatusPrice] = useState(() => getInitialStatusPrice(product));
     const [statusPriceErrors, setStatusPriceErrors] = useState(initialStatusPriceErrors);
     const [submissionError, setSubmissionError] = useState("");
@@ -204,7 +217,7 @@ export function ProductEditForm({
                 id: product.id,
                 files: newFiles,
                 request: {
-                    categoryId: Number(info.childCategoryId),
+                    categoryId: Number(info.subCategoryId || info.childCategoryId),
                     title: info.title.trim(),
                     brand: info.brand.trim() || null,
                     description: info.description.trim(),

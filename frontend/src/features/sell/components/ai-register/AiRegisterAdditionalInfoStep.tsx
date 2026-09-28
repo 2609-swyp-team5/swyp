@@ -8,7 +8,7 @@ import {
     type IncludedItemOption,
 } from "@/features/sell/components/shared/IncludedItemsField";
 
-export type AiPurchasePeriod = "1" | "2" | "3" | "4" | "5" | "6" | "unknown";
+export type AiPurchasePeriod = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "unknown";
 
 export type AiOperationStatus = "normal" | "issues" | "unknown";
 
@@ -25,6 +25,7 @@ type AiRegisterAdditionalInfoStepProps = {
 };
 
 const purchasePeriodOptions: { value: AiPurchasePeriod; label: string }[] = [
+    { value: "0", label: "구매 직후" },
     { value: "1", label: "1개월 이내" },
     { value: "2", label: "2개월 이내" },
     { value: "3", label: "3개월 이내" },
@@ -120,9 +121,14 @@ export function AiRegisterAdditionalInfoStep({
                 </div>
 
                 <div className="flex flex-col gap-3">
-                    <p className="typography-heading-03 text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#6b6c7b]">
-                        구성품은 무엇이 있나요?
-                    </p>
+                    <div className="flex items-center gap-[5px]">
+                        <p className="typography-heading-03 text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#6b6c7b]">
+                            구성품은 무엇이 있나요?
+                        </p>
+                        <span className="text-[10px] leading-[15px] tracking-[-0.5px] text-[#545d82]">
+                            *최대 10개까지 추가 가능합니다.
+                        </span>
+                    </div>
                     <IncludedItemsField
                         items={includedItems}
                         options={includedItemOptions}

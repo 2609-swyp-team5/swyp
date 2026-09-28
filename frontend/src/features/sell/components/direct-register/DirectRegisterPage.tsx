@@ -70,6 +70,7 @@ const initialInfoState: DirectRegisterInfoState = {
     images: [],
     parentCategoryId: "",
     childCategoryId: "",
+    subCategoryId: "",
     title: "",
     brand: "",
     description: "",
@@ -185,7 +186,7 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
         createDirectProductMutation.mutate({
             images: info.images.flatMap((image) => (image.file ? [image.file] : [])),
             request: {
-                categoryId: Number(info.childCategoryId),
+                categoryId: Number(info.subCategoryId || info.childCategoryId),
                 title: info.title.trim(),
                 brand: info.brand.trim() || null,
                 description: info.description.trim(),

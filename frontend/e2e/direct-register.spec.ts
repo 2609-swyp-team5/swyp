@@ -29,7 +29,7 @@ test("direct registration keeps the product information while moving to status a
                     id: 42,
                     memberId: 1,
                     nickname: "판매자",
-                    category: { id: 2, name: "스마트폰", parentId: 1 },
+                    category: { id: 3, name: "필름카메라", parentId: 2, leaf: true },
                     title: "필름카메라 FM2 니콘",
                     brand: null,
                     description: "사용감이 적고 정상적으로 작동하는 상품입니다.",
@@ -64,8 +64,9 @@ test("direct registration keeps the product information while moving to status a
                 success: true,
                 message: "카테고리 조회 성공",
                 data: [
-                    { id: 1, name: "전자기기", parentId: null },
-                    { id: 2, name: "스마트폰", parentId: 1 },
+                    { id: 1, name: "전자기기", parentId: null, leaf: false },
+                    { id: 2, name: "카메라", parentId: 1, leaf: false },
+                    { id: 3, name: "필름카메라", parentId: 2, leaf: true },
                 ],
                 error: null,
             },
@@ -86,7 +87,9 @@ test("direct registration keeps the product information while moving to status a
     await page.getByRole("combobox", { name: "대분류" }).click();
     await page.getByRole("option", { name: "전자기기" }).click();
     await page.getByRole("combobox", { name: "중분류" }).click();
-    await page.getByRole("option", { name: "스마트폰" }).click();
+    await page.getByRole("option", { name: "카메라" }).click();
+    await page.getByRole("combobox", { name: "소분류" }).click();
+    await page.getByRole("option", { name: "필름카메라" }).click();
     await page
         .getByLabel("상품 설명", { exact: false })
         .fill("사용감이 적고 정상적으로 작동하는 상품입니다.");

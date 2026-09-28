@@ -7,6 +7,7 @@ export type DirectRegisterInfoState = {
     images: DirectImagePreview[];
     parentCategoryId: string;
     childCategoryId: string;
+    subCategoryId: string;
     title: string;
     brand: string;
     description: string;

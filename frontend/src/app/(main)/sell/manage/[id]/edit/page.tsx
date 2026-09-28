@@ -41,6 +41,10 @@ export default function ProductEditPage() {
         return <LoadingStatus>{getApiErrorMessage(error)}</LoadingStatus>;
     }
 
+    if (isCategoriesPending) {
+        return <LoadingStatus>카테고리를 불러오는 중이에요.</LoadingStatus>;
+    }
+
     const categoryStatus = isCategoriesPending ? "loading" : isCategoriesError ? "error" : "ready";
 
     return (

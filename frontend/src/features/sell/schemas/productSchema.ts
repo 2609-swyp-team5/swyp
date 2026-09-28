@@ -36,13 +36,13 @@ export const productCreateRequestSchema = z.object({
     condition: productConditionSchema,
     defectStatus: defectStatusSchema,
     purchasedMonths: z.number().int().min(0).max(6).nullable(),
-    includedItems: z.array(z.string()),
+    includedItems: z.array(z.string()).max(10, "구성품은 최대 10개까지 추가할 수 있습니다."),
     allowPriceSuggestion: z.boolean(),
     tradeMethod: tradeMethodSchema,
     deliveryType: deliveryTypeSchema.nullable(),
     preferredTradeRegion: z.string().trim().nullable(),
     imageUrls: z.array(z.string().trim().min(1)).min(1, "상품 이미지가 필요합니다."),
-    tags: z.array(z.string().trim().min(1)),
+    tags: z.array(z.string().trim().min(1)).max(10, "태그는 최대 10개까지 추가할 수 있습니다."),
 });
 
 export const directProductCreateRequestSchema = productCreateRequestSchema.omit({
@@ -58,5 +58,5 @@ export const aiProductCreateInputSchema = z.object({
     images: productImagesSchema,
     purchasedMonths: z.number().int().min(0).max(6).nullable(),
     operationStatus: operationStatusSchema,
-    includedItems: z.array(z.string()),
+    includedItems: z.array(z.string()).max(10, "구성품은 최대 10개까지 추가할 수 있습니다."),
 });
