@@ -149,7 +149,8 @@ class ProductTest {
         assertThat(productRepository.count()).isEqualTo(1);
     }
 
-    // AI 제안가 - 등록 시 AI 추정가가 저장돼 상세 조회/수정 응답에도 포함되고, 시세 분석 갱신값이 반영됨
+    // AI 제안가/판단 근거 - 등록 시 AI 추정가와 판단 근거가 저장돼 상세 조회에도 포함되고, 시세 분석 갱신값이 반영됨.
+    // 비교 매물 평균가는 수집 매물이 없어 null
     @Test
     void suggestedPriceIsStoredAndRefreshedByAnalysis() throws Exception {
         when(productAiService.analyze(anyList()))
@@ -168,7 +169,8 @@ class ProductTest {
         mockMvc.perform(get("/products/{id}", productId).header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.suggestedPrice").value(470_000))
-                .andExpect(jsonPath("$.data.analysisDescription").isEmpty());
+                .andExpect(jsonPath("$.data.analysisDescription").value("판단 근거")) // 등록 때 저장된 근거
+                .andExpect(jsonPath("$.data.marketAveragePrice").isEmpty());
 
         mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{id}", productId)
                         .file(requestPart(updateRequest(category.getId(), ProductStatus.ON_SALE)))
