@@ -1,13 +1,15 @@
 package com.swyp.team5.member.repository;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.entity.MemberStatus;
 
-public interface MemberRepository extends JpaRepository<Member, Long> {
+public interface MemberRepository extends JpaRepository<Member, Long>, JpaSpecificationExecutor<Member> {
 
     Optional<Member> findByEmail(String email);
 
@@ -20,4 +22,8 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     boolean existsByEmailAndStatusNot(String email, MemberStatus status);
 
     boolean existsByPhoneAndStatusNot(String phone, MemberStatus status);
+
+    long countByStatus(MemberStatus status);
+
+    long countByCreatedAtGreaterThanEqual(LocalDateTime from);
 }

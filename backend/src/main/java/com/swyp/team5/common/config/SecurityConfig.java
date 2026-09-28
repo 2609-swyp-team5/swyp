@@ -19,6 +19,7 @@ import com.swyp.team5.common.passport.JsonAccessDeniedHandler;
 import com.swyp.team5.common.passport.JsonAuthenticationEntryPoint;
 import com.swyp.team5.common.passport.JwtAuthenticationFilter;
 import com.swyp.team5.common.passport.JwtProperties;
+import com.swyp.team5.member.entity.MemberRole;
 import com.swyp.team5.social.strategy.KakaoProperties;
 import com.swyp.team5.social.strategy.NaverLoginProperties;
 
@@ -32,6 +33,8 @@ import com.swyp.team5.social.strategy.NaverLoginProperties;
 })
 @RequiredArgsConstructor
 public class SecurityConfig {
+
+    private static final String ADMIN_PATTERN = "/admin/**";
 
     private static final String[] PERMIT_ALL_PATTERNS = {
         "/auth/signup",
@@ -63,6 +66,8 @@ public class SecurityConfig {
                         .accessDeniedHandler(jsonAccessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth.requestMatchers(PERMIT_ALL_PATTERNS)
                         .permitAll()
+                        .requestMatchers(ADMIN_PATTERN)
+                        .hasRole(MemberRole.ADMIN.name())
                         .anyRequest()
                         .authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

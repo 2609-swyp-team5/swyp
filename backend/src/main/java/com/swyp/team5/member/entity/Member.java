@@ -111,6 +111,15 @@ public class Member {
         this.status = MemberStatus.DELETED;
     }
 
+    /**
+     * 회원 상태를 변경한다. 관리자의 정지/해제에 쓰며, 탈퇴는 {@link #withdraw()}를 쓴다.
+     *
+     * @param status 변경할 상태
+     */
+    public void changeStatus(MemberStatus status) {
+        this.status = status;
+    }
+
     public void changeProfileImage(String profileImageUrl) {
         this.profileImageUrl = profileImageUrl;
     }

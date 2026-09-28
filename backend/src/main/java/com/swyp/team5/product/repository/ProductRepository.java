@@ -1,5 +1,6 @@
 package com.swyp.team5.product.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -26,4 +27,10 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     @Modifying
     @Query("update Product p set p.suggestedPrice = :suggestedPrice where p.id = :productId")
     int updateSuggestedPrice(@Param("productId") Long productId, @Param("suggestedPrice") Long suggestedPrice);
+
+    long countByStatus(ProductStatus status);
+
+    long countByCreatedAtGreaterThanEqual(LocalDateTime from);
+
+    long countByMemberId(Long memberId);
 }
