@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.swyp.team5.common.ai.AiChatExecutor;
 import com.swyp.team5.notification.service.NotificationService;
 import com.swyp.team5.platform.entity.PlatformListing;
+import com.swyp.team5.platform.repository.ListingPriceStats;
 import com.swyp.team5.platform.repository.PlatformListingRepository;
 import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.Product;
@@ -99,6 +100,23 @@ public class ProductAnalysisService {
                 .findFirstByProductIdOrderByAnalyzedAtDesc(productId)
                 .map(ProductAnalysisResponse::from)
                 .orElseGet(() -> ProductAnalysisResponse.empty(productId));
+    }
+
+    /**
+     * 시세 분석과 같은 기준(같은 카테고리·판매중·최근 수집 매물, 최소 {@code min-listings}건)으로 비교 매물 평균가만
+     * 계산한다(AI 호출·저장 없음). 등록 직후나 분석 이력이 없는 상품 상세처럼 시세 분석 스냅샷이 없을 때 사용한다.
+     *
+     * @param categoryId 상품 카테고리 ID
+     * @return 비교 매물이 {@code min-listings}보다 적으면 빈 값
+     */
+    @Transactional(readOnly = true)
+    public Optional<Long> calculateMarketAveragePrice(Long categoryId) {
+        LocalDateTime freshAfter = LocalDateTime.now().minusHours(properties.freshnessHours());
+        ListingPriceStats stats = platformListingRepository.findPriceStats(categoryId, SELLING_STATUS, freshAfter);
+        if (stats == null || stats.averagePrice() == null || stats.count() < properties.minListings()) {
+            return Optional.empty();
+        }
+        return Optional.of(Math.round(stats.averagePrice()));
     }
 
     /** 판매중인 상품 전체를 순회하며 분석한다(스케줄러 진입점). 한 건이 실패해도 나머지는 계속 진행한다. */

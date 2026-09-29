@@ -1,5 +1,7 @@
 package com.swyp.team5.common.config;
 
+import jakarta.servlet.DispatcherType;
+
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -56,7 +58,12 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(jsonAuthenticationEntryPoint))
-                .authorizeHttpRequests(auth -> auth.requestMatchers(PERMIT_ALL_PATTERNS)
+                .authorizeHttpRequests(auth -> auth
+                        // SSE 등 비동기 응답이 끝날 때의 재디스패치(ASYNC)와 에러 페이지(ERROR)는 원 요청에서 이미 인가됐으므로
+                        // 다시 검사하지 않는다(JWT 필터는 재디스패치에서 동작하지 않아 검사하면 인증 실패가 된다)
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR)
+                        .permitAll()
+                        .requestMatchers(PERMIT_ALL_PATTERNS)
                         .permitAll()
                         .anyRequest()
                         .authenticated())

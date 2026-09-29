@@ -8,6 +8,7 @@ import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -49,9 +50,9 @@ import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductImageRequiredException;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.repository.ProductRepository;
-import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
+import com.swyp.team5.productanalysis.service.ProductAnalysisService;
 import com.swyp.team5.search.service.SearchLogService;
 import com.swyp.team5.tag.entity.Tag;
 import com.swyp.team5.tag.repository.TagRepository;
@@ -74,6 +75,7 @@ public class ProductService {
     private final PlatformListingRepository platformListingRepository;
     private final InterestRepository interestRepository;
     private final SearchLogService searchLogService;
+    private final ProductAnalysisService productAnalysisService;
 
     public ProductService(
             ProductRepository productRepository,
@@ -86,7 +88,8 @@ public class ProductService {
             ProductAnalysisRepository productAnalysisRepository,
             PlatformListingRepository platformListingRepository,
             InterestRepository interestRepository,
-            SearchLogService searchLogService) {
+            SearchLogService searchLogService,
+            ProductAnalysisService productAnalysisService) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
         this.memberRepository = memberRepository;
@@ -98,14 +101,15 @@ public class ProductService {
         this.platformListingRepository = platformListingRepository;
         this.interestRepository = interestRepository;
         this.searchLogService = searchLogService;
+        this.productAnalysisService = productAnalysisService;
     }
 
     /**
      * 상품을 직접 등록한다. AI 등록({@link #createFromImages})과 동일하게 이미지 파일을 직접 받아
      * 업로드까지 이 안에서 처리한다. 판매 가격은 사용자가 입력한 값을 그대로 쓰고, AI 등록과 같은 사진
-     * 분석({@link ProductAiService#analyze})이 추정한 적정가와 그 판단 근거를 응답의 {@code suggestedPrice}/
-     * {@code analysisDescription}으로 함께 제공한다(참고용이라 AI 호출이 실패해도 등록은 성공하며 이때 두
-     * 필드는 null).
+     * 분석({@link ProductAiService#analyze})이 추정한 적정가와 그 판단 근거를 {@code suggestedPrice}/
+     * {@code analysisDescription}으로 저장해 함께 제공한다(참고용이라 AI 호출이 실패해도 등록은 성공하며 이때 두
+     * 필드는 null). 응답에는 비교 매물 평균가({@code marketAveragePrice})도 포함한다.
      *
      * @param memberId 등록하는 회원 ID
      * @param request 등록 요청 바디
@@ -120,31 +124,13 @@ public class ProductService {
         Category category = getLeafCategoryOrThrow(request.categoryId());
         List<String> imageUrls = uploadImages(images);
 
-        Product product = Product.create(
-                member,
-                category,
-                request.title(),
-                request.brand(),
-                request.description(),
-                request.price(),
-                request.condition(),
-                request.defectStatus(),
-                toPurchasedAt(request.purchasedMonths()),
-                request.allowPriceSuggestion(),
-                request.tradeMethod(),
-                request.deliveryType(),
-                request.preferredTradeRegion(),
-                imageUrls,
-                resolveTags(request.tags()),
-                resolveComponents(request.includedItems()));
-
-        Product saved = productRepository.save(product);
+        Product saved = productRepository.save(newDirectProduct(member, category, request, imageUrls));
         ProductAiAnalysisResult analysis = analyzeOrNull(images);
-        if (analysis == null) {
-            return ProductResponse.from(saved);
+        if (analysis != null) {
+            saved.changeSuggestedPrice(analysis.suggestedPrice());
+            saved.changeAnalysisDescription(analysis.analysisDescription());
         }
-        saved.changeSuggestedPrice(analysis.suggestedPrice());
-        return ProductResponse.fromAiAnalysis(saved, analysis.analysisDescription());
+        return ProductResponse.from(saved, null, calculateMarketAveragePrice(category));
     }
 
     private ProductAiAnalysisResult analyzeOrNull(List<MultipartFile> images) {
@@ -162,7 +148,8 @@ public class ProductService {
      * 직거래(DIRECT)로 등록되며, 배송 방법/희망 거래 지역은 비워둔 채 등록 후 수정으로 채운다.
      * 구매 일시/결함 여부는 AI가 추론하지 않고 사용자가 직접 입력한 값을 그대로 사용한다. 브랜드는
      * AI가 사진에서 식별해 채운다(식별 불가 시 null). 태그는 AI가 추론한 목록만 저장하고(사용자 입력 없음),
-     * 구성품은 AI가 사진에서 추론한 목록과 사용자가 추가로 입력한 목록을 합쳐서 저장한다.
+     * 구성품은 AI가 사진에서 추론한 목록과 사용자가 추가로 입력한 목록을 합쳐서 저장한다. AI 판단 근거
+     * ({@code analysisDescription})도 저장하고, 응답에는 비교 매물 평균가({@code marketAveragePrice})도 포함한다.
      *
      * @param memberId 등록하는 회원 ID
      * @param images 분석할 상품 이미지 목록
@@ -184,6 +171,108 @@ public class ProductService {
         Category category = getLeafCategoryOrThrow(analysis.categoryId());
         List<String> imageUrls = uploadImages(images);
 
+        Product product =
+                newAiProduct(member, category, analysis, imageUrls, purchasedMonths, defectStatus, includedItems);
+        return ProductResponse.from(productRepository.save(product), null, calculateMarketAveragePrice(category));
+    }
+
+    /**
+     * 직접 등록할 카테고리가 존재하는 최하위 카테고리인지 확인한다. 단계별 스트리밍 등록(v2)이 업로드를 시작하기 전에
+     * 호출해, 잘못된 카테고리는 스트림을 열지 않고 일반 JSON 에러(400/404)로 응답하게 한다.
+     *
+     * @param categoryId 등록할 카테고리 ID
+     * @throws CategoryNotFoundException 존재하지 않는 카테고리인 경우
+     * @throws CategoryNotLeafException 최하위 카테고리가 아닌 경우
+     */
+    @Transactional(readOnly = true)
+    public void validateLeafCategory(Long categoryId) {
+        getLeafCategoryOrThrow(categoryId);
+    }
+
+    /**
+     * 이미 업로드한 이미지 URL과 (있으면) AI 사진 분석 결과로 직접 등록 상품을 저장한다. {@link #create}와 같은
+     * 규칙으로 저장하지만 업로드와 AI 호출은 하지 않아, 트랜잭션이 저장 단계에만 걸린다(단계별 스트리밍 등록용).
+     *
+     * @param memberId 등록하는 회원 ID
+     * @param request 등록 요청 바디
+     * @param imageUrls 업로드된 이미지 URL 목록(순서대로 저장)
+     * @param analysis AI 사진 분석 결과(실패해 건너뛴 경우 {@code null} — 제안가/판단 근거 없이 등록)
+     * @return 등록된 상품
+     * @throws CategoryNotFoundException 존재하지 않는 카테고리인 경우
+     * @throws CategoryNotLeafException 최하위 카테고리가 아닌 경우
+     */
+    @Transactional
+    public ProductResponse saveDirect(
+            Long memberId, ProductCreateRequest request, List<String> imageUrls, ProductAiAnalysisResult analysis) {
+        Member member = memberRepository.getReferenceById(memberId);
+        Category category = getLeafCategoryOrThrow(request.categoryId());
+        Product product = newDirectProduct(member, category, request, imageUrls);
+        if (analysis != null) {
+            product.changeSuggestedPrice(analysis.suggestedPrice());
+            product.changeAnalysisDescription(analysis.analysisDescription());
+        }
+        return ProductResponse.from(productRepository.save(product), null, calculateMarketAveragePrice(category));
+    }
+
+    /**
+     * 이미 업로드한 이미지 URL과 AI 사진 분석 결과로 AI 등록 상품을 저장한다. {@link #createFromImages}와 같은
+     * 규칙으로 저장하지만 업로드와 AI 호출은 하지 않는다(단계별 스트리밍 등록용).
+     *
+     * @param memberId 등록하는 회원 ID
+     * @param analysis AI 사진 분석 결과
+     * @param imageUrls 업로드된 이미지 URL 목록(순서대로 저장)
+     * @param purchasedMonths 사용자가 입력한 구매 후 경과 개월 수(선택)
+     * @param defectStatus 사용자가 입력한 결함(하자) 상태
+     * @param includedItems 사용자가 추가로 입력한 구성품 이름 목록(선택, AI 추론 결과와 합쳐짐)
+     * @return 등록된 상품
+     * @throws CategoryNotFoundException AI가 반환한 카테고리가 존재하지 않는 경우
+     * @throws CategoryNotLeafException AI가 반환한 카테고리가 최하위가 아닌 경우
+     */
+    @Transactional
+    public ProductResponse saveFromAnalysis(
+            Long memberId,
+            ProductAiAnalysisResult analysis,
+            List<String> imageUrls,
+            Integer purchasedMonths,
+            DefectStatus defectStatus,
+            List<String> includedItems) {
+        Member member = memberRepository.getReferenceById(memberId);
+        Category category = getLeafCategoryOrThrow(analysis.categoryId());
+        Product product =
+                newAiProduct(member, category, analysis, imageUrls, purchasedMonths, defectStatus, includedItems);
+        return ProductResponse.from(productRepository.save(product), null, calculateMarketAveragePrice(category));
+    }
+
+    private Product newDirectProduct(
+            Member member, Category category, ProductCreateRequest request, List<String> imageUrls) {
+        return Product.create(
+                member,
+                category,
+                request.title(),
+                request.brand(),
+                request.description(),
+                request.price(),
+                request.condition(),
+                request.defectStatus(),
+                toPurchasedAt(request.purchasedMonths()),
+                request.allowPriceSuggestion(),
+                request.tradeMethod(),
+                request.deliveryType(),
+                request.preferredTradeRegion(),
+                imageUrls,
+                resolveTags(request.tags()),
+                resolveComponents(request.includedItems()));
+    }
+
+    /** AI 등록 상품: 가격·제안가 = AI 추정가, 거래 방식 = 직거래, 구성품 = AI 추론 + 사용자 입력. */
+    private Product newAiProduct(
+            Member member,
+            Category category,
+            ProductAiAnalysisResult analysis,
+            List<String> imageUrls,
+            Integer purchasedMonths,
+            DefectStatus defectStatus,
+            List<String> includedItems) {
         Product product = Product.create(
                 member,
                 category,
@@ -202,13 +291,14 @@ public class ProductService {
                 resolveTags(analysis.tags()),
                 resolveComponents(mergeNames(analysis.includedItems(), includedItems)));
         product.changeSuggestedPrice(analysis.suggestedPrice());
-
-        return ProductResponse.fromAiAnalysis(productRepository.save(product), analysis.analysisDescription());
+        product.changeAnalysisDescription(analysis.analysisDescription());
+        return product;
     }
 
     /**
-     * 상품 상세 정보를 조회한다. 가장 최근 시세 분석 판단({@code recommendation})도 함께 포함한다(분석
-     * 이력이 없으면 {@code null}).
+     * 상품 상세 정보를 조회한다. 가장 최근 시세 분석 판단({@code recommendation})과 그 분석의 비교 매물
+     * 평균가({@code marketAveragePrice})도 함께 포함한다. 분석 이력이 없으면 판단은 {@code null}이고, 평균가는
+     * 같은 기준으로 지금 수집된 매물에서 계산한다(비교 매물이 부족하면 {@code null}).
      *
      * @param productId 조회할 상품 ID
      * @return 상품 상세 정보
@@ -217,11 +307,19 @@ public class ProductService {
     @Transactional(readOnly = true)
     public ProductResponse getProduct(Long productId) {
         Product product = getProductOrThrow(productId);
-        AnalysisRecommendation recommendation = productAnalysisRepository
-                .findFirstByProductIdOrderByAnalyzedAtDesc(productId)
-                .map(ProductAnalysis::getRecommendation)
+        Optional<ProductAnalysis> latest =
+                productAnalysisRepository.findFirstByProductIdOrderByAnalyzedAtDesc(productId);
+        if (latest.isPresent()) {
+            return ProductResponse.from(
+                    product, latest.get().getRecommendation(), latest.get().getAveragePrice());
+        }
+        return ProductResponse.from(product, null, calculateMarketAveragePrice(product.getCategory()));
+    }
+
+    private Long calculateMarketAveragePrice(Category category) {
+        return productAnalysisService
+                .calculateMarketAveragePrice(category.getId())
                 .orElse(null);
-        return ProductResponse.from(product, recommendation);
     }
 
     /**

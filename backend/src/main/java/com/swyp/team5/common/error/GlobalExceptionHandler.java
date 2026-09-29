@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -50,6 +51,7 @@ import com.swyp.team5.platform.error.UnsupportedPlatformException;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductImageRequiredException;
 import com.swyp.team5.product.error.ProductNotFoundException;
+import com.swyp.team5.product.error.ProductRegisterBusyException;
 
 @Slf4j
 @RestControllerAdvice
@@ -144,6 +146,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handlePlatformPublishFailed(PlatformPublishFailedException e) {
         log.error("외부 플랫폼 매물 등록 실패: {}", e.getMessage(), e);
         return errorResponse(HttpStatus.BAD_GATEWAY, "BAD_GATEWAY", e.getMessage());
+    }
+
+    @ExceptionHandler(ProductRegisterBusyException.class)
+    public ResponseEntity<ApiResponse<Void>> handleProductRegisterBusy(ProductRegisterBusyException e) {
+        log.warn("상품 등록 대기열 포화: {}", e.getMessage());
+        return errorResponse(HttpStatus.SERVICE_UNAVAILABLE, "PRODUCT_REGISTER_BUSY", e.getMessage());
     }
 
     @ExceptionHandler(ProductAccessDeniedException.class)
@@ -266,6 +274,9 @@ public class GlobalExceptionHandler {
     private ResponseEntity<ApiResponse<Void>> errorResponse(
             HttpStatus status, String code, String message, List<ErrorDetail> details) {
         ApiError error = ApiError.of(status, code, details);
-        return ResponseEntity.status(status).body(ApiResponse.error(message, error));
+        // Accept가 JSON이 아닌 요청(예: SSE 스트림 요청)에서도 에러는 JSON으로 내려준다
+        return ResponseEntity.status(status)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(ApiResponse.error(message, error));
     }
 }

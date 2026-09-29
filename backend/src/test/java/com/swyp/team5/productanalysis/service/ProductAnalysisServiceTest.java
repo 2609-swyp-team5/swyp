@@ -23,6 +23,7 @@ import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.common.ai.AiChatExecutor;
 import com.swyp.team5.notification.service.NotificationService;
 import com.swyp.team5.platform.entity.PlatformListing;
+import com.swyp.team5.platform.repository.ListingPriceStats;
 import com.swyp.team5.platform.repository.PlatformListingRepository;
 import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.Product;
@@ -91,6 +92,33 @@ class ProductAnalysisServiceTest {
         lenient().when(listing.getTitle()).thenReturn(title);
         lenient().when(listing.getPrice()).thenReturn(price);
         return listing;
+    }
+
+    // 비교 매물 평균가 계산 - 최소 기준(3건) 이상이면 평균을 반올림해 반환(AI 호출 없음)
+    @Test
+    void calculateMarketAveragePriceReturnsRoundedAverage() {
+        when(platformListingRepository.findPriceStats(eq(10L), eq("SELLING"), any()))
+                .thenReturn(new ListingPriceStats(3L, 433_333.5));
+
+        assertThat(service().calculateMarketAveragePrice(10L)).contains(433_334L);
+    }
+
+    // 비교 매물 평균가 계산 - 최소 기준(3건)보다 적으면 빈 값
+    @Test
+    void calculateMarketAveragePriceReturnsEmptyWhenListingsBelowThreshold() {
+        when(platformListingRepository.findPriceStats(eq(10L), eq("SELLING"), any()))
+                .thenReturn(new ListingPriceStats(2L, 1_500.0));
+
+        assertThat(service().calculateMarketAveragePrice(10L)).isEmpty();
+    }
+
+    // 비교 매물 평균가 계산 - 매물이 하나도 없으면(평균 null) 빈 값
+    @Test
+    void calculateMarketAveragePriceReturnsEmptyWhenNoListings() {
+        when(platformListingRepository.findPriceStats(eq(10L), eq("SELLING"), any()))
+                .thenReturn(new ListingPriceStats(0L, null));
+
+        assertThat(service().calculateMarketAveragePrice(10L)).isEmpty();
     }
 
     // 분석 건너뜀 - 비교 매물이 최소 기준(3건)보다 적음

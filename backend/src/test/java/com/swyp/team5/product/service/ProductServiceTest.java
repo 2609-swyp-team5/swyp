@@ -52,8 +52,10 @@ import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductImageRequiredException;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.repository.ProductRepository;
+import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
+import com.swyp.team5.productanalysis.service.ProductAnalysisService;
 import com.swyp.team5.search.service.SearchLogService;
 import com.swyp.team5.tag.entity.Tag;
 import com.swyp.team5.tag.repository.TagRepository;
@@ -99,6 +101,9 @@ class ProductServiceTest {
     @Mock
     private SearchLogService searchLogService;
 
+    @Mock
+    private ProductAnalysisService productAnalysisService;
+
     private ProductService service() {
         return new ProductService(
                 productRepository,
@@ -111,7 +116,8 @@ class ProductServiceTest {
                 productAnalysisRepository,
                 platformListingRepository,
                 interestRepository,
-                searchLogService);
+                searchLogService,
+                productAnalysisService);
     }
 
     // 상품 등록 성공
@@ -152,6 +158,8 @@ class ProductServiceTest {
                         "판단 근거",
                         List.of(),
                         List.of()));
+        when(productAnalysisService.calculateMarketAveragePrice(category.getId()))
+                .thenReturn(Optional.of(480_000L));
 
         ProductResponse response = service().create(1L, request, List.of(image));
 
@@ -159,7 +167,8 @@ class ProductServiceTest {
         assertThat(response.brand()).isEqualTo("애플");
         assertThat(response.price()).isEqualTo(500_000L); // 사용자가 입력한 판매 가격
         assertThat(response.suggestedPrice()).isEqualTo(470_000L); // AI 사진 분석이 추정한 적정가
-        assertThat(response.analysisDescription()).isEqualTo("판단 근거"); // 같은 AI 분석의 판단 근거
+        assertThat(response.analysisDescription()).isEqualTo("판단 근거"); // 같은 AI 분석의 판단 근거(상품에 저장된 값)
+        assertThat(response.marketAveragePrice()).isEqualTo(480_000L); // 비교 매물 평균가(AI 제안가와 별개)
         assertThat(response.memberId()).isEqualTo(1L);
         assertThat(response.category().id()).isEqualTo(category.getId());
         assertThat(response.purchasedAt()).isEqualTo(LocalDate.now().minusMonths(3));
@@ -425,6 +434,49 @@ class ProductServiceTest {
 
         assertThatThrownBy(() -> service().createFromImages(1L, List.of(image), null, DefectStatus.NORMAL, null))
                 .isInstanceOf(CategoryNotFoundException.class);
+    }
+
+    // 상품 상세 조회 - 시세 분석 이력이 있으면 최근 분석의 판단과 비교 매물 평균가, 저장된 AI 판단 근거를 함께 반환
+    @Test
+    void getProductIncludesLatestAnalysisAveragePriceAndStoredDescription() {
+        Product product = newProduct(1L, newMember(1L), newCategory(1L, "전자기기"));
+        product.changeAnalysisDescription("외관 상태가 양호해 A급으로 판단했습니다.");
+        ProductAnalysis analysis = ProductAnalysis.create(
+                product,
+                300_000L,
+                450_000L,
+                600_000L,
+                null,
+                AnalysisRecommendation.SELL,
+                470_000L,
+                "시세 근거",
+                LocalDateTime.now());
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productAnalysisRepository.findFirstByProductIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.of(analysis));
+
+        ProductResponse response = service().getProduct(1L);
+
+        assertThat(response.recommendation()).isEqualTo(AnalysisRecommendation.SELL);
+        assertThat(response.marketAveragePrice()).isEqualTo(450_000L);
+        assertThat(response.analysisDescription()).isEqualTo("외관 상태가 양호해 A급으로 판단했습니다.");
+        verify(productAnalysisService, never()).calculateMarketAveragePrice(any());
+    }
+
+    // 상품 상세 조회 - 시세 분석 이력이 없으면 수집 매물로 평균가를 바로 계산(비교 매물 부족 시 null)
+    @Test
+    void getProductCalculatesAveragePriceWhenNoAnalysis() {
+        Product product = newProduct(1L, newMember(1L), newCategory(1L, "전자기기"));
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productAnalysisRepository.findFirstByProductIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.empty());
+        when(productAnalysisService.calculateMarketAveragePrice(1L)).thenReturn(Optional.of(430_000L));
+
+        ProductResponse response = service().getProduct(1L);
+
+        assertThat(response.recommendation()).isNull();
+        assertThat(response.marketAveragePrice()).isEqualTo(430_000L);
+        assertThat(response.analysisDescription()).isNull();
     }
 
     // 상품 상세 조회 실패 - 존재하지 않는 상품
