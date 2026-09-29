@@ -109,11 +109,10 @@ public class ProductController {
      * 대기열 포화(503)는 스트림을 열기 전에 일반 JSON 에러로 응답한다.
      *
      * <pre>
-     * event: step      data: {"step":"IMAGE_UPLOAD","status":"START|DONE","index":1,"total":3,"message":"...","result":{"imageCount":3}}
-     * event: step      data: {"step":"IMAGE_ANALYSIS","status":"START|DONE|SKIP","index":2,"total":3,"message":"...","result":{분석 미리보기}}
-     * event: step      data: {"step":"PRODUCT_SAVE","status":"START|DONE","index":3,"total":3,"message":"..."}
-     * event: complete  data: {"success":true,"message":"...","data":{기존 등록 응답의 상품 필드 그대로 + "analysis":{가격·분석 정보}},"error":null}
-     * event: error     data: {"success":false,"message":"...","data":null,"error":{"status":"502","code":"AI_ANALYSIS_FAILED"},"step":"IMAGE_ANALYSIS"}
+     * 모든 이벤트는 SSE {@code data:} 한 줄로 오며, 내용은 기존 API 응답과 같은 형태다. 이벤트 종류는 {@code data.event}로 구분한다.
+     * data:{"success":true,"message":"진행 문구","data":{"event":"step","step":"IMAGE_UPLOAD","status":"START|DONE|SKIP","index":1,"total":3,"result":...},"error":null}
+     * data:{"success":true,"message":"...","data":{"event":"complete",기존 등록 응답의 상품 필드 그대로,"analysis":{가격·분석 정보}},"error":null}
+     * data:{"success":false,"message":"...","data":{"event":"error","step":"IMAGE_ANALYSIS"},"error":{"status":"502","code":"AI_ANALYSIS_FAILED"}}
      * </pre>
      *
      * @param currentMember 인증된 요청자
