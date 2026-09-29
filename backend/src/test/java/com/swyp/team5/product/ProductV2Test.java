@@ -124,16 +124,22 @@ class ProductV2Test {
                         tuple("step", "PRODUCT_SAVE:START"),
                         tuple("step", "PRODUCT_SAVE:DONE"),
                         tuple("complete", null));
-        assertThat(events.get(1).data().at("/result/imageCount").asInt()).isEqualTo(1);
-        assertThat(events.get(3).data().at("/result/suggestedPrice").asLong()).isEqualTo(470_000L);
-        assertThat(events.get(1).data().get("index").asInt()).isEqualTo(1);
-        assertThat(events.get(1).data().get("total").asInt()).isEqualTo(3);
+        assertThat(events.get(1).data().at("/data/result/imageCount").asInt()).isEqualTo(1);
+        assertThat(events.get(3).data().at("/data/result/suggestedPrice").asLong())
+                .isEqualTo(470_000L);
+        assertThat(events.get(1).data().at("/data/index").asInt()).isEqualTo(1);
+        assertThat(events.get(1).data().at("/data/total").asInt()).isEqualTo(3);
+        // 진행 이벤트도 기존 API 응답 형태: 진행 문구는 message, 단계 정보는 data
+        assertThat(events.get(1).data().get("success").asBoolean()).isTrue();
+        assertThat(events.get(1).data().get("message").asText()).isEqualTo("이미지 1장 업로드 완료");
+        assertThat(events.get(1).data().get("error").isNull()).isTrue();
 
         JsonNode product = events.getLast().data().get("data");
         assertThat(events.getLast().data().get("success").asBoolean()).isTrue();
         // 최종 응답은 기존 등록 응답과 같은 형태(data = 상품 필드 그대로 + analysis), 단계 결과 목록(steps)은 없음
         assertThat(events.getLast().data().has("steps")).isFalse();
         assertThat(events.getLast().data().has("analysis")).isFalse();
+        assertThat(product.get("event").asText()).isEqualTo("complete");
         // 가격·분석 정보 모음은 data 하위
         JsonNode analysis = product.get("analysis");
         assertThat(analysis.get("status").asText()).isEqualTo("DONE");
@@ -183,8 +189,8 @@ class ProductV2Test {
                 .filter(event -> "IMAGE_ANALYSIS:DONE".equals(event.stepStatus()))
                 .findFirst()
                 .orElseThrow();
-        assertThat(analysisDone.data().at("/result/title").asText()).isEqualTo("AI 제목");
-        assertThat(analysisDone.data().at("/result/categoryId").asLong()).isEqualTo(category.getId());
+        assertThat(analysisDone.data().at("/data/result/title").asText()).isEqualTo("AI 제목");
+        assertThat(analysisDone.data().at("/data/result/categoryId").asLong()).isEqualTo(category.getId());
 
         JsonNode product = events.getLast().data().get("data");
         assertThat(events.getLast().name()).isEqualTo("complete");
@@ -209,7 +215,8 @@ class ProductV2Test {
         SseEvent error = events.getLast();
         assertThat(error.name()).isEqualTo("error");
         assertThat(error.data().get("success").asBoolean()).isFalse();
-        assertThat(error.data().get("step").asText()).isEqualTo("IMAGE_ANALYSIS");
+        assertThat(error.data().at("/data/event").asText()).isEqualTo("error");
+        assertThat(error.data().at("/data/step").asText()).isEqualTo("IMAGE_ANALYSIS");
         assertThat(error.data().has("steps")).isFalse();
         assertThat(error.data().at("/error/code").asText()).isEqualTo("AI_ANALYSIS_FAILED");
         assertThat(productRepository.count()).isZero();
@@ -228,7 +235,7 @@ class ProductV2Test {
 
         SseEvent error = events.getLast();
         assertThat(error.name()).isEqualTo("error");
-        assertThat(error.data().get("step").asText()).isEqualTo("IMAGE_UPLOAD");
+        assertThat(error.data().at("/data/step").asText()).isEqualTo("IMAGE_UPLOAD");
         assertThat(error.data().at("/error/code").asText()).isEqualTo("IMAGE_UPLOAD_FAILED");
         assertThat(productRepository.count()).isZero();
         verify(fileStorageService).deleteAll(List.of("products/key-1"));
@@ -283,17 +290,17 @@ class ProductV2Test {
     private List<SseEvent> parse(String body) throws Exception {
         List<SseEvent> events = new ArrayList<>();
         for (String block : body.split("\n\n")) {
-            String name = null;
             StringBuilder data = new StringBuilder();
             for (String line : block.split("\n")) {
-                if (line.startsWith("event:")) {
-                    name = line.substring("event:".length()).trim();
-                } else if (line.startsWith("data:")) {
+                // SSE event: 이름은 보내지 않음(이벤트 종류는 JSON의 data.event)
+                assertThat(line).doesNotStartWith("event:");
+                if (line.startsWith("data:")) {
                     data.append(line.substring("data:".length()));
                 }
             }
-            if (name != null) {
-                events.add(new SseEvent(name, objectMapper.readTree(data.toString())));
+            if (!data.isEmpty()) {
+                JsonNode json = objectMapper.readTree(data.toString());
+                events.add(new SseEvent(json.at("/data/event").asText(), json));
             }
         }
         return events;
@@ -369,7 +376,8 @@ class ProductV2Test {
         /** step 이벤트면 "단계:상태", 아니면 null. */
         String stepStatus() {
             return "step".equals(name)
-                    ? data.get("step").asText() + ":" + data.get("status").asText()
+                    ? data.at("/data/step").asText() + ":"
+                            + data.at("/data/status").asText()
                     : null;
         }
     }

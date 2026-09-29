@@ -25,6 +25,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.swyp.team5.category.error.CategoryNotFoundException;
 import com.swyp.team5.category.error.CategoryNotLeafException;
+import com.swyp.team5.common.common.ApiError;
 import com.swyp.team5.common.common.ApiResponse;
 import com.swyp.team5.file.dto.FileUploadResponse;
 import com.swyp.team5.file.dto.InMemoryMultipartFile;
@@ -182,13 +183,11 @@ public class ProductRegisterStreamService implements DisposableBean {
         RegisterStream stream = new RegisterStream(emitter, steps);
         emitter.onTimeout(() -> {
             log.warn("상품 등록 스트림 시간 초과 - 등록은 계속 진행합니다. step={}", stream.currentStep);
-            stream.sendAndClose(
-                    "error",
-                    ProductRegisterErrorEvent.of(
-                            stream.currentStep,
-                            HttpStatus.SERVICE_UNAVAILABLE,
-                            "REGISTER_TIMEOUT",
-                            "처리가 지연되고 있습니다. 등록 결과는 내 상품 목록에서 확인해 주세요."));
+            stream.sendAndClose(errorResponse(
+                    stream.currentStep,
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "REGISTER_TIMEOUT",
+                    "처리가 지연되고 있습니다. 등록 결과는 내 상품 목록에서 확인해 주세요."));
         });
         emitter.onCompletion(stream::markClosed);
         emitter.onError(error -> stream.markClosed());
@@ -206,13 +205,11 @@ public class ProductRegisterStreamService implements DisposableBean {
                 keepAliveScheduler.scheduleAtFixedRate(stream::ping, interval, interval, TimeUnit.MILLISECONDS);
         try {
             ProductResponse product = work.apply(stream);
-            stream.send(
-                    "complete",
-                    ApiResponse.success(new ProductRegisterResponse(
-                            product, ProductRegisterAnalysis.of(product, stream.completedSteps))));
+            stream.send(ApiResponse.success(
+                    ProductRegisterResponse.of(product, ProductRegisterAnalysis.of(product, stream.completedSteps))));
         } catch (RuntimeException e) {
             deleteUploadedFiles(stream);
-            stream.send("error", toErrorEvent(stream.currentStep, e));
+            stream.send(toErrorResponse(stream.currentStep, e));
         } finally {
             keepAlive.cancel(false);
             stream.complete();
@@ -267,32 +264,38 @@ public class ProductRegisterStreamService implements DisposableBean {
         }
     }
 
-    private static ProductRegisterErrorEvent toErrorEvent(ProductRegisterStep step, RuntimeException e) {
+    private static ApiResponse<ProductRegisterErrorEvent> toErrorResponse(
+            ProductRegisterStep step, RuntimeException e) {
         if (step == ProductRegisterStep.IMAGE_UPLOAD) {
             log.error("상품 등록 - 이미지 업로드 실패: {}", e.getMessage(), e);
-            return ProductRegisterErrorEvent.of(
+            return errorResponse(
                     step, HttpStatus.BAD_GATEWAY, "IMAGE_UPLOAD_FAILED", "이미지 업로드에 실패했습니다. 잠시 후 다시 시도해 주세요.");
         }
         if (step == ProductRegisterStep.IMAGE_ANALYSIS) {
             log.error("상품 등록 - AI 사진 분석 실패: {}", e.getMessage(), e);
-            return ProductRegisterErrorEvent.of(
+            return errorResponse(
                     step, HttpStatus.BAD_GATEWAY, "AI_ANALYSIS_FAILED", "AI 사진 분석에 실패했습니다. 잠시 후 다시 시도해 주세요.");
         }
         if (e instanceof CategoryNotFoundException) {
             log.warn("상품 등록 - 카테고리 없음: {}", e.getMessage());
-            return ProductRegisterErrorEvent.of(step, HttpStatus.NOT_FOUND, "NOT_FOUND", e.getMessage());
+            return errorResponse(step, HttpStatus.NOT_FOUND, "NOT_FOUND", e.getMessage());
         }
         if (e instanceof CategoryNotLeafException) {
             log.warn("상품 등록 - 최하위가 아닌 카테고리: {}", e.getMessage());
-            return ProductRegisterErrorEvent.of(step, HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
+            return errorResponse(step, HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
         }
         if (e instanceof DataIntegrityViolationException) {
             log.warn("상품 등록 - 데이터 무결성 위반: {}", e.getMessage());
-            return ProductRegisterErrorEvent.of(step, HttpStatus.CONFLICT, "CONFLICT", "이미 사용 중인 값입니다.");
+            return errorResponse(step, HttpStatus.CONFLICT, "CONFLICT", "이미 사용 중인 값입니다.");
         }
         log.error("상품 등록 - 처리 실패: step={}", step, e);
-        return ProductRegisterErrorEvent.of(
-                step, HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "서버 내부 오류가 발생했습니다.");
+        return errorResponse(step, HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "서버 내부 오류가 발생했습니다.");
+    }
+
+    /** 기존 에러 응답과 같은 형태({@code success=false}, {@code error})에 이벤트 종류와 실패 단계를 {@code data}로 담는다. */
+    private static ApiResponse<ProductRegisterErrorEvent> errorResponse(
+            ProductRegisterStep step, HttpStatus status, String code, String message) {
+        return new ApiResponse<>(false, message, ProductRegisterErrorEvent.of(step), ApiError.of(status, code));
     }
 
     /** 요청 하나의 스트림 상태. 작업 스레드와 keepalive 스레드가 함께 보내므로 전송은 동기화한다. */
@@ -313,21 +316,22 @@ public class ProductRegisterStreamService implements DisposableBean {
 
         void begin(ProductRegisterStep step, String message) {
             currentStep = step;
-            send("step", new ProductRegisterStepEvent(step, "START", indexOf(step), steps.size(), message, null));
+            send(ApiResponse.success(
+                    message, ProductRegisterStepEvent.of(step, "START", indexOf(step), steps.size(), null)));
         }
 
         void done(ProductRegisterStep step, String message, Object result) {
-            finish(new ProductRegisterStepEvent(step, "DONE", indexOf(step), steps.size(), message, result));
+            finish(message, ProductRegisterStepEvent.of(step, "DONE", indexOf(step), steps.size(), result));
         }
 
         void skip(ProductRegisterStep step, String message) {
-            finish(new ProductRegisterStepEvent(step, "SKIP", indexOf(step), steps.size(), message, null));
+            finish(message, ProductRegisterStepEvent.of(step, "SKIP", indexOf(step), steps.size(), null));
         }
 
         /** 단계 결과를 기록하고(최종 analysis 계산용) 바로 step 이벤트로 보낸다. */
-        private void finish(ProductRegisterStepEvent event) {
+        private void finish(String message, ProductRegisterStepEvent event) {
             completedSteps.add(event);
-            send("step", event);
+            send(ApiResponse.success(message, event));
         }
 
         /** 이 방식의 단계 목록 안에서의 순서(1부터). 목록에 없는 단계를 쓰면 개발 실수이므로 바로 실패시킨다. */
@@ -340,15 +344,19 @@ public class ProductRegisterStreamService implements DisposableBean {
         }
 
         /** 연결이 끊겼으면 보내지 않고 넘어간다(등록 처리는 계속). */
-        synchronized void send(String name, Object data) {
+        /**
+         * 이벤트 하나를 {@code data:} 줄로 보낸다. SSE {@code event:} 이름은 쓰지 않고, 이벤트 종류는 응답 JSON의
+         * {@code data.event}(step/complete/error)로 구분한다.
+         */
+        synchronized void send(ApiResponse<?> response) {
             if (closed) {
                 return;
             }
             try {
-                emitter.send(SseEmitter.event().name(name).data(data, MediaType.APPLICATION_JSON));
+                emitter.send(SseEmitter.event().data(response, MediaType.APPLICATION_JSON));
             } catch (IOException | IllegalStateException e) {
                 closed = true;
-                log.debug("SSE 이벤트 전송 실패(연결 종료): event={}, reason={}", name, e.getMessage());
+                log.debug("SSE 이벤트 전송 실패(연결 종료): reason={}", e.getMessage());
             }
         }
 
@@ -363,8 +371,8 @@ public class ProductRegisterStreamService implements DisposableBean {
             }
         }
 
-        synchronized void sendAndClose(String name, Object data) {
-            send(name, data);
+        synchronized void sendAndClose(ApiResponse<?> response) {
+            send(response);
             complete();
         }
 
