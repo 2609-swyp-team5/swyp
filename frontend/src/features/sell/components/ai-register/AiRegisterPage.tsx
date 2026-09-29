@@ -42,7 +42,7 @@ const initialState: AiRegisterState = {
     images: [],
     purchasePeriod: "6",
     operationStatus: "normal",
-    includedItems: ["body", "charging-cable"],
+    includedItems: ["본체", "충전 케이블"],
 };
 
 function aiRegisterReducer(state: AiRegisterState, action: AiRegisterAction): AiRegisterState {
