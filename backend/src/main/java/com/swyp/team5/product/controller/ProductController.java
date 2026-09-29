@@ -11,6 +11,7 @@ import jakarta.validation.constraints.Size;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.swyp.team5.common.common.ApiResponse;
 import com.swyp.team5.common.common.CursorPageResponse;
@@ -39,6 +41,7 @@ import com.swyp.team5.product.dto.ProductSummaryResponse;
 import com.swyp.team5.product.dto.ProductUpdateRequest;
 import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.ProductStatus;
+import com.swyp.team5.product.service.ProductRegisterStreamService;
 import com.swyp.team5.product.service.ProductService;
 import com.swyp.team5.search.service.SearchLogService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -52,6 +55,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class ProductController {
 
     private final ProductService productService;
+    private final ProductRegisterStreamService productRegisterStreamService;
     private final SearchLogService searchLogService;
 
     /**
@@ -97,6 +101,69 @@ public class ProductController {
         ProductResponse response = productService.createFromImages(
                 currentMember.memberId(), images, purchasedMonths, defectStatus, includedItems);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
+    }
+
+    /**
+     * 상품을 직접 등록하며 진행 상황을 SSE로 보낸다. AI 사진 분석이 실패하면 그 단계만 {@code SKIP}로 알리고
+     * 추천 가격 없이 등록한다. 요청 형식은 {@link #create}와 같고 응답만 SSE다. 인증·입력값·카테고리 오류와 처리
+     * 대기열 포화(503)는 스트림을 열기 전에 일반 JSON 에러로 응답한다.
+     *
+     * <pre>
+     * event: step      data: {"step":"IMAGE_UPLOAD","status":"START|DONE","index":1,"total":3,"message":"...","result":{"imageCount":3}}
+     * event: step      data: {"step":"IMAGE_ANALYSIS","status":"START|DONE|SKIP","index":2,"total":3,"message":"...","result":{분석 미리보기}}
+     * event: step      data: {"step":"PRODUCT_SAVE","status":"START|DONE","index":3,"total":3,"message":"..."}
+     * event: complete  data: {"success":true,"message":"...","data":{기존 등록 응답의 상품 필드 그대로 + "analysis":{가격·분석 정보}},"error":null}
+     * event: error     data: {"success":false,"message":"...","data":null,"error":{"status":"502","code":"AI_ANALYSIS_FAILED"},"step":"IMAGE_ANALYSIS"}
+     * </pre>
+     *
+     * @param currentMember 인증된 요청자
+     * @param images 등록할 상품 이미지 목록(순서대로 저장)
+     * @param request 등록 요청 정보(JSON, {@code data} 파트)
+     * @return 진행 상황 SSE 스트림
+     */
+    @Operation(
+            summary = "상품 등록(단계별 스트리밍)",
+            description =
+                    "POST /products와 같은 요청으로, 이미지 업로드 → AI 사진 분석 → 상품 저장 진행 상황을 SSE(step/complete/error 이벤트)로 보낸다.")
+    @PostMapping(
+            value = "/v2",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
+            produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public ResponseEntity<SseEmitter> createStream(
+            @AuthenticationPrincipal PrincipalMember currentMember,
+            @RequestPart("images") @NotEmpty List<MultipartFile> images,
+            @RequestPart("data") @Valid ProductCreateRequest request) {
+        return stream(productRegisterStreamService.registerDirect(currentMember.memberId(), request, images));
+    }
+
+    /**
+     * 상품 사진을 AI로 분석해 등록하며 진행 상황을 SSE로 보낸다. AI 사진 분석이 실패하면 업로드한 파일을 지우고
+     * {@code error} 이벤트로 끝낸다. 요청 형식은 {@link #createFromImages}와 같고 이벤트 형식은
+     * {@link #createStream}과 같다.
+     *
+     * @param currentMember 인증된 요청자
+     * @param images 분석할 상품 이미지 목록
+     * @param purchasedMonths 사용자가 입력한 구매 후 경과 개월 수(선택, 0~6)
+     * @param defectStatus 사용자가 입력한 결함(하자) 상태(NORMAL/ISSUES/UNKNOWN, 대소문자 무관)
+     * @param includedItems 사용자가 추가로 입력한 구성품 이름 목록(선택, AI 추론 결과와 합쳐짐)
+     * @return 진행 상황 SSE 스트림
+     */
+    @Operation(
+            summary = "상품 이미지 AI 등록(단계별 스트리밍)",
+            description =
+                    "POST /products/analyze와 같은 요청으로, 이미지 업로드 → AI 사진 분석 → 상품 저장 진행 상황을 SSE(step/complete/error 이벤트)로 보낸다.")
+    @PostMapping(
+            value = "/v2/analyze",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
+            produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public ResponseEntity<SseEmitter> createFromImagesStream(
+            @AuthenticationPrincipal PrincipalMember currentMember,
+            @RequestParam("images") @NotEmpty List<MultipartFile> images,
+            @RequestParam(required = false) @PositiveOrZero @Max(6) Integer purchasedMonths,
+            @RequestParam DefectStatus defectStatus,
+            @RequestParam(required = false) List<@NotBlank @Size(max = 50) String> includedItems) {
+        return stream(productRegisterStreamService.registerWithAi(
+                currentMember.memberId(), images, purchasedMonths, defectStatus, includedItems));
     }
 
     /**
@@ -241,5 +308,13 @@ public class ProductController {
             @AuthenticationPrincipal PrincipalMember currentMember, @PathVariable Long productId) {
         productService.delete(currentMember.memberId(), productId);
         return ResponseEntity.ok(ApiResponse.<Void>success(null));
+    }
+
+    /** 프록시(nginx 등)가 이벤트를 모아 보내지 않도록 버퍼링·캐시를 끈다. */
+    private static ResponseEntity<SseEmitter> stream(SseEmitter emitter) {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noCache())
+                .header("X-Accel-Buffering", "no")
+                .body(emitter);
     }
 }
