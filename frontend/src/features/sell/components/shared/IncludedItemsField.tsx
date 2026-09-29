@@ -6,14 +6,8 @@ import { CircleAlert, X } from "lucide-react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/common/components/ui/Popover";
 
-export type IncludedItemOption = {
-    value: string;
-    label: string;
-};
-
 type IncludedItemsFieldProps = {
     items: string[];
-    options: IncludedItemOption[];
     onChange: (value: string, checked: boolean) => void;
     overflow?: boolean;
     maxVisible?: number;
@@ -38,7 +32,6 @@ function Tag({ label, onRemove }: { label: string; onRemove: () => void }) {
 
 export function IncludedItemsField({
     items,
-    options,
     onChange,
     overflow = false,
     maxVisible = 3,
@@ -47,7 +40,6 @@ export function IncludedItemsField({
     const [inputValue, setInputValue] = useState("");
     const [errorMessage, setErrorMessage] = useState("");
     const isComposingRef = useRef(false);
-    const labelByValue = new Map(options.map((option) => [option.value, option.label]));
     const visibleItems = overflow ? items.slice(0, maxVisible) : items;
     const hiddenItems = overflow ? items.slice(maxVisible) : [];
 
@@ -81,15 +73,13 @@ export function IncludedItemsField({
         addItem(event.currentTarget.value);
     };
 
-    const getLabel = (value: string) => labelByValue.get(value) ?? value;
-
     return (
         <div className="flex flex-col items-start gap-2" role="group" aria-label={ariaLabel}>
             <div className="flex flex-wrap items-center gap-2">
                 {visibleItems.map((item) => (
                     <Tag
                         key={item}
-                        label={getLabel(item)}
+                        label={item}
                         onRemove={() => {
                             onChange(item, false);
                             setErrorMessage("");
@@ -115,7 +105,7 @@ export function IncludedItemsField({
                             {hiddenItems.map((item) => (
                                 <Tag
                                     key={item}
-                                    label={getLabel(item)}
+                                    label={item}
                                     onRemove={() => {
                                         onChange(item, false);
                                         setErrorMessage("");

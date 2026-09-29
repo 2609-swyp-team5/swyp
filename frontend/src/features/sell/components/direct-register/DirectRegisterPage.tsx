@@ -80,7 +80,7 @@ const initialInfoState: DirectRegisterInfoState = {
 const initialStatusPriceState: DirectStatusPriceState = {
     productCondition: "B",
     purchasePeriod: "6",
-    includedItems: ["body", "charging-cable"],
+    includedItems: ["본체", "충전 케이블"],
     defectStatus: "none",
     price: "",
     allowPriceProposal: false,

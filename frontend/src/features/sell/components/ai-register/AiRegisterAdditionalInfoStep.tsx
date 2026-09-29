@@ -3,10 +3,7 @@
 import type { ReactNode } from "react";
 
 import { cn } from "@/common/lib/utils";
-import {
-    IncludedItemsField,
-    type IncludedItemOption,
-} from "@/features/sell/components/shared/IncludedItemsField";
+import { IncludedItemsField } from "@/features/sell/components/shared/IncludedItemsField";
 
 export type AiPurchasePeriod = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "unknown";
 
@@ -39,14 +36,6 @@ const operationStatusOptions: { value: AiOperationStatus; label: string }[] = [
     { value: "normal", label: "모든 기능 정상" },
     { value: "issues", label: "일부 문제 있음" },
     { value: "unknown", label: "확인하지 못했어요" },
-];
-
-const includedItemOptions: IncludedItemOption[] = [
-    { value: "body", label: "본체" },
-    { value: "charging-cable", label: "충전 케이블" },
-    { value: "box", label: "박스" },
-    { value: "manual", label: "설명서" },
-    { value: "strap", label: "스트랩" },
 ];
 
 function ChoiceButton({
@@ -131,7 +120,6 @@ export function AiRegisterAdditionalInfoStep({
                     </div>
                     <IncludedItemsField
                         items={includedItems}
-                        options={includedItemOptions}
                         onChange={onIncludedItemChange}
                         ariaLabel="구성품"
                     />
