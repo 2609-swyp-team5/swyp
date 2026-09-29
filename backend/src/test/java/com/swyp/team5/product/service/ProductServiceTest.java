@@ -19,7 +19,6 @@ import java.util.Set;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.mock.web.MockMultipartFile;
 
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.error.CategoryNotFoundException;
@@ -28,8 +27,6 @@ import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.component.entity.Component;
 import com.swyp.team5.component.repository.ComponentRepository;
-import com.swyp.team5.file.dto.FileUploadResponse;
-import com.swyp.team5.file.service.FileStorageService;
 import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.repository.MemberRepository;
@@ -68,6 +65,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class ProductServiceTest {
 
+    private static final String IMAGE_URL = "https://image.example.com/1.png";
+
     @Mock
     private ProductRepository productRepository;
 
@@ -76,12 +75,6 @@ class ProductServiceTest {
 
     @Mock
     private MemberRepository memberRepository;
-
-    @Mock
-    private FileStorageService fileStorageService;
-
-    @Mock
-    private ProductAiService productAiService;
 
     @Mock
     private TagRepository tagRepository;
@@ -109,8 +102,6 @@ class ProductServiceTest {
                 productRepository,
                 categoryRepository,
                 memberRepository,
-                fileStorageService,
-                productAiService,
                 tagRepository,
                 componentRepository,
                 productAnalysisRepository,
@@ -125,7 +116,6 @@ class ProductServiceTest {
     void createSucceeds() {
         Member member = newMember(1L);
         Category category = newCategory(1L, "전자기기");
-        MockMultipartFile image = new MockMultipartFile("images", "iphone.png", "image/png", new byte[] {1, 2, 3});
         ProductCreateRequest request = new ProductCreateRequest(
                 category.getId(),
                 "아이폰 13",
@@ -144,24 +134,13 @@ class ProductServiceTest {
 
         when(memberRepository.getReferenceById(1L)).thenReturn(member);
         when(categoryRepository.findById(category.getId())).thenReturn(Optional.of(category));
-        when(fileStorageService.upload(image, "products"))
-                .thenReturn(new FileUploadResponse("key", "https://image.example.com/1.png", 3, "image/png"));
         when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(productAiService.analyze(List.of(image)))
-                .thenReturn(new ProductAiAnalysisResult(
-                        category.getId(),
-                        "AI 제목",
-                        null,
-                        "AI 설명",
-                        ProductCondition.A,
-                        470_000L,
-                        "판단 근거",
-                        List.of(),
-                        List.of()));
+        ProductAiAnalysisResult analysis = new ProductAiAnalysisResult(
+                category.getId(), "AI 제목", null, "AI 설명", ProductCondition.A, 470_000L, "판단 근거", List.of(), List.of());
         when(productAnalysisService.calculateMarketAveragePrice(category.getId()))
                 .thenReturn(Optional.of(480_000L));
 
-        ProductResponse response = service().create(1L, request, List.of(image));
+        ProductResponse response = service().saveDirect(1L, request, List.of(IMAGE_URL), analysis);
 
         assertThat(response.title()).isEqualTo("아이폰 13");
         assertThat(response.brand()).isEqualTo("애플");
@@ -173,44 +152,8 @@ class ProductServiceTest {
         assertThat(response.category().id()).isEqualTo(category.getId());
         assertThat(response.purchasedAt()).isEqualTo(LocalDate.now().minusMonths(3));
         assertThat(response.purchasedMonths()).isEqualTo(3);
-        assertThat(response.imageUrls()).containsExactly("https://image.example.com/1.png");
+        assertThat(response.imageUrls()).containsExactly(IMAGE_URL);
         assertThat(response.status()).isEqualTo(ProductStatus.ON_SALE);
-    }
-
-    // 상품 등록 성공 - AI 적정가 추정이 실패해도 등록은 성공하고 suggestedPrice만 null
-    @Test
-    void createSucceedsWhenPriceEstimateFails() {
-        Member member = newMember(1L);
-        Category category = newCategory(1L, "전자기기");
-        MockMultipartFile image = new MockMultipartFile("images", "iphone.png", "image/png", new byte[] {1, 2, 3});
-        ProductCreateRequest request = new ProductCreateRequest(
-                category.getId(),
-                "아이폰 13",
-                null,
-                "설명",
-                500_000L,
-                ProductCondition.A,
-                DefectStatus.NORMAL,
-                null,
-                true,
-                TradeMethod.DIRECT,
-                null,
-                null,
-                List.of(),
-                List.of());
-
-        when(memberRepository.getReferenceById(1L)).thenReturn(member);
-        when(categoryRepository.findById(category.getId())).thenReturn(Optional.of(category));
-        when(fileStorageService.upload(image, "products"))
-                .thenReturn(new FileUploadResponse("key", "https://image.example.com/1.png", 3, "image/png"));
-        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(productAiService.analyze(List.of(image))).thenThrow(new IllegalStateException("Gemini 503"));
-
-        ProductResponse response = service().create(1L, request, List.of(image));
-
-        assertThat(response.price()).isEqualTo(500_000L);
-        assertThat(response.suggestedPrice()).isNull();
-        assertThat(response.analysisDescription()).isNull();
     }
 
     // 상품 등록 성공 - 태그 포함(기존 태그 재사용 + 신규 태그 생성)
@@ -219,7 +162,6 @@ class ProductServiceTest {
         Member member = newMember(1L);
         Category category = newCategory(1L, "전자기기");
         Tag existingTag = newTag(1L, "애플");
-        MockMultipartFile image = new MockMultipartFile("images", "iphone.png", "image/png", new byte[] {1, 2, 3});
         ProductCreateRequest request = new ProductCreateRequest(
                 category.getId(),
                 "아이폰 13",
@@ -238,13 +180,11 @@ class ProductServiceTest {
 
         when(memberRepository.getReferenceById(1L)).thenReturn(member);
         when(categoryRepository.findById(category.getId())).thenReturn(Optional.of(category));
-        when(fileStorageService.upload(image, "products"))
-                .thenReturn(new FileUploadResponse("key", "https://image.example.com/1.png", 3, "image/png"));
         when(tagRepository.findAllByNameIn(List.of("애플", "아이폰"))).thenReturn(List.of(existingTag));
         when(tagRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ProductResponse response = service().create(1L, request, List.of(image));
+        ProductResponse response = service().saveDirect(1L, request, List.of(IMAGE_URL), aiAnalysis());
 
         assertThat(response.purchasedAt()).isNull();
         assertThat(response.purchasedMonths()).isNull();
@@ -257,7 +197,6 @@ class ProductServiceTest {
         Member member = newMember(1L);
         Category category = newCategory(1L, "전자기기");
         Component existingComponent = newComponent(1L, "박스");
-        MockMultipartFile image = new MockMultipartFile("images", "iphone.png", "image/png", new byte[] {1, 2, 3});
         ProductCreateRequest request = new ProductCreateRequest(
                 category.getId(),
                 "아이폰 13",
@@ -276,13 +215,11 @@ class ProductServiceTest {
 
         when(memberRepository.getReferenceById(1L)).thenReturn(member);
         when(categoryRepository.findById(category.getId())).thenReturn(Optional.of(category));
-        when(fileStorageService.upload(image, "products"))
-                .thenReturn(new FileUploadResponse("key", "https://image.example.com/1.png", 3, "image/png"));
         when(componentRepository.findAllByNameIn(List.of("박스", "충전기"))).thenReturn(List.of(existingComponent));
         when(componentRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ProductResponse response = service().create(1L, request, List.of(image));
+        ProductResponse response = service().saveDirect(1L, request, List.of(IMAGE_URL), aiAnalysis());
 
         assertThat(response.includedItems()).containsExactlyInAnyOrder("박스", "충전기");
     }
@@ -308,7 +245,7 @@ class ProductServiceTest {
 
         when(categoryRepository.findById(99L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service().create(1L, request, List.of()))
+        assertThatThrownBy(() -> service().saveDirect(1L, request, List.of(IMAGE_URL), aiAnalysis()))
                 .isInstanceOf(CategoryNotFoundException.class);
     }
 
@@ -317,7 +254,6 @@ class ProductServiceTest {
     void createFromImagesSucceeds() {
         Member member = newMember(1L);
         Category category = newCategory(1L, "전자기기");
-        MockMultipartFile image = new MockMultipartFile("images", "iphone.png", "image/png", new byte[] {1, 2, 3});
         ProductAiAnalysisResult analysis = new ProductAiAnalysisResult(
                 category.getId(),
                 "아이폰 13",
@@ -330,15 +266,13 @@ class ProductServiceTest {
                 List.of());
 
         when(memberRepository.getReferenceById(1L)).thenReturn(member);
-        when(productAiService.analyze(List.of(image))).thenReturn(analysis);
         when(categoryRepository.findById(category.getId())).thenReturn(Optional.of(category));
-        when(fileStorageService.upload(image, "products"))
-                .thenReturn(new FileUploadResponse("key", "https://image.example.com/iphone.png", 3, "image/png"));
         when(tagRepository.findAllByNameIn(List.of("애플", "아이폰"))).thenReturn(List.of());
         when(tagRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ProductResponse response = service().createFromImages(1L, List.of(image), 3, DefectStatus.ISSUES, null);
+        ProductResponse response =
+                service().saveFromAnalysis(1L, analysis, List.of(IMAGE_URL), 3, DefectStatus.ISSUES, null);
 
         assertThat(response.title()).isEqualTo("아이폰 13");
         assertThat(response.brand()).isEqualTo("애플");
@@ -352,7 +286,7 @@ class ProductServiceTest {
         assertThat(response.suggestedPrice()).isEqualTo(450_000L); // 같은 값을 AI 제안가로도 제공
         assertThat(response.analysisDescription()).isEqualTo("외관 스크래치가 거의 없어 A급으로 판단했습니다.");
         assertThat(response.tradeMethod()).isEqualTo(TradeMethod.DIRECT);
-        assertThat(response.imageUrls()).containsExactly("https://image.example.com/iphone.png");
+        assertThat(response.imageUrls()).containsExactly(IMAGE_URL);
         assertThat(response.tags()).containsExactlyInAnyOrder("애플", "아이폰");
         assertThat(response.includedItems()).isEmpty();
     }
@@ -363,7 +297,6 @@ class ProductServiceTest {
         Member member = newMember(1L);
         Category category = newCategory(1L, "전자기기");
         Component existingComponent = newComponent(1L, "박스");
-        MockMultipartFile image = new MockMultipartFile("images", "iphone.png", "image/png", new byte[] {1, 2, 3});
         ProductAiAnalysisResult analysis = new ProductAiAnalysisResult(
                 category.getId(),
                 "아이폰 13",
@@ -376,16 +309,13 @@ class ProductServiceTest {
                 List.of("박스"));
 
         when(memberRepository.getReferenceById(1L)).thenReturn(member);
-        when(productAiService.analyze(List.of(image))).thenReturn(analysis);
         when(categoryRepository.findById(category.getId())).thenReturn(Optional.of(category));
-        when(fileStorageService.upload(image, "products"))
-                .thenReturn(new FileUploadResponse("key", "https://image.example.com/iphone.png", 3, "image/png"));
         when(componentRepository.findAllByNameIn(List.of("박스", "충전기"))).thenReturn(List.of(existingComponent));
         when(componentRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ProductResponse response =
-                service().createFromImages(1L, List.of(image), 3, DefectStatus.NORMAL, List.of("충전기"));
+                service().saveFromAnalysis(1L, analysis, List.of(IMAGE_URL), 3, DefectStatus.NORMAL, List.of("충전기"));
 
         assertThat(response.includedItems()).containsExactlyInAnyOrder("박스", "충전기");
     }
@@ -395,7 +325,6 @@ class ProductServiceTest {
     void createFromImagesSavesAiInferredTags() {
         Member member = newMember(1L);
         Category category = newCategory(1L, "전자기기");
-        MockMultipartFile image = new MockMultipartFile("images", "iphone.png", "image/png", new byte[] {1, 2, 3});
         ProductAiAnalysisResult analysis = new ProductAiAnalysisResult(
                 category.getId(),
                 "아이폰 13",
@@ -408,15 +337,13 @@ class ProductServiceTest {
                 List.of());
 
         when(memberRepository.getReferenceById(1L)).thenReturn(member);
-        when(productAiService.analyze(List.of(image))).thenReturn(analysis);
         when(categoryRepository.findById(category.getId())).thenReturn(Optional.of(category));
-        when(fileStorageService.upload(image, "products"))
-                .thenReturn(new FileUploadResponse("key", "https://image.example.com/iphone.png", 3, "image/png"));
         when(tagRepository.findAllByNameIn(List.of("애플", "아이폰"))).thenReturn(List.of());
         when(tagRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ProductResponse response = service().createFromImages(1L, List.of(image), 3, DefectStatus.NORMAL, null);
+        ProductResponse response =
+                service().saveFromAnalysis(1L, analysis, List.of(IMAGE_URL), 3, DefectStatus.NORMAL, null);
 
         assertThat(response.tags()).containsExactlyInAnyOrder("애플", "아이폰");
     }
@@ -424,15 +351,14 @@ class ProductServiceTest {
     // 상품 이미지 AI 분석 등록 실패 - AI가 존재하지 않는 카테고리를 추론
     @Test
     void createFromImagesFailsWhenCategoryNotFound() {
-        MockMultipartFile image = new MockMultipartFile("images", "iphone.png", "image/png", new byte[] {1, 2, 3});
         ProductAiAnalysisResult analysis = new ProductAiAnalysisResult(
                 99L, "아이폰 13", null, "설명", ProductCondition.A, 450_000L, "판단 근거", List.of(), List.of());
 
         when(memberRepository.getReferenceById(1L)).thenReturn(newMember(1L));
-        when(productAiService.analyze(List.of(image))).thenReturn(analysis);
         when(categoryRepository.findById(99L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service().createFromImages(1L, List.of(image), null, DefectStatus.NORMAL, null))
+        assertThatThrownBy(() ->
+                        service().saveFromAnalysis(1L, analysis, List.of(IMAGE_URL), null, DefectStatus.NORMAL, null))
                 .isInstanceOf(CategoryNotFoundException.class);
     }
 
@@ -640,7 +566,6 @@ class ProductServiceTest {
         Category category = newCategory(1L, "전자기기");
         Product product = newProduct(1L, newMember(1L), category);
         setField(product, "purchasedAt", LocalDate.now().minusMonths(5));
-        MockMultipartFile newImage = new MockMultipartFile("images", "new.png", "image/png", new byte[] {1, 2, 3});
 
         ProductUpdateRequest request = new ProductUpdateRequest(
                 category.getId(),
@@ -666,10 +591,8 @@ class ProductServiceTest {
         when(tagRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(componentRepository.findAllByNameIn(List.of("박스"))).thenReturn(List.of());
         when(componentRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        when(fileStorageService.upload(newImage, "products"))
-                .thenReturn(new FileUploadResponse("key", "https://image.example.com/new.png", 3, "image/png"));
-
-        ProductResponse response = service().update(1L, 1L, request, List.of(newImage));
+        ProductResponse response =
+                service().saveUpdate(1L, 1L, request, List.of("https://image.example.com/new.png"), aiAnalysis());
 
         assertThat(response.title()).isEqualTo("아이폰 13 프로");
         assertThat(response.brand()).isEqualTo("애플");
@@ -683,6 +606,43 @@ class ProductServiceTest {
                 .containsExactly("https://image.example.com/2.png", "https://image.example.com/new.png");
         assertThat(response.tags()).containsExactly("가성비");
         assertThat(response.includedItems()).containsExactly("박스");
+        // 이미지 재분석 결과로 AI 제안가/판단 근거만 갱신(제목 등 사용자 입력은 그대로)
+        assertThat(response.suggestedPrice()).isEqualTo(430_000L);
+        assertThat(response.analysisDescription()).isEqualTo("AI 판단 근거");
+    }
+
+    // 상품 수정 성공 - 재분석을 건너뛰면(null) 기존 AI 제안가/판단 근거 유지
+    @Test
+    void updateKeepsAiValuesWhenAnalysisSkipped() {
+        Category category = newCategory(1L, "전자기기");
+        Product product = newProduct(1L, newMember(1L), category);
+        product.changeSuggestedPrice(470_000L);
+        product.changeAnalysisDescription("등록 때 근거");
+        ProductUpdateRequest request = new ProductUpdateRequest(
+                category.getId(),
+                "아이폰 13 프로",
+                null,
+                "수정된 설명",
+                450_000L,
+                ProductStatus.ON_SALE,
+                ProductCondition.B,
+                DefectStatus.NORMAL,
+                null,
+                false,
+                TradeMethod.DIRECT,
+                null,
+                null,
+                List.of("https://image.example.com/2.png"),
+                List.of(),
+                List.of());
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(categoryRepository.findById(category.getId())).thenReturn(Optional.of(category));
+
+        ProductResponse response = service().saveUpdate(1L, 1L, request, List.of(), null);
+
+        assertThat(response.suggestedPrice()).isEqualTo(470_000L);
+        assertThat(response.analysisDescription()).isEqualTo("등록 때 근거");
     }
 
     // 상품 등록 실패 - 최하위가 아닌(하위가 있는) 카테고리
@@ -708,7 +668,8 @@ class ProductServiceTest {
 
         when(categoryRepository.findById(1L)).thenReturn(Optional.of(digital));
 
-        assertThatThrownBy(() -> service().create(1L, request, List.of())).isInstanceOf(CategoryNotLeafException.class);
+        assertThatThrownBy(() -> service().saveDirect(1L, request, List.of(IMAGE_URL), aiAnalysis()))
+                .isInstanceOf(CategoryNotLeafException.class);
         verify(productRepository, never()).save(any());
     }
 
@@ -739,7 +700,8 @@ class ProductServiceTest {
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(categoryRepository.findById(1L)).thenReturn(Optional.of(digital));
 
-        assertThatThrownBy(() -> service().update(1L, 1L, request, null)).isInstanceOf(CategoryNotLeafException.class);
+        assertThatThrownBy(() -> service().saveUpdate(1L, 1L, request, List.of(), null))
+                .isInstanceOf(CategoryNotLeafException.class);
     }
 
     // 상품 수정 실패 - 소유자가 아님
@@ -768,7 +730,7 @@ class ProductServiceTest {
 
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
 
-        assertThatThrownBy(() -> service().update(2L, 1L, request, null))
+        assertThatThrownBy(() -> service().saveUpdate(2L, 1L, request, List.of(), null))
                 .isInstanceOf(ProductAccessDeniedException.class);
     }
 
@@ -799,7 +761,7 @@ class ProductServiceTest {
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(categoryRepository.findById(category.getId())).thenReturn(Optional.of(category));
 
-        assertThatThrownBy(() -> service().update(1L, 1L, request, null))
+        assertThatThrownBy(() -> service().saveUpdate(1L, 1L, request, List.of(), null))
                 .isInstanceOf(ProductImageRequiredException.class);
     }
 
@@ -855,6 +817,12 @@ class ProductServiceTest {
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
 
         assertThatThrownBy(() -> service().delete(2L, 1L)).isInstanceOf(ProductAccessDeniedException.class);
+    }
+
+    /** AI 사진 분석 결과(카테고리 1, 제안가 430,000원). */
+    private static ProductAiAnalysisResult aiAnalysis() {
+        return new ProductAiAnalysisResult(
+                1L, "AI 제목", null, "AI 설명", ProductCondition.A, 430_000L, "AI 판단 근거", List.of(), List.of());
     }
 
     private Member newMember(Long id) {

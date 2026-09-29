@@ -13,15 +13,12 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.error.CategoryNotFoundException;
@@ -30,7 +27,6 @@ import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.component.entity.Component;
 import com.swyp.team5.component.repository.ComponentRepository;
-import com.swyp.team5.file.service.FileStorageService;
 import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.repository.MemberRepository;
@@ -44,6 +40,7 @@ import com.swyp.team5.product.dto.ProductSummaryResponse;
 import com.swyp.team5.product.dto.ProductUpdateRequest;
 import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.Product;
+import com.swyp.team5.product.entity.ProductImage;
 import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
@@ -60,15 +57,12 @@ import com.swyp.team5.tag.repository.TagRepository;
 /**
  * 상품(Product) 도메인의 등록/조회/수정/삭제를 담당하는 서비스.
  */
-@Slf4j
 @Service
 public class ProductService {
 
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final MemberRepository memberRepository;
-    private final FileStorageService fileStorageService;
-    private final ProductAiService productAiService;
     private final TagRepository tagRepository;
     private final ComponentRepository componentRepository;
     private final ProductAnalysisRepository productAnalysisRepository;
@@ -81,8 +75,6 @@ public class ProductService {
             ProductRepository productRepository,
             CategoryRepository categoryRepository,
             MemberRepository memberRepository,
-            FileStorageService fileStorageService,
-            ProductAiService productAiService,
             TagRepository tagRepository,
             ComponentRepository componentRepository,
             ProductAnalysisRepository productAnalysisRepository,
@@ -93,8 +85,6 @@ public class ProductService {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
         this.memberRepository = memberRepository;
-        this.fileStorageService = fileStorageService;
-        this.productAiService = productAiService;
         this.tagRepository = tagRepository;
         this.componentRepository = componentRepository;
         this.productAnalysisRepository = productAnalysisRepository;
@@ -105,80 +95,8 @@ public class ProductService {
     }
 
     /**
-     * 상품을 직접 등록한다. AI 등록({@link #createFromImages})과 동일하게 이미지 파일을 직접 받아
-     * 업로드까지 이 안에서 처리한다. 판매 가격은 사용자가 입력한 값을 그대로 쓰고, AI 등록과 같은 사진
-     * 분석({@link ProductAiService#analyze})이 추정한 적정가와 그 판단 근거를 {@code suggestedPrice}/
-     * {@code analysisDescription}으로 저장해 함께 제공한다(참고용이라 AI 호출이 실패해도 등록은 성공하며 이때 두
-     * 필드는 null). 응답에는 비교 매물 평균가({@code marketAveragePrice})도 포함한다.
-     *
-     * @param memberId 등록하는 회원 ID
-     * @param request 등록 요청 바디
-     * @param images 등록할 상품 이미지 목록(순서대로 저장)
-     * @return 등록된 상품
-     * @throws CategoryNotFoundException 존재하지 않는 카테고리인 경우
-     * @throws CategoryNotLeafException 최하위 카테고리가 아닌 경우
-     */
-    @Transactional
-    public ProductResponse create(Long memberId, ProductCreateRequest request, List<MultipartFile> images) {
-        Member member = memberRepository.getReferenceById(memberId);
-        Category category = getLeafCategoryOrThrow(request.categoryId());
-        List<String> imageUrls = uploadImages(images);
-
-        Product saved = productRepository.save(newDirectProduct(member, category, request, imageUrls));
-        ProductAiAnalysisResult analysis = analyzeOrNull(images);
-        if (analysis != null) {
-            saved.changeSuggestedPrice(analysis.suggestedPrice());
-            saved.changeAnalysisDescription(analysis.analysisDescription());
-        }
-        return ProductResponse.from(saved, null, calculateMarketAveragePrice(category));
-    }
-
-    private ProductAiAnalysisResult analyzeOrNull(List<MultipartFile> images) {
-        try {
-            return productAiService.analyze(images);
-        } catch (RuntimeException e) {
-            log.warn("직접 등록 AI 적정가 추정 실패 - suggestedPrice 없이 등록합니다. reason={}", e.getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * 상품 사진을 AI(Gemini)로 분석해 자동으로 등록한다. 가격은 AI가 추정한 참고용 시세로 채워지며
-     * (실제 시세 데이터 기반은 아님, 등록 후 판매자가 직접 수정 가능), 거래 방식은 기본값
-     * 직거래(DIRECT)로 등록되며, 배송 방법/희망 거래 지역은 비워둔 채 등록 후 수정으로 채운다.
-     * 구매 일시/결함 여부는 AI가 추론하지 않고 사용자가 직접 입력한 값을 그대로 사용한다. 브랜드는
-     * AI가 사진에서 식별해 채운다(식별 불가 시 null). 태그는 AI가 추론한 목록만 저장하고(사용자 입력 없음),
-     * 구성품은 AI가 사진에서 추론한 목록과 사용자가 추가로 입력한 목록을 합쳐서 저장한다. AI 판단 근거
-     * ({@code analysisDescription})도 저장하고, 응답에는 비교 매물 평균가({@code marketAveragePrice})도 포함한다.
-     *
-     * @param memberId 등록하는 회원 ID
-     * @param images 분석할 상품 이미지 목록
-     * @param purchasedMonths 사용자가 입력한 구매 후 경과 개월 수(선택, 등록 시점 기준 구매일시로 변환)
-     * @param defectStatus 사용자가 입력한 결함(하자) 상태
-     * @param includedItems 사용자가 추가로 입력한 구성품 이름 목록(선택, AI 추론 결과와 합쳐짐)
-     * @return 등록된 상품
-     * @throws CategoryNotFoundException 등록된 카테고리가 없거나 AI가 반환한 카테고리가 존재하지 않는 경우
-     */
-    @Transactional
-    public ProductResponse createFromImages(
-            Long memberId,
-            List<MultipartFile> images,
-            Integer purchasedMonths,
-            DefectStatus defectStatus,
-            List<String> includedItems) {
-        Member member = memberRepository.getReferenceById(memberId);
-        ProductAiAnalysisResult analysis = productAiService.analyze(images);
-        Category category = getLeafCategoryOrThrow(analysis.categoryId());
-        List<String> imageUrls = uploadImages(images);
-
-        Product product =
-                newAiProduct(member, category, analysis, imageUrls, purchasedMonths, defectStatus, includedItems);
-        return ProductResponse.from(productRepository.save(product), null, calculateMarketAveragePrice(category));
-    }
-
-    /**
-     * 직접 등록할 카테고리가 존재하는 최하위 카테고리인지 확인한다. 단계별 스트리밍 등록(v2)이 업로드를 시작하기 전에
-     * 호출해, 잘못된 카테고리는 스트림을 열지 않고 일반 JSON 에러(400/404)로 응답하게 한다.
+     * 직접 등록할 카테고리가 존재하는 최하위 카테고리인지 확인한다. 스트리밍 등록({@link ProductRegisterStreamService})이
+     * 업로드를 시작하기 전에 호출해, 잘못된 카테고리는 스트림을 열지 않고 일반 JSON 에러(400/404)로 응답하게 한다.
      *
      * @param categoryId 등록할 카테고리 ID
      * @throws CategoryNotFoundException 존재하지 않는 카테고리인 경우
@@ -190,13 +108,16 @@ public class ProductService {
     }
 
     /**
-     * 이미 업로드한 이미지 URL과 (있으면) AI 사진 분석 결과로 직접 등록 상품을 저장한다. {@link #create}와 같은
-     * 규칙으로 저장하지만 업로드와 AI 호출은 하지 않아, 트랜잭션이 저장 단계에만 걸린다(단계별 스트리밍 등록용).
+     * 이미 업로드한 이미지 URL과 AI 사진 분석 결과로 직접 등록 상품을 저장한다. 판매 가격은 사용자가 입력한 값을
+     * 그대로 쓰고, AI 사진 분석이 추정한 적정가와 그 판단 근거를 {@code suggestedPrice}/{@code analysisDescription}으로
+     * 저장한다(분석은 등록에 필수 — 실패하면 스트리밍 등록이 저장 전에 취소한다). 응답에는 비교 매물 평균가
+     * ({@code marketAveragePrice})도 포함한다.
+     * 업로드와 AI 호출은 스트리밍 등록({@link ProductRegisterStreamService})이 트랜잭션 밖에서 먼저 하고, 여기서는 저장만 한다.
      *
      * @param memberId 등록하는 회원 ID
      * @param request 등록 요청 바디
      * @param imageUrls 업로드된 이미지 URL 목록(순서대로 저장)
-     * @param analysis AI 사진 분석 결과(실패해 건너뛴 경우 {@code null} — 제안가/판단 근거 없이 등록)
+     * @param analysis AI 사진 분석 결과
      * @return 등록된 상품
      * @throws CategoryNotFoundException 존재하지 않는 카테고리인 경우
      * @throws CategoryNotLeafException 최하위 카테고리가 아닌 경우
@@ -207,16 +128,16 @@ public class ProductService {
         Member member = memberRepository.getReferenceById(memberId);
         Category category = getLeafCategoryOrThrow(request.categoryId());
         Product product = newDirectProduct(member, category, request, imageUrls);
-        if (analysis != null) {
-            product.changeSuggestedPrice(analysis.suggestedPrice());
-            product.changeAnalysisDescription(analysis.analysisDescription());
-        }
+        product.changeSuggestedPrice(analysis.suggestedPrice());
+        product.changeAnalysisDescription(analysis.analysisDescription());
         return ProductResponse.from(productRepository.save(product), null, calculateMarketAveragePrice(category));
     }
 
     /**
-     * 이미 업로드한 이미지 URL과 AI 사진 분석 결과로 AI 등록 상품을 저장한다. {@link #createFromImages}와 같은
-     * 규칙으로 저장하지만 업로드와 AI 호출은 하지 않는다(단계별 스트리밍 등록용).
+     * 이미 업로드한 이미지 URL과 AI 사진 분석 결과로 AI 등록 상품을 저장한다. 가격은 AI가 추정한 참고용 시세로 채우고
+     * (같은 값을 AI 제안가로도 저장, 등록 후 판매자가 직접 수정 가능), 거래 방식은 직거래(DIRECT)로, 배송 방법/희망 거래
+     * 지역은 비워 둔다. 구매 일시/결함 여부는 사용자가 입력한 값을, 브랜드·태그는 AI가 추론한 값을 쓰고, 구성품은 AI 추론과
+     * 사용자 입력을 합쳐 저장한다. 업로드와 AI 호출은 스트리밍 등록({@link ProductRegisterStreamService})이 먼저 한다.
      *
      * @param memberId 등록하는 회원 ID
      * @param analysis AI 사진 분석 결과
@@ -467,35 +388,62 @@ public class ProductService {
     }
 
     /**
-     * 상품 정보를 수정한다. 본인이 등록한 상품만 수정할 수 있다. 이미지는 유지할 기존 이미지 URL
-     * ({@code request.imageUrls}) 뒤에 새로 업로드한 파일을 이어 붙인 순서로 전체 교체하고, 구매 일시는
-     * {@code purchasedMonths}로 수정 시점 기준 다시 계산한다.
+     * 상품 수정 요청을 저장 전에 검사하고 상품의 현재 이미지 URL 목록을 반환한다. 스트리밍 수정
+     * ({@link ProductRegisterStreamService})이 업로드를 시작하기 전에 호출해, 잘못된 요청은 스트림을 열지 않고 일반 JSON
+     * 에러로 응답하게 하고, 반환값으로 이미지 구성이 바뀌었는지(AI 사진 분석이 필요한지) 판단한다.
      *
      * @param memberId 요청한 회원 ID
      * @param productId 수정할 상품 ID
      * @param request 수정 요청 바디
-     * @param files 새로 추가할 이미지 파일 목록(선택, {@code null} 허용)
+     * @param newImageCount 새로 추가할 이미지 파일 수
+     * @return 상품의 현재(수정 전) 이미지 URL 목록(순서대로)
+     * @throws ProductNotFoundException 존재하지 않는 상품인 경우
+     * @throws ProductAccessDeniedException 본인이 등록한 상품이 아닌 경우
+     * @throws CategoryNotFoundException 존재하지 않는 카테고리인 경우
+     * @throws CategoryNotLeafException 최하위 카테고리가 아닌 경우
+     * @throws ProductImageRequiredException 유지할 이미지와 새 파일을 합쳐 1장도 없는 경우
+     */
+    @Transactional(readOnly = true)
+    public List<String> validateUpdate(Long memberId, Long productId, ProductUpdateRequest request, int newImageCount) {
+        Product product = getProductOrThrow(productId);
+        validateRegisteredBy(product, memberId);
+        getLeafCategoryOrThrow(request.categoryId());
+        validateImageCount(request, newImageCount);
+        return product.getImages().stream().map(ProductImage::getImageUrl).toList();
+    }
+
+    /**
+     * 상품 정보를 수정한다. 본인이 등록한 상품만 수정할 수 있다. 이미지는 유지할 기존 이미지 URL
+     * ({@code request.imageUrls}) 뒤에 새로 업로드한 이미지 URL을 이어 붙인 순서로 전체 교체하고, 구매 일시는
+     * {@code purchasedMonths}로 수정 시점 기준 다시 계산한다. 이미지 구성이 바뀌어 AI 사진 분석을 다시 했으면 그 결과로
+     * AI 제안가/판단 근거({@code suggestedPrice}/{@code analysisDescription})만 갱신하고, 사용자가 입력한 값은 덮어쓰지
+     * 않는다. 새 파일 업로드와 AI 호출은 스트리밍 수정({@link ProductRegisterStreamService})이 트랜잭션 밖에서 먼저 하고,
+     * 여기서는 저장만 한다.
+     *
+     * @param memberId 요청한 회원 ID
+     * @param productId 수정할 상품 ID
+     * @param request 수정 요청 바디
+     * @param newImageUrls 새로 업로드한 이미지 URL 목록(순서대로 기존 이미지 뒤에 붙음, 없으면 빈 목록)
+     * @param analysis 최종 이미지 AI 사진 분석 결과(이미지가 그대로이거나 분석에 실패해 건너뛰었으면 {@code null} — 기존 값 유지)
      * @return 수정된 상품
      * @throws ProductNotFoundException 존재하지 않는 상품인 경우
      * @throws ProductAccessDeniedException 본인이 등록한 상품이 아닌 경우
      * @throws CategoryNotFoundException 존재하지 않는 카테고리인 경우
-     * @throws ProductImageRequiredException 유지할 이미지와 새 파일을 합쳐 1장도 없는 경우
+     * @throws CategoryNotLeafException 최하위 카테고리가 아닌 경우
+     * @throws ProductImageRequiredException 유지할 이미지와 새 이미지를 합쳐 1장도 없는 경우
      */
     @Transactional
-    public ProductResponse update(
-            Long memberId, Long productId, ProductUpdateRequest request, List<MultipartFile> files) {
+    public ProductResponse saveUpdate(
+            Long memberId,
+            Long productId,
+            ProductUpdateRequest request,
+            List<String> newImageUrls,
+            ProductAiAnalysisResult analysis) {
         Product product = getProductOrThrow(productId);
         validateRegisteredBy(product, memberId);
         Category category = getLeafCategoryOrThrow(request.categoryId());
-
-        List<String> keptImageUrls = request.imageUrls() == null ? List.of() : request.imageUrls();
-        List<MultipartFile> newFiles = files == null
-                ? List.of()
-                : files.stream().filter(file -> !file.isEmpty()).toList();
-        if (keptImageUrls.isEmpty() && newFiles.isEmpty()) {
-            throw new ProductImageRequiredException();
-        }
-        List<String> imageUrls = Stream.concat(keptImageUrls.stream(), uploadImages(newFiles).stream())
+        validateImageCount(request, newImageUrls.size());
+        List<String> imageUrls = Stream.concat(keptImageUrls(request).stream(), newImageUrls.stream())
                 .toList();
 
         product.update(
@@ -523,7 +471,22 @@ public class ProductService {
         product.clearComponents();
         product.addComponents(resolveComponents(request.includedItems()));
 
+        if (analysis != null) {
+            product.changeSuggestedPrice(analysis.suggestedPrice());
+            product.changeAnalysisDescription(analysis.analysisDescription());
+        }
+
         return ProductResponse.from(product);
+    }
+
+    private static List<String> keptImageUrls(ProductUpdateRequest request) {
+        return request.imageUrls() == null ? List.of() : request.imageUrls();
+    }
+
+    private static void validateImageCount(ProductUpdateRequest request, int newImageCount) {
+        if (keptImageUrls(request).isEmpty() && newImageCount == 0) {
+            throw new ProductImageRequiredException();
+        }
     }
 
     /**
@@ -573,19 +536,6 @@ public class ProductService {
             throw new CategoryNotLeafException(categoryId);
         }
         return category;
-    }
-
-    /**
-     * 이미지 파일 목록을 스토리지에 업로드하고 접근 URL 목록을 반환한다(요청 순서 유지). 직접 등록/AI
-     * 등록/수정 모두 이 메서드로 업로드한다.
-     *
-     * @param images 업로드할 이미지 파일 목록
-     * @return 업로드된 이미지 URL 목록(요청 순서와 동일)
-     */
-    private List<String> uploadImages(List<MultipartFile> images) {
-        return images.stream()
-                .map(image -> fileStorageService.upload(image, "products").url())
-                .toList();
     }
 
     /**

@@ -1,20 +1,22 @@
 package com.swyp.team5.product;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -28,7 +30,10 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.RequestBuilder;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.swyp.team5.auth.service.RefreshTokenService;
@@ -52,6 +57,7 @@ import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.product.service.ProductAiService;
+import com.swyp.team5.product.service.ProductImageLoader;
 import com.swyp.team5.tag.repository.TagRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -93,6 +99,9 @@ class ProductTest {
     @MockitoBean
     private ProductAiService productAiService;
 
+    @MockitoBean
+    private ProductImageLoader productImageLoader;
+
     private Long sellerId;
     private String sellerToken;
     private Category category;
@@ -110,6 +119,18 @@ class ProductTest {
         category = createCategory();
         when(fileStorageService.upload(any(), eq("products")))
                 .thenReturn(new FileUploadResponse("key", "https://image.example.com/default.png", 3, "image/png"));
+        // 등록에는 AI 사진 분석이 필수라 기본 분석 결과를 둔다(테스트별로 다시 지정 가능)
+        when(productAiService.analyze(anyList()))
+                .thenReturn(new ProductAiAnalysisResult(
+                        category.getId(),
+                        "AI 제목",
+                        null,
+                        "AI 설명",
+                        ProductCondition.A,
+                        470_000L,
+                        "판단 근거",
+                        List.of(),
+                        List.of()));
     }
 
     // 상품 등록 성공 - 이미지 파일을 직접 받아 서버가 업로드까지 처리(AI 등록과 동일한 방식)
@@ -130,21 +151,23 @@ class ProductTest {
                         List.of(),
                         List.of()));
 
-        mockMvc.perform(multipart("/products")
+        JsonNode data = performStream(multipart("/products")
                         .file(imagePart())
                         .file(requestPart(request))
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.data.price").value(request.price())) // 사용자가 입력한 판매 가격
-                .andExpect(jsonPath("$.data.suggestedPrice").value(470_000)) // AI가 추정한 적정가
-                .andExpect(jsonPath("$.data.analysisDescription").value("판단 근거")) // 적정가 판단 근거
-                .andExpect(jsonPath("$.data.title").value("아이폰 13"))
-                .andExpect(jsonPath("$.data.brand").value("애플"))
-                .andExpect(jsonPath("$.data.memberId").value(sellerId))
-                .andExpect(jsonPath("$.data.category.id").value(category.getId()))
-                .andExpect(jsonPath("$.data.category.leaf").value(true))
-                .andExpect(jsonPath("$.data.status").value("ON_SALE"))
-                .andExpect(jsonPath("$.data.imageUrls[0]").value("https://image.example.com/1.png"));
+                .get("data");
+
+        assertThat(data.get("event").asText()).isEqualTo("complete");
+        assertThat(data.get("price").asLong()).isEqualTo(request.price()); // 사용자가 입력한 판매 가격
+        assertThat(data.get("suggestedPrice").asLong()).isEqualTo(470_000L); // AI가 추정한 적정가
+        assertThat(data.get("analysisDescription").asText()).isEqualTo("판단 근거"); // 적정가 판단 근거
+        assertThat(data.get("title").asText()).isEqualTo("아이폰 13");
+        assertThat(data.get("brand").asText()).isEqualTo("애플");
+        assertThat(data.get("memberId").asLong()).isEqualTo(sellerId);
+        assertThat(data.at("/category/id").asLong()).isEqualTo(category.getId());
+        assertThat(data.at("/category/leaf").asBoolean()).isTrue();
+        assertThat(data.get("status").asText()).isEqualTo("ON_SALE");
+        assertThat(data.at("/imageUrls/0").asText()).isEqualTo("https://image.example.com/1.png");
 
         assertThat(productRepository.count()).isEqualTo(1);
     }
@@ -172,11 +195,10 @@ class ProductTest {
                 .andExpect(jsonPath("$.data.analysisDescription").value("판단 근거")) // 등록 때 저장된 근거
                 .andExpect(jsonPath("$.data.marketAveragePrice").isEmpty());
 
-        mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{id}", productId)
-                        .file(requestPart(updateRequest(category.getId(), ProductStatus.ON_SALE)))
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.suggestedPrice").value(470_000)); // 사용자 수정으로는 바뀌지 않음
+        JsonNode updated = performStream(multipart(HttpMethod.PATCH, "/products/{id}", productId)
+                .file(requestPart(updateRequest(category.getId(), ProductStatus.ON_SALE)))
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken));
+        assertThat(updated.at("/data/suggestedPrice").asLong()).isEqualTo(470_000L); // 사용자 수정으로는 바뀌지 않음
 
         productRepository.updateSuggestedPrice(productId, 430_000L); // 시세 분석의 갱신 경로
 
@@ -318,22 +340,23 @@ class ProductTest {
 
         MockMultipartFile image = new MockMultipartFile("images", "photo.png", "image/png", new byte[] {1, 2, 3});
 
-        mockMvc.perform(multipart("/products/analyze")
+        JsonNode data = performStream(multipart("/products/analyze")
                         .file(image)
                         .param("purchasedMonths", "3")
                         .param("defectStatus", "issues") // 소문자로 보내도 대소문자 무관하게 처리되는지 검증
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.data.title").value("AI가 분석한 상품"))
-                .andExpect(jsonPath("$.data.brand").value("애플"))
-                .andExpect(jsonPath("$.data.price").value(300_000)) // AI가 추정한 적정가가 판매 가격으로
-                .andExpect(jsonPath("$.data.suggestedPrice").value(300_000)) // 같은 값을 AI 제안가로도 제공
-                .andExpect(jsonPath("$.data.analysisDescription").value("외관 상태가 양호해 A급 시세 대비 적정합니다."))
-                .andExpect(jsonPath("$.data.tradeMethod").value("DIRECT"))
-                .andExpect(jsonPath("$.data.defectStatus").value("ISSUES"))
-                .andExpect(jsonPath("$.data.purchasedAt")
-                        .value(LocalDate.now().minusMonths(3).toString()))
-                .andExpect(jsonPath("$.data.purchasedMonths").value(3));
+                .get("data");
+
+        assertThat(data.get("title").asText()).isEqualTo("AI가 분석한 상품");
+        assertThat(data.get("brand").asText()).isEqualTo("애플");
+        assertThat(data.get("price").asLong()).isEqualTo(300_000L); // AI가 추정한 적정가가 판매 가격으로
+        assertThat(data.get("suggestedPrice").asLong()).isEqualTo(300_000L); // 같은 값을 AI 제안가로도 제공
+        assertThat(data.get("analysisDescription").asText()).isEqualTo("외관 상태가 양호해 A급 시세 대비 적정합니다.");
+        assertThat(data.get("tradeMethod").asText()).isEqualTo("DIRECT");
+        assertThat(data.get("defectStatus").asText()).isEqualTo("ISSUES");
+        assertThat(data.get("purchasedAt").asText())
+                .isEqualTo(LocalDate.now().minusMonths(3).toString());
+        assertThat(data.get("purchasedMonths").asInt()).isEqualTo(3);
     }
 
     // 상품 이미지 AI 분석 등록 성공 - 태그는 AI 추론 결과만(tags 파라미터를 보내도 무시), 구성품은 AI 추론과 사용자 입력을 합쳐서 저장
@@ -355,16 +378,17 @@ class ProductTest {
 
         MockMultipartFile image = new MockMultipartFile("images", "photo.png", "image/png", new byte[] {1, 2, 3});
 
-        mockMvc.perform(multipart("/products/analyze")
+        JsonNode data = performStream(multipart("/products/analyze")
                         .file(image)
                         .param("purchasedMonths", "3")
                         .param("defectStatus", "NORMAL")
                         .param("tags", "급처")
                         .param("includedItems", "충전기")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.data.tags", containsInAnyOrder("애플")))
-                .andExpect(jsonPath("$.data.includedItems", containsInAnyOrder("박스", "충전기")));
+                .get("data");
+
+        assertThat(data.get("tags")).extracting(JsonNode::asText).containsExactlyInAnyOrder("애플");
+        assertThat(data.get("includedItems")).extracting(JsonNode::asText).containsExactlyInAnyOrder("박스", "충전기");
     }
 
     // 상품 이미지 AI 분석 등록 실패 - 구매 후 경과 개월 수가 음수
@@ -516,11 +540,7 @@ class ProductTest {
         Member other = memberRepository.save(Member.ofLocalSignUp(
                 "other-seller2@example.com", null, "encoded-password", "다른판매자2", "otherSeller2", null));
         String otherToken = jwtTokenProvider.createAccessToken(other.getId(), MemberRole.USER);
-        mockMvc.perform(multipart("/products")
-                        .file(imagePart())
-                        .file(requestPart(createRequest(category.getId())))
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
-                .andExpect(status().isCreated());
+        createProduct(category, "아이폰 13", otherToken);
 
         mockMvc.perform(get("/products/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isOk())
@@ -533,16 +553,17 @@ class ProductTest {
         Long productId = createProduct();
         ProductUpdateRequest request = updateRequest(category.getId(), ProductStatus.RESERVED);
 
-        mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{id}", productId)
+        JsonNode data = performStream(multipart(HttpMethod.PATCH, "/products/{id}", productId)
                         .file(requestPart(request))
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.title").value("아이폰 13 프로"))
-                .andExpect(jsonPath("$.data.brand").value("애플"))
-                .andExpect(jsonPath("$.data.status").value("RESERVED"))
-                .andExpect(jsonPath("$.data.defectStatus").value("ISSUES"))
-                .andExpect(jsonPath("$.data.purchasedMonths").value(1))
-                .andExpect(jsonPath("$.data.includedItems[0]").value("케이블"));
+                .get("data");
+
+        assertThat(data.get("title").asText()).isEqualTo("아이폰 13 프로");
+        assertThat(data.get("brand").asText()).isEqualTo("애플");
+        assertThat(data.get("status").asText()).isEqualTo("RESERVED");
+        assertThat(data.get("defectStatus").asText()).isEqualTo("ISSUES");
+        assertThat(data.get("purchasedMonths").asInt()).isEqualTo(1);
+        assertThat(data.at("/includedItems/0").asText()).isEqualTo("케이블");
     }
 
     // 상품 수정 성공 - 유지할 기존 이미지 뒤에 새 이미지 파일(images)이 이어 붙음
@@ -553,14 +574,15 @@ class ProductTest {
         when(fileStorageService.upload(any(), eq("products")))
                 .thenReturn(new FileUploadResponse("key", "https://image.example.com/new.png", 3, "image/png"));
 
-        mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{id}", productId)
+        JsonNode data = performStream(multipart(HttpMethod.PATCH, "/products/{id}", productId)
                         .file(new MockMultipartFile("images", "new.png", "image/png", new byte[] {1, 2, 3}))
                         .file(requestPart(request))
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.imageUrls.length()").value(2))
-                .andExpect(jsonPath("$.data.imageUrls[0]").value("https://image.example.com/2.png"))
-                .andExpect(jsonPath("$.data.imageUrls[1]").value("https://image.example.com/new.png"));
+                .get("data");
+
+        assertThat(data.get("imageUrls"))
+                .extracting(JsonNode::asText)
+                .containsExactly("https://image.example.com/2.png", "https://image.example.com/new.png");
     }
 
     // 상품 수정 실패 - 유지할 이미지도 새 파일도 없음
@@ -730,16 +752,36 @@ class ProductTest {
 
     private Long createProduct(Category productCategory, String title, String token) throws Exception {
         ProductCreateRequest request = createRequest(productCategory.getId(), title);
-        String response = mockMvc.perform(multipart("/products")
-                        .file(imagePart())
-                        .file(requestPart(request))
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
-                .andExpect(status().isCreated())
+        JsonNode complete = performStream(multipart("/products")
+                .file(imagePart())
+                .file(requestPart(request))
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token));
+
+        return complete.at("/data/id").asLong();
+    }
+
+    /**
+     * SSE로 응답하는 등록·수정 요청을 끝까지 받아 마지막 이벤트(complete)의 JSON을 반환한다. 이벤트는 {@code data:} 한 줄에
+     * 기존 API 응답과 같은 형태로 온다.
+     */
+    private JsonNode performStream(RequestBuilder builder) throws Exception {
+        MvcResult started =
+                mockMvc.perform(builder).andExpect(request().asyncStarted()).andReturn();
+        started.getAsyncResult(10_000);
+        String body = mockMvc.perform(asyncDispatch(started))
+                .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
-                .getContentAsString();
-
-        return objectMapper.readTree(response).path("data").path("id").asLong();
+                .getContentAsString(StandardCharsets.UTF_8);
+        String last = null;
+        for (String line : body.split("\n")) {
+            if (line.startsWith("data:")) {
+                last = line.substring("data:".length());
+            }
+        }
+        JsonNode complete = objectMapper.readTree(last);
+        assertThat(complete.at("/data/event").asText()).isEqualTo("complete");
+        return complete;
     }
 
     private String createOtherMemberToken() {
