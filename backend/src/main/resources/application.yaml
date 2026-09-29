@@ -164,6 +164,15 @@ crawl:
       batch-size: ${CRAWL_BUNJANG_RECONCILE_BATCH_SIZE:300} # 한 사이클에 재확인할 최대 매물 수
       call-interval-ms: ${CRAWL_BUNJANG_RECONCILE_CALL_INTERVAL_MS:500} # 개별 호출 간 최소 대기 시간
 
+# 상품 단계별 스트리밍 등록(v2, SSE) 설정
+product:
+  register-stream:
+    core-pool-size: ${PRODUCT_REGISTER_STREAM_CORE_POOL_SIZE:4} # 등록 처리 스레드 기본 수
+    max-pool-size: ${PRODUCT_REGISTER_STREAM_MAX_POOL_SIZE:8} # 등록 처리 스레드 최대 수
+    queue-capacity: ${PRODUCT_REGISTER_STREAM_QUEUE_CAPACITY:20} # 대기열 크기(가득 차면 503)
+    timeout: ${PRODUCT_REGISTER_STREAM_TIMEOUT:90s} # 스트림 최대 유지 시간(지나면 error 이벤트, 등록은 계속 진행)
+    keep-alive-interval: ${PRODUCT_REGISTER_STREAM_KEEP_ALIVE_INTERVAL:15s} # 연결 유지용 주석 이벤트 간격
+
 # 시세 분석(감가/추천) 배치 설정
 analysis:
   enabled: ${PRICE_ANALYSIS_ENABLED:true}
