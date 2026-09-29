@@ -16,6 +16,7 @@ export default function AuthInitializer() {
     const checkStatus = useAuthStore((state) => state.checkStatus);
     const requiresAuth = ROUTES.some(
         (route) =>
+            route.href === "/my" &&
             route.requiresAuth &&
             (pathname === route.href || pathname.startsWith(`${route.href}/`)),
     );
@@ -26,9 +27,10 @@ export default function AuthInitializer() {
                 if (previous.isLoggedIn && !state.isLoggedIn) {
                     void queryClient.cancelQueries({ queryKey: ["member", "me"] });
                     queryClient.removeQueries({ queryKey: ["member", "me"] });
+                    router.replace("/login");
                 }
             }),
-        [queryClient],
+        [queryClient, router],
     );
 
     useEffect(() => {
