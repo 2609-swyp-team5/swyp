@@ -20,7 +20,7 @@ import type {
     DirectStatusPriceErrors,
     DirectStatusPriceState,
 } from "@/features/sell/components/direct-register/types";
-import { ExitDialog } from "@/features/sell/components/shared/ExitDialog";
+import { SellAlertDialog } from "@/features/sell/components/shared/SellAlertDialog";
 import { useUpdateProductMutation } from "@/features/sell/hooks/mutations/useUpdateProductMutation";
 import { productQueryKey } from "@/features/sell/hooks/queries/useProductQuery";
 import type { ProductResponse } from "@/features/sell/types";
@@ -188,7 +188,8 @@ export function ProductEditForm({
     };
 
     const handleGoToManage = () => {
-        router.push(`/sell/manage/${product.id}?method=${method}`);
+        const updatedQuery = submissionStatus === "success" ? "&updated=true" : "";
+        router.push(`/sell/manage/${product.id}?method=${method}${updatedQuery}`);
     };
 
     const handleStatusPriceSubmit = async () => {
@@ -255,7 +256,7 @@ export function ProductEditForm({
     if (submissionStatus !== "idle") {
         return (
             <ProductRegistrationProcessing
-                kind="ai"
+                kind="edit"
                 status={submissionStatus}
                 errorMessage={submissionError}
                 onRetry={handleStatusPriceSubmit}
@@ -381,7 +382,7 @@ export function ProductEditForm({
                                 }
                             />
                             <DirectRegisterActions
-                                primaryLabel="AI 분석 & 등록"
+                                primaryLabel="수정 완료"
                                 onPrimaryClick={handleStatusPriceSubmit}
                                 onExit={handleExit}
                                 exitLabel="수정 취소"
@@ -391,11 +392,21 @@ export function ProductEditForm({
                 </div>
             </section>
 
-            <ExitDialog
+            <SellAlertDialog
                 open={isExitDialogOpen}
                 onClose={() => setIsExitDialogOpen(false)}
                 onConfirm={handleConfirmExit}
+                title="상품 수정을 취소하시겠습니까?"
+                description={
+                    <>
+                        현재 수정 중인 내용은 저장되지 않으며,
+                        <br />
+                        취소하면 다시 복구할 수 없습니다.
+                    </>
+                }
                 confirmLabel="수정 취소"
+                cancelLabel="돌아가기"
+                overlayClassName="!bg-[#272727]/50 !backdrop-blur-none"
             />
         </main>
     );

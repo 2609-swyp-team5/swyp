@@ -151,4 +151,13 @@ test("direct registration keeps the product information while moving to status a
 
     await expect(page).toHaveURL(/\/sell\/manage\/42\?method=direct/);
     await expect(page.getByRole("heading", { name: "판매글 확인" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "상품 등록이 완료되었어요!" })).toBeVisible();
+    await expect(page.getByText("1,234,567원").first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "가격 분석 자세히 보기" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "수정하기", exact: true })).toBeVisible();
+    await expect(
+        page.getByRole("button", { name: "다른 플랫폼에 등록하기", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "삭제하기", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "판매 상품 관리로 이동" })).toBeVisible();
 });

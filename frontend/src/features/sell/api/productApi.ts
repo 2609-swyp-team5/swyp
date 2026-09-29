@@ -17,6 +17,8 @@ import type {
 
 const getProduct = (id: number) => api.get<ApiResponse<ProductResponse>>(`/products/${id}`);
 
+const deleteProduct = (id: number) => api.delete<ApiResponse<null>>(`/products/${id}`);
+
 const createDirectProduct = async ({ images, request }: DirectProductCreateInput) => {
     const parsedImages = productImagesSchema.safeParse(images);
 
@@ -110,6 +112,7 @@ const updateProduct = async (id: number, { files, request }: ProductUpdateInput)
 
 export const productApi = {
     getProduct,
+    deleteProduct,
     createDirectProduct,
     createAiProduct,
     updateProduct,

@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { get, patch, post } = vi.hoisted(() => ({
+const { del, get, patch, post } = vi.hoisted(() => ({
+    del: vi.fn(),
     get: vi.fn(),
     patch: vi.fn(),
     post: vi.fn(),
 }));
 
 vi.mock("@/common/lib/api/client", () => ({
-    api: { get, patch, post },
+    api: { delete: del, get, patch, post },
 }));
 
 import { productApi } from "./productApi";
@@ -47,6 +48,14 @@ describe("productApi", () => {
                 error: null,
             },
         });
+        del.mockResolvedValue({
+            data: {
+                success: true,
+                message: "",
+                data: null,
+                error: null,
+            },
+        });
     });
 
     it("gets a product by id", async () => {
@@ -59,6 +68,18 @@ describe("productApi", () => {
             },
         });
         expect(get).toHaveBeenCalledWith("/products/42");
+    });
+
+    it("deletes a product by id", async () => {
+        await expect(productApi.deleteProduct(42)).resolves.toEqual({
+            data: {
+                success: true,
+                message: "",
+                data: null,
+                error: null,
+            },
+        });
+        expect(del).toHaveBeenCalledWith("/products/42");
     });
 
     it("sends direct-registration images and data JSON as multipart fields", async () => {

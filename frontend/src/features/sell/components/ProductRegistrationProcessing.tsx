@@ -2,7 +2,7 @@
 
 import { Button } from "@/common/components/ui/Button";
 
-type RegistrationProcessingKind = "ai" | "direct";
+type RegistrationProcessingKind = "ai" | "direct" | "edit";
 type RegistrationProcessingStatus = "loading" | "success" | "error";
 
 type ProductRegistrationProcessingProps = {
@@ -56,6 +56,15 @@ function ProcessingStep({ label, state }: ProcessingStepProps) {
 }
 
 function LoadingSteps({ kind }: { kind: RegistrationProcessingKind }) {
+    if (kind === "edit") {
+        return (
+            <div className="flex flex-col gap-3">
+                <ProcessingStep label="상품 정보 저장 중" state="active" />
+                <ProcessingStep label="상품 수정 완료" state="pending" />
+            </div>
+        );
+    }
+
     if (kind === "direct") {
         return (
             <div className="flex flex-col gap-3">
@@ -88,10 +97,16 @@ function ResultContent({
                 </div>
                 <div className="flex flex-col gap-2 text-center">
                     <h1 className="text-[48px] leading-[60px] font-bold tracking-[0.5px] text-[#6653fb]">
-                        {kind === "ai" ? "판매 글을 만들었어요" : "상품을 등록했어요"}
+                        {kind === "edit"
+                            ? "상품을 수정했어요"
+                            : kind === "ai"
+                              ? "판매 글을 만들었어요"
+                              : "상품을 등록했어요"}
                     </h1>
                     <p className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#363636]">
-                        등록한 상품을 확인해 보세요.
+                        {kind === "edit"
+                            ? "수정한 상품을 확인해 보세요."
+                            : "등록한 상품을 확인해 보세요."}
                     </p>
                 </div>
             </>
@@ -106,7 +121,7 @@ function ResultContent({
                 </div>
                 <div className="flex flex-col gap-2 text-center">
                     <h1 className="text-[48px] leading-[60px] font-bold tracking-[0.5px] text-[#6653fb]">
-                        등록에 실패했어요
+                        {kind === "edit" ? "수정에 실패했어요" : "등록에 실패했어요"}
                     </h1>
                     <p className="max-w-[560px] text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#6b6c7b]">
                         {errorMessage ?? "잠시 후 다시 시도해 주세요."}
@@ -124,12 +139,18 @@ function ResultContent({
             />
             <div className="flex flex-col gap-2 text-center">
                 <h1 className="text-[60px] leading-[75px] font-bold tracking-[0.5px] text-[#6653fb]">
-                    {kind === "ai" ? "판매 글을 만들고 있어요" : "상품을 등록하고 있어요"}
+                    {kind === "edit"
+                        ? "상품을 수정하고 있어요"
+                        : kind === "ai"
+                          ? "판매 글을 만들고 있어요"
+                          : "상품을 등록하고 있어요"}
                 </h1>
                 <p className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#363636]">
-                    {kind === "ai"
-                        ? "잠시만 기다려 주세요. AI가 열심히 분석 중이에요."
-                        : "잠시만 기다려 주세요. 상품 정보를 저장 중이에요."}
+                    {kind === "edit"
+                        ? "잠시만 기다려 주세요. 수정한 상품을 저장 중이에요."
+                        : kind === "ai"
+                          ? "잠시만 기다려 주세요. AI가 열심히 분석 중이에요."
+                          : "잠시만 기다려 주세요. 상품 정보를 저장 중이에요."}
                 </p>
             </div>
         </>

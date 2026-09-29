@@ -15,7 +15,7 @@ import type {
     DirectStatusPriceState,
 } from "@/features/sell/components/direct-register/types";
 import { ProductRegistrationProcessing } from "@/features/sell/components/ProductRegistrationProcessing";
-import { ExitDialog } from "@/features/sell/components/shared/ExitDialog";
+import { SellAlertDialog } from "@/features/sell/components/shared/SellAlertDialog";
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { useCategoriesQuery } from "@/features/sell/hooks/queries/useCategoriesQuery";
 import { useCreateDirectProductMutation } from "@/features/sell/hooks/mutations/useCreateDirectProductMutation";
@@ -342,10 +342,21 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
                 </div>
             </section>
 
-            <ExitDialog
+            <SellAlertDialog
                 open={isExitDialogOpen}
                 onClose={() => setIsExitDialogOpen(false)}
                 onConfirm={handleExit}
+                title="상품 등록을 나가시겠습니까?"
+                description={
+                    <>
+                        현재 작성 중인 내용은 저장되지 않으며,
+                        <br />
+                        나가면 다시 복구할 수 없습니다.
+                    </>
+                }
+                confirmLabel="나가기"
+                cancelLabel="돌아가기"
+                overlayClassName="!bg-[#272727]/50 !backdrop-blur-none"
             />
         </main>
     );

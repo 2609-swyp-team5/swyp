@@ -1,5 +1,3 @@
-import type { ReactNode } from "react";
-
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -74,8 +72,8 @@ vi.mock("@/features/sell/components/ProductRegistrationProcessing", () => ({
     ),
 }));
 
-vi.mock("@/features/sell/components/shared/ExitDialog", () => ({
-    ExitDialog: ({ children }: { children?: ReactNode }) => children ?? null,
+vi.mock("@/features/sell/components/shared/SellAlertDialog", () => ({
+    SellAlertDialog: () => null,
 }));
 
 vi.mock("@/features/sell/hooks/mutations/useUpdateProductMutation", () => ({
@@ -143,7 +141,7 @@ describe("ProductEditForm", () => {
         );
 
         await user.click(screen.getByRole("button", { name: "이미지 변경 후 다음" }));
-        await user.click(screen.getByRole("button", { name: "AI 분석 & 등록" }));
+        await user.click(screen.getByRole("button", { name: "수정 완료" }));
 
         await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
 
@@ -166,6 +164,6 @@ describe("ProductEditForm", () => {
 
         await user.click(screen.getByRole("button", { name: "확인하러 가기" }));
 
-        expect(push).toHaveBeenCalledWith("/sell/manage/42?method=direct");
+        expect(push).toHaveBeenCalledWith("/sell/manage/42?method=direct&updated=true");
     });
 });
