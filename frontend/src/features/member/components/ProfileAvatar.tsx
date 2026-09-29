@@ -45,7 +45,7 @@ export function ProfileAvatar({ src, alt = "프로필 사진", size }: ProfileAv
                         aria-hidden="true"
                         className={`${sizes[size].icon} bg-[linear-gradient(180deg,#86b1cd,#416487)]`}
                         style={{
-                            mask: "url(/profile/bust-in-silhouette.svg) center / contain no-repeat",
+                            mask: "url(/my/profile/bust-in-silhouette.svg) center / contain no-repeat",
                         }}
                     />
                 )}

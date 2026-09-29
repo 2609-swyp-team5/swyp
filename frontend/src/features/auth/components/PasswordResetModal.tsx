@@ -6,15 +6,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Info } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/common/components/ui/Alert";
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/common/components/ui/AlertDialog";
 import { Button } from "@/common/components/ui/Button";
 import {
     Dialog,
@@ -27,9 +18,13 @@ import {
 import { Input } from "@/common/components/ui/Input";
 import { Label } from "@/common/components/ui/Label";
 import { getApiErrorMessage } from "@/common/lib/api/error";
+import { AuthResultDialog } from "@/features/auth/components/shared/AuthResultDialog";
 import { usePasswordResetMutation } from "@/features/auth/hooks/mutations/usePasswordResetMutation";
 import { passwordResetSchema } from "@/features/auth/schemas/authSchema";
 import type { PasswordResetRequest } from "@/features/auth/types";
+
+const buttonFocusClassName =
+    "focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30";
 
 export function PasswordResetModal() {
     const [open, setOpen] = useState(false);
@@ -71,7 +66,7 @@ export function PasswordResetModal() {
                 <Button
                     type="button"
                     variant="link"
-                    className="h-auto rounded-none p-0 text-base leading-[25px] font-semibold tracking-[0.5px] text-[#6b6c7b] underline underline-offset-2 hover:text-[#363636]"
+                    className={`${buttonFocusClassName} h-auto rounded-none p-0 text-base leading-[25px] font-semibold tracking-[0.5px] text-[#6b6c7b] underline underline-offset-2 hover:text-[#6653fb]`}
                 >
                     비밀번호 찾기
                 </Button>
@@ -111,7 +106,7 @@ export function PasswordResetModal() {
                         aria-describedby={
                             errors.email ? "password-reset-error" : "password-reset-hint"
                         }
-                        className="text-foreground h-12 rounded-xl px-4 text-base md:text-base"
+                        className="text-foreground aria-invalid:focus-visible:border-destructive h-12 rounded-xl px-4 text-base focus-visible:border-[#6653fb] focus-visible:ring-0 md:text-base"
                     />
                     {errors.email ? (
                         <p
@@ -141,22 +136,14 @@ export function PasswordResetModal() {
                     </AlertDescription>
                 </Alert>
 
-                <AlertDialog
+                <AuthResultDialog
                     open={Boolean(successMessage)}
                     onOpenChange={(nextOpen) => {
                         if (!nextOpen) setSuccessMessage("");
                     }}
-                >
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>재설정 메일 요청 완료</AlertDialogTitle>
-                            <AlertDialogDescription>{successMessage}</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogAction>확인</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
+                    title="재설정 메일 요청 완료"
+                    message={successMessage}
+                />
                 {errorMessage ? (
                     <Alert variant="destructive" className="mt-4">
                         <AlertDescription>{errorMessage}</AlertDescription>
@@ -169,7 +156,7 @@ export function PasswordResetModal() {
                             type="button"
                             variant="outline"
                             disabled={isBusy}
-                            className="h-11 rounded-full border-[#dedee6] bg-white px-10 text-lg font-semibold text-[#6b7588] dark:border-[#dedee6] dark:bg-white"
+                            className={`h-11 rounded-full border-[#dedee6] bg-white px-10 text-lg font-semibold text-[#6b7588] dark:border-[#dedee6] dark:bg-white ${buttonFocusClassName} hover:bg-[#c6c6c6] hover:text-white dark:hover:bg-[#c6c6c6] dark:hover:text-white`}
                         >
                             취소
                         </Button>
@@ -178,7 +165,7 @@ export function PasswordResetModal() {
                         type="submit"
                         form="password-reset-form"
                         disabled={isBusy}
-                        className="bg-primary h-11 rounded-full px-6 text-lg font-semibold text-white sm:min-w-[220px] dark:bg-[#6653fb]"
+                        className={`bg-primary h-11 rounded-full px-6 text-lg font-semibold text-white sm:min-w-[220px] dark:bg-[#6653fb] ${buttonFocusClassName} hover:bg-[#5745e7] dark:hover:bg-[#5745e7]`}
                     >
                         {isBusy ? "전송 중..." : "재설정 링크 보내기"}
                     </Button>
