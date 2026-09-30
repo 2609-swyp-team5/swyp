@@ -17,6 +17,7 @@ export function useDeleteProductMutation() {
         },
         onSuccess: (_, id) => {
             queryClient.removeQueries({ queryKey: productQueryKey(id) });
+            void queryClient.invalidateQueries({ queryKey: ["my-products"] });
         },
         retry: false,
     });
