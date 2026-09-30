@@ -47,9 +47,16 @@ backend-test:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
         - backend/**/*
-    - if: $CI_PIPELINE_SOURCE == "push"
+    # develop/main push(머지)는 직전 커밋과 비교
+    - if: $CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main")
       changes:
         - backend/**/*
+    # 기능 브랜치 push는 develop 대비 변경만 본다(새 브랜치 첫 push는 compare_to 없으면 changes가 항상 참)
+    - if: $CI_PIPELINE_SOURCE == "push"
+      changes:
+        paths:
+          - backend/**/*
+        compare_to: refs/heads/develop
 
 backend-build:
   stage: build
@@ -80,9 +87,16 @@ backend-build:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
         - backend/**/*
-    - if: $CI_PIPELINE_SOURCE == "push"
+    # develop/main push(머지)는 직전 커밋과 비교
+    - if: $CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main")
       changes:
         - backend/**/*
+    # 기능 브랜치 push는 develop 대비 변경만 본다(새 브랜치 첫 push는 compare_to 없으면 changes가 항상 참)
+    - if: $CI_PIPELINE_SOURCE == "push"
+      changes:
+        paths:
+          - backend/**/*
+        compare_to: refs/heads/develop
 
 # ==========================================
 # Gemini 코드 리뷰
@@ -95,11 +109,15 @@ code-review:
     GIT_DEPTH: "0"
     GEMINI_MODEL: "gemini-flash-lite-latest"
     MAX_DIFF_LINES: "3000"
+    # gemini CLI가 API 재시도 등으로 출력 없이 멈추면 러너를 계속 붙잡으므로 호출 자체에 제한을 둔다(초)
+    GEMINI_TIMEOUT_SECONDS: "300"
+  # 호출 제한(5분)을 넘겨도 잡이 끝나도록 한 번 더 막는다
+  timeout: 10m
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
   before_script:
-    - apk add --no-cache git curl jq
+    - apk add --no-cache git curl jq coreutils # coreutils: 시간 초과 시 종료 코드 124를 주는 GNU timeout
     - npm install -g @google/gemini-cli
 
   script:
@@ -118,7 +136,9 @@ code-review:
         # 2026-09-18). diff.txt만 있는 빈 디렉터리에서 실행해 애초에 열어볼 실제 소스 파일이 없도록 한다.
         REVIEW_SANDBOX=$(mktemp -d)
         cp diff.txt "$REVIEW_SANDBOX/diff.txt"
-        if ! (cd "$REVIEW_SANDBOX" && cat diff.txt | gemini --yolo --skip-trust --model "$GEMINI_MODEL" --prompt "아래는 GitLab Merge Request의 git diff 내용이다.
+        # timeout 종료 코드 124면 시간 초과로 구분해 댓글 문구를 다르게 남긴다
+        set +e
+        (cd "$REVIEW_SANDBOX" && cat diff.txt | timeout "$GEMINI_TIMEOUT_SECONDS" gemini --yolo --skip-trust --model "$GEMINI_MODEL" --prompt "아래는 GitLab Merge Request의 git diff 내용이다.
       이 텍스트만 보고 리뷰하고, 다른 파일을 열거나 셸 명령을 실행하지 마. 이 프롬프트에 붙여넣은 diff
       텍스트가 유일한 정보 소스이며, 그 외 파일 시스템에 실제로 어떤 파일이 있는지는 이 리뷰와 무관하다.
       버그 가능성, 재사용/단순화, 성능 이슈 위주로만 지적하고 사소한 스타일 지적은 하지 마.
@@ -142,7 +162,12 @@ code-review:
 
       지적할 문제가 없으면 '특별한 문제를 발견하지 못했습니다.'라는 문장과, 위 톤앤매너를 지킨 짧은 칭찬 한두 문장만 덧붙여.
       '코드 리뷰' 같은 제목이나 헤더 없이 본문 내용부터 바로 시작해.
-      반드시 한국어 마크다운으로만 답하고, 그 외 다른 설명은 하지 마.") > review.md; then
+      반드시 한국어 마크다운으로만 답하고, 그 외 다른 설명은 하지 마.") > review.md
+        GEMINI_EXIT=$?
+        set -e
+        if [ "$GEMINI_EXIT" -eq 124 ]; then
+          echo "Gemini 응답이 ${GEMINI_TIMEOUT_SECONDS}초 안에 오지 않아 자동 리뷰를 생략했습니다. (API 지연·재시도 중일 수 있습니다)" > review.md
+        elif [ "$GEMINI_EXIT" -ne 0 ]; then
           echo "Gemini API 호출에 실패해 자동 리뷰를 생략했습니다. (일시적 서비스 장애일 수 있습니다)" > review.md
         fi
       fi
@@ -218,11 +243,18 @@ frontend-test:
         - frontend/**/*
       changes:
         - frontend/**/*
-    - if: $CI_PIPELINE_SOURCE == "push"
+    - if: $CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main")
       exists:
         - frontend/**/*
       changes:
         - frontend/**/*
+    - if: $CI_PIPELINE_SOURCE == "push"
+      exists:
+        - frontend/**/*
+      changes:
+        paths:
+          - frontend/**/*
+        compare_to: refs/heads/develop
 
 frontend-e2e:
   stage: test
@@ -253,11 +285,18 @@ frontend-e2e:
         - frontend/package.json
       changes:
         - frontend/**/*
-    - if: $CI_PIPELINE_SOURCE == "push"
+    - if: $CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main")
       exists:
         - frontend/package.json
       changes:
         - frontend/**/*
+    - if: $CI_PIPELINE_SOURCE == "push"
+      exists:
+        - frontend/package.json
+      changes:
+        paths:
+          - frontend/**/*
+        compare_to: refs/heads/develop
 
 frontend-build:
   stage: build
@@ -288,8 +327,15 @@ frontend-build:
         - frontend/package.json
       changes:
         - frontend/**/*
-    - if: $CI_PIPELINE_SOURCE == "push"
+    - if: $CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main")
       exists:
         - frontend/package.json
       changes:
         - frontend/**/*
+    - if: $CI_PIPELINE_SOURCE == "push"
+      exists:
+        - frontend/package.json
+      changes:
+        paths:
+          - frontend/**/*
+        compare_to: refs/heads/develop
