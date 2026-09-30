@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 
 import com.swyp.team5.interest.entity.Interest;
 import com.swyp.team5.member.entity.Member;
+import com.swyp.team5.platform.entity.PlatformListing;
 
 public interface InterestRepository extends JpaRepository<Interest, Long> {
 
@@ -27,6 +28,14 @@ public interface InterestRepository extends JpaRepository<Interest, Long> {
     /** 우리 상품을 관심 등록한 회원 목록(구매 추천 알림 수신자). */
     @Query("SELECT i.member FROM Interest i WHERE i.product.id = :productId")
     List<Member> findMembersByProductId(@Param("productId") Long productId);
+
+    /** 외부 매물을 관심 등록한 회원 목록(구매 추천 알림 수신자). */
+    @Query("SELECT i.member FROM Interest i WHERE i.listing.id = :listingId")
+    List<Member> findMembersByListingId(@Param("listingId") Long listingId);
+
+    /** 한 명 이상이 관심 등록한 외부 매물 중 지정 상태(판매중)인 매물 — 시세 분석 대상. */
+    @Query("SELECT DISTINCT l FROM Interest i JOIN i.listing l WHERE l.status = :status")
+    List<PlatformListing> findInterestedListingsByStatus(@Param("status") String status);
 
     @Query("SELECT i.product.id FROM Interest i WHERE i.product IS NOT NULL AND i.createdAt >= :since "
             + "GROUP BY i.product.id ORDER BY COUNT(i) DESC")

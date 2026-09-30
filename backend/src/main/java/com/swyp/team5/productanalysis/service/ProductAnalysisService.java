@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.LongSummaryStatistics;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.swyp.team5.common.ai.AiChatExecutor;
+import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.notification.service.NotificationService;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.platform.repository.ListingPriceStats;
@@ -26,12 +28,13 @@ import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.productanalysis.config.ProductAnalysisProperties;
 import com.swyp.team5.productanalysis.dto.MarketAnalysisResult;
 import com.swyp.team5.productanalysis.dto.ProductAnalysisResponse;
+import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
 
 /**
- * 등록된 상품과 같은 카테고리에서 수집된 매물({@link PlatformListing})을 근거로 시세를 분석해
- * {@link ProductAnalysis} 스냅샷을 생성한다. 통계(최저/평균/최고가)는 직접 계산하고,
+ * 등록된 상품(또는 관심 등록된 외부 매물)과 같은 카테고리에서 수집된 매물({@link PlatformListing})을 근거로
+ * 시세를 분석해 {@link ProductAnalysis} 스냅샷을 생성한다. 통계(최저/평균/최고가)는 직접 계산하고,
  * 추천(SELL/HOLD/BUY/WAIT)/적정가/판단 근거는 AI(Gemini, 실패 시 OpenAI GPT)에게 위임한다.
  */
 @Slf4j
@@ -63,12 +66,34 @@ public class ProductAnalysisService {
             %s
             """;
 
+    private static final String LISTING_SYSTEM_PROMPT =
+            """
+            너는 중고거래 플랫폼의 시세 분석 AI야. 사용자가 구매를 고민하며 관심 등록한 외부 플랫폼 매물 1건과,
+            같은 카테고리에서 최근 수집된 실제 판매 매물 목록(제목/가격)을 줄게. 매물 중 상품명이 이 매물과 실제로
+            유사한 것들만 참고하고, 카테고리가 같아도 전혀 다른 종류의 물건은 무시해.
+
+            구매자 관점에서만 판단해. 시세 대비 저렴하거나 시세가 오르는 추세라 지금 사는 게 유리하면 BUY,
+            시세보다 비싸거나 시세가 내려가는 추세라 기다리는 게 유리하면 WAIT를 선택해. SELL/HOLD는 선택하지 마.
+            """;
+
+    private static final String LISTING_USER_PROMPT_TEMPLATE =
+            """
+            [분석 대상 매물]
+            제목: %s
+            카테고리 시세 통계 - 최저가: %d원 / 평균가: %d원 / 최고가: %d원
+            판매가: %d원
+
+            [같은 카테고리 비교 매물 %d건(가격 오름차순)]
+            %s
+            """;
+
     private final AiChatExecutor aiChatExecutor;
     private final ProductRepository productRepository;
     private final PlatformListingRepository platformListingRepository;
     private final ProductAnalysisRepository productAnalysisRepository;
     private final ProductAnalysisProperties properties;
     private final NotificationService notificationService;
+    private final InterestRepository interestRepository;
 
     public ProductAnalysisService(
             AiChatExecutor aiChatExecutor,
@@ -76,13 +101,15 @@ public class ProductAnalysisService {
             PlatformListingRepository platformListingRepository,
             ProductAnalysisRepository productAnalysisRepository,
             ProductAnalysisProperties properties,
-            NotificationService notificationService) {
+            NotificationService notificationService,
+            InterestRepository interestRepository) {
         this.aiChatExecutor = aiChatExecutor;
         this.productRepository = productRepository;
         this.platformListingRepository = platformListingRepository;
         this.productAnalysisRepository = productAnalysisRepository;
         this.properties = properties;
         this.notificationService = notificationService;
+        this.interestRepository = interestRepository;
     }
 
     /**
@@ -119,8 +146,8 @@ public class ProductAnalysisService {
     }
 
     /**
-     * 분석 대상 상태({@link ProductStatus#ANALYSIS_TARGETS} — 외부 게시 전 등록 상품 포함)의 상품 전체를 순회하며
-     * 분석한다(스케줄러 진입점). 한 건이 실패해도 나머지는 계속 진행한다.
+     * 분석 대상 상태({@link ProductStatus#ANALYSIS_TARGETS} — 외부 게시 전 등록 상품 포함)의 상품 전체와, 관심 등록된
+     * 판매중 외부 매물 전체를 순회하며 분석한다(스케줄러 진입점). 한 건이 실패해도 나머지는 계속 진행한다.
      */
     public void analyzeAll() {
         List<Product> products = productRepository.findByStatusIn(ProductStatus.ANALYSIS_TARGETS);
@@ -128,6 +155,21 @@ public class ProductAnalysisService {
         for (Product product : products) {
             analyzeProductSafely(product);
             sleepBetweenAiCalls();
+        }
+
+        List<PlatformListing> listings = interestRepository.findInterestedListingsByStatus(SELLING_STATUS);
+        log.info("시세 분석 대상 관심 외부 매물 {}건", listings.size());
+        for (PlatformListing listing : listings) {
+            analyzeListingSafely(listing);
+            sleepBetweenAiCalls();
+        }
+    }
+
+    private void analyzeListingSafely(PlatformListing listing) {
+        try {
+            analyzeListing(listing);
+        } catch (Exception e) {
+            log.error("외부 매물 {} 시세 분석 중 오류가 발생했습니다.", listing.getId(), e);
         }
     }
 
@@ -198,12 +240,97 @@ public class ProductAnalysisService {
                 product, previous.map(ProductAnalysis::getRecommendation).orElse(null), aiResult.recommendation());
     }
 
-    private MarketAnalysisResult requestAiAnalysis(
-            Product product, List<PlatformListing> listings, long minPrice, long averagePrice, long maxPrice) {
-        String sample = listings.stream()
+    /**
+     * 관심 등록된 외부 매물 1건을 구매자 관점(BUY/WAIT)으로 분석한다. 비교 매물에서 분석 대상 매물 자신은 제외한다.
+     * 우리 상품과 달리 AI 적정가로 갱신할 컬럼이 없고, 알림은 관심 등록 회원에게만 간다.
+     */
+    @Transactional
+    void analyzeListing(PlatformListing listing) {
+        LocalDateTime freshAfter = LocalDateTime.now().minusHours(properties.freshnessHours());
+        List<PlatformListing> comparisons = platformListingRepository
+                .findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
+                        listing.getCategory().getId(), SELLING_STATUS, freshAfter)
+                .stream()
+                .filter(comparison -> !Objects.equals(comparison.getId(), listing.getId()))
+                .toList();
+
+        if (comparisons.size() < properties.minListings()) {
+            log.info(
+                    "외부 매물 {}: 비교 가능한 매물이 {}건뿐이라 분석을 건너뜁니다(최소 {}건 필요).",
+                    listing.getId(),
+                    comparisons.size(),
+                    properties.minListings());
+            return;
+        }
+
+        LongSummaryStatistics stats =
+                comparisons.stream().mapToLong(PlatformListing::getPrice).summaryStatistics();
+        long minPrice = stats.getMin();
+        long averagePrice = Math.round(stats.getAverage());
+        long maxPrice = stats.getMax();
+
+        MarketAnalysisResult aiResult =
+                requestListingAiAnalysis(listing, comparisons, minPrice, averagePrice, maxPrice);
+        if (aiResult.recommendation() != AnalysisRecommendation.BUY
+                && aiResult.recommendation() != AnalysisRecommendation.WAIT) {
+            log.warn("외부 매물 {}: 구매자 관점이 아닌 추천({})이 와서 저장하지 않습니다.", listing.getId(), aiResult.recommendation());
+            return;
+        }
+
+        Optional<ProductAnalysis> previous =
+                productAnalysisRepository.findFirstByListingIdOrderByAnalyzedAtDesc(listing.getId());
+        BigDecimal changeRate = previous.map(p -> calculateChangeRate(p.getAveragePrice(), averagePrice))
+                .orElse(null);
+
+        productAnalysisRepository.save(ProductAnalysis.createForListing(
+                listing,
+                minPrice,
+                averagePrice,
+                maxPrice,
+                changeRate,
+                aiResult.recommendation(),
+                aiResult.suggestedPrice(),
+                aiResult.description(),
+                LocalDateTime.now()));
+
+        notificationService.notifyListingRecommendationChanged(
+                listing, previous.map(ProductAnalysis::getRecommendation).orElse(null), aiResult.recommendation());
+    }
+
+    private MarketAnalysisResult requestListingAiAnalysis(
+            PlatformListing listing,
+            List<PlatformListing> comparisons,
+            long minPrice,
+            long averagePrice,
+            long maxPrice) {
+        String userPrompt = LISTING_USER_PROMPT_TEMPLATE.formatted(
+                listing.getTitle(),
+                minPrice,
+                averagePrice,
+                maxPrice,
+                listing.getPrice(),
+                Math.min(comparisons.size(), properties.sampleSize()),
+                listingSample(comparisons));
+
+        MarketAnalysisResult result = aiChatExecutor.call("외부 매물 시세 분석", client -> client.prompt()
+                .system(LISTING_SYSTEM_PROMPT)
+                .user(userPrompt)
+                .call()
+                .entity(MarketAnalysisResult.class));
+        assert result != null;
+        return result;
+    }
+
+    private String listingSample(List<PlatformListing> listings) {
+        return listings.stream()
                 .limit(properties.sampleSize())
                 .map(listing -> "- %s: %d원".formatted(listing.getTitle(), listing.getPrice()))
                 .collect(Collectors.joining("\n"));
+    }
+
+    private MarketAnalysisResult requestAiAnalysis(
+            Product product, List<PlatformListing> listings, long minPrice, long averagePrice, long maxPrice) {
+        String sample = listingSample(listings);
 
         String userPrompt = USER_PROMPT_TEMPLATE.formatted(
                 product.getTitle(),

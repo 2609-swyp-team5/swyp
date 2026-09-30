@@ -19,6 +19,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import com.swyp.team5.member.entity.Member;
+import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.product.entity.Product;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -44,6 +45,10 @@ public class Notification {
     @JoinColumn(name = "product_id")
     private Product product; // 공지성 알림 등 상품과 무관하면 null
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "listing_id")
+    private PlatformListing listing; // 관심 등록된 외부 매물 대상 알림이면 채워짐(product와 동시에 채워지지 않음)
+
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "notification_type")
@@ -66,9 +71,16 @@ public class Notification {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    private Notification(Member member, Product product, NotificationType type, String title, String message) {
+    private Notification(
+            Member member,
+            Product product,
+            PlatformListing listing,
+            NotificationType type,
+            String title,
+            String message) {
         this.member = member;
         this.product = product;
+        this.listing = listing;
         this.type = type;
         this.title = title;
         this.message = message;
@@ -77,7 +89,13 @@ public class Notification {
 
     public static Notification create(
             Member member, Product product, NotificationType type, String title, String message) {
-        return new Notification(member, product, type, title, message);
+        return new Notification(member, product, null, type, title, message);
+    }
+
+    /** 관심 등록된 외부 매물 대상 알림을 생성한다. */
+    public static Notification createForListing(
+            Member member, PlatformListing listing, NotificationType type, String title, String message) {
+        return new Notification(member, null, listing, type, title, message);
     }
 
     public void markRead() {

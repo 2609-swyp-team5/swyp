@@ -20,6 +20,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.product.entity.Product;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -27,8 +28,9 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 
 /**
- * 상품 시세 분석 스냅샷. 같은 카테고리 비교 매물({@code platform_listings}) 통계와 AI 판단 결과를
- * 함께 기록한다.
+ * 시세 분석 스냅샷. 같은 카테고리 비교 매물({@code platform_listings}) 통계와 AI 판단 결과를
+ * 함께 기록한다. 분석 대상은 우리 상품({@code product}) 또는 관심 등록된 외부 매물({@code listing}) 중
+ * 정확히 하나다.
  */
 @Entity
 @Table(name = "product_analysis")
@@ -42,8 +44,12 @@ public class ProductAnalysis {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", nullable = false)
-    private Product product;
+    @JoinColumn(name = "product_id")
+    private Product product; // 우리 상품 대상 분석(listing과 배타적)
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "listing_id")
+    private PlatformListing listing; // 관심 등록된 외부 매물 대상 분석(product와 배타적)
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
@@ -82,6 +88,7 @@ public class ProductAnalysis {
     @Builder
     private ProductAnalysis(
             Product product,
+            PlatformListing listing,
             Long minPrice,
             Long averagePrice,
             Long maxPrice,
@@ -91,6 +98,7 @@ public class ProductAnalysis {
             String description,
             LocalDateTime analyzedAt) {
         this.product = product;
+        this.listing = listing;
         this.minPrice = minPrice;
         this.averagePrice = averagePrice;
         this.maxPrice = maxPrice;
@@ -102,7 +110,7 @@ public class ProductAnalysis {
     }
 
     /**
-     * 비교 매물({@code platform_listings}) 통계 + AI 판단 결과로 분석 스냅샷을 생성한다.
+     * 비교 매물({@code platform_listings}) 통계 + AI 판단 결과로 우리 상품의 분석 스냅샷을 생성한다.
      *
      * @param changeRate 직전 스냅샷 대비 평균가 변동률(직전 스냅샷이 없으면 null)
      */
@@ -118,6 +126,30 @@ public class ProductAnalysis {
             LocalDateTime analyzedAt) {
         return ProductAnalysis.builder()
                 .product(product)
+                .minPrice(minPrice)
+                .averagePrice(averagePrice)
+                .maxPrice(maxPrice)
+                .changeRate(changeRate)
+                .recommendation(recommendation)
+                .suggestedPrice(suggestedPrice)
+                .description(description)
+                .analyzedAt(analyzedAt)
+                .build();
+    }
+
+    /** 관심 등록된 외부 매물의 분석 스냅샷을 생성한다(구매자 관점 추천 BUY/WAIT). */
+    public static ProductAnalysis createForListing(
+            PlatformListing listing,
+            long minPrice,
+            long averagePrice,
+            long maxPrice,
+            BigDecimal changeRate,
+            AnalysisRecommendation recommendation,
+            Long suggestedPrice,
+            String description,
+            LocalDateTime analyzedAt) {
+        return ProductAnalysis.builder()
+                .listing(listing)
                 .minPrice(minPrice)
                 .averagePrice(averagePrice)
                 .maxPrice(maxPrice)
