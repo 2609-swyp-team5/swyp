@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Positive;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
-/** 단계별 스트리밍 등록(v2, SSE) 설정. */
+/** 상품 단계별 스트리밍 등록·수정(SSE) 설정. */
 @Validated
 @ConfigurationProperties(prefix = "product.register-stream")
 public record ProductRegisterStreamProperties(
