@@ -19,7 +19,7 @@ test("onboarding reveals sections on scroll while keeping its entry immediately 
 
     for (const title of [
         "이렇게 사용해요",
-        "AI가 무엇을 분석하나요?",
+        /시세부터 실거래까지/,
         "파는 사람에게도, 사는 사람에게도",
     ]) {
         const heading = page.getByRole("heading", { name: title, exact: true });
@@ -101,7 +101,7 @@ test("smooth wheel scrolling is scoped to onboarding and respects reduced motion
     await expect(page.locator("html")).not.toHaveClass(/lenis/);
 });
 
-test("onboarding buttons respond to hover while the header keeps its original behavior", async ({
+test("onboarding buttons keep their behavior with the Figma scroll-to-top design", async ({
     page,
 }, testInfo) => {
     await page.addInitScript(() => localStorage.setItem("auth:loggedOut", "true"));
@@ -116,20 +116,21 @@ test("onboarding buttons respond to hover while the header keeps its original be
     await page.mouse.move(100, 400);
     await page.mouse.wheel(0, 900);
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(800);
-    await expect(headerContent).toHaveCSS("padding-top", "20px");
+    await expect(headerContent).toHaveCSS("padding-top", "24px");
     await expect(header).toHaveCSS("position", "static");
     await expect(header).toHaveCSS("box-shadow", "none");
 
     const topButton = page.getByRole("button", { name: "맨 위로 이동" });
     await expect(topButton).toHaveCSS("position", "fixed");
-    const restingShadow = await topButton.evaluate((button) => getComputedStyle(button).boxShadow);
-    await topButton.hover();
-    await expect(topButton).not.toHaveCSS("box-shadow", restingShadow);
-    await expect(topButton.locator("span")).toHaveCSS("opacity", "1");
+    await expect(topButton).toHaveCSS("width", "70px");
+    await expect(topButton).toHaveCSS("height", "70px");
+    await expect(topButton.locator("svg")).toBeVisible();
+    await expect(topButton.getByText("바로가기")).toBeVisible();
+    await expect(topButton.locator("img")).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath("onboarding-scrolled.png") });
     await topButton.click();
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
-    await expect(headerContent).toHaveCSS("padding-top", "20px");
+    await expect(headerContent).toHaveCSS("padding-top", "24px");
 
     await start.click();
     await expect(page).toHaveURL(/\/login$/);

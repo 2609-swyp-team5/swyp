@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/common/components/ui/Avat
 import { Skeleton } from "@/common/components/ui/Skeleton";
 
 const sizes = {
-    header: { avatar: "size-9", icon: "size-[13.5px]" },
+    header: { avatar: "size-11", icon: "size-[16.5px]" },
     settings: { avatar: "size-22", icon: "size-[33px]" },
     sidebar: { avatar: "size-24", icon: "size-9" },
 } as const;

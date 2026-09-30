@@ -9,7 +9,14 @@ export function SiteFooter() {
             <div className="layout-container flex min-h-[var(--footer-height)] flex-col justify-between gap-12 py-16 md:gap-0 md:pt-[76px] md:pb-10">
                 <div className="flex flex-wrap items-center justify-between gap-10">
                     <Link href="/" className="shrink-0">
-                        <Image src="/logo.png" alt="지금이니?" width={100} height={55} />
+                        <Image
+                            src="/brand/jigeumini-logo.png"
+                            alt="지금이니?"
+                            width={129}
+                            height={71}
+                            unoptimized
+                            className="h-[71px] w-[129px] object-contain"
+                        />
                     </Link>
                     <nav aria-label="푸터 메뉴" className="flex flex-wrap gap-x-10 gap-y-4">
                         <Link href="/">소개</Link>
