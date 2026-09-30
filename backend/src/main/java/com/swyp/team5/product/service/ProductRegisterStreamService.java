@@ -3,6 +3,7 @@ package com.swyp.team5.product.service;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -35,6 +36,7 @@ import com.swyp.team5.product.config.ProductRegisterStreamProperties;
 import com.swyp.team5.product.dto.ProductAiAnalysisResult;
 import com.swyp.team5.product.dto.ProductCreateRequest;
 import com.swyp.team5.product.dto.ProductResponse;
+import com.swyp.team5.product.dto.ProductUpdateRequest;
 import com.swyp.team5.product.dto.register.ProductRegisterAnalysis;
 import com.swyp.team5.product.dto.register.ProductRegisterErrorEvent;
 import com.swyp.team5.product.dto.register.ProductRegisterResponse;
@@ -43,16 +45,19 @@ import com.swyp.team5.product.dto.register.ProductRegisterStepEvent;
 import com.swyp.team5.product.dto.register.ProductRegisterStepEvent.ImageAnalysisResult;
 import com.swyp.team5.product.dto.register.ProductRegisterStepEvent.ImageUploadResult;
 import com.swyp.team5.product.entity.DefectStatus;
+import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductImageRequiredException;
+import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.error.ProductRegisterBusyException;
 
 /**
- * 상품 단계별 스트리밍 등록(v2). 등록 요청 하나를 이미지 업로드 → AI 사진 분석 → 상품 저장 단계로 나눠 처리하며, 단계마다
- * SSE {@code step} 이벤트를, 끝나면 {@code complete}(등록된 상품) 또는 {@code error} 이벤트를 보낸다.
+ * 상품 등록·수정을 단계별로 처리하며 진행 상황을 SSE로 보낸다. 등록은 이미지 업로드 → AI 사진 분석 → 상품 저장, 수정은
+ * 이미지 업로드 → 상품 저장 단계로 나눠 처리하며, 단계마다 SSE {@code step} 이벤트를, 끝나면 {@code complete}(등록·수정된
+ * 상품) 또는 {@code error} 이벤트를 보낸다.
  *
- * <p>기존 한 번에 등록({@link ProductService#create}/{@link ProductService#createFromImages})과 같은 규칙으로 저장하되,
- * 업로드와 AI 호출은 트랜잭션 밖에서 하고 저장만 짧은 트랜잭션으로 처리한다. 실패하면 이미 업로드한 파일을 지운다.
- * 클라이언트가 연결을 끊거나 스트림 시간이 지나도 등록은 끝까지 진행한다(결과는 내 상품 목록에서 확인).
+ * <p>업로드와 AI 호출은 트랜잭션 밖에서 하고 저장({@link ProductService#saveDirect}/{@link ProductService#saveFromAnalysis}/
+ * {@link ProductService#saveUpdate})만 짧은 트랜잭션으로 처리한다. 실패하면 이번 요청에서 업로드한 파일을 지운다.
+ * 클라이언트가 연결을 끊거나 스트림 시간이 지나도 처리는 끝까지 진행한다(결과는 내 상품 목록에서 확인).
  */
 @Slf4j
 @Service
@@ -68,10 +73,13 @@ public class ProductRegisterStreamService implements DisposableBean {
             ProductRegisterStep.IMAGE_UPLOAD, ProductRegisterStep.IMAGE_ANALYSIS, ProductRegisterStep.PRODUCT_SAVE);
     private static final List<ProductRegisterStep> AI_STEPS = List.of(
             ProductRegisterStep.IMAGE_UPLOAD, ProductRegisterStep.IMAGE_ANALYSIS, ProductRegisterStep.PRODUCT_SAVE);
+    private static final List<ProductRegisterStep> UPDATE_STEPS = List.of(
+            ProductRegisterStep.IMAGE_UPLOAD, ProductRegisterStep.IMAGE_ANALYSIS, ProductRegisterStep.PRODUCT_SAVE);
 
     private final ProductService productService;
     private final ProductAiService productAiService;
     private final FileStorageService fileStorageService;
+    private final ProductImageLoader productImageLoader;
     private final ProductRegisterStreamProperties properties;
     private final ThreadPoolTaskExecutor executor;
     private final ScheduledExecutorService keepAliveScheduler;
@@ -80,10 +88,12 @@ public class ProductRegisterStreamService implements DisposableBean {
             ProductService productService,
             ProductAiService productAiService,
             FileStorageService fileStorageService,
+            ProductImageLoader productImageLoader,
             ProductRegisterStreamProperties properties) {
         this.productService = productService;
         this.productAiService = productAiService;
         this.fileStorageService = fileStorageService;
+        this.productImageLoader = productImageLoader;
         this.properties = properties;
         // 스프링 빈으로 Executor를 등록하면 기본 applicationTaskExecutor 자동 설정이 꺼지므로 이 서비스 안에서만 쓴다
         this.executor = new ThreadPoolTaskExecutor();
@@ -102,8 +112,8 @@ public class ProductRegisterStreamService implements DisposableBean {
     }
 
     /**
-     * 직접 등록을 단계별로 처리한다. AI 사진 분석이 실패하면 그 단계만 {@code SKIP}로 알리고 제안가/판단 근거 없이
-     * 등록한다(기존 직접 등록과 같은 규칙).
+     * 직접 등록을 단계별로 처리한다. AI 사진 분석은 필수라, 실패하면 업로드한 파일을 지우고 {@code error} 이벤트로
+     * 등록을 취소한다(AI 등록과 같은 규칙).
      *
      * @param memberId 등록하는 회원 ID
      * @param request 등록 요청 바디
@@ -120,8 +130,12 @@ public class ProductRegisterStreamService implements DisposableBean {
         List<MultipartFile> copies = copyImages(images);
         return start(DIRECT_STEPS, stream -> {
             List<String> imageUrls = uploadImages(stream, copies);
-            ProductAiAnalysisResult analysis = analyzeOrSkip(stream, copies);
-            return save(stream, () -> productService.saveDirect(memberId, request, imageUrls, analysis));
+            ProductAiAnalysisResult analysis = analyze(stream, copies);
+            return save(
+                    stream,
+                    "상품을 등록하고 있습니다.",
+                    "상품 등록 완료",
+                    () -> productService.saveDirect(memberId, request, imageUrls, analysis));
         });
     }
 
@@ -147,13 +161,67 @@ public class ProductRegisterStreamService implements DisposableBean {
         List<MultipartFile> copies = copyImages(images);
         return start(AI_STEPS, stream -> {
             List<String> imageUrls = uploadImages(stream, copies);
-            stream.begin(ProductRegisterStep.IMAGE_ANALYSIS, "AI가 사진을 분석하고 있습니다.");
-            ProductAiAnalysisResult analysis = productAiService.analyze(copies);
-            stream.done(ProductRegisterStep.IMAGE_ANALYSIS, "사진 분석 완료", ImageAnalysisResult.from(analysis));
+            ProductAiAnalysisResult analysis = analyze(stream, copies);
             return save(
                     stream,
+                    "상품을 등록하고 있습니다.",
+                    "상품 등록 완료",
                     () -> productService.saveFromAnalysis(
                             memberId, analysis, imageUrls, purchasedMonths, defectStatus, includedItems));
+        });
+    }
+
+    /**
+     * 상품 수정을 단계별로 처리한다. 새 이미지 파일을 업로드한 뒤(없으면 {@code SKIP}) 유지할 기존 이미지 뒤에 이어 붙여
+     * 저장한다. 빈 파일은 무시한다.
+     *
+     * <p>이미지 구성이 바뀌었으면(새 파일 추가 또는 기존 이미지 제거 — 순서만 바뀐 경우는 제외) 최종 이미지 전체를 AI로 다시
+     * 분석해 AI 제안가/판단 근거만 갱신한다. 유지하는 기존 이미지는 스토리지에서 내려받되, 이 상품에 실제로 등록된 URL만
+     * 내려받는다(요청에 섞인 임의 URL은 분석에서 제외). 이미지가 그대로이거나 분석에 실패하면 {@code SKIP}하고 기존 값을
+     * 유지한 채 수정한다.
+     *
+     * @param memberId 요청한 회원 ID
+     * @param productId 수정할 상품 ID
+     * @param request 수정 요청 바디
+     * @param images 새로 추가할 이미지 파일 목록(선택, {@code null} 허용)
+     * @return 진행 상황을 보내는 SSE 스트림
+     * @throws ProductNotFoundException 존재하지 않는 상품인 경우(스트림 시작 전)
+     * @throws ProductAccessDeniedException 본인이 등록한 상품이 아닌 경우(스트림 시작 전)
+     * @throws CategoryNotFoundException 존재하지 않는 카테고리인 경우(스트림 시작 전)
+     * @throws CategoryNotLeafException 최하위 카테고리가 아닌 경우(스트림 시작 전)
+     * @throws ProductImageRequiredException 유지할 이미지와 새 파일을 합쳐 1장도 없는 경우(스트림 시작 전)
+     * @throws ProductRegisterBusyException 처리 대기열이 가득 찬 경우(스트림 시작 전)
+     */
+    public SseEmitter update(Long memberId, Long productId, ProductUpdateRequest request, List<MultipartFile> images) {
+        List<MultipartFile> copies = images == null
+                ? List.of()
+                : images.stream()
+                        .filter(image -> !image.isEmpty())
+                        .map(image -> (MultipartFile) InMemoryMultipartFile.copyOf(image))
+                        .toList();
+        List<String> currentImageUrls = productService.validateUpdate(memberId, productId, request, copies.size());
+        List<String> keptImageUrls = request.imageUrls() == null ? List.of() : request.imageUrls();
+        boolean imagesChanged = !copies.isEmpty() || !Set.copyOf(keptImageUrls).equals(Set.copyOf(currentImageUrls));
+        return start(UPDATE_STEPS, stream -> {
+            List<String> newImageUrls;
+            if (copies.isEmpty()) {
+                stream.skip(ProductRegisterStep.IMAGE_UPLOAD, "새로 추가할 이미지가 없습니다.");
+                newImageUrls = List.of();
+            } else {
+                newImageUrls = uploadImages(stream, copies);
+            }
+            ProductAiAnalysisResult analysis = null;
+            if (imagesChanged) {
+                analysis = analyzeOrSkip(stream, () -> updatedImages(keptImageUrls, currentImageUrls, copies));
+            } else {
+                stream.skip(ProductRegisterStep.IMAGE_ANALYSIS, "이미지가 바뀌지 않아 사진 분석을 건너뜁니다.");
+            }
+            ProductAiAnalysisResult finalAnalysis = analysis;
+            return save(
+                    stream,
+                    "상품을 수정하고 있습니다.",
+                    "상품 수정 완료",
+                    () -> productService.saveUpdate(memberId, productId, request, newImageUrls, finalAnalysis));
         });
     }
 
@@ -182,12 +250,12 @@ public class ProductRegisterStreamService implements DisposableBean {
         SseEmitter emitter = new SseEmitter(properties.timeout().toMillis());
         RegisterStream stream = new RegisterStream(emitter, steps);
         emitter.onTimeout(() -> {
-            log.warn("상품 등록 스트림 시간 초과 - 등록은 계속 진행합니다. step={}", stream.currentStep);
+            log.warn("상품 등록·수정 스트림 시간 초과 - 처리는 계속 진행합니다. step={}", stream.currentStep);
             stream.sendAndClose(errorResponse(
                     stream.currentStep,
                     HttpStatus.SERVICE_UNAVAILABLE,
                     "REGISTER_TIMEOUT",
-                    "처리가 지연되고 있습니다. 등록 결과는 내 상품 목록에서 확인해 주세요."));
+                    "처리가 지연되고 있습니다. 처리 결과는 내 상품 목록에서 확인해 주세요."));
         });
         emitter.onCompletion(stream::markClosed);
         emitter.onError(error -> stream.markClosed());
@@ -231,25 +299,55 @@ public class ProductRegisterStreamService implements DisposableBean {
         return imageUrls;
     }
 
-    /** 직접 등록의 AI 분석은 참고용이라 실패해도 등록을 계속한다. */
-    private ProductAiAnalysisResult analyzeOrSkip(RegisterStream stream, List<MultipartFile> images) {
+    /** 등록의 AI 사진 분석은 필수라 실패하면 예외를 그대로 던져 등록을 취소한다(run()이 파일 삭제 후 error 이벤트). */
+    private ProductAiAnalysisResult analyze(RegisterStream stream, List<MultipartFile> images) {
+        stream.begin(ProductRegisterStep.IMAGE_ANALYSIS, "AI가 사진을 분석하고 있습니다.");
+        ProductAiAnalysisResult analysis = productAiService.analyze(images);
+        stream.done(ProductRegisterStep.IMAGE_ANALYSIS, "사진 분석 완료", ImageAnalysisResult.from(analysis));
+        return analysis;
+    }
+
+    /** 수정의 AI 재분석은 제안가/판단 근거 갱신용이라 실패하면 건너뛰고 기존 값으로 수정을 계속한다. */
+    private ProductAiAnalysisResult analyzeOrSkip(RegisterStream stream, Supplier<List<MultipartFile>> images) {
         stream.begin(ProductRegisterStep.IMAGE_ANALYSIS, "AI가 사진을 분석하고 있습니다.");
         try {
-            ProductAiAnalysisResult analysis = productAiService.analyze(images);
+            ProductAiAnalysisResult analysis = productAiService.analyze(images.get());
             stream.done(ProductRegisterStep.IMAGE_ANALYSIS, "사진 분석 완료", ImageAnalysisResult.from(analysis));
             return analysis;
         } catch (RuntimeException e) {
-            log.warn("직접 등록 AI 적정가 추정 실패 - suggestedPrice 없이 등록합니다. reason={}", e.getMessage());
-            stream.skip(ProductRegisterStep.IMAGE_ANALYSIS, "사진 분석에 실패해 추천 가격 없이 등록합니다.");
+            log.warn("상품 수정 AI 사진 분석 실패 - 기존 제안가/판단 근거를 유지합니다. reason={}", e.getMessage());
+            stream.skip(ProductRegisterStep.IMAGE_ANALYSIS, "사진 분석에 실패해 기존 추천 가격을 유지합니다.");
             return null;
         }
     }
 
-    private ProductResponse save(RegisterStream stream, Supplier<ProductResponse> saver) {
-        stream.begin(ProductRegisterStep.PRODUCT_SAVE, "상품을 등록하고 있습니다.");
+    /**
+     * 수정 후 최종 이미지(유지할 기존 이미지 → 새 파일 순)를 분석용 파일로 모은다. 기존 이미지는 이 상품에 등록된 URL만
+     * 내려받는다(요청에 섞인 임의 URL을 서버가 대신 요청하지 않도록).
+     */
+    private List<MultipartFile> updatedImages(
+            List<String> keptImageUrls, List<String> currentImageUrls, List<MultipartFile> newImages) {
+        List<MultipartFile> images = new ArrayList<>();
+        for (String url : keptImageUrls) {
+            if (currentImageUrls.contains(url)) {
+                images.add(productImageLoader.load(url));
+            } else {
+                log.warn("상품 수정 - 등록되지 않은 이미지 URL은 사진 분석에서 제외합니다. url={}", url);
+            }
+        }
+        images.addAll(newImages);
+        if (images.isEmpty()) {
+            throw new IllegalStateException("분석할 이미지가 없습니다.");
+        }
+        return images;
+    }
+
+    private ProductResponse save(
+            RegisterStream stream, String startMessage, String doneMessage, Supplier<ProductResponse> saver) {
+        stream.begin(ProductRegisterStep.PRODUCT_SAVE, startMessage);
         ProductResponse product = saver.get();
         stream.uploadedKeys.clear(); // 저장이 끝났으므로 이후에는 파일을 지우지 않는다
-        stream.done(ProductRegisterStep.PRODUCT_SAVE, "상품 등록 완료", null);
+        stream.done(ProductRegisterStep.PRODUCT_SAVE, doneMessage, null);
         return product;
     }
 
@@ -275,6 +373,14 @@ public class ProductRegisterStreamService implements DisposableBean {
             log.error("상품 등록 - AI 사진 분석 실패: {}", e.getMessage(), e);
             return errorResponse(
                     step, HttpStatus.BAD_GATEWAY, "AI_ANALYSIS_FAILED", "AI 사진 분석에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+        }
+        if (e instanceof ProductNotFoundException) {
+            log.warn("상품 수정 - 상품 없음: {}", e.getMessage());
+            return errorResponse(step, HttpStatus.NOT_FOUND, "NOT_FOUND", e.getMessage());
+        }
+        if (e instanceof ProductAccessDeniedException) {
+            log.warn("상품 수정 - 권한 없음: {}", e.getMessage());
+            return errorResponse(step, HttpStatus.FORBIDDEN, "FORBIDDEN", e.getMessage());
         }
         if (e instanceof CategoryNotFoundException) {
             log.warn("상품 등록 - 카테고리 없음: {}", e.getMessage());
@@ -343,10 +449,9 @@ public class ProductRegisterStreamService implements DisposableBean {
             return index + 1;
         }
 
-        /** 연결이 끊겼으면 보내지 않고 넘어간다(등록 처리는 계속). */
         /**
          * 이벤트 하나를 {@code data:} 줄로 보낸다. SSE {@code event:} 이름은 쓰지 않고, 이벤트 종류는 응답 JSON의
-         * {@code data.event}(step/complete/error)로 구분한다.
+         * {@code data.event}(step/complete/error)로 구분한다. 연결이 끊겼으면 보내지 않고 넘어간다(처리는 계속).
          */
         synchronized void send(ApiResponse<?> response) {
             if (closed) {
