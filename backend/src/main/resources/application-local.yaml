@@ -8,6 +8,13 @@ spring:
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+    # Neon은 요청이 없으면 컴퓨트를 일시중지해 비용을 줄이는데, 풀이 유휴 커넥션을 붙잡고 있으면 깨어 있게 된다.
+    # 로컬에서는 쓰지 않는 커넥션을 1분 뒤 닫는다.
+    hikari:
+      minimum-idle: 0
+      maximum-pool-size: 5
+      idle-timeout: 60000
+      keepalive-time: 0
 
 # JPA 설정
   jpa:
@@ -42,3 +49,14 @@ management:
   endpoint:
     health:
       show-details: always
+
+# 배치 스케줄러 — 로컬은 기본 비활성.
+# 직접 확인할 때 및 운영에서만 활성화한다.
+crawl:
+  bunjang:
+    enabled: ${CRAWL_BUNJANG_ENABLED:false}
+    reconcile:
+      enabled: ${CRAWL_BUNJANG_RECONCILE_ENABLED:false}
+
+analysis:
+  enabled: ${PRICE_ANALYSIS_ENABLED:false}

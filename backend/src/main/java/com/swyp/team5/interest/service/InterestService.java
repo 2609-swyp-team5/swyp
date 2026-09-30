@@ -60,7 +60,7 @@ public class InterestService {
     /**
      * 인증된 본인의 관심상품 목록을 조회한다. 등록일시 내림차순. 우리 상품 대상 건은 상품 목록 조회와
      * 동일하게 각 상품의 가장 최근 시세 분석 스냅샷({@code recommendation}/{@code marketAveragePrice})도
-     * 함께 포함한다(분석 이력이 없으면 {@code null}). 외부 매물 대상 건은 둘 다 항상 {@code null}이다.
+     * 함께 포함한다(분석 이력이 없으면 {@code null}). 외부 매물 대상 건도 관심 매물 시세 분석 스냅샷이 있으면 채운다.
      *
      * @param memberId 요청자 회원 ID
      * @param page 페이지 번호(0-base)
@@ -73,10 +73,16 @@ public class InterestService {
         List<Interest> interests =
                 interestRepository.findByMemberId(memberId, pageable).getContent();
         Map<Long, ProductAnalysis> analyses = findLatestAnalyses(interests);
+        Map<Long, ProductAnalysis> listingAnalyses = findLatestListingAnalyses(interests);
         return interests.stream()
                 .map(interest -> {
                     if (interest.getProduct() == null) {
-                        return InterestListItemResponse.fromListing(interest);
+                        ProductAnalysis analysis =
+                                listingAnalyses.get(interest.getListing().getId());
+                        return InterestListItemResponse.fromListing(
+                                interest,
+                                analysis == null ? null : analysis.getRecommendation(),
+                                analysis == null ? null : analysis.getAveragePrice());
                     }
                     ProductAnalysis analysis =
                             analyses.get(interest.getProduct().getId());
@@ -103,6 +109,22 @@ public class InterestService {
         return productAnalysisRepository.findLatestByProductIdIn(productIds).stream()
                 .collect(Collectors.toMap(
                         analysis -> analysis.getProduct().getId(),
+                        analysis -> analysis,
+                        (existing, replacement) -> replacement));
+    }
+
+    /** 관심상품 목록 중 외부 매물 대상 건들의 가장 최근 시세 분석 스냅샷을 한 번의 쿼리로 조회한다(N+1 방지). */
+    private Map<Long, ProductAnalysis> findLatestListingAnalyses(List<Interest> interests) {
+        List<Long> listingIds = interests.stream()
+                .filter(interest -> interest.getListing() != null)
+                .map(interest -> interest.getListing().getId())
+                .toList();
+        if (listingIds.isEmpty()) {
+            return Map.of();
+        }
+        return productAnalysisRepository.findLatestByListingIdIn(listingIds).stream()
+                .collect(Collectors.toMap(
+                        analysis -> analysis.getListing().getId(),
                         analysis -> analysis,
                         (existing, replacement) -> replacement));
     }

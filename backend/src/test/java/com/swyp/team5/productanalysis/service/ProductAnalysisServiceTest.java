@@ -21,6 +21,7 @@ import org.springframework.ai.chat.client.ChatClient;
 
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.common.ai.AiChatExecutor;
+import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.notification.service.NotificationService;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.platform.repository.ListingPriceStats;
@@ -64,6 +65,9 @@ class ProductAnalysisServiceTest {
     @Mock
     private NotificationService notificationService;
 
+    @Mock
+    private InterestRepository interestRepository;
+
     private ProductAnalysisService service() {
         return new ProductAnalysisService(
                 new AiChatExecutor(geminiAiClient, openAiClient),
@@ -71,7 +75,8 @@ class ProductAnalysisServiceTest {
                 platformListingRepository,
                 productAnalysisRepository,
                 PROPERTIES,
-                notificationService);
+                notificationService,
+                interestRepository);
     }
 
     private static Product product(Long productId, Long categoryId, Long price) {
@@ -259,6 +264,113 @@ class ProductAnalysisServiceTest {
         service().analyzeAll();
 
         verify(productAnalysisRepository).save(any());
+    }
+
+    private static PlatformListing listing(Long listingId, Long categoryId, String title, long price) {
+        Category category = mock(Category.class);
+        lenient().when(category.getId()).thenReturn(categoryId);
+        PlatformListing listing = listing(title, price);
+        lenient().when(listing.getId()).thenReturn(listingId);
+        lenient().when(listing.getCategory()).thenReturn(category);
+        return listing;
+    }
+
+    private void givenAiResult(MarketAnalysisResult result) {
+        when(geminiAiClient
+                        .prompt()
+                        .system(anyString())
+                        .user(anyString())
+                        .call()
+                        .entity(MarketAnalysisResult.class))
+                .thenReturn(result);
+    }
+
+    // 관심 외부 매물 분석 성공 - 비교 매물에서 자신은 제외하고 통계 계산, 구매자 관점 추천 저장 + 전환 알림
+    @Test
+    void analyzeListingExcludesItselfAndSavesBuyerRecommendation() {
+        PlatformListing target = listing(100L, 10L, "아이패드 프로", 900L);
+        List<PlatformListing> listings = List.of(
+                target, listing(1L, 10L, "매물1", 1000L), listing(2L, 10L, "매물2", 2000L), listing(3L, 10L, "매물3", 3000L));
+        when(platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
+                        eq(10L), eq("SELLING"), any()))
+                .thenReturn(listings);
+        ProductAnalysis previous = mock(ProductAnalysis.class);
+        when(previous.getAveragePrice()).thenReturn(1000L);
+        when(previous.getRecommendation()).thenReturn(AnalysisRecommendation.WAIT);
+        when(productAnalysisRepository.findFirstByListingIdOrderByAnalyzedAtDesc(100L))
+                .thenReturn(Optional.of(previous));
+        givenAiResult(new MarketAnalysisResult(AnalysisRecommendation.BUY, 1900L, "시세보다 저렴해요."));
+
+        service().analyzeListing(target);
+
+        ArgumentCaptor<ProductAnalysis> captor = ArgumentCaptor.forClass(ProductAnalysis.class);
+        verify(productAnalysisRepository).save(captor.capture());
+        ProductAnalysis saved = captor.getValue();
+        assertThat(saved.getListing()).isSameAs(target);
+        assertThat(saved.getProduct()).isNull();
+        assertThat(saved.getMinPrice()).isEqualTo(1000L);
+        assertThat(saved.getAveragePrice()).isEqualTo(2000L);
+        assertThat(saved.getMaxPrice()).isEqualTo(3000L);
+        assertThat(saved.getChangeRate()).isEqualByComparingTo(BigDecimal.ONE);
+        assertThat(saved.getRecommendation()).isEqualTo(AnalysisRecommendation.BUY);
+        // 외부 매물은 우리 상품 제안가 갱신 대상이 아님
+        verify(productRepository, never()).updateSuggestedPrice(any(), any());
+        verify(notificationService)
+                .notifyListingRecommendationChanged(target, AnalysisRecommendation.WAIT, AnalysisRecommendation.BUY);
+    }
+
+    // 관심 외부 매물 분석 건너뜀 - 자신을 빼면 비교 매물이 최소 기준(3건) 미만
+    @Test
+    void analyzeListingSkipsWhenComparableListingsBelowThresholdExcludingItself() {
+        PlatformListing target = listing(100L, 10L, "아이패드 프로", 900L);
+        List<PlatformListing> listings =
+                List.of(target, listing(1L, 10L, "매물1", 1000L), listing(2L, 10L, "매물2", 2000L));
+        when(platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
+                        eq(10L), eq("SELLING"), any()))
+                .thenReturn(listings);
+
+        service().analyzeListing(target);
+
+        verify(productAnalysisRepository, never()).save(any());
+        verify(notificationService, never()).notifyListingRecommendationChanged(any(), any(), any());
+    }
+
+    // 관심 외부 매물 분석 - AI가 판매자 관점(SELL/HOLD)을 내면 저장·알림하지 않음
+    @Test
+    void analyzeListingDiscardsSellerRecommendation() {
+        PlatformListing target = listing(100L, 10L, "아이패드 프로", 900L);
+        List<PlatformListing> comparisons =
+                List.of(listing(1L, 10L, "매물1", 1000L), listing(2L, 10L, "매물2", 2000L), listing(3L, 10L, "매물3", 3000L));
+        when(platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
+                        eq(10L), eq("SELLING"), any()))
+                .thenReturn(comparisons);
+        givenAiResult(new MarketAnalysisResult(AnalysisRecommendation.SELL, 1900L, "설명"));
+
+        service().analyzeListing(target);
+
+        verify(productAnalysisRepository, never()).save(any());
+        verify(notificationService, never()).notifyListingRecommendationChanged(any(), any(), any());
+    }
+
+    // 배치 - 우리 상품 다음으로 관심 등록된 판매중 외부 매물도 분석
+    @Test
+    void analyzeAllAlsoAnalyzesInterestedListings() {
+        when(productRepository.findByStatusIn(ProductStatus.ANALYSIS_TARGETS)).thenReturn(List.of());
+        PlatformListing target = listing(100L, 10L, "아이패드 프로", 900L);
+        when(interestRepository.findInterestedListingsByStatus("SELLING")).thenReturn(List.of(target));
+        List<PlatformListing> comparisons =
+                List.of(listing(1L, 10L, "매물1", 1000L), listing(2L, 10L, "매물2", 2000L), listing(3L, 10L, "매물3", 3000L));
+        when(platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
+                        eq(10L), eq("SELLING"), any()))
+                .thenReturn(comparisons);
+        when(productAnalysisRepository.findFirstByListingIdOrderByAnalyzedAtDesc(100L))
+                .thenReturn(Optional.empty());
+        givenAiResult(new MarketAnalysisResult(AnalysisRecommendation.WAIT, 1800L, "설명"));
+
+        service().analyzeAll();
+
+        verify(productAnalysisRepository).save(any());
+        verify(notificationService).notifyListingRecommendationChanged(target, null, AnalysisRecommendation.WAIT);
     }
 
     // 조회 실패 - 존재하지 않는 상품

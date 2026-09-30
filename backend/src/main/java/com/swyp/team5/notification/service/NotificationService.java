@@ -21,6 +21,7 @@ import com.swyp.team5.notification.entity.Notification;
 import com.swyp.team5.notification.entity.NotificationType;
 import com.swyp.team5.notification.error.NotificationNotFoundException;
 import com.swyp.team5.notification.repository.NotificationRepository;
+import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 
@@ -108,6 +109,40 @@ public class NotificationService {
         notificationRepository.saveAll(notifications);
         if (!notifications.isEmpty()) {
             log.info("상품 {} 추천 {}→{} 알림 {}건 생성", product.getId(), previous, current, notifications.size());
+        }
+        return notifications.size();
+    }
+
+    /**
+     * 관심 등록된 외부 매물의 시세 분석 추천이 직전 스냅샷과 달라졌을 때 그 매물을 관심 등록한 회원 전원에게 알림을
+     * 만든다(판매자가 우리 회원이 아니므로 구매자 관점 BUY/WAIT만). 전환 판단 규칙은 우리 상품과 같다.
+     *
+     * @return 만든 알림 수
+     */
+    public int notifyListingRecommendationChanged(
+            PlatformListing listing, AnalysisRecommendation previous, AnalysisRecommendation current) {
+        if (current == null || Objects.equals(previous, current)) {
+            return 0;
+        }
+        String title = listing.getTitle();
+        Content content =
+                switch (current) {
+                    case BUY -> new Content(
+                            "관심 상품을 사기 좋은 시점이에요", "관심 상품 '%s'의 AI 시세 분석 결과, 지금 구매를 추천해요.".formatted(title));
+                    case WAIT -> new Content(
+                            "관심 상품은 조금 더 기다려 보세요", "관심 상품 '%s'의 AI 시세 분석 결과, 지금은 구매를 보류하길 추천해요.".formatted(title));
+                    case SELL, HOLD -> null;
+                };
+        if (content == null) {
+            return 0;
+        }
+        NotificationType type = current == AnalysisRecommendation.BUY ? NotificationType.BUY : NotificationType.WAIT;
+        List<Notification> notifications = interestRepository.findMembersByListingId(listing.getId()).stream()
+                .map(member -> Notification.createForListing(member, listing, type, content.title(), content.message()))
+                .toList();
+        notificationRepository.saveAll(notifications);
+        if (!notifications.isEmpty()) {
+            log.info("외부 매물 {} 추천 {}→{} 알림 {}건 생성", listing.getId(), previous, current, notifications.size());
         }
         return notifications.size();
     }

@@ -39,6 +39,7 @@ import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.repository.ProductRepository;
+import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
 import org.junit.jupiter.api.Test;
@@ -190,7 +191,7 @@ class InterestServiceTest {
     }
 
     // 관심상품 목록 조회 - 외부 매물 대상 건이 섞여 있으면 platformName/externalUrl이 채워지고
-    // condition/recommendation은 null, 분석 스냅샷 조회 쿼리는 우리 상품 건만 대상으로 호출됨
+    // condition은 null, 분석 이력이 없으면 recommendation도 null, 우리 상품 분석 조회 쿼리는 호출되지 않음
     @Test
     void getInterestsIncludesExternalListing() {
         Member member = newMember(1L);
@@ -211,6 +212,24 @@ class InterestServiceTest {
         assertThat(item.recommendation()).isNull();
         assertThat(item.targetPrice()).isEqualTo(20_000L);
         verify(productAnalysisRepository, never()).findLatestByProductIdIn(any());
+    }
+
+    // 관심상품 목록 조회 - 외부 매물 대상 건도 관심 매물 시세 분석 스냅샷이 있으면 추천·평균가를 채움
+    @Test
+    void getInterestsIncludesExternalListingAnalysis() {
+        Member member = newMember(1L);
+        PlatformListing listing = newPlatformListing(100L);
+        Interest interest = newListingInterest(11L, member, listing, null);
+        ProductAnalysis analysis = ProductAnalysis.createForListing(
+                listing, 1000L, 2000L, 3000L, null, AnalysisRecommendation.BUY, 1900L, "설명", LocalDateTime.now());
+        when(interestRepository.findByMemberId(eq(1L), any()))
+                .thenReturn(new PageImpl<>(List.of(interest), Pageable.ofSize(10), 1));
+        when(productAnalysisRepository.findLatestByListingIdIn(List.of(100L))).thenReturn(List.of(analysis));
+
+        List<InterestListItemResponse> response = service().getInterests(1L, 0, 10);
+
+        assertThat(response.get(0).recommendation()).isEqualTo(AnalysisRecommendation.BUY);
+        assertThat(response.get(0).marketAveragePrice()).isEqualTo(2000L);
     }
 
     // 관심상품 삭제 성공

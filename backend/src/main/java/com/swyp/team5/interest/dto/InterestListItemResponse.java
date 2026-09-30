@@ -23,8 +23,8 @@ public record InterestListItemResponse(
         ProductCondition condition, // 외부 매물은 상태 등급 개념이 없어 null
         String categoryName, // 카테고리명
         String thumbnailUrl, // 대표 이미지 URL
-        AnalysisRecommendation recommendation, // 외부 매물은 null, 분석 이력 없으면 null
-        Long marketAveragePrice, // 외부 매물은 null, 분석 이력 없으면 null
+        AnalysisRecommendation recommendation, // 분석 이력 없으면 null(외부 매물은 구매자 관점 BUY/WAIT만)
+        Long marketAveragePrice, // 분석 이력 없으면 null
         String platformName, // 우리 상품은 null, 외부 매물은 수집 플랫폼명(예: "번개장터")
         String externalUrl, // 우리 상품은 null, 외부 매물은 원본 매물 링크
         Long targetPrice, // 설정한 목표가, 미설정이면 null
@@ -32,7 +32,9 @@ public record InterestListItemResponse(
 
     /** {@code interest.getProduct()}/{@code interest.getListing()} 중 채워진 쪽으로 자동 분기한다. */
     public static InterestListItemResponse from(Interest interest, AnalysisRecommendation recommendation) {
-        return interest.getProduct() != null ? fromProduct(interest, recommendation, null) : fromListing(interest);
+        return interest.getProduct() != null
+                ? fromProduct(interest, recommendation, null)
+                : fromListing(interest, recommendation, null);
     }
 
     /** 대상 상품의 최근 시세 분석 스냅샷까지 함께 반영하고 싶을 때 사용한다({@code marketAveragePrice} 포함). */
@@ -60,7 +62,9 @@ public record InterestListItemResponse(
                 interest.getCreatedAt());
     }
 
-    public static InterestListItemResponse fromListing(Interest interest) {
+    /** 외부 매물 대상 건 — 관심 매물 시세 분석 스냅샷이 없으면 {@code recommendation}/{@code marketAveragePrice}는 null. */
+    public static InterestListItemResponse fromListing(
+            Interest interest, AnalysisRecommendation recommendation, Long marketAveragePrice) {
         PlatformListing listing = interest.getListing();
         return new InterestListItemResponse(
                 interest.getId(),
@@ -72,8 +76,8 @@ public record InterestListItemResponse(
                 null,
                 listing.getCategory().getName(),
                 listing.getImageUrl(),
-                null,
-                null,
+                recommendation,
+                marketAveragePrice,
                 listing.getPlatform().getName(),
                 listing.getListingUrl(),
                 interest.getTargetPrice(),
