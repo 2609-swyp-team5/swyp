@@ -83,3 +83,19 @@ export interface ProductResponse {
     createdAt: string;
     updatedAt: string;
 }
+
+export interface ProductSummaryResponse {
+    id: number;
+    title: string;
+    brand: string | null;
+    price: number;
+    status: ProductStatus;
+    condition: ProductCondition;
+    defectStatus: DefectStatus;
+    purchasedMonths: number | null;
+    categoryName: string;
+    thumbnailUrl: string | null;
+    recommendation: string | null;
+    marketAveragePrice: number | null;
+    createdAt: string;
+}

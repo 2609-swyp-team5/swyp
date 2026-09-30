@@ -1,5 +1,5 @@
 import { api } from "@/common/lib/api/client";
-import type { ApiErrorResponse, ApiResponse } from "@/common/lib/api/types";
+import type { ApiErrorResponse, ApiResponse, CursorPageResponse } from "@/common/lib/api/types";
 import { useAuthStore } from "@/features/auth/store/authStore";
 
 import {
@@ -13,6 +13,8 @@ import type {
     AiProductCreateInput,
     DirectProductCreateInput,
     ProductResponse,
+    ProductStatus,
+    ProductSummaryResponse,
     ProductRegisterProgress,
     ProductRegisterError,
     ProductRegisterStep,
@@ -54,6 +56,14 @@ const productRegisterSteps: ProductRegisterStep[] = [
 ];
 
 const getProduct = (id: number) => api.get<ApiResponse<ProductResponse>>(`/products/${id}`);
+
+const getMyProducts = (params?: { status?: ProductStatus; size?: number }) =>
+    api.get<ApiResponse<CursorPageResponse<ProductSummaryResponse>>>("/products/me", {
+        params: {
+            status: params?.status,
+            size: params?.size ?? 20,
+        },
+    });
 
 const deleteProduct = (id: number) => api.delete<ApiResponse<null>>(`/products/${id}`);
 
@@ -294,6 +304,7 @@ const updateProduct = async (
 
 export const productApi = {
     getProduct,
+    getMyProducts,
     deleteProduct,
     createDirectProduct,
     createAiProduct,
