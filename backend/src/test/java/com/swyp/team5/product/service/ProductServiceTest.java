@@ -153,7 +153,7 @@ class ProductServiceTest {
         assertThat(response.purchasedAt()).isEqualTo(LocalDate.now().minusMonths(3));
         assertThat(response.purchasedMonths()).isEqualTo(3);
         assertThat(response.imageUrls()).containsExactly(IMAGE_URL);
-        assertThat(response.status()).isEqualTo(ProductStatus.ON_SALE);
+        assertThat(response.status()).isEqualTo(ProductStatus.DRAFT); // 등록 직후는 외부 미게시
     }
 
     // 상품 등록 성공 - 태그 포함(기존 태그 재사용 + 신규 태그 생성)
@@ -573,7 +573,7 @@ class ProductServiceTest {
                 "애플",
                 "수정된 설명",
                 450_000L,
-                ProductStatus.RESERVED,
+                ProductStatus.SOLD_OUT,
                 ProductCondition.B,
                 DefectStatus.ISSUES,
                 2,
@@ -596,7 +596,7 @@ class ProductServiceTest {
 
         assertThat(response.title()).isEqualTo("아이폰 13 프로");
         assertThat(response.brand()).isEqualTo("애플");
-        assertThat(response.status()).isEqualTo(ProductStatus.RESERVED);
+        assertThat(response.status()).isEqualTo(ProductStatus.SOLD_OUT);
         assertThat(response.defectStatus()).isEqualTo(DefectStatus.ISSUES);
         // 구매 일시는 수정 요청의 purchasedMonths로 수정 시점 기준 다시 계산됨
         assertThat(response.purchasedAt()).isEqualTo(LocalDate.now().minusMonths(2));
@@ -716,7 +716,7 @@ class ProductServiceTest {
                 null,
                 "수정된 설명",
                 450_000L,
-                ProductStatus.RESERVED,
+                ProductStatus.SOLD_OUT,
                 ProductCondition.B,
                 DefectStatus.ISSUES,
                 null,

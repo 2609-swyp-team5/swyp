@@ -166,7 +166,7 @@ class ProductTest {
         assertThat(data.get("memberId").asLong()).isEqualTo(sellerId);
         assertThat(data.at("/category/id").asLong()).isEqualTo(category.getId());
         assertThat(data.at("/category/leaf").asBoolean()).isTrue();
-        assertThat(data.get("status").asText()).isEqualTo("ON_SALE");
+        assertThat(data.get("status").asText()).isEqualTo("DRAFT"); // 등록 직후는 외부 미게시
         assertThat(data.at("/imageUrls/0").asText()).isEqualTo("https://image.example.com/1.png");
 
         assertThat(productRepository.count()).isEqualTo(1);
@@ -488,19 +488,15 @@ class ProductTest {
                 .andExpect(jsonPath("$.data.content[0].purchasedMonths").value(3));
     }
 
-    // 상품 목록 조회(공개) - HIDDEN 상태는 항상 제외
+    // 상품 목록 조회(공개) - 외부 게시 전(DRAFT) 상품도 노출
     @Test
-    void getProductsExcludesHidden() throws Exception {
-        Long productId = createProduct();
-        mockMvc.perform(patch("/products/{id}/status", productId)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new ProductStatusUpdateRequest(ProductStatus.HIDDEN))))
-                .andExpect(status().isOk());
+    void getProductsIncludesDraft() throws Exception {
+        createProduct();
 
         mockMvc.perform(get("/products").header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.content.length()").value(0));
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].status").value("DRAFT"));
     }
 
     // 인기 검색어 조회 - 키워드로 상품 목록을 조회하면 검색 로그가 남고, 인기검색어 조회에 노출됨
@@ -526,14 +522,15 @@ class ProductTest {
                 .andExpect(jsonPath("$.data.length()").value(0));
     }
 
-    // 내 상품 목록 조회 - 본인 것만(HIDDEN 포함), 다른 회원 상품은 제외
+    // 내 상품 목록 조회 - 본인 것만(품절 포함), 다른 회원 상품은 제외
     @Test
-    void getMyProductsIncludesHiddenAndScopedToSelf() throws Exception {
-        Long hiddenProductId = createProduct();
-        mockMvc.perform(patch("/products/{id}/status", hiddenProductId)
+    void getMyProductsIncludesSoldOutAndScopedToSelf() throws Exception {
+        Long soldOutProductId = createProduct();
+        mockMvc.perform(patch("/products/{id}/status", soldOutProductId)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new ProductStatusUpdateRequest(ProductStatus.HIDDEN))))
+                        .content(objectMapper.writeValueAsString(
+                                new ProductStatusUpdateRequest(ProductStatus.SOLD_OUT))))
                 .andExpect(status().isOk());
         createProduct();
 
@@ -551,7 +548,7 @@ class ProductTest {
     @Test
     void updateSucceedsWhenOwner() throws Exception {
         Long productId = createProduct();
-        ProductUpdateRequest request = updateRequest(category.getId(), ProductStatus.RESERVED);
+        ProductUpdateRequest request = updateRequest(category.getId(), ProductStatus.SOLD_OUT);
 
         JsonNode data = performStream(multipart(HttpMethod.PATCH, "/products/{id}", productId)
                         .file(requestPart(request))
@@ -560,7 +557,7 @@ class ProductTest {
 
         assertThat(data.get("title").asText()).isEqualTo("아이폰 13 프로");
         assertThat(data.get("brand").asText()).isEqualTo("애플");
-        assertThat(data.get("status").asText()).isEqualTo("RESERVED");
+        assertThat(data.get("status").asText()).isEqualTo("SOLD_OUT");
         assertThat(data.get("defectStatus").asText()).isEqualTo("ISSUES");
         assertThat(data.get("purchasedMonths").asInt()).isEqualTo(1);
         assertThat(data.at("/includedItems/0").asText()).isEqualTo("케이블");
@@ -620,7 +617,7 @@ class ProductTest {
     void updateFailsWhenNotOwner() throws Exception {
         Long productId = createProduct();
         String otherToken = createOtherMemberToken();
-        ProductUpdateRequest request = updateRequest(category.getId(), ProductStatus.RESERVED);
+        ProductUpdateRequest request = updateRequest(category.getId(), ProductStatus.SOLD_OUT);
 
         mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{id}", productId)
                         .file(requestPart(request))
@@ -632,7 +629,7 @@ class ProductTest {
     // 상품 수정 실패 - 존재하지 않는 상품
     @Test
     void updateFailsWhenNotFound() throws Exception {
-        ProductUpdateRequest request = updateRequest(category.getId(), ProductStatus.RESERVED);
+        ProductUpdateRequest request = updateRequest(category.getId(), ProductStatus.SOLD_OUT);
 
         mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{id}", 999_999_999L)
                         .file(requestPart(request))
@@ -727,9 +724,9 @@ class ProductTest {
         assertThat(productRepository.count()).isZero();
     }
 
-    // 시세 수집 대상은 판매중인 우리 상품이 있는 카테고리의 번개장터 매핑뿐(V13 시드: 스마트폰 = 600700001)
+    // 시세 수집 대상은 분석 대상(등록됨·판매중) 우리 상품이 있는 카테고리의 번개장터 매핑뿐(V13 시드: 스마트폰 = 600700001)
     @Test
-    void collectTargetsOnlyCategoriesWithOnSaleProducts() throws Exception {
+    void collectTargetsOnlyCategoriesWithAnalysisTargetProducts() throws Exception {
         Category smartphone = categoryRepository.findAll().stream()
                 .filter(c -> c.getName().equals("스마트폰") && c.getParent() != null)
                 .filter(c -> c.getParent().getName().equals("휴대폰"))
@@ -737,7 +734,8 @@ class ProductTest {
                 .orElseThrow();
         createProduct(smartphone);
 
-        List<CategoryPlatform> targets = categoryPlatformRepository.findCollectTargets("번개장터", ProductStatus.ON_SALE);
+        List<CategoryPlatform> targets =
+                categoryPlatformRepository.findCollectTargets("번개장터", ProductStatus.ANALYSIS_TARGETS);
 
         assertThat(targets).extracting(CategoryPlatform::getExternalCategoryId).containsExactly("600700001");
     }

@@ -120,6 +120,7 @@ public class BunjangProductPublishService {
     private ProductPlatformResponse complete(Long productPlatformId, BunjangUploadResult result) {
         ProductPlatform productPlatform = productPlatformRepository.getReferenceById(productPlatformId);
         productPlatform.markPosted(result.externalProductId(), result.productUrl());
+        productPlatform.getProduct().markOnSaleIfDraft();
         return ProductPlatformResponse.from(productPlatform);
     }
 

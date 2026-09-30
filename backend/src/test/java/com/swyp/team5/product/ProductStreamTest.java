@@ -306,7 +306,7 @@ class ProductStreamTest {
         JsonNode product = events.getLast().data().get("data");
         assertThat(product.get("id").asLong()).isEqualTo(productId);
         assertThat(product.get("title").asText()).isEqualTo("아이폰 13 프로");
-        assertThat(product.get("status").asText()).isEqualTo("RESERVED");
+        assertThat(product.get("status").asText()).isEqualTo("SOLD_OUT");
         assertThat(product.get("price").asLong()).isEqualTo(450_000L); // 사용자 입력값은 그대로
         assertThat(product.get("suggestedPrice").asLong()).isEqualTo(430_000L); // 재분석 결과로 갱신
         assertThat(product.get("analysisDescription").asText()).isEqualTo("스크래치 추가 확인");
@@ -535,7 +535,7 @@ class ProductStreamTest {
                 "애플",
                 "수정된 설명",
                 450_000L,
-                ProductStatus.RESERVED,
+                ProductStatus.SOLD_OUT,
                 ProductCondition.B,
                 DefectStatus.ISSUES,
                 1,
