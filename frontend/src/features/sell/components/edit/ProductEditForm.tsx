@@ -23,7 +23,11 @@ import type {
 import { SellAlertDialog } from "@/features/sell/components/shared/SellAlertDialog";
 import { useUpdateProductMutation } from "@/features/sell/hooks/mutations/useUpdateProductMutation";
 import { productQueryKey } from "@/features/sell/hooks/queries/useProductQuery";
-import type { ProductResponse } from "@/features/sell/types";
+import type {
+    ProductRegisterError,
+    ProductRegisterProgress,
+    ProductResponse,
+} from "@/features/sell/types";
 
 type EditStep = "info" | "status";
 type RegistrationMethod = "ai" | "direct";
@@ -138,16 +142,20 @@ export function ProductEditForm({
 }) {
     const router = useRouter();
     const queryClient = useQueryClient();
-    const updateProductMutation = useUpdateProductMutation();
     const [step, setStep] = useState<EditStep>("info");
     const [info, setInfo] = useState(() => getInitialInfo(product, categories));
     const [statusPrice, setStatusPrice] = useState(() => getInitialStatusPrice(product));
     const [statusPriceErrors, setStatusPriceErrors] = useState(initialStatusPriceErrors);
     const [submissionError, setSubmissionError] = useState("");
+    const [submissionErrorCode, setSubmissionErrorCode] = useState<string | null>(null);
     const [submissionStatus, setSubmissionStatus] = useState<
         "idle" | "loading" | "success" | "error"
     >("idle");
     const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
+    const [submissionProgress, setSubmissionProgress] = useState<ProductRegisterProgress[]>([]);
+    const updateProductMutation = useUpdateProductMutation({
+        onProgress: (progress) => setSubmissionProgress((current) => [...current, progress]),
+    });
     const imagesRef = useRef<DirectImagePreview[]>([]);
 
     useEffect(() => {
@@ -208,6 +216,8 @@ export function ProductEditForm({
         }
 
         setSubmissionError("");
+        setSubmissionErrorCode(null);
+        setSubmissionProgress([]);
         setSubmissionStatus("loading");
 
         try {
@@ -249,6 +259,7 @@ export function ProductEditForm({
             setSubmissionStatus("success");
         } catch (updateError) {
             setSubmissionError(getApiErrorMessage(updateError));
+            setSubmissionErrorCode((updateError as ProductRegisterError).code ?? null);
             setSubmissionStatus("error");
         }
     };
@@ -259,6 +270,9 @@ export function ProductEditForm({
                 kind="edit"
                 status={submissionStatus}
                 errorMessage={submissionError}
+                errorCode={submissionErrorCode}
+                progress={submissionProgress[submissionProgress.length - 1]}
+                progressHistory={submissionProgress}
                 onRetry={handleStatusPriceSubmit}
                 onGoToManage={handleGoToManage}
             />

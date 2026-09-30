@@ -19,6 +19,7 @@ import { SellAlertDialog } from "@/features/sell/components/shared/SellAlertDial
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { useCategoriesQuery } from "@/features/sell/hooks/queries/useCategoriesQuery";
 import { useCreateDirectProductMutation } from "@/features/sell/hooks/mutations/useCreateDirectProductMutation";
+import type { ProductRegisterProgress } from "@/features/sell/types";
 
 export type DirectRegisterStep = "info" | "status";
 
@@ -104,6 +105,10 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
         "idle" | "loading" | "success" | "error"
     >("idle");
     const [submissionError, setSubmissionError] = useState("");
+    const [submissionErrorCode, setSubmissionErrorCode] = useState<string | null>(null);
+    const [submissionProgress, setSubmissionProgress] = useState<ProductRegisterProgress | null>(
+        null,
+    );
     const [createdProductId, setCreatedProductId] = useState<number | null>(null);
     const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
     const imagesRef = useRef<DirectImagePreview[]>(info.images);
@@ -117,8 +122,10 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
             setCreatedProductId(product.id);
             setSubmissionStatus("success");
         },
+        onProgress: setSubmissionProgress,
         onError: (mutationError) => {
             setSubmissionError(getApiErrorMessage(mutationError));
+            setSubmissionErrorCode(mutationError.code ?? null);
             setSubmissionStatus("error");
         },
     });
@@ -181,6 +188,8 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
         }
 
         setSubmissionError("");
+        setSubmissionErrorCode(null);
+        setSubmissionProgress(null);
         setSubmissionStatus("loading");
 
         createDirectProductMutation.mutate({
@@ -218,6 +227,8 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
                 kind="direct"
                 status={submissionStatus}
                 errorMessage={submissionError}
+                errorCode={submissionErrorCode}
+                progress={submissionProgress}
                 onRetry={handleStatusPriceSubmit}
                 onGoToManage={handleGoToManage}
             />

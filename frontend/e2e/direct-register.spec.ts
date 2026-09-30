@@ -9,13 +9,14 @@ test("direct registration keeps the product information while moving to status a
         }
 
         return route.fulfill({
-            status: 201,
-            json: {
+            status: 200,
+            contentType: "text/event-stream",
+            body: `data:${JSON.stringify({
                 success: true,
                 message: "상품 등록 성공",
-                data: { id: 42 },
+                data: { event: "complete", id: 42 },
                 error: null,
-            },
+            })}\n\n`,
         });
     });
 
@@ -146,7 +147,7 @@ test("direct registration keeps the product information while moving to status a
     await page.getByRole("button", { name: "다음단계", exact: true }).click();
     await page.getByRole("button", { name: "AI 분석 & 등록확인" }).click();
 
-    await expect(page.getByRole("heading", { name: "상품을 등록했어요" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "판매 글이 등록되었어요" })).toBeVisible();
     await page.getByRole("button", { name: "확인하러 가기" }).click();
 
     await expect(page).toHaveURL(/\/sell\/manage\/42\?method=direct/);

@@ -15,10 +15,9 @@ export const conditionLabels: Record<ProductCondition, string> = {
 };
 
 export const statusLabels: Record<ProductStatus, string> = {
+    DRAFT: "임시저장",
     ON_SALE: "판매중",
-    RESERVED: "예약중",
     SOLD_OUT: "판매완료",
-    HIDDEN: "숨김",
 };
 
 export const defectLabels: Record<DefectStatus, string> = {

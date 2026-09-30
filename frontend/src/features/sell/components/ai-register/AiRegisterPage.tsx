@@ -19,6 +19,7 @@ import { ProductRegistrationProcessing } from "@/features/sell/components/Produc
 import { SellAlertDialog } from "@/features/sell/components/shared/SellAlertDialog";
 import { AiRegisterUploadStep } from "@/features/sell/components/ai-register/AiRegisterUploadStep";
 import { useCreateAiProductMutation } from "@/features/sell/hooks/mutations/useCreateAiProductMutation";
+import type { ProductRegisterProgress } from "@/features/sell/types";
 
 type AiRegisterStep = "upload" | "additional-info";
 
@@ -75,6 +76,10 @@ export function AiRegisterPage() {
         "idle" | "loading" | "success" | "error"
     >("idle");
     const [submissionError, setSubmissionError] = useState("");
+    const [submissionErrorCode, setSubmissionErrorCode] = useState<string | null>(null);
+    const [submissionProgress, setSubmissionProgress] = useState<ProductRegisterProgress | null>(
+        null,
+    );
     const [createdProductId, setCreatedProductId] = useState<number | null>(null);
     const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
     const imagesRef = useRef(state.images);
@@ -83,8 +88,10 @@ export function AiRegisterPage() {
             setCreatedProductId(product.id);
             setSubmissionStatus("success");
         },
+        onProgress: setSubmissionProgress,
         onError: (mutationError) => {
             setSubmissionError(getApiErrorMessage(mutationError));
+            setSubmissionErrorCode(mutationError.code ?? null);
             setSubmissionStatus("error");
         },
     });
@@ -129,6 +136,8 @@ export function AiRegisterPage() {
 
     const handleCreate = () => {
         setSubmissionError("");
+        setSubmissionErrorCode(null);
+        setSubmissionProgress(null);
         setSubmissionStatus("loading");
 
         createAiProductMutation.mutate({
@@ -146,6 +155,8 @@ export function AiRegisterPage() {
                 kind="ai"
                 status={submissionStatus}
                 errorMessage={submissionError}
+                errorCode={submissionErrorCode}
+                progress={submissionProgress}
                 onRetry={handleCreate}
                 onGoToManage={handleGoToManage}
             />
