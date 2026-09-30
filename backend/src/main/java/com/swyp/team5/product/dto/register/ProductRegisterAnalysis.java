@@ -8,13 +8,13 @@ import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 
 /**
- * 단계별 스트리밍 등록(v2) 최종 응답 {@code data.analysis} 필드. 등록 시점의 가격·분석 정보를 한곳에 모은다.
+ * 단계별 스트리밍 등록·수정(SSE) 최종 응답 {@code data.analysis} 필드. 등록 시점의 가격·분석 정보를 한곳에 모은다.
  *
  * <p>{@code categoryId}/{@code title}/{@code brand}/{@code condition}은 AI가 사진에서 추론한 값이다. AI 등록은 상품 값과
- * 같고, 직접 등록은 사용자 입력이 우선이라 상품에 저장되지 않은 AI 추론값을 여기서 확인할 수 있다. 분석을 건너뛰었으면
- * ({@code SKIP}) 모두 null이다.
+ * 같고, 직접 등록·수정은 사용자 입력이 우선이라 상품에 저장되지 않은 AI 추론값을 여기서 확인할 수 있다. 분석을
+ * 건너뛰었으면({@code SKIP} — 수정에서 이미지가 그대로이거나 재분석에 실패한 경우) 모두 null이다.
  *
- * @param status AI 사진 분석 결과({@code DONE} 성공 / {@code SKIP} 실패해 건너뜀 — 직접 등록만)
+ * @param status AI 사진 분석 결과({@code DONE} 성공 / {@code SKIP} 건너뜀 — 수정만)
  * @param categoryId AI가 추론한 카테고리 ID
  * @param title AI가 추론한 상품 제목
  * @param brand AI가 식별한 브랜드(식별 불가 시 null)

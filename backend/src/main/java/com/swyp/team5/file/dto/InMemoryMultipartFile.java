@@ -29,6 +29,19 @@ public final class InMemoryMultipartFile implements MultipartFile {
     }
 
     /**
+     * 이미 메모리에 있는 내용으로 파일을 만든다(예: 스토리지에서 내려받은 이미지).
+     *
+     * @param name 파트 이름
+     * @param originalFilename 원본 파일명
+     * @param contentType MIME 타입(모르면 {@code null})
+     * @param content 파일 내용
+     * @return 메모리 파일
+     */
+    public static InMemoryMultipartFile of(String name, String originalFilename, String contentType, byte[] content) {
+        return new InMemoryMultipartFile(name, originalFilename, contentType, content);
+    }
+
+    /**
      * 요청 파일의 이름·타입·내용을 복사한다.
      *
      * @param file 복사할 요청 파일

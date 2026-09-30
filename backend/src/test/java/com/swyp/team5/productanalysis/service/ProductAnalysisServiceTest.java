@@ -240,7 +240,7 @@ class ProductAnalysisServiceTest {
     void analyzeAllContinuesOtherProductsWhenOneFails() {
         Product failing = product(1L, 10L, 800_000L);
         Product ok = product(2L, 20L, 500_000L);
-        when(productRepository.findByStatus(ProductStatus.ON_SALE)).thenReturn(List.of(failing, ok));
+        when(productRepository.findByStatusIn(ProductStatus.ANALYSIS_TARGETS)).thenReturn(List.of(failing, ok));
         when(platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
                         eq(10L), anyString(), any()))
                 .thenThrow(new RuntimeException("DB 오류"));
@@ -264,21 +264,27 @@ class ProductAnalysisServiceTest {
     // 조회 실패 - 존재하지 않는 상품
     @Test
     void getLatestAnalysisThrowsWhenProductNotFound() {
-        when(productRepository.existsById(999L)).thenReturn(false);
+        when(productRepository.findById(999L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service().getLatestAnalysis(999L)).isInstanceOf(ProductNotFoundException.class);
     }
 
-    // 조회 성공 - 분석 이력이 없으면 필드가 전부 null인 응답
+    // 조회 성공 - 분석 이력이 없으면 상품 ID·현재 등록가만 채우고 나머지는 null
     @Test
     void getLatestAnalysisReturnsEmptyResponseWhenNoSnapshotExists() {
-        when(productRepository.existsById(1L)).thenReturn(true);
+        Product product = product(1L, 10L, 800_000L);
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(productAnalysisRepository.findFirstByProductIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.empty());
 
         ProductAnalysisResponse response = service().getLatestAnalysis(1L);
 
-        assertThat(response).isEqualTo(ProductAnalysisResponse.empty(1L));
+        assertThat(response.productId()).isEqualTo(1L);
+        assertThat(response.currentPrice()).isEqualTo(800_000L);
+        assertThat(response.analysisId()).isNull();
+        assertThat(response.averagePrice()).isNull();
+        assertThat(response.marketPriceDiffRate()).isNull();
+        assertThat(response.recommendation()).isNull();
     }
 
     // 조회 성공 - 가장 최근 스냅샷 반환
@@ -295,7 +301,7 @@ class ProductAnalysisServiceTest {
                 3200L,
                 "설명",
                 LocalDateTime.of(2026, 9, 19, 10, 0));
-        when(productRepository.existsById(1L)).thenReturn(true);
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(productAnalysisRepository.findFirstByProductIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.of(analysis));
 
@@ -305,5 +311,30 @@ class ProductAnalysisServiceTest {
         assertThat(response.recommendation()).isEqualTo(AnalysisRecommendation.SELL);
         assertThat(response.suggestedPrice()).isEqualTo(3200L);
         assertThat(response.averagePrice()).isEqualTo(3000L);
+        assertThat(response.currentPrice()).isEqualTo(800_000L);
+        assertThat(response.description()).isEqualTo("설명");
+    }
+
+    // 조회 성공 - 시세 대비 %는 (등록가-평균가)/평균가×100, 소수 첫째 자리 반올림
+    @Test
+    void getLatestAnalysisCalculatesMarketPriceDiffRate() {
+        Product product = product(1L, 10L, 500_000L);
+        ProductAnalysis analysis = ProductAnalysis.create(
+                product,
+                400_000L,
+                450_000L,
+                520_000L,
+                null,
+                AnalysisRecommendation.HOLD,
+                470_000L,
+                "설명",
+                LocalDateTime.of(2026, 9, 30, 10, 0));
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productAnalysisRepository.findFirstByProductIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.of(analysis));
+
+        ProductAnalysisResponse response = service().getLatestAnalysis(1L);
+
+        assertThat(response.marketPriceDiffRate()).isEqualByComparingTo("11.1"); // 등록가가 평균보다 11.1% 비쌈
     }
 }

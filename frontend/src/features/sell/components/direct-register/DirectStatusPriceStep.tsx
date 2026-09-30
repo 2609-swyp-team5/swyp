@@ -12,10 +12,7 @@ import {
     SelectValue,
 } from "@/common/components/ui/Select";
 import { cn } from "@/common/lib/utils";
-import {
-    IncludedItemsField,
-    type IncludedItemOption,
-} from "@/features/sell/components/shared/IncludedItemsField";
+import { IncludedItemsField } from "@/features/sell/components/shared/IncludedItemsField";
 import {
     FieldError,
     FieldLabel,
@@ -66,14 +63,6 @@ const purchasePeriodOptions: { value: DirectPurchasePeriod; label: string }[] = 
     { value: "5", label: "5개월 이내" },
     { value: "6", label: "6개월 이내" },
     { value: "unknown", label: "잘 모르겠어요" },
-];
-
-const includedItemOptions: IncludedItemOption[] = [
-    { value: "body", label: "본체" },
-    { value: "charging-cable", label: "충전 케이블" },
-    { value: "box", label: "박스" },
-    { value: "manual", label: "설명서" },
-    { value: "accessory", label: "액세서리" },
 ];
 
 function formatPrice(value: string) {
@@ -201,7 +190,6 @@ export function DirectStatusPriceStep({
                         <div className="mt-2.5 flex min-h-[50px] items-center" aria-label="구성품">
                             <IncludedItemsField
                                 items={includedItems}
-                                options={includedItemOptions}
                                 onChange={onIncludedItemChange}
                                 overflow
                                 ariaLabel="구성품"

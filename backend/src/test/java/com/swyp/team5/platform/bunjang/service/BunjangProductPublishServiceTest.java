@@ -43,6 +43,7 @@ import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.DeliveryType;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
+import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.repository.ProductRepository;
@@ -101,6 +102,7 @@ class BunjangProductPublishServiceTest {
         assertThat(response.externalProductId()).isEqualTo("123456789");
         assertThat(response.productUrl()).isEqualTo("https://m.bunjang.co.kr/products/123456789");
         assertThat(saved.getStatus()).isEqualTo(ProductPlatformStatus.POSTED);
+        assertThat(product.getStatus()).isEqualTo(ProductStatus.ON_SALE); // 등록 직후 DRAFT → 게시되면 판매중
     }
 
     // 우리 상품 정보가 번개장터 폼 값(카테고리 이름 경로/상태 라벨/거래 옵션 등)으로 변환되는지 확인
@@ -206,6 +208,7 @@ class BunjangProductPublishServiceTest {
         assertThatThrownBy(() -> service().publish(2L, 5L)).isInstanceOf(PlatformPublishFailedException.class);
         assertThat(saved.getStatus()).isEqualTo(ProductPlatformStatus.FAILED);
         assertThat(memberPlatform.getStatus()).isEqualTo(MemberPlatformStatus.CONNECTED);
+        assertThat(product.getStatus()).isEqualTo(ProductStatus.DRAFT); // 게시 실패면 상품 상태는 그대로
     }
 
     // 등록 중 세션 만료가 확인되면 연동 상태도 만료로 전환

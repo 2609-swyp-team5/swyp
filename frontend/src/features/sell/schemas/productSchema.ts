@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const productConditionSchema = z.enum(["S", "A", "B", "C", "D"]);
-export const productStatusSchema = z.enum(["ON_SALE", "RESERVED", "SOLD_OUT", "HIDDEN"]);
+export const productStatusSchema = z.enum(["DRAFT", "ON_SALE", "SOLD_OUT"]);
 export const defectStatusSchema = z.enum(["NORMAL", "ISSUES", "UNKNOWN"]);
 export const tradeMethodSchema = z.enum(["DIRECT", "DELIVERY"]);
 export const deliveryTypeSchema = z.enum(["INCLUDED", "PREPAID"]);

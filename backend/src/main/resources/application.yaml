@@ -164,7 +164,7 @@ crawl:
       batch-size: ${CRAWL_BUNJANG_RECONCILE_BATCH_SIZE:300} # 한 사이클에 재확인할 최대 매물 수
       call-interval-ms: ${CRAWL_BUNJANG_RECONCILE_CALL_INTERVAL_MS:500} # 개별 호출 간 최소 대기 시간
 
-# 상품 단계별 스트리밍 등록(v2, SSE) 설정
+# 상품 단계별 스트리밍 등록·수정(SSE) 설정
 product:
   register-stream:
     core-pool-size: 4 # 등록 처리 스레드 기본 수

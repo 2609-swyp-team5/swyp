@@ -59,7 +59,7 @@ vi.mock("@/features/sell/components/ai-register/AiRegisterAdditionalInfoStep", (
             <button type="button" onClick={() => onOperationStatusChange("issues")}>
                 일부 문제 있음
             </button>
-            <button type="button" onClick={() => onIncludedItemChange("box", true)}>
+            <button type="button" onClick={() => onIncludedItemChange("박스", true)}>
                 박스 추가
             </button>
             {children}
@@ -109,9 +109,14 @@ describe("AiRegisterPage", () => {
             images: [expect.any(File)],
             purchasedMonths: null,
             operationStatus: "issues",
-            includedItems: ["body", "charging-cable", "box"],
+            includedItems: ["본체", "충전 케이블", "박스"],
         });
-        expect(screen.getByRole("heading", { name: "판매 글을 만들었어요" })).toBeInTheDocument();
+        expect(
+            screen.queryByRole("heading", { name: "판매 글을 만들었어요" }),
+        ).not.toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "판매 글이 등록되었어요" })).toBeInTheDocument();
+        expect(screen.getByText("상품 등록 완료")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "확인하러 가기" })).toBeInTheDocument();
 
         await user.click(screen.getByRole("button", { name: "확인하러 가기" }));
 

@@ -65,7 +65,7 @@ class PriceCollectionServiceTest {
 
     @Test
     void collectAllDoesNothingWhenNoCategoryMapping() {
-        when(categoryPlatformRepository.findCollectTargets("번개장터", ProductStatus.ON_SALE))
+        when(categoryPlatformRepository.findCollectTargets("번개장터", ProductStatus.ANALYSIS_TARGETS))
                 .thenReturn(List.of());
 
         service().collectAll();
@@ -76,7 +76,7 @@ class PriceCollectionServiceTest {
     @Test
     void collectAllUpsertsNewListingsAndFiltersAdsAndNonSellingItems() {
         CategoryPlatform mapping = mapping(10L, "999");
-        when(categoryPlatformRepository.findCollectTargets("번개장터", ProductStatus.ON_SALE))
+        when(categoryPlatformRepository.findCollectTargets("번개장터", ProductStatus.ANALYSIS_TARGETS))
                 .thenReturn(List.of(mapping));
         when(bunjangCategoryClient.fetchPage(eq("999"), any()))
                 .thenReturn(new BunjangCategoryPage(
@@ -108,7 +108,7 @@ class PriceCollectionServiceTest {
     @Test
     void collectAllUpdatesExistingListingInPlace() {
         CategoryPlatform mapping = mapping(10L, "999");
-        when(categoryPlatformRepository.findCollectTargets("번개장터", ProductStatus.ON_SALE))
+        when(categoryPlatformRepository.findCollectTargets("번개장터", ProductStatus.ANALYSIS_TARGETS))
                 .thenReturn(List.of(mapping));
         when(bunjangCategoryClient.fetchPage(eq("999"), any()))
                 .thenReturn(new BunjangCategoryPage(
@@ -138,7 +138,7 @@ class PriceCollectionServiceTest {
     void collectAllContinuesOtherCategoriesWhenOneFails() {
         CategoryPlatform failingMapping = mapping(10L, "fail");
         CategoryPlatform okMapping = mapping(20L, "999");
-        when(categoryPlatformRepository.findCollectTargets("번개장터", ProductStatus.ON_SALE))
+        when(categoryPlatformRepository.findCollectTargets("번개장터", ProductStatus.ANALYSIS_TARGETS))
                 .thenReturn(List.of(failingMapping, okMapping));
         when(bunjangCategoryClient.fetchPage(eq("fail"), any())).thenThrow(new RuntimeException("파싱 실패"));
         when(bunjangCategoryClient.fetchPage(eq("999"), any()))
@@ -158,7 +158,7 @@ class PriceCollectionServiceTest {
     @Test
     void collectAllSavesNothingWhenNoItemsReturned() {
         CategoryPlatform mapping = mapping(10L, "999");
-        when(categoryPlatformRepository.findCollectTargets("번개장터", ProductStatus.ON_SALE))
+        when(categoryPlatformRepository.findCollectTargets("번개장터", ProductStatus.ANALYSIS_TARGETS))
                 .thenReturn(List.of(mapping));
         when(bunjangCategoryClient.fetchPage(eq("999"), any()))
                 .thenReturn(new BunjangCategoryPage(List.of(), null, false));
@@ -175,7 +175,7 @@ class PriceCollectionServiceTest {
         PriceCollectionService service = new PriceCollectionService(
                 bunjangCategoryClient, categoryPlatformRepository, platformListingRepository, singlePageLimit);
         CategoryPlatform mapping = mapping(10L, "999");
-        when(categoryPlatformRepository.findCollectTargets("번개장터", ProductStatus.ON_SALE))
+        when(categoryPlatformRepository.findCollectTargets("번개장터", ProductStatus.ANALYSIS_TARGETS))
                 .thenReturn(List.of(mapping));
         when(bunjangCategoryClient.fetchPage(eq("999"), any()))
                 .thenReturn(new BunjangCategoryPage(

@@ -74,6 +74,7 @@ public class BunjangProductLinkService {
 
         ProductPlatform productPlatform = productPlatformRepository.save(
                 ProductPlatform.link(memberPlatform, product, externalProductId, productUrl));
+        product.markOnSaleIfDraft();
         return ProductPlatformResponse.from(productPlatform);
     }
 

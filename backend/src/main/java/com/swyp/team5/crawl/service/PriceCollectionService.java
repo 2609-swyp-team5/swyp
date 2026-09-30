@@ -37,12 +37,12 @@ public class PriceCollectionService {
     private final PlatformListingRepository platformListingRepository;
     private final BunjangCrawlProperties properties;
 
-    /** 판매중인 우리 상품이 있는 카테고리만 순회하며 수집한다. 대상이 없으면 아무 것도 하지 않는다. */
+    /** 시세 분석 대상(등록됨·판매중) 우리 상품이 있는 카테고리만 순회하며 수집한다. 대상이 없으면 아무 것도 하지 않는다. */
     public void collectAll() {
         List<CategoryPlatform> mappings =
-                categoryPlatformRepository.findCollectTargets(PLATFORM_NAME, ProductStatus.ON_SALE);
+                categoryPlatformRepository.findCollectTargets(PLATFORM_NAME, ProductStatus.ANALYSIS_TARGETS);
         if (mappings.isEmpty()) {
-            log.info("판매중인 상품이 있는 번개장터 매핑 카테고리가 없어 시세 수집을 건너뜁니다.");
+            log.info("시세 분석 대상 상품이 있는 번개장터 매핑 카테고리가 없어 시세 수집을 건너뜁니다.");
             return;
         }
         mappings.forEach(this::collectCategorySafely);

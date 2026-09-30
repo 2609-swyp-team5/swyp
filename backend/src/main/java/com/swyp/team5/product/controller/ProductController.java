@@ -12,7 +12,6 @@ import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.CacheControl;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -59,59 +58,16 @@ public class ProductController {
     private final SearchLogService searchLogService;
 
     /**
-     * 상품을 직접 등록한다. AI 등록({@link #createFromImages})과 동일하게 상품 사진 파일을 직접
-     * 받아 서버가 업로드까지 한 번에 처리한다(별도로 {@code POST /files}를 먼저 호출할 필요 없음).
-     *
-     * @param currentMember 인증된 요청자
-     * @param images 등록할 상품 이미지 목록(순서대로 저장)
-     * @param request 등록 요청 정보(JSON, {@code data} 파트)
-     * @return 201 Created + 등록된 상품
-     */
-    @Operation(summary = "상품 등록", description = "상품 이미지 파일과 등록 정보(JSON, data 파트)를 함께 받아 이미지 업로드부터 등록까지 한 번에 처리한다.")
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<ProductResponse>> create(
-            @AuthenticationPrincipal PrincipalMember currentMember,
-            @RequestPart("images") @NotEmpty List<MultipartFile> images,
-            @RequestPart("data") @Valid ProductCreateRequest request) {
-        ProductResponse response = productService.create(currentMember.memberId(), request, images);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
-    }
-
-    /**
-     * 상품 사진을 업로드하면 AI(Gemini)가 상품 정보를 분석해 자동으로 등록한다.
-     * 구매 일시/결함 여부는 AI가 추론하지 않고 사용자가 직접 입력한 값을 그대로 사용하며,
-     * 브랜드는 AI가 사진에서 식별해 채운다(식별 불가 시 null). 태그는 AI가 추론한 목록만 저장하고, 구성품은
-     * AI가 사진에서 추론한 목록과 사용자가 추가로 입력한 목록을 합쳐서 저장한다.
-     *
-     * @param currentMember 인증된 요청자
-     * @param images 분석할 상품 이미지 목록
-     * @param purchasedMonths 사용자가 입력한 구매 후 경과 개월 수(선택, 0~6, 등록 시점 기준 구매일시로 변환)
-     * @param defectStatus 사용자가 입력한 결함(하자) 상태(NORMAL/ISSUES/UNKNOWN, 대소문자 무관)
-     * @param includedItems 사용자가 추가로 입력한 구성품 이름 목록(선택, AI 추론 결과와 합쳐짐)
-     * @return 201 Created + 등록된 상품
-     */
-    @Operation(summary = "상품 이미지 AI 등록", description = "상품 사진을 업로드하면 AI(Gemini)가 상품 정보를 분석해 자동으로 등록한다.")
-    @PostMapping(value = "/analyze", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<ProductResponse>> createFromImages(
-            @AuthenticationPrincipal PrincipalMember currentMember,
-            @RequestParam("images") List<MultipartFile> images,
-            @RequestParam(required = false) @PositiveOrZero @Max(6) Integer purchasedMonths,
-            @RequestParam DefectStatus defectStatus,
-            @RequestParam(required = false) List<@NotBlank @Size(max = 50) String> includedItems) {
-        ProductResponse response = productService.createFromImages(
-                currentMember.memberId(), images, purchasedMonths, defectStatus, includedItems);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
-    }
-
-    /**
-     * 상품을 직접 등록하며 진행 상황을 SSE로 보낸다. AI 사진 분석이 실패하면 그 단계만 {@code SKIP}로 알리고
-     * 추천 가격 없이 등록한다. 요청 형식은 {@link #create}와 같고 응답만 SSE다. 인증·입력값·카테고리 오류와 처리
-     * 대기열 포화(503)는 스트림을 열기 전에 일반 JSON 에러로 응답한다.
+     * 상품을 직접 등록하며 진행 상황을 SSE로 보낸다. 상품 사진 파일을 직접 받아 서버가 업로드 → AI 사진 분석 → 저장까지 한 번에
+     * 처리한다(별도로 {@code POST /files}를 먼저 호출할 필요 없음). AI 사진 분석은 필수라, 실패하면 업로드한 파일을 지우고
+     * {@code error} 이벤트({@code AI_ANALYSIS_FAILED})로 등록을 취소한다. 인증·입력값·카테고리 오류와 처리 대기열 포화(503)는 스트림을 열기 전에 일반 JSON 에러로
+     * 응답한다.
      *
      * <pre>
      * 모든 이벤트는 SSE {@code data:} 한 줄로 오며, 내용은 기존 API 응답과 같은 형태다. 이벤트 종류는 {@code data.event}로 구분한다.
      * data:{"success":true,"message":"진행 문구","data":{"event":"step","step":"IMAGE_UPLOAD","status":"START|DONE|SKIP","index":1,"total":3,"result":...},"error":null}
-     * data:{"success":true,"message":"...","data":{"event":"complete",기존 등록 응답의 상품 필드 그대로,"analysis":{가격·분석 정보}},"error":null}
+     * (SKIP은 수정에서만 — 새 이미지 없음, 이미지 변경 없음, 재분석 실패)
+     * data:{"success":true,"message":"...","data":{"event":"complete",상품 필드,"analysis":{가격·분석 정보}},"error":null}
      * data:{"success":false,"message":"...","data":{"event":"error","step":"IMAGE_ANALYSIS"},"error":{"status":"502","code":"AI_ANALYSIS_FAILED"}}
      * </pre>
      *
@@ -123,12 +79,9 @@ public class ProductController {
     @Operation(
             summary = "상품 등록(단계별 스트리밍)",
             description =
-                    "POST /products와 같은 요청으로, 이미지 업로드 → AI 사진 분석 → 상품 저장 진행 상황을 SSE(step/complete/error 이벤트)로 보낸다.")
-    @PostMapping(
-            value = "/v2",
-            consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
-            produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public ResponseEntity<SseEmitter> createStream(
+                    "상품 이미지 파일과 등록 정보(JSON, data 파트)를 받아 이미지 업로드 → AI 사진 분석 → 상품 저장 진행 상황을 SSE(step/complete/error 이벤트)로 보낸다.")
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public ResponseEntity<SseEmitter> create(
             @AuthenticationPrincipal PrincipalMember currentMember,
             @RequestPart("images") @NotEmpty List<MultipartFile> images,
             @RequestPart("data") @Valid ProductCreateRequest request) {
@@ -136,13 +89,14 @@ public class ProductController {
     }
 
     /**
-     * 상품 사진을 AI로 분석해 등록하며 진행 상황을 SSE로 보낸다. AI 사진 분석이 실패하면 업로드한 파일을 지우고
-     * {@code error} 이벤트로 끝낸다. 요청 형식은 {@link #createFromImages}와 같고 이벤트 형식은
-     * {@link #createStream}과 같다.
+     * 상품 사진을 AI(Gemini)로 분석해 등록하며 진행 상황을 SSE로 보낸다. 구매 일시/결함 여부는 AI가 추론하지 않고 사용자가
+     * 직접 입력한 값을 그대로 사용하며, 브랜드는 AI가 사진에서 식별해 채운다(식별 불가 시 null). 태그는 AI가 추론한 목록만
+     * 저장하고, 구성품은 AI 추론 목록과 사용자가 추가로 입력한 목록을 합쳐서 저장한다. AI 사진 분석이 실패하면 업로드한 파일을
+     * 지우고 {@code error} 이벤트로 끝낸다. 이벤트 형식은 {@link #create}와 같다.
      *
      * @param currentMember 인증된 요청자
      * @param images 분석할 상품 이미지 목록
-     * @param purchasedMonths 사용자가 입력한 구매 후 경과 개월 수(선택, 0~6)
+     * @param purchasedMonths 사용자가 입력한 구매 후 경과 개월 수(선택, 0~6, 등록 시점 기준 구매일시로 변환)
      * @param defectStatus 사용자가 입력한 결함(하자) 상태(NORMAL/ISSUES/UNKNOWN, 대소문자 무관)
      * @param includedItems 사용자가 추가로 입력한 구성품 이름 목록(선택, AI 추론 결과와 합쳐짐)
      * @return 진행 상황 SSE 스트림
@@ -150,12 +104,12 @@ public class ProductController {
     @Operation(
             summary = "상품 이미지 AI 등록(단계별 스트리밍)",
             description =
-                    "POST /products/analyze와 같은 요청으로, 이미지 업로드 → AI 사진 분석 → 상품 저장 진행 상황을 SSE(step/complete/error 이벤트)로 보낸다.")
+                    "상품 사진을 업로드하면 AI(Gemini)가 상품 정보를 분석해 등록하며, 이미지 업로드 → AI 사진 분석 → 상품 저장 진행 상황을 SSE(step/complete/error 이벤트)로 보낸다.")
     @PostMapping(
-            value = "/v2/analyze",
+            value = "/analyze",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
             produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public ResponseEntity<SseEmitter> createFromImagesStream(
+    public ResponseEntity<SseEmitter> createFromImages(
             @AuthenticationPrincipal PrincipalMember currentMember,
             @RequestParam("images") @NotEmpty List<MultipartFile> images,
             @RequestParam(required = false) @PositiveOrZero @Max(6) Integer purchasedMonths,
@@ -178,10 +132,9 @@ public class ProductController {
     }
 
     /**
-     * 상품 목록을 커서 기반으로 조회한다(정렬은 등록일시 내림차순, {@code HIDDEN} 상태는 항상 제외되는
-     * 공개 목록). 우리 회원 상품과 외부 플랫폼에서 수집한 매물을 한 목록에 섞어 반환한다({@code source}
-     * 필드로 구분, {@link ProductService#getProducts} 참고). 인증된 본인 전체 상품(숨김 포함)은
-     * {@link #getMyProducts} 참고.
+     * 상품 목록을 커서 기반으로 조회한다(정렬은 등록일시 내림차순, 공개 목록). 우리 회원 상품과 외부
+     * 플랫폼에서 수집한 매물을 한 목록에 섞어 반환한다({@code source} 필드로 구분,
+     * {@link ProductService#getProducts} 참고). 인증된 본인 상품만 보려면 {@link #getMyProducts} 참고.
      *
      * @param currentMember 인증된 요청자(키워드 검색 로그 기록용)
      * @param keyword 제목/설명(외부 매물은 제목만) 키워드 검색(선택)
@@ -226,8 +179,8 @@ public class ProductController {
     }
 
     /**
-     * 인증된 본인이 등록한 상품 목록을 커서 기반으로 조회한다(정렬은 {@code id} 내림차순 고정). 본인
-     * 관리 화면 용도라 {@link #getProducts}와 달리 {@code HIDDEN} 상태도 포함한다.
+     * 인증된 본인이 등록한 상품 목록을 커서 기반으로 조회한다(정렬은 {@code id} 내림차순 고정, 본인 관리
+     * 화면 용도).
      *
      * @param currentMember 인증된 요청자
      * @param categoryId 카테고리 필터(선택)
@@ -251,29 +204,38 @@ public class ProductController {
     }
 
     /**
-     * 상품 정보를 수정한다. 본인이 등록한 상품만 수정할 수 있다.
+     * 상품 정보를 수정하며 진행 상황을 SSE로 보낸다. 본인이 등록한 상품만 수정할 수 있다. 새 이미지 파일 업로드(없으면
+     * {@code SKIP}) → AI 사진 분석 → 상품 저장 순으로 {@code step} 이벤트를 보내고, 끝나면 수정된 상품을 {@code complete}
+     * 이벤트로 보낸다. 이벤트 형식은 {@link #create}와 같다.
+     *
+     * AI 사진 분석은 이미지 구성이 바뀐 경우(새 파일 추가 또는 기존 이미지 제거)에만 최종 이미지 전체로 다시 하고, AI 제안가·
+     * 판단 근거만 갱신한다(사용자 입력값은 덮어쓰지 않음). 이미지가 그대로이거나 분석에 실패하면 {@code SKIP}하고 기존 값을
+     * 유지한다.
      *
      * 이미지는 {@code data.imageUrls}(유지할 기존 이미지 URL)와 {@code images}(새로 추가할 이미지 파일)를
-     * 이 순서대로 합친 목록으로 전체 교체된다.
+     * 이 순서대로 합친 목록으로 전체 교체된다. 인증·입력값 오류, 상품 없음(404)·권한 없음(403), 카테고리 오류, 이미지 0장,
+     * 처리 대기열 포화(503)는 스트림을 열기 전에 일반 JSON 에러로 응답한다.
      *
      * @param currentMember 인증된 요청자
      * @param productId 수정할 상품 ID
      * @param images 새로 추가할 이미지 파일 목록(선택)
      * @param request 수정 정보(JSON, {@code data} 파트)
-     * @return 200 OK + 수정된 상품
+     * @return 진행 상황 SSE 스트림
      */
     @Operation(
-            summary = "상품 수정",
+            summary = "상품 수정(단계별 스트리밍)",
             description =
-                    "수정 정보(JSON, data 파트)와 새로 추가할 이미지 파일(images, 선택)을 함께 받는다. 이미지는 data.imageUrls(유지할 기존 이미지) 뒤에 새 파일을 이어 붙인 순서로 전체 교체된다.")
-    @PatchMapping(value = "/{productId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<ProductResponse>> update(
+                    "수정 정보(JSON, data 파트)와 새로 추가할 이미지 파일(images, 선택)을 받아 이미지 업로드 → AI 사진 분석(이미지 구성이 바뀐 경우만) → 상품 저장 진행 상황을 SSE(step/complete/error 이벤트)로 보낸다. 이미지는 data.imageUrls(유지할 기존 이미지) 뒤에 새 파일을 이어 붙인 순서로 전체 교체된다.")
+    @PatchMapping(
+            value = "/{productId}",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
+            produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public ResponseEntity<SseEmitter> update(
             @AuthenticationPrincipal PrincipalMember currentMember,
             @PathVariable Long productId,
             @RequestPart(value = "images", required = false) List<MultipartFile> images,
             @RequestPart("data") @Valid ProductUpdateRequest request) {
-        ProductResponse response = productService.update(currentMember.memberId(), productId, request, images);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return stream(productRegisterStreamService.update(currentMember.memberId(), productId, request, images));
     }
 
     /**

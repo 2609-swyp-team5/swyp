@@ -82,7 +82,7 @@ public class Product {
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "product_status")
-    private ProductStatus status; // 상품 등록 상태
+    private ProductStatus status; // 상품 판매 상태(등록 시 DRAFT, 외부 플랫폼 게시 시 ON_SALE)
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
@@ -160,7 +160,7 @@ public class Product {
         this.brand = brand;
         this.description = description;
         this.price = price;
-        this.status = ProductStatus.ON_SALE;
+        this.status = ProductStatus.DRAFT;
         this.condition = condition;
         this.defectStatus = defectStatus;
         this.purchasedAt = purchasedAt;
@@ -296,6 +296,13 @@ public class Product {
      */
     public void changeStatus(ProductStatus status) {
         this.status = status;
+    }
+
+    /** 외부 플랫폼에 게시되면 호출한다. 아직 {@link ProductStatus#DRAFT}일 때만 판매중으로 바꾸고, 품절 상태는 그대로 둔다. */
+    public void markOnSaleIfDraft() {
+        if (this.status == ProductStatus.DRAFT) {
+            this.status = ProductStatus.ON_SALE;
+        }
     }
 
     /** 등록된 이미지를 모두 제거한다. */
