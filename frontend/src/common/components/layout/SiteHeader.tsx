@@ -31,7 +31,7 @@ export function SiteHeader() {
 
     return (
         <header className="border-border bg-background border-b">
-            <div className="layout-container flex min-h-[var(--header-height)] items-center justify-between gap-6 py-6">
+            <div className="layout-container flex min-h-[var(--header-height)] items-center justify-between gap-6 py-2">
                 <Link href={logoHref} className="shrink-0">
                     <Image
                         src="/brand/jigeumini-logo.png"

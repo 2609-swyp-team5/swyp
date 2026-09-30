@@ -108,7 +108,6 @@ test("onboarding buttons keep their behavior with the Figma scroll-to-top design
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.goto("/");
     const header = page.locator("header");
-    const headerContent = header.locator(":scope > div");
     const start = page.getByRole("link", { name: "시작하기", exact: true });
     await start.hover();
     await expect(start).toHaveCSS("translate", "0px -4px");
@@ -116,7 +115,6 @@ test("onboarding buttons keep their behavior with the Figma scroll-to-top design
     await page.mouse.move(100, 400);
     await page.mouse.wheel(0, 900);
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(800);
-    await expect(headerContent).toHaveCSS("padding-top", "24px");
     await expect(header).toHaveCSS("position", "static");
     await expect(header).toHaveCSS("box-shadow", "none");
 
@@ -127,10 +125,13 @@ test("onboarding buttons keep their behavior with the Figma scroll-to-top design
     await expect(topButton.locator("svg")).toBeVisible();
     await expect(topButton.getByText("바로가기")).toBeVisible();
     await expect(topButton.locator("img")).toHaveCount(0);
+    await topButton.hover();
+    await expect(topButton).toHaveCSS("translate", "0px -4px");
+    await expect(topButton).not.toHaveCSS("box-shadow", "none");
+    await expect(topButton.locator("span").first()).toHaveCSS("opacity", "1");
     await page.screenshot({ path: testInfo.outputPath("onboarding-scrolled.png") });
     await topButton.click();
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
-    await expect(headerContent).toHaveCSS("padding-top", "24px");
 
     await start.click();
     await expect(page).toHaveURL(/\/login$/);
