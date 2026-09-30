@@ -20,7 +20,7 @@ public record ProductUpdateRequest(
         @Size(max = 50) String brand, // 브랜드 (선택)
         String description, // 상품 설명 (선택)
         @NotNull @PositiveOrZero Long price, // 판매 희망가
-        @NotNull ProductStatus status, // 게시 상태 (ON_SALE/RESERVED/SOLD_OUT/HIDDEN)
+        @NotNull ProductStatus status, // 게시 상태 (DRAFT/ON_SALE/SOLD_OUT)
         @NotNull ProductCondition condition, // 상품 상태 등급 (S/A/B/C/D)
         @NotNull DefectStatus defectStatus, // 결함(하자) 상태 (NORMAL/ISSUES/UNKNOWN)
         @PositiveOrZero @Max(6) Integer purchasedMonths, // 구매 후 경과 개월 수 (0~6, 수정 시점 기준 구매일시로 재계산, null이면 구매일시 비움)

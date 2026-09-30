@@ -87,19 +87,18 @@ public class ProductAnalysisService {
 
     /**
      * 상품의 가장 최근 시세 분석 스냅샷을 조회한다. 분석 이력이 없으면(배치가 아직 안 돌았거나 비교
-     * 매물 부족으로 건너뛴 경우) 필드가 전부 null인 응답을 반환한다.
+     * 매물 부족으로 건너뛴 경우) 상품 ID·현재 등록가만 채우고 나머지 필드는 null인 응답을 반환한다.
      *
      * @throws ProductNotFoundException 존재하지 않는 상품인 경우
      */
     @Transactional(readOnly = true)
     public ProductAnalysisResponse getLatestAnalysis(Long productId) {
-        if (!productRepository.existsById(productId)) {
-            throw new ProductNotFoundException(productId);
-        }
+        Product product =
+                productRepository.findById(productId).orElseThrow(() -> new ProductNotFoundException(productId));
         return productAnalysisRepository
                 .findFirstByProductIdOrderByAnalyzedAtDesc(productId)
-                .map(ProductAnalysisResponse::from)
-                .orElseGet(() -> ProductAnalysisResponse.empty(productId));
+                .map(analysis -> ProductAnalysisResponse.from(product, analysis))
+                .orElseGet(() -> ProductAnalysisResponse.empty(product));
     }
 
     /**
@@ -119,9 +118,12 @@ public class ProductAnalysisService {
         return Optional.of(Math.round(stats.averagePrice()));
     }
 
-    /** 판매중인 상품 전체를 순회하며 분석한다(스케줄러 진입점). 한 건이 실패해도 나머지는 계속 진행한다. */
+    /**
+     * 분석 대상 상태({@link ProductStatus#ANALYSIS_TARGETS} — 외부 게시 전 등록 상품 포함)의 상품 전체를 순회하며
+     * 분석한다(스케줄러 진입점). 한 건이 실패해도 나머지는 계속 진행한다.
+     */
     public void analyzeAll() {
-        List<Product> products = productRepository.findByStatus(ProductStatus.ON_SALE);
+        List<Product> products = productRepository.findByStatusIn(ProductStatus.ANALYSIS_TARGETS);
         log.info("시세 분석 대상 상품 {}건", products.size());
         for (Product product : products) {
             analyzeProductSafely(product);

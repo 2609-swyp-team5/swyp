@@ -244,10 +244,10 @@ public class ProductService {
     }
 
     /**
-     * 상품 목록을 커서 기반으로 조회한다(정렬은 등록일시 내림차순, {@code HIDDEN} 상태는 항상 제외 —
-     * 공개 목록이므로 판매자가 숨긴 상품은 노출하지 않음). 우리 회원 상품과 함께, 외부 플랫폼에서
+     * 상품 목록을 커서 기반으로 조회한다(정렬은 등록일시 내림차순, 공개 목록 — 외부 게시 전
+     * {@code DRAFT} 상품도 포함). 우리 회원 상품과 함께, 외부 플랫폼에서
      * 수집한 매물({@link PlatformListing})도 한 목록에 등록일시 순으로 섞어서 반환한다({@code source}
-     * 필드로 구분) — 단, {@code status} 필터를 지정한 요청은 우리 상품 고유의 상태 개념(예약중 등)이라
+     * 필드로 구분) — 단, {@code status} 필터를 지정한 요청은 우리 상품 고유의 상태 개념(등록됨/판매중/품절)이라
      * 외부 매물과 대응이 안 돼 우리 상품만 반환한다. 각 상품의 가장 최근 시세 분석 판단
      * ({@code recommendation})/시세 평균가({@code marketAveragePrice})도 함께 포함한다(분석 이력이
      * 없거나 외부 매물이면 {@code null}).
@@ -259,7 +259,7 @@ public class ProductService {
      *
      * @param memberId 요청자 회원 ID(키워드 검색 로그 기록용)
      * @param keyword 제목/설명(외부 매물은 제목만) 키워드 검색(선택, {@code null}이거나 공백이면 미적용)
-     * @param status 상태 필터(선택, {@code null}이면 전체 — 단, {@code HIDDEN}은 지정해도 결과에서 제외)
+     * @param status 상태 필터(선택, {@code null}이면 전체)
      * @param cursor 이전 페이지 마지막 항목의 등록일시(epoch millisecond, 선택, {@code null}이면 첫 페이지)
      * @param size 페이지 크기
      * @return {@code hasNext}/{@code nextCursor}를 포함한 커서 페이지 응답
@@ -271,10 +271,8 @@ public class ProductService {
         LocalDateTime cursorTime = cursor == null ? null : epochMillisToDateTime(cursor);
         Pageable pageable = PageRequest.of(0, size + 1, Sort.by(Sort.Direction.DESC, "createdAt", "id"));
 
-        Specification<Product> productSpec = Specification.where(hasKeyword(keyword))
-                .and(hasStatus(status))
-                .and(statusNot(ProductStatus.HIDDEN))
-                .and(createdAtBefore(cursorTime));
+        Specification<Product> productSpec =
+                Specification.where(hasKeyword(keyword)).and(hasStatus(status)).and(createdAtBefore(cursorTime));
         List<Product> products =
                 productRepository.findAll(productSpec, pageable).getContent();
         Map<Long, ProductAnalysis> analyses = findLatestAnalyses(products);
@@ -305,8 +303,8 @@ public class ProductService {
     }
 
     /**
-     * 인증된 본인이 등록한 상품 목록을 커서 기반으로 조회한다(정렬은 {@code id} 내림차순 고정). 본인
-     * 관리 화면 용도라 {@link #getProducts}와 달리 {@code HIDDEN} 상태도 그대로 포함한다.
+     * 인증된 본인이 등록한 상품 목록을 커서 기반으로 조회한다(정렬은 {@code id} 내림차순 고정, 본인 관리
+     * 화면 용도).
      *
      * @param memberId 조회할 본인 회원 ID(호출 측에서 인증된 회원 ID를 그대로 넘길 것)
      * @param categoryId 카테고리 필터(선택, {@code null}이면 전체)
@@ -644,10 +642,6 @@ public class ProductService {
 
     private static Specification<Product> hasStatus(ProductStatus status) {
         return (root, query, cb) -> status == null ? null : cb.equal(root.get("status"), status);
-    }
-
-    private static Specification<Product> statusNot(ProductStatus excludedStatus) {
-        return (root, query, cb) -> cb.notEqual(root.get("status"), excludedStatus);
     }
 
     /** 제목/설명에 키워드가 포함된 상품만 조회한다(대소문자 무시). */

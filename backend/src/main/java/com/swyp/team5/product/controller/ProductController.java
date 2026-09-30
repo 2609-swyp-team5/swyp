@@ -132,10 +132,9 @@ public class ProductController {
     }
 
     /**
-     * 상품 목록을 커서 기반으로 조회한다(정렬은 등록일시 내림차순, {@code HIDDEN} 상태는 항상 제외되는
-     * 공개 목록). 우리 회원 상품과 외부 플랫폼에서 수집한 매물을 한 목록에 섞어 반환한다({@code source}
-     * 필드로 구분, {@link ProductService#getProducts} 참고). 인증된 본인 전체 상품(숨김 포함)은
-     * {@link #getMyProducts} 참고.
+     * 상품 목록을 커서 기반으로 조회한다(정렬은 등록일시 내림차순, 공개 목록). 우리 회원 상품과 외부
+     * 플랫폼에서 수집한 매물을 한 목록에 섞어 반환한다({@code source} 필드로 구분,
+     * {@link ProductService#getProducts} 참고). 인증된 본인 상품만 보려면 {@link #getMyProducts} 참고.
      *
      * @param currentMember 인증된 요청자(키워드 검색 로그 기록용)
      * @param keyword 제목/설명(외부 매물은 제목만) 키워드 검색(선택)
@@ -180,8 +179,8 @@ public class ProductController {
     }
 
     /**
-     * 인증된 본인이 등록한 상품 목록을 커서 기반으로 조회한다(정렬은 {@code id} 내림차순 고정). 본인
-     * 관리 화면 용도라 {@link #getProducts}와 달리 {@code HIDDEN} 상태도 포함한다.
+     * 인증된 본인이 등록한 상품 목록을 커서 기반으로 조회한다(정렬은 {@code id} 내림차순 고정, 본인 관리
+     * 화면 용도).
      *
      * @param currentMember 인증된 요청자
      * @param categoryId 카테고리 필터(선택)

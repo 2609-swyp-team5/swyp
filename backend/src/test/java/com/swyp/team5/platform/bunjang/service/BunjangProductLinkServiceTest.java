@@ -30,6 +30,7 @@ import com.swyp.team5.platform.repository.ProductPlatformRepository;
 import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
+import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductNotFoundException;
@@ -89,6 +90,29 @@ class BunjangProductLinkServiceTest {
 
         assertThat(response.externalProductId()).isEqualTo("123456789");
         assertThat(response.status()).isEqualTo(ProductPlatformStatus.POSTED);
+        assertThat(product.getStatus()).isEqualTo(ProductStatus.ON_SALE); // 등록 직후 DRAFT → 매물 연동되면 판매중
+    }
+
+    // 품절 상품은 매물을 연동해도 판매중으로 되돌리지 않음
+    @Test
+    void linkKeepsSoldOutStatus() {
+        Platform platform = newPlatform(1L);
+        MemberPlatform memberPlatform = MemberPlatform.connect(newMember(2L), platform, "abc123");
+        setField(memberPlatform, "id", 10L);
+        Product product = newProduct(5L, newMember(2L));
+        product.changeStatus(ProductStatus.SOLD_OUT);
+        givenConnectedMemberPlatform(platform, memberPlatform);
+        when(productRepository.findById(5L)).thenReturn(Optional.of(product));
+        when(bunjangProductClient.fetchDetail("123456789"))
+                .thenReturn(new BunjangProductDetail(123456789L, "SELLING", 10_000L, "title", null));
+        when(productPlatformRepository.findByProductIdAndMemberPlatformId(5L, 10L))
+                .thenReturn(Optional.empty());
+        when(productPlatformRepository.save(any()))
+                .thenReturn(ProductPlatform.link(memberPlatform, product, "123456789", PRODUCT_URL));
+
+        service().link(2L, 5L, PRODUCT_URL);
+
+        assertThat(product.getStatus()).isEqualTo(ProductStatus.SOLD_OUT);
     }
 
     // 번개장터 세션이 연동되어 있지 않으면 실패
