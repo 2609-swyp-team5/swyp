@@ -35,6 +35,22 @@ export interface ProductUpdateInput {
 
 export type AiProductCreateInput = z.infer<typeof aiProductCreateInputSchema>;
 
+export type ProductRegisterStep = "IMAGE_UPLOAD" | "IMAGE_ANALYSIS" | "PRODUCT_SAVE";
+export type ProductRegisterStepStatus = "START" | "DONE" | "SKIP";
+export type ProductRegisterProgressStatus = ProductRegisterStepStatus | "ERROR";
+
+export interface ProductRegisterProgress {
+    step: ProductRegisterStep;
+    status: ProductRegisterProgressStatus;
+    index: number;
+    total: number;
+    message: string;
+}
+
+export type ProductRegisterError = Error & {
+    code?: string;
+};
+
 export interface ProductResponse {
     id: number;
     memberId: number;

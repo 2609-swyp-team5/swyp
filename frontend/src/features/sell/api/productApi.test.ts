@@ -1,14 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { del, get, patch, post } = vi.hoisted(() => ({
+const { del, fetchMock, get } = vi.hoisted(() => ({
     del: vi.fn(),
+    fetchMock: vi.fn(),
     get: vi.fn(),
-    patch: vi.fn(),
-    post: vi.fn(),
 }));
 
 vi.mock("@/common/lib/api/client", () => ({
-    api: { delete: del, get, patch, post },
+    api: { delete: del, get, defaults: { baseURL: "https://api.test" } },
 }));
 
 import { productApi } from "./productApi";
@@ -21,26 +20,47 @@ const readBlob = (blob: Blob) =>
         reader.readAsText(blob);
     });
 
+const sseResponse = (...events: unknown[]) => {
+    const body = new TextEncoder().encode(
+        events.map((event) => `data:${JSON.stringify(event)}\n\n`).join(""),
+    );
+
+    return {
+        ok: true,
+        status: 200,
+        body: {
+            getReader: () => {
+                let delivered = false;
+
+                return {
+                    read: async () => {
+                        if (delivered) {
+                            return { done: true, value: undefined };
+                        }
+
+                        delivered = true;
+                        return { done: false, value: body };
+                    },
+                    cancel: async () => undefined,
+                };
+            },
+        },
+    } as unknown as Response;
+};
+
+const completeEvent = () => ({
+    success: true,
+    message: "",
+    data: { event: "complete", id: 42 },
+    error: null,
+});
+
 describe("productApi", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.stubGlobal("fetch", fetchMock);
+        fetchMock.mockResolvedValue(sseResponse(completeEvent()));
         get.mockResolvedValue({
-            data: {
-                success: true,
-                message: "",
-                data: { id: 42 },
-                error: null,
-            },
-        });
-        post.mockResolvedValue({
-            data: {
-                success: true,
-                message: "",
-                data: {},
-                error: null,
-            },
-        });
-        patch.mockResolvedValue({
             data: {
                 success: true,
                 message: "",
@@ -108,12 +128,15 @@ describe("productApi", () => {
             },
         });
 
-        const [, formData] = post.mock.calls[0] as [string, FormData];
+        const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
+        const formData = request.body as FormData;
         const requestPart = formData.get("data");
 
-        expect(post).toHaveBeenCalledWith("/products", formData, {
-            timeout: 120_000,
-        });
+        expect(fetchMock).toHaveBeenCalledWith("https://api.test/products", expect.any(Object));
+        expect(request.method).toBe("POST");
+        expect(request.headers).toEqual(expect.any(Headers));
+        expect((request.headers as Headers).get("Accept")).toBe("text/event-stream");
+        expect(request.body).toBe(formData);
         expect(formData.getAll("images")).toEqual(images);
         expect(requestPart).toBeInstanceOf(Blob);
         expect(JSON.parse(await readBlob(requestPart as Blob))).toMatchObject({
@@ -138,14 +161,119 @@ describe("productApi", () => {
             includedItems: ["body", "charging-cable"],
         });
 
-        const [, formData] = post.mock.calls[0] as [string, FormData];
-        expect(post).toHaveBeenCalledWith("/products/analyze", formData, {
-            timeout: 120_000,
-        });
+        const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
+        const formData = request.body as FormData;
+        expect(fetchMock).toHaveBeenCalledWith(
+            "https://api.test/products/analyze",
+            expect.any(Object),
+        );
         expect(formData.getAll("images")).toEqual(images);
         expect(formData.get("purchasedMonths")).toBe("6");
         expect(formData.get("defectStatus")).toBe("normal");
         expect(formData.getAll("includedItems")).toEqual(["body", "charging-cable"]);
+    });
+
+    it("passes SSE step messages to the progress handler and resolves on complete", async () => {
+        const onProgress = vi.fn();
+        const image = new File(["one"], "one.png", { type: "image/png" });
+
+        fetchMock.mockResolvedValue(
+            sseResponse(
+                {
+                    success: true,
+                    message: "이미지 업로드하는 중",
+                    data: {
+                        event: "step",
+                        step: "IMAGE_UPLOAD",
+                        status: "START",
+                        index: 1,
+                        total: 3,
+                        result: null,
+                    },
+                    error: null,
+                },
+                {
+                    success: true,
+                    message: "상품 이미지 분석하는 중",
+                    data: {
+                        event: "step",
+                        step: "IMAGE_ANALYSIS",
+                        status: "START",
+                        index: 2,
+                        total: 3,
+                        result: null,
+                    },
+                    error: null,
+                },
+                completeEvent(),
+            ),
+        );
+
+        await expect(
+            productApi.createAiProduct(
+                {
+                    images: [image],
+                    purchasedMonths: null,
+                    operationStatus: "normal",
+                    includedItems: [],
+                },
+                onProgress,
+            ),
+        ).resolves.toMatchObject({ id: 42 });
+
+        expect(onProgress).toHaveBeenNthCalledWith(1, {
+            step: "IMAGE_UPLOAD",
+            status: "START",
+            index: 1,
+            total: 3,
+            message: "이미지 업로드하는 중",
+        });
+        expect(onProgress).toHaveBeenNthCalledWith(2, {
+            step: "IMAGE_ANALYSIS",
+            status: "START",
+            index: 2,
+            total: 3,
+            message: "상품 이미지 분석하는 중",
+        });
+    });
+
+    it("passes the failed SSE step to the progress handler before rejecting", async () => {
+        const onProgress = vi.fn();
+        const image = new File(["one"], "one.png", { type: "image/png" });
+        fetchMock.mockResolvedValue(
+            sseResponse({
+                success: false,
+                message: "AI 사진 분석에 실패했어요",
+                data: {
+                    event: "error",
+                    step: "IMAGE_ANALYSIS",
+                },
+                error: { code: "AI_ANALYSIS_FAILED" },
+            }),
+        );
+
+        await expect(
+            productApi.createAiProduct(
+                {
+                    images: [image],
+                    purchasedMonths: null,
+                    operationStatus: "normal",
+                    includedItems: [],
+                },
+                onProgress,
+            ),
+        ).rejects.toMatchObject({
+            message: "AI 사진 분석에 실패했어요",
+            code: "AI_ANALYSIS_FAILED",
+        });
+
+        expect(onProgress).toHaveBeenCalledWith({
+            step: "IMAGE_ANALYSIS",
+            status: "ERROR",
+            index: 2,
+            total: 3,
+            message: "AI 사진 분석에 실패했어요",
+        });
     });
 
     it("omits purchasedMonths when AI registration purchase period is unknown", async () => {
@@ -158,7 +286,8 @@ describe("productApi", () => {
             includedItems: ["body"],
         });
 
-        const [, formData] = post.mock.calls[0] as [string, FormData];
+        const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
+        const formData = request.body as FormData;
 
         expect(formData.get("purchasedMonths")).toBeNull();
         expect(formData.get("defectStatus")).toBe("unknown");
@@ -166,39 +295,72 @@ describe("productApi", () => {
 
     it("sends new files and retained image URLs as a multipart update request", async () => {
         const newImage = new File(["new image"], "new-image.jpg", { type: "image/jpeg" });
+        const onProgress = vi.fn();
 
-        await productApi.updateProduct(42, {
-            files: [newImage],
-            request: {
-                categoryId: 12,
-                title: "수정된 상품명",
-                brand: "Apple",
-                description: "수정된 설명",
-                price: 700000,
-                status: "ON_SALE",
-                condition: "A",
-                purchasedMonths: 3,
-                defectStatus: "NORMAL",
-                allowPriceSuggestion: true,
-                tradeMethod: "DIRECT",
-                deliveryType: null,
-                preferredTradeRegion: "서울 강남구",
-                imageUrls: ["https://example.com/retained-image.jpg"],
-                tags: ["애플"],
-                includedItems: ["body"],
+        fetchMock.mockResolvedValue(
+            sseResponse(
+                {
+                    success: true,
+                    message: "이미지 1장 업로드 완료",
+                    data: {
+                        event: "step",
+                        step: "IMAGE_UPLOAD",
+                        status: "DONE",
+                        index: 1,
+                        total: 3,
+                        result: { imageCount: 1 },
+                    },
+                    error: null,
+                },
+                completeEvent(),
+            ),
+        );
+
+        await productApi.updateProduct(
+            42,
+            {
+                files: [newImage],
+                request: {
+                    categoryId: 12,
+                    title: "수정된 상품명",
+                    brand: "Apple",
+                    description: "수정된 설명",
+                    price: 700000,
+                    status: "ON_SALE",
+                    condition: "A",
+                    purchasedMonths: 3,
+                    defectStatus: "NORMAL",
+                    allowPriceSuggestion: true,
+                    tradeMethod: "DIRECT",
+                    deliveryType: null,
+                    preferredTradeRegion: "서울 강남구",
+                    imageUrls: ["https://example.com/retained-image.jpg"],
+                    tags: ["애플"],
+                    includedItems: ["body"],
+                },
             },
-        });
+            onProgress,
+        );
 
-        const [, formData] = patch.mock.calls[0] as [string, FormData];
+        const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
+        const formData = request.body as FormData;
         const requestPart = formData.get("data");
 
-        expect(patch).toHaveBeenCalledWith("/products/42", formData);
+        expect(fetchMock).toHaveBeenCalledWith("https://api.test/products/42", expect.any(Object));
+        expect(request.method).toBe("PATCH");
         expect(formData.getAll("images")).toEqual([newImage]);
         expect(requestPart).toBeInstanceOf(Blob);
         expect(JSON.parse(await readBlob(requestPart as Blob))).toMatchObject({
             purchasedMonths: 3,
             imageUrls: ["https://example.com/retained-image.jpg"],
             title: "수정된 상품명",
+        });
+        expect(onProgress).toHaveBeenCalledWith({
+            step: "IMAGE_UPLOAD",
+            status: "DONE",
+            index: 1,
+            total: 3,
+            message: "이미지 1장 업로드 완료",
         });
     });
 
@@ -227,9 +389,11 @@ describe("productApi", () => {
             },
         });
 
-        const [, formData] = patch.mock.calls[0] as [string, FormData];
+        const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
+        const formData = request.body as FormData;
         const requestPart = formData.get("data");
 
+        expect(request.method).toBe("PATCH");
         expect(formData.getAll("images")).toEqual([newImage]);
         expect(JSON.parse(await readBlob(requestPart as Blob))).toMatchObject({ imageUrls: [] });
     });
@@ -259,6 +423,6 @@ describe("productApi", () => {
             }),
         ).rejects.toThrow("상품 사진을 1장 이상 업로드해주세요.");
 
-        expect(patch).not.toHaveBeenCalled();
+        expect(fetchMock).not.toHaveBeenCalled();
     });
 });

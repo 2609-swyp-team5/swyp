@@ -111,7 +111,12 @@ describe("AiRegisterPage", () => {
             operationStatus: "issues",
             includedItems: ["본체", "충전 케이블", "박스"],
         });
-        expect(screen.getByRole("heading", { name: "판매 글을 만들었어요" })).toBeInTheDocument();
+        expect(
+            screen.queryByRole("heading", { name: "판매 글을 만들었어요" }),
+        ).not.toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "판매 글이 등록되었어요" })).toBeInTheDocument();
+        expect(screen.getByText("상품 등록 완료")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "확인하러 가기" })).toBeInTheDocument();
 
         await user.click(screen.getByRole("button", { name: "확인하러 가기" }));
 
