@@ -1,24 +1,35 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { searchApi } from "@/features/search/api/searchApi";
-import type { SearchParams } from "@/features/search/types";
+import type { SearchStatus } from "@/features/search/types";
 
-export function useSearchQuery(params: SearchParams) {
+const pageSize = 20;
+
+export function useSearchQuery(keyword: string, status?: SearchStatus) {
     const isInitialized = useAuthStore((state) => state.isInitialized);
     const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
 
-    return useQuery({
-        queryKey: ["search", "list", params],
-        queryFn: async ({ signal }) => {
-            const { data } = await searchApi.searchList(params, signal);
-            if (!data.success) {
-                throw new Error(data.message);
-            }
+    return useInfiniteQuery({
+        queryKey: ["search", keyword, status],
+        queryFn: async ({ pageParam, signal }) => {
+            const { data } = await searchApi.searchList(
+                {
+                    keyword: keyword || undefined,
+                    status,
+                    cursor: pageParam ?? undefined,
+                    size: pageSize,
+                },
+                signal,
+            );
+            if (!data.success) throw new Error(data.message);
             return data.data;
         },
+        initialPageParam: null as number | null,
+        getNextPageParam: (lastPage) =>
+            lastPage.hasNext ? (lastPage.nextCursor ?? undefined) : undefined,
         enabled: isInitialized && isLoggedIn,
         retry: false,
     });

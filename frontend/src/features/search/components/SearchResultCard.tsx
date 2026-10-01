@@ -7,27 +7,35 @@ import { Badge } from "@/common/components/ui/Badge";
 import { Button } from "@/common/components/ui/Button";
 import { Card, CardContent } from "@/common/components/ui/Card";
 import { cn } from "@/common/lib/utils";
+import { formatRelativeCreatedAt } from "@/features/search/utils/formatRelativeCreatedAt";
+import {
+    conditionLabels,
+    defectLabels,
+} from "@/features/sell/components/manage/productReviewUtils";
 import type { SearchResultItem } from "@/features/search/types";
 
 const statusLabels: Record<string, string> = {
+    DRAFT: "등록됨",
     ON_SALE: "판매중",
-    RESERVED: "예약중",
     SOLD_OUT: "판매완료",
-    HIDDEN: "숨김",
+    SELLING: "판매중",
 };
 
 export function SearchResultCard({
     product,
     liked,
     onLike,
+    now,
 }: {
     product: SearchResultItem;
     liked: boolean;
     onLike: () => void;
+    now: number;
 }) {
     const status = statusLabels[product.status] ?? product.status;
     const sold = product.status === "SOLD_OUT";
-    const platform = product.platformName ?? "지금이니?!";
+    const platform =
+        product.source === "OUR" ? "지금이니?!" : (product.platformName ?? "외부 매물");
     const platformClass =
         platform === "당근마켓"
             ? "bg-[#ff6f0f]"
@@ -133,8 +141,11 @@ export function SearchResultCard({
                     {comparison}
                 </Badge>
                 <p className="text-xs leading-[18px] text-[#464646]">
-                    {product.condition ? "상품 상태 " + product.condition + "등급 · " : ""}
-                    {product.createdAt.split("T")[0]}
+                    {product.condition ? `${conditionLabels[product.condition]} · ` : ""}
+                    {product.defectStatus ? `${defectLabels[product.defectStatus]} · ` : ""}
+                    <time dateTime={product.createdAt}>
+                        {formatRelativeCreatedAt(product.createdAt, now)}
+                    </time>
                 </p>
                 <p className="text-xs leading-[18px] text-[#464646]">{product.categoryName}</p>
             </CardContent>
