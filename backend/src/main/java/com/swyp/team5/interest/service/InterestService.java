@@ -34,6 +34,7 @@ public class InterestService {
     private final MemberRepository memberRepository;
     private final ProductAnalysisRepository productAnalysisRepository;
     private final List<InterestRegistrar> registrars;
+    private final TargetPriceAlertService targetPriceAlertService;
 
     /**
      * 상품 또는 외부 플랫폼 수집 매물을 관심상품으로 등록한다. {@code source}에 맞는
@@ -153,6 +154,8 @@ public class InterestService {
     public TargetPriceResponse setTargetPrice(Long memberId, Long interestId, Long targetPrice) {
         Interest interest = getInterestOrThrow(memberId, interestId);
         interest.changeTargetPrice(targetPrice);
+        // 이미 목표가 이하인 가격이면 바로 알림
+        targetPriceAlertService.check(interest);
         return new TargetPriceResponse(interestId, targetPrice);
     }
 

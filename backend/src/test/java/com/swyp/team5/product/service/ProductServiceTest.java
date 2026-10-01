@@ -28,6 +28,7 @@ import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.component.entity.Component;
 import com.swyp.team5.component.repository.ComponentRepository;
 import com.swyp.team5.interest.repository.InterestRepository;
+import com.swyp.team5.interest.service.TargetPriceAlertService;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.repository.MemberRepository;
 import com.swyp.team5.platform.entity.Platform;
@@ -97,6 +98,9 @@ class ProductServiceTest {
     @Mock
     private ProductAnalysisService productAnalysisService;
 
+    @Mock
+    private TargetPriceAlertService targetPriceAlertService;
+
     private ProductService service() {
         return new ProductService(
                 productRepository,
@@ -108,7 +112,8 @@ class ProductServiceTest {
                 platformListingRepository,
                 interestRepository,
                 searchLogService,
-                productAnalysisService);
+                productAnalysisService,
+                targetPriceAlertService);
     }
 
     // 상품 등록 성공
@@ -643,6 +648,8 @@ class ProductServiceTest {
 
         assertThat(response.suggestedPrice()).isEqualTo(470_000L);
         assertThat(response.analysisDescription()).isEqualTo("등록 때 근거");
+        // 수정 직후 이 상품에 목표가를 건 관심 회원의 도달 여부 확인
+        verify(targetPriceAlertService).checkProduct(1L);
     }
 
     // 상품 등록 실패 - 최하위가 아닌(하위가 있는) 카테고리

@@ -60,3 +60,7 @@ crawl:
 
 analysis:
   enabled: ${PRICE_ANALYSIS_ENABLED:false}
+
+interest:
+  target-price-alert:
+    enabled: ${TARGET_PRICE_ALERT_ENABLED:false}

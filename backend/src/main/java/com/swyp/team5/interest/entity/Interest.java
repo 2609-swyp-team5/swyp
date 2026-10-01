@@ -77,6 +77,21 @@ public class Interest {
         return new Interest(member, null, listing);
     }
 
+    /** 목표가 알림 대상의 현재 가격(우리 상품은 등록가, 외부 매물은 수집가). */
+    public Long currentPrice() {
+        return product != null ? product.getPrice() : listing.getPrice();
+    }
+
+    /** 목표가 도달 알림을 보냈다고 기록한다(같은 도달로 다시 보내지 않음). */
+    public void markTargetPriceNotified(LocalDateTime notifiedAt) {
+        this.notifiedAt = notifiedAt;
+    }
+
+    /** 가격이 목표가보다 다시 올라 알림 기록을 지운다(다음에 목표가 이하로 내려오면 다시 알림). */
+    public void resetTargetPriceNotified() {
+        this.notifiedAt = null;
+    }
+
     /** 목표가를 재설정한다. 명세상 재설정 시 알림 발송 이력이 초기화되어 다시 알림 대상이 될 수 있다. */
     public void changeTargetPrice(Long targetPrice) {
         this.targetPrice = targetPrice;

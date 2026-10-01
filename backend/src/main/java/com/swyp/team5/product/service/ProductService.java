@@ -28,6 +28,7 @@ import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.component.entity.Component;
 import com.swyp.team5.component.repository.ComponentRepository;
 import com.swyp.team5.interest.repository.InterestRepository;
+import com.swyp.team5.interest.service.TargetPriceAlertService;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.repository.MemberRepository;
 import com.swyp.team5.platform.entity.PlatformListing;
@@ -70,6 +71,7 @@ public class ProductService {
     private final InterestRepository interestRepository;
     private final SearchLogService searchLogService;
     private final ProductAnalysisService productAnalysisService;
+    private final TargetPriceAlertService targetPriceAlertService;
 
     public ProductService(
             ProductRepository productRepository,
@@ -81,7 +83,8 @@ public class ProductService {
             PlatformListingRepository platformListingRepository,
             InterestRepository interestRepository,
             SearchLogService searchLogService,
-            ProductAnalysisService productAnalysisService) {
+            ProductAnalysisService productAnalysisService,
+            TargetPriceAlertService targetPriceAlertService) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
         this.memberRepository = memberRepository;
@@ -92,6 +95,7 @@ public class ProductService {
         this.interestRepository = interestRepository;
         this.searchLogService = searchLogService;
         this.productAnalysisService = productAnalysisService;
+        this.targetPriceAlertService = targetPriceAlertService;
     }
 
     /**
@@ -473,6 +477,9 @@ public class ProductService {
             product.changeSuggestedPrice(analysis.suggestedPrice());
             product.changeAnalysisDescription(analysis.analysisDescription());
         }
+
+        // 가격이 바뀌었으면 이 상품에 목표가를 건 관심 회원에게 도달 알림(가격이 오르면 알림 기록 초기화)
+        targetPriceAlertService.checkProduct(product.getId());
 
         return ProductResponse.from(product);
     }
