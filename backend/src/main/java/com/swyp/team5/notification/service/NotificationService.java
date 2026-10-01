@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.swyp.team5.common.common.CursorPageResponse;
+import com.swyp.team5.interest.entity.Interest;
 import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.notification.dto.NotificationReadResponse;
@@ -156,6 +157,31 @@ public class NotificationService {
             log.info("외부 매물 {} 추천 {}→{} 알림 {}건 생성", listing.getId(), previous, current, notifications.size());
         }
         return notifications.size();
+    }
+
+    /**
+     * 관심상품 가격이 목표가 이하가 됐다고 관심 등록한 회원에게 알림을 만든다. 재알림 방지는 호출 측
+     * ({@code TargetPriceAlertService})이 {@code interests.notified_at}으로 한다.
+     */
+    public Notification notifyTargetPriceReached(Interest interest, long currentPrice) {
+        String title = "관심 상품이 목표가에 도달했어요";
+        String message;
+        Notification notification;
+        if (interest.getProduct() != null) {
+            message = targetPriceMessage(interest.getProduct().getTitle(), currentPrice, interest.getTargetPrice());
+            notification = Notification.create(
+                    interest.getMember(), interest.getProduct(), NotificationType.TARGET_PRICE, title, message);
+        } else {
+            message = targetPriceMessage(interest.getListing().getTitle(), currentPrice, interest.getTargetPrice());
+            notification = Notification.createForListing(
+                    interest.getMember(), interest.getListing(), NotificationType.TARGET_PRICE, title, message);
+        }
+        log.info("관심상품 {} 목표가 도달 알림 생성(현재가 {}, 목표가 {})", interest.getId(), currentPrice, interest.getTargetPrice());
+        return notificationRepository.save(notification);
+    }
+
+    private static String targetPriceMessage(String itemTitle, long currentPrice, long targetPrice) {
+        return "관심 상품 '%s'의 가격이 %,d원으로 설정하신 목표가 %,d원 이하가 됐어요.".formatted(itemTitle, currentPrice, targetPrice);
     }
 
     /** 알림 제목/본문. */

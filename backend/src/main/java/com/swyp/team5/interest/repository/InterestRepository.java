@@ -27,6 +27,15 @@ public interface InterestRepository extends JpaRepository<Interest, Long> {
     List<Interest> findByMemberIdAndIdLessThan(
             @Param("memberId") Long memberId, @Param("cursor") Long cursor, Pageable pageable);
 
+    /** 목표가가 설정된 관심상품 전체(대상 상품/매물과 함께) — 목표가 도달 알림 배치용. */
+    @Query(
+            "SELECT i FROM Interest i LEFT JOIN FETCH i.product LEFT JOIN FETCH i.listing WHERE i.targetPrice IS NOT NULL")
+    List<Interest> findAllWithTargetPrice();
+
+    /** 우리 상품 1건에 목표가를 설정한 관심상품 — 상품 수정 직후 목표가 도달 확인용. */
+    @Query("SELECT i FROM Interest i JOIN FETCH i.product p WHERE p.id = :productId AND i.targetPrice IS NOT NULL")
+    List<Interest> findWithTargetPriceByProductId(@Param("productId") Long productId);
+
     /** 우리 상품을 관심 등록한 회원 목록(구매 추천 알림 수신자). */
     @Query("SELECT i.member FROM Interest i WHERE i.product.id = :productId")
     List<Member> findMembersByProductId(@Param("productId") Long productId);

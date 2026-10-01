@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -26,6 +27,7 @@ import com.swyp.team5.common.passport.JwtTokenProvider;
 import com.swyp.team5.file.service.FileStorageService;
 import com.swyp.team5.interest.entity.Interest;
 import com.swyp.team5.interest.repository.InterestRepository;
+import com.swyp.team5.interest.service.TargetPriceAlertService;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.entity.MemberRole;
 import com.swyp.team5.member.repository.MemberRepository;
@@ -69,6 +71,9 @@ class NotificationTest {
 
     @Autowired
     private InterestRepository interestRepository;
+
+    @Autowired
+    private TargetPriceAlertService targetPriceAlertService;
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
@@ -230,6 +235,29 @@ class NotificationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content.length()").value(2))
                 .andExpect(jsonPath("$.data.content[*].type", containsInAnyOrder("HOLD", "SELL")));
+    }
+
+    // 목표가 도달 - 목표가 설정 즉시 확인해 TARGET_PRICE 알림(실제 DB enum V19) 1번만 생성, 다시 설정하면 재알림
+    @Test
+    void targetPriceReachedCreatesNotificationOnce() throws Exception {
+        Product product = productRepository.save(newProduct(owner)); // 등록가 100,000원
+        Interest interest = interestRepository.save(Interest.ofProduct(other, product));
+        String body = "{\"targetPrice\": 120000}";
+
+        mockMvc.perform(patch("/interests/{id}/target-price", interest.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk());
+        targetPriceAlertService.checkAll(); // 이미 보냈으므로 추가 알림 없음
+
+        mockMvc.perform(get("/notifications").header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].type").value("TARGET_PRICE"))
+                .andExpect(jsonPath("$.data.content[0].productId").value(product.getId()));
+        assertThat(interestRepository.findById(interest.getId()).orElseThrow().getNotifiedAt())
+                .isNotNull();
     }
 
     private static Member newMember(String prefix) {

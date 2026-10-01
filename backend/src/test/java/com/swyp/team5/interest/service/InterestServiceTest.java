@@ -64,6 +64,9 @@ class InterestServiceTest {
     @Mock
     private PlatformListingRepository platformListingRepository;
 
+    @Mock
+    private TargetPriceAlertService targetPriceAlertService;
+
     private InterestService service() {
         return new InterestService(
                 interestRepository,
@@ -71,7 +74,8 @@ class InterestServiceTest {
                 productAnalysisRepository,
                 List.of(
                         new ProductInterestRegistrar(interestRepository, productRepository),
-                        new ListingInterestRegistrar(interestRepository, platformListingRepository)));
+                        new ListingInterestRegistrar(interestRepository, platformListingRepository)),
+                targetPriceAlertService);
     }
 
     // 관심상품 등록 성공 - 우리 상품
@@ -286,6 +290,8 @@ class InterestServiceTest {
         assertThat(response.targetPrice()).isEqualTo(300_000L);
         assertThat(interest.getTargetPrice()).isEqualTo(300_000L);
         assertThat(interest.getNotifiedAt()).isNull();
+        // 설정 직후 이미 목표가 이하인지 바로 확인
+        verify(targetPriceAlertService).check(interest);
     }
 
     // 외부 매물 대상 관심상품도 목표가 설정 가능
