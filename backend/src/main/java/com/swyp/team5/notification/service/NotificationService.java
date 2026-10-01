@@ -13,6 +13,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.notification.dto.NotificationReadResponse;
@@ -38,12 +39,22 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final InterestRepository interestRepository;
 
+    /**
+     * 본인 알림 목록을 커서 기반으로 조회한다({@code id} 내림차순 = 최신순).
+     *
+     * @param cursor 이전 페이지 마지막 알림의 {@code notificationId}(선택, {@code null}이면 첫 페이지)
+     * @return {@code hasNext}/{@code nextCursor}를 포함한 커서 페이지 응답
+     */
     @Transactional(readOnly = true)
-    public List<NotificationResponse> getNotifications(Long memberId, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id"));
-        return notificationRepository.findByMemberId(memberId, pageable).stream()
-                .map(NotificationResponse::from)
-                .toList();
+    public CursorPageResponse<NotificationResponse> getNotifications(Long memberId, Long cursor, int size) {
+        Pageable pageable = PageRequest.of(0, size + 1, Sort.by(Sort.Direction.DESC, "id"));
+        List<NotificationResponse> items =
+                notificationRepository
+                        .findByMemberIdAndIdLessThan(memberId, cursor == null ? Long.MAX_VALUE : cursor, pageable)
+                        .stream()
+                        .map(NotificationResponse::from)
+                        .toList();
+        return CursorPageResponse.of(items, size, NotificationResponse::notificationId);
     }
 
     /**

@@ -12,6 +12,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.interest.dto.InterestCreateResponse;
 import com.swyp.team5.interest.dto.InterestListItemResponse;
 import com.swyp.team5.interest.dto.TargetPriceResponse;
@@ -58,23 +59,23 @@ public class InterestService {
     }
 
     /**
-     * 인증된 본인의 관심상품 목록을 조회한다. 등록일시 내림차순. 우리 상품 대상 건은 상품 목록 조회와
+     * 인증된 본인의 관심상품 목록을 커서 기반으로 조회한다({@code id} 내림차순 = 등록 최신순). 우리 상품 대상 건은 상품 목록 조회와
      * 동일하게 각 상품의 가장 최근 시세 분석 스냅샷({@code recommendation}/{@code marketAveragePrice})도
      * 함께 포함한다(분석 이력이 없으면 {@code null}). 외부 매물 대상 건도 관심 매물 시세 분석 스냅샷이 있으면 채운다.
      *
      * @param memberId 요청자 회원 ID
-     * @param page 페이지 번호(0-base)
+     * @param cursor 이전 페이지 마지막 관심상품의 {@code interestId}(선택, {@code null}이면 첫 페이지)
      * @param size 페이지 크기
-     * @return 관심상품 목록
+     * @return {@code hasNext}/{@code nextCursor}를 포함한 커서 페이지 응답
      */
     @Transactional(readOnly = true)
-    public List<InterestListItemResponse> getInterests(Long memberId, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        List<Interest> interests =
-                interestRepository.findByMemberId(memberId, pageable).getContent();
+    public CursorPageResponse<InterestListItemResponse> getInterests(Long memberId, Long cursor, int size) {
+        Pageable pageable = PageRequest.of(0, size + 1, Sort.by(Sort.Direction.DESC, "id"));
+        List<Interest> interests = interestRepository.findByMemberIdAndIdLessThan(
+                memberId, cursor == null ? Long.MAX_VALUE : cursor, pageable);
         Map<Long, ProductAnalysis> analyses = findLatestAnalyses(interests);
         Map<Long, ProductAnalysis> listingAnalyses = findLatestListingAnalyses(interests);
-        return interests.stream()
+        List<InterestListItemResponse> items = interests.stream()
                 .map(interest -> {
                     if (interest.getProduct() == null) {
                         ProductAnalysis analysis =
@@ -92,6 +93,7 @@ public class InterestService {
                             analysis == null ? null : analysis.getAveragePrice());
                 })
                 .toList();
+        return CursorPageResponse.of(items, size, InterestListItemResponse::interestId);
     }
 
     /**

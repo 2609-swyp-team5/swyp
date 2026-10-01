@@ -1,5 +1,6 @@
 package com.swyp.team5.productanalysis.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,6 +15,12 @@ public interface ProductAnalysisRepository extends JpaRepository<ProductAnalysis
     Optional<ProductAnalysis> findFirstByProductIdOrderByAnalyzedAtDesc(Long productId);
 
     Optional<ProductAnalysis> findFirstByListingIdOrderByAnalyzedAtDesc(Long listingId);
+
+    /** 상품의 {@code after} 이후 스냅샷(분석 시각 오름차순) — 시세 추이 계산용. */
+    List<ProductAnalysis> findByProductIdAndAnalyzedAtAfterOrderByAnalyzedAtAsc(Long productId, LocalDateTime after);
+
+    /** 외부 매물의 {@code after} 이후 스냅샷(분석 시각 오름차순) — 시세 추이 계산용. */
+    List<ProductAnalysis> findByListingIdAndAnalyzedAtAfterOrderByAnalyzedAtAsc(Long listingId, LocalDateTime after);
 
     /** 상품별 가장 최근 스냅샷만 골라 반환한다(상품 목록 조회에서 N+1 없이 한 번에 조회하기 위함). */
     @Query(

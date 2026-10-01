@@ -120,12 +120,41 @@ class NotificationTest {
 
         mockMvc.perform(get("/notifications").header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(2))
-                .andExpect(jsonPath("$.data[0].title").value("두번째 알림"))
-                .andExpect(jsonPath("$.data[0].type").value("NOTICE"))
-                .andExpect(jsonPath("$.data[0].isRead").value(false))
-                .andExpect(jsonPath("$.data[0].productId").doesNotExist())
-                .andExpect(jsonPath("$.data[1].title").value("첫 알림"));
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.content[0].title").value("두번째 알림"))
+                .andExpect(jsonPath("$.data.content[0].type").value("NOTICE"))
+                .andExpect(jsonPath("$.data.content[0].isRead").value(false))
+                .andExpect(jsonPath("$.data.content[0].productId").doesNotExist())
+                .andExpect(jsonPath("$.data.content[1].title").value("첫 알림"))
+                .andExpect(jsonPath("$.data.hasNext").value(false))
+                .andExpect(jsonPath("$.data.nextCursor").doesNotExist());
+    }
+
+    // 커서 페이징 - size만큼 최신순으로 주고, nextCursor로 다음 페이지를 이어서 조회
+    @Test
+    void getNotificationsPagesByCursor() throws Exception {
+        notificationRepository.save(Notification.create(owner, null, NotificationType.NOTICE, "첫 알림", "내용1"));
+        Notification second =
+                notificationRepository.save(Notification.create(owner, null, NotificationType.NOTICE, "두번째 알림", "내용2"));
+        notificationRepository.save(Notification.create(owner, null, NotificationType.NOTICE, "세번째 알림", "내용3"));
+
+        mockMvc.perform(get("/notifications")
+                        .param("size", "2")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.content[0].title").value("세번째 알림"))
+                .andExpect(jsonPath("$.data.hasNext").value(true))
+                .andExpect(jsonPath("$.data.nextCursor").value(second.getId()));
+
+        mockMvc.perform(get("/notifications")
+                        .param("size", "2")
+                        .param("cursor", String.valueOf(second.getId()))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].title").value("첫 알림"))
+                .andExpect(jsonPath("$.data.hasNext").value(false));
     }
 
     // 읽음 처리
@@ -194,13 +223,13 @@ class NotificationTest {
 
         mockMvc.perform(get("/notifications").header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(4))
-                .andExpect(jsonPath("$.data[*].type", containsInAnyOrder("HOLD", "BUY", "WAIT", "SELL")))
-                .andExpect(jsonPath("$.data[0].productId").value(product.getId()));
+                .andExpect(jsonPath("$.data.content.length()").value(4))
+                .andExpect(jsonPath("$.data.content[*].type", containsInAnyOrder("HOLD", "BUY", "WAIT", "SELL")))
+                .andExpect(jsonPath("$.data.content[0].productId").value(product.getId()));
         mockMvc.perform(get("/notifications").header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(2))
-                .andExpect(jsonPath("$.data[*].type", containsInAnyOrder("HOLD", "SELL")));
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.content[*].type", containsInAnyOrder("HOLD", "SELL")));
     }
 
     private static Member newMember(String prefix) {

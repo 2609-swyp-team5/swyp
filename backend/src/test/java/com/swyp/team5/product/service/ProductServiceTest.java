@@ -137,7 +137,7 @@ class ProductServiceTest {
         when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
         ProductAiAnalysisResult analysis = new ProductAiAnalysisResult(
                 category.getId(), "AI 제목", null, "AI 설명", ProductCondition.A, 470_000L, "판단 근거", List.of(), List.of());
-        when(productAnalysisService.calculateMarketAveragePrice(category.getId()))
+        when(productAnalysisService.calculateMarketAveragePrice(any(Product.class)))
                 .thenReturn(Optional.of(480_000L));
 
         ProductResponse response = service().saveDirect(1L, request, List.of(IMAGE_URL), analysis);
@@ -389,14 +389,14 @@ class ProductServiceTest {
         verify(productAnalysisService, never()).calculateMarketAveragePrice(any());
     }
 
-    // 상품 상세 조회 - 시세 분석 이력이 없으면 수집 매물로 평균가를 바로 계산(비교 매물 부족 시 null)
+    // 상품 상세 조회 - 시세 분석 이력이 없으면 유사 매물로 평균가를 바로 계산(유사 매물 부족 시 null)
     @Test
     void getProductCalculatesAveragePriceWhenNoAnalysis() {
         Product product = newProduct(1L, newMember(1L), newCategory(1L, "전자기기"));
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(productAnalysisRepository.findFirstByProductIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.empty());
-        when(productAnalysisService.calculateMarketAveragePrice(1L)).thenReturn(Optional.of(430_000L));
+        when(productAnalysisService.calculateMarketAveragePrice(product)).thenReturn(Optional.of(430_000L));
 
         ProductResponse response = service().getProduct(1L);
 

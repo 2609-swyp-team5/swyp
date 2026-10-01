@@ -130,7 +130,8 @@ public class ProductService {
         Product product = newDirectProduct(member, category, request, imageUrls);
         product.changeSuggestedPrice(analysis.suggestedPrice());
         product.changeAnalysisDescription(analysis.analysisDescription());
-        return ProductResponse.from(productRepository.save(product), null, calculateMarketAveragePrice(category));
+        Product saved = productRepository.save(product);
+        return ProductResponse.from(saved, null, calculateMarketAveragePrice(saved));
     }
 
     /**
@@ -161,7 +162,8 @@ public class ProductService {
         Category category = getLeafCategoryOrThrow(analysis.categoryId());
         Product product =
                 newAiProduct(member, category, analysis, imageUrls, purchasedMonths, defectStatus, includedItems);
-        return ProductResponse.from(productRepository.save(product), null, calculateMarketAveragePrice(category));
+        Product saved = productRepository.save(product);
+        return ProductResponse.from(saved, null, calculateMarketAveragePrice(saved));
     }
 
     private Product newDirectProduct(
@@ -234,13 +236,11 @@ public class ProductService {
             return ProductResponse.from(
                     product, latest.get().getRecommendation(), latest.get().getAveragePrice());
         }
-        return ProductResponse.from(product, null, calculateMarketAveragePrice(product.getCategory()));
+        return ProductResponse.from(product, null, calculateMarketAveragePrice(product));
     }
 
-    private Long calculateMarketAveragePrice(Category category) {
-        return productAnalysisService
-                .calculateMarketAveragePrice(category.getId())
-                .orElse(null);
+    private Long calculateMarketAveragePrice(Product product) {
+        return productAnalysisService.calculateMarketAveragePrice(product).orElse(null);
     }
 
     /**

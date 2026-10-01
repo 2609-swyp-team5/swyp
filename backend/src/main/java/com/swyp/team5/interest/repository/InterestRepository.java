@@ -4,7 +4,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -22,8 +21,11 @@ public interface InterestRepository extends JpaRepository<Interest, Long> {
 
     Optional<Interest> findByIdAndMemberId(Long interestId, Long memberId);
 
-    @Query("SELECT i FROM Interest i LEFT JOIN FETCH i.product LEFT JOIN FETCH i.listing WHERE i.member.id = :memberId")
-    Page<Interest> findByMemberId(@Param("memberId") Long memberId, Pageable pageable);
+    /** 커서({@code id}) 미만의 본인 관심상품을 대상 상품/매물과 함께 조회한다(정렬·개수는 {@code pageable}). */
+    @Query("SELECT i FROM Interest i LEFT JOIN FETCH i.product LEFT JOIN FETCH i.listing "
+            + "WHERE i.member.id = :memberId AND i.id < :cursor")
+    List<Interest> findByMemberIdAndIdLessThan(
+            @Param("memberId") Long memberId, @Param("cursor") Long cursor, Pageable pageable);
 
     /** 우리 상품을 관심 등록한 회원 목록(구매 추천 알림 수신자). */
     @Query("SELECT i.member FROM Interest i WHERE i.product.id = :productId")
