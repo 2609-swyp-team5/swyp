@@ -17,7 +17,7 @@ import com.swyp.team5.productanalysis.entity.ForecastPeriod;
  */
 final class DepreciationForecaster {
 
-    /** 관측 추세만으로 예측할 만큼 충분하다고 보는 관측 기간(일). 시세 분석의 추세 조회 기간과 같다. */
+    /** 관측 추세만으로 예측할 만큼 충분하다고 보는 관측 기간(일). 관측 추세는 최근 6개월 기록으로 계산한다. */
     static final int FULL_TRUST_DAYS = 30;
 
     /** 최상위 카테고리를 알 수 없거나 표에 없을 때의 월 감가율. */

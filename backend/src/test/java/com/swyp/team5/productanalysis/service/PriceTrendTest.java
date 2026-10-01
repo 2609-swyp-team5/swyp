@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -46,13 +47,25 @@ class PriceTrendTest {
         assertThat(trend.monthlyRate()).isEmpty();
     }
 
-    // n일 전 대비 변화율 - 그 날짜 이전 가장 가까운 점과 비교, 기록이 없으면 빈 값
+    // 월별 평균 - 일별 평균의 평균(분석이 몰린 날도 하루 1개로 셈)과 기록 일수
     @Test
-    void changeSinceComparesWithClosestEarlierPoint() {
-        PriceTrend trend = PriceTrend.of(List.of(at(0, 0, 1000), at(3, 0, 1200), at(10, 0, 900)));
+    void monthlyAveragesAverageDailyPointsPerMonth() {
+        PriceTrend trend = PriceTrend.of(List.of(
+                at(0, 0, 1000), at(0, 6, 1000), at(0, 12, 1000), at(1, 0, 2000), at(30, 0, 3000))); // 9/1·9/2·10/1
 
-        assertThat(trend.changeSince(7).getAsDouble()).isCloseTo(-0.25, within(1e-9)); // 3일차 1200 → 900
-        assertThat(trend.changeSince(30)).isEmpty();
+        assertThat(trend.monthlyAverages())
+                .containsExactly(
+                        new PriceTrend.MonthlyPrice(YearMonth.of(2026, 9), 1500L, 2),
+                        new PriceTrend.MonthlyPrice(YearMonth.of(2026, 10), 3000L, 1));
+    }
+
+    // n개월 전 대비 변화율 - 그 날짜 이전 가장 가까운 점과 비교, 기록이 없으면 빈 값
+    @Test
+    void changeSinceMonthsComparesWithClosestEarlierPoint() {
+        PriceTrend trend = PriceTrend.of(List.of(at(0, 0, 1000), at(3, 0, 1200), at(40, 0, 900))); // 9/1·9/4·10/11
+
+        assertThat(trend.changeSinceMonths(1).getAsDouble()).isCloseTo(-0.25, within(1e-9)); // 9/4 1200 → 900
+        assertThat(trend.changeSinceMonths(3)).isEmpty();
     }
 
     // 이번 분석 결과를 더하면 마지막 점이 됨
@@ -70,11 +83,18 @@ class PriceTrendTest {
         assertThat(PriceTrend.of(List.of()).toPromptText()).contains("이전 분석 기록 없음");
     }
 
-    // 프롬프트 - 일별 평균가와 변화율 포함
+    // 프롬프트 - 월별 평균가와 1/3/6개월 전 대비 변화율 포함(기록 없는 기간은 "기록 없음")
     @Test
-    void toPromptTextListsDailyPricesAndChanges() {
-        String text = PriceTrend.of(List.of(at(0, 0, 1000), at(8, 0, 900))).toPromptText();
+    void toPromptTextListsMonthlyPricesAndChanges() {
+        String text = PriceTrend.of(List.of(at(0, 0, 1000), at(35, 0, 900))).toPromptText(); // 9/1·10/6
 
-        assertThat(text).contains("2026-09-01: 1,000원", "2026-09-09: 900원", "7일 전 대비: -10.0%", "월 변화율");
+        assertThat(text)
+                .contains(
+                        "2026-09: 1,000원(기록 1일)",
+                        "2026-10: 900원(기록 1일)",
+                        "1개월 전 대비: -10.0%",
+                        "3개월 전 대비: 기록 없음",
+                        "6개월 전 대비: 기록 없음",
+                        "월 변화율");
     }
 }

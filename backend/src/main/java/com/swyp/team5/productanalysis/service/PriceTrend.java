@@ -2,6 +2,7 @@ package com.swyp.team5.productanalysis.service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,8 +15,10 @@ import java.util.stream.Collectors;
  * 과거 시세 분석 스냅샷의 평균가 기록으로 만든 가격 추이. 시세 분석 AI 입력(추세 판단 근거)과 감가 예측(관측 추세)에
  * 함께 쓴다.
  *
- * <p>같은 날 여러 번 분석된 평균가는 하루 평균 1개 점으로 합치고, 월 변화율은 일별 점의 로그 가격을 경과 일수로
- * 선형 회귀한 기울기로 구한다(가격이 매달 같은 비율로 변한다고 볼 때의 월 변화율).
+ * <p>같은 날 여러 번 분석된 평균가는 하루 평균 1개 점으로 합치고, 월별 평균은 그 일별 점들의 평균이다(분석 횟수가
+ * 많은 날이 더 반영되지 않도록 하루를 1개로 셈). 월 변화율은 일별 점의 로그 가격을 경과 일수로 선형 회귀한
+ * 기울기로 구한다(가격이 매달 같은 비율로 변한다고 볼 때의 월 변화율). 기간 비교(1/3/6개월 전 대비)는
+ * {@link #COMPARE_MONTHS} 기준이다.
  *
  * @param dailyAverages 날짜 오름차순 일별 평균가
  */
@@ -26,10 +29,13 @@ record PriceTrend(List<DailyPrice> dailyAverages) {
 
     private static final double DAYS_PER_MONTH = 30.0;
 
-    /** AI 프롬프트에 넣을 최근 일별 점 최대 개수. */
-    private static final int PROMPT_POINTS = 14;
+    /** AI 프롬프트에서 비교할 기간(개월). */
+    static final int[] COMPARE_MONTHS = {1, 3, 6};
 
     record DailyPrice(LocalDate date, long averagePrice) {}
+
+    /** @param days 그 달에 기록이 있는 날 수 */
+    record MonthlyPrice(YearMonth month, long averagePrice, int days) {}
 
     record Snapshot(LocalDateTime analyzedAt, long averagePrice) {}
 
@@ -51,6 +57,22 @@ record PriceTrend(List<DailyPrice> dailyAverages) {
         dailyAverages.forEach(point -> all.add(new Snapshot(point.date().atStartOfDay(), point.averagePrice())));
         all.add(new Snapshot(analyzedAt, averagePrice));
         return of(all);
+    }
+
+    /** 월별 평균가(월 오름차순). 일별 평균의 평균이라 분석이 몰린 날이 과대 반영되지 않는다. */
+    List<MonthlyPrice> monthlyAverages() {
+        Map<YearMonth, List<DailyPrice>> byMonth = dailyAverages.stream()
+                .collect(Collectors.groupingBy(
+                        point -> YearMonth.from(point.date()), TreeMap::new, Collectors.toList()));
+        return byMonth.entrySet().stream()
+                .map(entry -> new MonthlyPrice(
+                        entry.getKey(),
+                        Math.round(entry.getValue().stream()
+                                .mapToLong(DailyPrice::averagePrice)
+                                .average()
+                                .orElseThrow()),
+                        entry.getValue().size()))
+                .toList();
     }
 
     /** 관측 기간(첫 점 ~ 마지막 점, 일). */
@@ -88,13 +110,16 @@ record PriceTrend(List<DailyPrice> dailyAverages) {
         return OptionalDouble.of(Math.exp(slopePerDay * DAYS_PER_MONTH) - 1);
     }
 
-    /** 마지막 점의 평균가가 {@code days}일 전(그 이전 가장 가까운 점) 대비 몇 % 변했는지. 해당 시점 기록이 없으면 빈 값. */
-    OptionalDouble changeSince(int days) {
+    /**
+     * 마지막 점의 평균가가 {@code months}개월 전(그 날짜 이전 가장 가까운 점) 대비 몇 % 변했는지. 해당 시점 기록이 없으면 빈
+     * 값.
+     */
+    OptionalDouble changeSinceMonths(int months) {
         if (dailyAverages.size() < 2) {
             return OptionalDouble.empty();
         }
         DailyPrice latest = dailyAverages.getLast();
-        LocalDate target = latest.date().minusDays(days);
+        LocalDate target = latest.date().minusMonths(months);
         return dailyAverages.stream()
                 .filter(point -> !point.date().isAfter(target))
                 .reduce((first, second) -> second)
@@ -110,11 +135,14 @@ record PriceTrend(List<DailyPrice> dailyAverages) {
             return "이전 분석 기록 없음(첫 분석 — 추세 판단 불가, 현재 후보 매물 가격만으로 판단)";
         }
         StringBuilder text = new StringBuilder();
-        dailyAverages.stream()
-                .skip(Math.max(0, dailyAverages.size() - PROMPT_POINTS))
-                .forEach(point -> text.append("%s: %,d원\n".formatted(point.date(), point.averagePrice())));
-        text.append("마지막 기록의 7일 전 대비: ").append(percent(changeSince(7))).append('\n');
-        text.append("마지막 기록의 30일 전 대비: ").append(percent(changeSince(30))).append('\n');
+        monthlyAverages()
+                .forEach(month ->
+                        text.append("%s: %,d원(기록 %d일)\n".formatted(month.month(), month.averagePrice(), month.days())));
+        for (int months : COMPARE_MONTHS) {
+            text.append("마지막 기록의 %d개월 전 대비: ".formatted(months))
+                    .append(percent(changeSinceMonths(months)))
+                    .append('\n');
+        }
         text.append("추세(월 변화율): ")
                 .append(
                         monthlyRate().isPresent()

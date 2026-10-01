@@ -193,7 +193,7 @@ class ProductAnalysisServiceTest {
         assertThat(captor.getValue().getMaxPrice()).isEqualTo(4000L);
     }
 
-    // 분석 - 이전 30일 스냅샷의 일별 평균가 추이를 AI 프롬프트에 넣음
+    // 분석 - 이전 6개월 스냅샷의 월별 평균가 추이를 AI 프롬프트에 넣음
     @Test
     void analyzeProductIncludesPreviousTrendInPrompt() {
         Product product = product(1L, 10L, 800_000L);
@@ -213,7 +213,7 @@ class ProductAnalysisServiceTest {
 
         ArgumentCaptor<String> prompt = ArgumentCaptor.forClass(String.class);
         verify(geminiAiClient.prompt().system(anyString()), atLeastOnce()).user(prompt.capture());
-        assertThat(prompt.getAllValues().getLast()).contains("[이전 분석 추이", "2026-09-20: 2,500원");
+        assertThat(prompt.getAllValues().getLast()).contains("[이전 분석 추이", "2026-09: 2,500원(기록 1일)");
     }
 
     // 분석 건너뜀 - AI가 같은 물건으로 고른 매물이 3건 미만이면 저장·알림 없음
