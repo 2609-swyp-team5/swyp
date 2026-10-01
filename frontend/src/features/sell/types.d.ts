@@ -39,6 +39,18 @@ export type ProductRegisterStep = "IMAGE_UPLOAD" | "IMAGE_ANALYSIS" | "PRODUCT_S
 export type ProductRegisterStepStatus = "START" | "DONE" | "SKIP";
 export type ProductRegisterProgressStatus = ProductRegisterStepStatus | "ERROR";
 
+export type ProductPlatformStatus = "POSTING" | "POSTED" | "FAILED" | "REMOVED";
+
+export interface ProductPlatform {
+    platform: string;
+    platformName: string;
+    status: ProductPlatformStatus;
+    externalProductId: string | null;
+    productUrl: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+
 export interface ProductRegisterProgress {
     step: ProductRegisterStep;
     status: ProductRegisterProgressStatus;
@@ -80,6 +92,7 @@ export interface ProductResponse {
     recommendation: string | null;
     suggestedPrice: number | null;
     analysisDescription: string | null;
+    platforms?: ProductPlatform[] | null;
     createdAt: string;
     updatedAt: string;
 }

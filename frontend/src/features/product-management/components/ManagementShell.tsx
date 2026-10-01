@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import { Button } from "@/common/components/ui/Button";
 import { cn } from "@/common/lib/utils";
@@ -34,6 +34,7 @@ export type ManagementShellProps = {
     errorMessage?: string;
     emptyMessage: string;
     listTitle: string;
+    detailRenderer?: (item: ManagementItem) => ReactNode;
     primaryAction?: {
         label: string;
         href: string;
@@ -49,9 +50,25 @@ const badgeToneClassNames: Record<ManagementItem["badgeTone"], string> = {
     warning: "bg-[#fa503d] text-white",
 };
 
-function ManagementListItem({ item }: { item: ManagementItem }) {
+function ManagementListItem({
+    item,
+    isSelected,
+    onSelect,
+}: {
+    item: ManagementItem;
+    isSelected: boolean;
+    onSelect: () => void;
+}) {
     return (
-        <article className="flex h-[100px] items-center gap-3 border-b border-[#d3d3d3] px-3 py-3 last:border-b-0">
+        <button
+            type="button"
+            aria-pressed={isSelected}
+            className={cn(
+                "flex h-[100px] w-full items-center gap-3 border-b border-[#d3d3d3] px-3 py-3 text-left transition-colors last:border-b-0 hover:bg-[#faf9ff] focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-[#6653fb] focus-visible:ring-inset",
+                isSelected && "bg-[#f1f1f1] hover:bg-[#f1f1f1]",
+            )}
+            onClick={onSelect}
+        >
             <div className="flex min-w-0 flex-1 flex-col">
                 <p className="truncate text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#374151]">
                     {item.title}
@@ -77,7 +94,7 @@ function ManagementListItem({ item }: { item: ManagementItem }) {
                     {item.metaLabel}
                 </span>
             </div>
-        </article>
+        </button>
     );
 }
 
@@ -103,6 +120,26 @@ function ListSkeleton() {
     );
 }
 
+function DetailSkeleton() {
+    return (
+        <section
+            aria-label="상품 상세 정보를 불러오는 중"
+            className="grid min-h-[430px] animate-pulse gap-6 rounded-[16px] border border-[#dee5ed] bg-white p-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]"
+        >
+            <div className="min-h-[260px] rounded-[10px] bg-[#eef0f5]" />
+            <div className="flex flex-col gap-4 py-2">
+                <div className="h-6 w-24 rounded-full bg-[#eef0f5]" />
+                <div className="h-8 w-4/5 rounded bg-[#eef0f5]" />
+                <div className="h-8 w-2/5 rounded bg-[#eef0f5]" />
+                <div className="mt-3 flex gap-2">
+                    <div className="h-9 w-28 rounded-full bg-[#f4f5f8]" />
+                    <div className="h-9 w-24 rounded-full bg-[#f4f5f8]" />
+                </div>
+            </div>
+        </section>
+    );
+}
+
 export function ManagementShell({
     eyebrow,
     title,
@@ -112,15 +149,18 @@ export function ManagementShell({
     errorMessage,
     emptyMessage,
     listTitle,
+    detailRenderer,
     primaryAction,
 }: ManagementShellProps) {
     const [activeTabKey, setActiveTabKey] = useState(tabs[0]?.key ?? "all");
+    const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
     const activeTab = tabs.find((tab) => tab.key === activeTabKey) ?? tabs[0];
     const filteredItems = useMemo(
         () => (activeTab ? items.filter(activeTab.filter) : items),
         [activeTab, items],
     );
     const activeListTitle = activeTab?.listTitle ?? listTitle;
+    const selectedItem = filteredItems.find((item) => item.id === selectedItemId) ?? null;
 
     return (
         <main className="flex flex-1 bg-white">
@@ -191,7 +231,7 @@ export function ManagementShell({
                     </div>
                 </div>
 
-                <div className="grid gap-8 lg:grid-cols-[350px_minmax(0,1fr)] lg:gap-10">
+                <div className="grid items-start gap-8 lg:grid-cols-[350px_minmax(0,1fr)] lg:gap-10">
                     <aside className="h-fit overflow-hidden rounded-[20px] border border-[#d3d3d3] bg-white px-5 py-[30px]">
                         <div>
                             <p className="text-[20px] leading-[30px] font-semibold text-[#6b6c7b]">
@@ -216,28 +256,40 @@ export function ManagementShell({
                             {!isLoading && !errorMessage && filteredItems.length > 0 ? (
                                 <div>
                                     {filteredItems.map((item) => (
-                                        <ManagementListItem key={item.id} item={item} />
+                                        <ManagementListItem
+                                            key={item.id}
+                                            item={item}
+                                            isSelected={item.id === selectedItemId}
+                                            onSelect={() => setSelectedItemId(item.id)}
+                                        />
                                     ))}
                                 </div>
                             ) : null}
                         </div>
                     </aside>
 
-                    <section className="flex min-h-[430px] items-center justify-center rounded-[14px] border border-dashed border-[#d3d3d3] bg-[#fafbff] px-6 py-16 text-center">
-                        <div className="flex max-w-[360px] flex-col items-center gap-3">
-                            <div className="flex size-12 items-center justify-center rounded-full bg-[#eaeafd] text-[#6653fb]">
-                                <span aria-hidden="true" className="text-xl">
-                                    ✦
-                                </span>
+                    {isLoading && detailRenderer ? (
+                        <DetailSkeleton />
+                    ) : selectedItem && detailRenderer ? (
+                        detailRenderer(selectedItem)
+                    ) : (
+                        <section className="flex min-h-[430px] items-center justify-center rounded-[14px] border border-dashed border-[#d3d3d3] bg-[#fafbff] px-6 py-16 text-center">
+                            <div className="flex max-w-[360px] flex-col items-center gap-3">
+                                <div className="flex size-12 items-center justify-center rounded-full bg-[#eaeafd] text-[#6653fb]">
+                                    <span aria-hidden="true" className="text-xl">
+                                        ✦
+                                    </span>
+                                </div>
+                                <h2 className="text-[20px] leading-[30px] font-bold text-[#363636]">
+                                    상품을 선택해 주세요
+                                </h2>
+                                <p className="text-[14px] leading-6 text-[#83889e]">
+                                    목록에서 상품을 선택하면 상품 정보와 시세 분석을 확인할 수
+                                    있어요.
+                                </p>
                             </div>
-                            <h2 className="text-[20px] leading-[30px] font-bold text-[#363636]">
-                                상품을 선택해 주세요
-                            </h2>
-                            <p className="text-[14px] leading-6 text-[#83889e]">
-                                목록에서 상품을 선택하면 상품 정보와 시세 분석을 확인할 수 있어요.
-                            </p>
-                        </div>
-                    </section>
+                        </section>
+                    )}
                 </div>
             </section>
         </main>

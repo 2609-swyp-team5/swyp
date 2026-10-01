@@ -5,6 +5,7 @@ import {
     ManagementShell,
     type ManagementTab,
 } from "@/features/product-management/components/ManagementShell";
+import { ProductSummaryDetail } from "@/features/product-management/components/ProductSummaryDetail";
 import { useMyProductsQuery } from "@/features/sell/hooks/queries/useMyProductsQuery";
 import type { ProductStatus } from "@/features/sell/types";
 
@@ -71,6 +72,7 @@ export default function SellManagePage() {
             errorMessage={error ? getApiErrorMessage(error) : undefined}
             emptyMessage="등록된 상품이 없습니다."
             listTitle="전체 상품 목록"
+            detailRenderer={(item) => <ProductSummaryDetail productId={Number(item.id)} />}
             primaryAction={{ label: "상품 등록하기", href: "/sell/register" }}
         />
     );
