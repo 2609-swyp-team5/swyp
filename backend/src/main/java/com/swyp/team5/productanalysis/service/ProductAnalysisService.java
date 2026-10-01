@@ -47,8 +47,8 @@ public class ProductAnalysisService {
 
     private static final String SELLING_STATUS = "SELLING";
 
-    /** 추세 계산에 쓸 이전 분석 기록 기간(일). */
-    private static final int TREND_DAYS = 30;
+    /** 추세 계산에 쓸 이전 분석 기록 기간(개월). 프롬프트의 1/3/6개월 전 대비 비교 중 가장 긴 기간과 같다. */
+    private static final int TREND_MONTHS = 6;
 
     private static final String SYSTEM_PROMPT =
             """
@@ -79,7 +79,7 @@ public class ProductAnalysisService {
             [같은 카테고리 매물 후보 %d건(번호. 제목: 가격)]
             %s
 
-            [이전 분석 추이(같은 물건 평균가, 일별)]
+            [이전 분석 추이(같은 물건 평균가, 최근 6개월 월별)]
             %s
             """;
 
@@ -109,7 +109,7 @@ public class ProductAnalysisService {
             [같은 카테고리 매물 후보 %d건(번호. 제목: 가격)]
             %s
 
-            [이전 분석 추이(같은 물건 평균가, 일별)]
+            [이전 분석 추이(같은 물건 평균가, 최근 6개월 월별)]
             %s
             """;
 
@@ -251,7 +251,7 @@ public class ProductAnalysisService {
         // 이상치를 뺀 뒤 통계를 낸다
         PriceTrend trend =
                 PriceTrend.of(snapshots(productAnalysisRepository.findByProductIdAndAnalyzedAtAfterOrderByAnalyzedAtAsc(
-                        product.getId(), LocalDateTime.now().minusDays(TREND_DAYS))));
+                        product.getId(), LocalDateTime.now().minusMonths(TREND_MONTHS))));
         MarketAnalysisResult aiResult = requestAiAnalysis(product, candidates, trend);
         List<Long> prices =
                 SimilarListingFilter.removeOutliers(similarPrices(candidates, aiResult.similarListingNumbers()));
@@ -329,7 +329,7 @@ public class ProductAnalysisService {
         // 2단계: AI가 후보 중 같은 물건만 고르고(이전 분석 추이 포함), 고른 매물에서 가격 이상치를 뺀 뒤 통계를 낸다
         PriceTrend trend =
                 PriceTrend.of(snapshots(productAnalysisRepository.findByListingIdAndAnalyzedAtAfterOrderByAnalyzedAtAsc(
-                        listing.getId(), LocalDateTime.now().minusDays(TREND_DAYS))));
+                        listing.getId(), LocalDateTime.now().minusMonths(TREND_MONTHS))));
         MarketAnalysisResult aiResult = requestListingAiAnalysis(listing, candidates, trend);
         if (aiResult.recommendation() != AnalysisRecommendation.BUY
                 && aiResult.recommendation() != AnalysisRecommendation.WAIT) {
