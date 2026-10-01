@@ -19,9 +19,9 @@ import com.swyp.team5.interest.dto.TargetPriceResponse;
 import com.swyp.team5.interest.entity.Interest;
 import com.swyp.team5.interest.error.InterestNotFoundException;
 import com.swyp.team5.interest.repository.InterestRepository;
+import com.swyp.team5.item.entity.ListingSource;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.repository.MemberRepository;
-import com.swyp.team5.product.dto.ListingSource;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
 
@@ -109,9 +109,9 @@ public class InterestService {
         if (productIds.isEmpty()) {
             return Map.of();
         }
-        return productAnalysisRepository.findLatestByProductIdIn(productIds).stream()
+        return productAnalysisRepository.findLatestByItemIdIn(productIds).stream()
                 .collect(Collectors.toMap(
-                        analysis -> analysis.getProduct().getId(),
+                        analysis -> analysis.getItem().getId(),
                         analysis -> analysis,
                         (existing, replacement) -> replacement));
     }
@@ -125,9 +125,9 @@ public class InterestService {
         if (listingIds.isEmpty()) {
             return Map.of();
         }
-        return productAnalysisRepository.findLatestByListingIdIn(listingIds).stream()
+        return productAnalysisRepository.findLatestByItemIdIn(listingIds).stream()
                 .collect(Collectors.toMap(
-                        analysis -> analysis.getListing().getId(),
+                        analysis -> analysis.getItem().getId(),
                         analysis -> analysis,
                         (existing, replacement) -> replacement));
     }

@@ -69,7 +69,7 @@ class NotificationServiceTest {
     void notifiesOwnerAndInterestedMembersWhenRecommendationBecomesSell() {
         Member owner = member(10L);
         Member buyer = member(20L);
-        when(interestRepository.findMembersByProductId(1L)).thenReturn(List.of(buyer));
+        when(interestRepository.findMembersByItemId(1L)).thenReturn(List.of(buyer));
 
         int count = service()
                 .notifyRecommendationChanged(product(owner), AnalysisRecommendation.HOLD, AnalysisRecommendation.SELL);
@@ -89,7 +89,7 @@ class NotificationServiceTest {
     void doesNotDuplicateOwnerWhoIsAlsoInterested() {
         Member owner = member(10L);
         Member buyer = member(20L);
-        when(interestRepository.findMembersByProductId(1L)).thenReturn(List.of(owner, buyer));
+        when(interestRepository.findMembersByItemId(1L)).thenReturn(List.of(owner, buyer));
 
         int count = service()
                 .notifyRecommendationChanged(product(owner), AnalysisRecommendation.HOLD, AnalysisRecommendation.SELL);
@@ -104,7 +104,7 @@ class NotificationServiceTest {
         Member buyer1 = mock(Member.class);
         Member buyer2 = mock(Member.class);
         Product product = product(mock(Member.class));
-        when(interestRepository.findMembersByProductId(1L)).thenReturn(List.of(buyer1, buyer2));
+        when(interestRepository.findMembersByItemId(1L)).thenReturn(List.of(buyer1, buyer2));
 
         int count =
                 service().notifyRecommendationChanged(product, AnalysisRecommendation.WAIT, AnalysisRecommendation.BUY);
@@ -140,7 +140,7 @@ class NotificationServiceTest {
     void notifiesOwnerAndInterestedMembersWhenRecommendationBecomesHold() {
         Member owner = member(10L);
         Member buyer = member(20L);
-        when(interestRepository.findMembersByProductId(1L)).thenReturn(List.of(buyer));
+        when(interestRepository.findMembersByItemId(1L)).thenReturn(List.of(buyer));
 
         int count = service()
                 .notifyRecommendationChanged(product(owner), AnalysisRecommendation.SELL, AnalysisRecommendation.HOLD);
@@ -160,7 +160,7 @@ class NotificationServiceTest {
         Member buyer1 = mock(Member.class);
         Member buyer2 = mock(Member.class);
         Product product = product(mock(Member.class));
-        when(interestRepository.findMembersByProductId(1L)).thenReturn(List.of(buyer1, buyer2));
+        when(interestRepository.findMembersByItemId(1L)).thenReturn(List.of(buyer1, buyer2));
 
         int count =
                 service().notifyRecommendationChanged(product, AnalysisRecommendation.BUY, AnalysisRecommendation.WAIT);
@@ -174,7 +174,7 @@ class NotificationServiceTest {
     // 관심 등록 회원이 없으면 WAIT/BUY 알림은 0건
     @Test
     void createsNoWaitNotificationWhenNoInterestedMembers() {
-        when(interestRepository.findMembersByProductId(1L)).thenReturn(List.of());
+        when(interestRepository.findMembersByItemId(1L)).thenReturn(List.of());
 
         int count = service()
                 .notifyRecommendationChanged(
@@ -196,7 +196,7 @@ class NotificationServiceTest {
         Member buyer1 = member(2L);
         Member buyer2 = member(3L);
         PlatformListing listing = listing();
-        when(interestRepository.findMembersByListingId(100L)).thenReturn(List.of(buyer1, buyer2));
+        when(interestRepository.findMembersByItemId(100L)).thenReturn(List.of(buyer1, buyer2));
 
         int count = service()
                 .notifyListingRecommendationChanged(listing, AnalysisRecommendation.WAIT, AnalysisRecommendation.BUY);

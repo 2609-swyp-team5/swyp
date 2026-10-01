@@ -1,9 +1,11 @@
 package com.swyp.team5.product.controller;
 
 import java.util.List;
+import java.util.Set;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -32,13 +34,18 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import com.swyp.team5.common.common.ApiResponse;
 import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.common.passport.PrincipalMember;
+import com.swyp.team5.product.dto.ListingTradeStatus;
 import com.swyp.team5.product.dto.ProductCreateRequest;
 import com.swyp.team5.product.dto.ProductListItemResponse;
 import com.swyp.team5.product.dto.ProductResponse;
+import com.swyp.team5.product.dto.ProductSearchCondition;
+import com.swyp.team5.product.dto.ProductSearchPlatform;
+import com.swyp.team5.product.dto.ProductSortType;
 import com.swyp.team5.product.dto.ProductStatusUpdateRequest;
 import com.swyp.team5.product.dto.ProductSummaryResponse;
 import com.swyp.team5.product.dto.ProductUpdateRequest;
 import com.swyp.team5.product.entity.DefectStatus;
+import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.service.ProductRegisterStreamService;
 import com.swyp.team5.product.service.ProductService;
@@ -120,9 +127,10 @@ public class ProductController {
     }
 
     /**
-     * 상품 상세 정보를 조회한다.
+     * 상품 상세 정보를 조회한다. 외부 수집 매물도 같은 ID 체계라 목록 응답의 {@code id}를 그대로 넘기면 같은 응답 형태로
+     * 조회된다({@code source}로 구분).
      *
-     * @param productId 조회할 상품 ID
+     * @param productId 조회할 상품(또는 외부 매물) ID
      * @return 200 OK + 상품 상세 정보
      */
     @Operation(summary = "상품 상세 조회")
@@ -132,28 +140,54 @@ public class ProductController {
     }
 
     /**
-     * 상품 목록을 커서 기반으로 조회한다(정렬은 등록일시 내림차순, 공개 목록). 우리 회원 상품과 외부
-     * 플랫폼에서 수집한 매물을 한 목록에 섞어 반환한다({@code source} 필드로 구분,
-     * {@link ProductService#getProducts} 참고). 인증된 본인 상품만 보려면 {@link #getMyProducts} 참고.
+     * 상품 목록을 커서 기반으로 조회한다(공개 목록, 검색 필터·정렬). 우리 회원 상품과 외부 플랫폼에서 수집한 매물을 한
+     * 목록에 섞어 반환한다({@code source} 필드로 구분, {@link ProductService#getProducts} 참고). 복수 값 필터는 같은
+     * 파라미터를 반복하거나 쉼표로 구분해 보낸다. 인증된 본인 상품만 보려면 {@link #getMyProducts} 참고.
      *
      * @param currentMember 인증된 요청자(키워드 검색 로그 기록용)
      * @param keyword 제목/설명(외부 매물은 제목만) 키워드 검색(선택)
-     * @param status 상태 필터(선택, 지정 시 외부 매물은 제외되고 우리 상품만 반환)
-     * @param cursor 이전 페이지 마지막 항목의 등록일시(epoch millisecond, 선택, 첫 페이지는 생략)
-     * @param size 페이지 크기(기본 20)
+     * @param excludeKeyword 제외 키워드(선택, 공백·쉼표로 구분한 단어 중 하나라도 제목/설명에 있으면 제외)
+     * @param status 우리 상품 상태 필터(선택, 지정 시 외부 매물 제외)
+     * @param tradeStatus 거래 상태 필터(선택, SELLING/RESERVED/SOLD_OUT 복수, 미지정 시 외부 매물은 판매중만)
+     * @param platform 플랫폼 필터(선택, OUR/BUNJANG 복수)
+     * @param minPrice 최소 가격(선택, 포함)
+     * @param maxPrice 최대 가격(선택, 포함)
+     * @param condition 제품 상태 등급 필터(선택, S~D 복수, 지정 시 외부 매물 제외)
+     * @param defectStatus 하자 여부 필터(선택, NORMAL/ISSUES/UNKNOWN 복수, 지정 시 외부 매물 제외)
+     * @param sort 정렬(기본 LATEST — RECOMMENDED/LATEST/INTEREST/PRICE_HIGH/PRICE_LOW)
+     * @param cursor 이전 응답의 {@code nextCursor}(선택, 첫 페이지는 생략)
+     * @param size 페이지 크기(기본 20, 1~100)
      * @return 200 OK + 커서 페이지 응답
      */
-    // 커서 기반 페이징 적용
-    @Operation(summary = "상품 목록 조회")
+    @Operation(summary = "상품 목록 조회(검색)")
     @GetMapping
     public ResponseEntity<ApiResponse<CursorPageResponse<ProductListItemResponse>>> getProducts(
             @AuthenticationPrincipal PrincipalMember currentMember,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String excludeKeyword,
             @RequestParam(required = false) ProductStatus status,
-            @RequestParam(required = false) Long cursor,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(required = false) Set<ListingTradeStatus> tradeStatus,
+            @RequestParam(required = false) Set<ProductSearchPlatform> platform,
+            @RequestParam(required = false) @PositiveOrZero Long minPrice,
+            @RequestParam(required = false) @PositiveOrZero Long maxPrice,
+            @RequestParam(required = false) Set<ProductCondition> condition,
+            @RequestParam(required = false) Set<DefectStatus> defectStatus,
+            @RequestParam(defaultValue = "LATEST") ProductSortType sort,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        ProductSearchCondition searchCondition = new ProductSearchCondition(
+                keyword,
+                ProductSearchCondition.splitExcludeKeywords(excludeKeyword),
+                status,
+                tradeStatus,
+                platform,
+                minPrice,
+                maxPrice,
+                condition,
+                defectStatus,
+                sort);
         return ResponseEntity.ok(ApiResponse.success(
-                productService.getProducts(currentMember.memberId(), keyword, status, cursor, size)));
+                productService.getProducts(currentMember.memberId(), searchCondition, cursor, size)));
     }
 
     /**

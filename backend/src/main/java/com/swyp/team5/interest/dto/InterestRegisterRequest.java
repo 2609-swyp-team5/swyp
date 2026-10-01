@@ -2,7 +2,7 @@ package com.swyp.team5.interest.dto;
 
 import jakarta.validation.constraints.NotNull;
 
-import com.swyp.team5.product.dto.ListingSource;
+import com.swyp.team5.item.entity.ListingSource;
 
 public record InterestRegisterRequest(
         @NotNull(message = "source는 필수입니다.") ListingSource source, // 등록 대상 종류(OUR/EXTERNAL)

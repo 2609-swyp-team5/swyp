@@ -149,7 +149,7 @@ public class NotificationService {
             return 0;
         }
         NotificationType type = current == AnalysisRecommendation.BUY ? NotificationType.BUY : NotificationType.WAIT;
-        List<Notification> notifications = interestRepository.findMembersByListingId(listing.getId()).stream()
+        List<Notification> notifications = interestRepository.findMembersByItemId(listing.getId()).stream()
                 .map(member -> Notification.createForListing(member, listing, type, content.title(), content.message()))
                 .toList();
         notificationRepository.saveAll(notifications);
@@ -193,7 +193,7 @@ public class NotificationService {
         Member owner = product.getMember();
         List<Notification> notifications = new ArrayList<>();
         notifications.add(Notification.create(owner, product, type, forOwner.title(), forOwner.message()));
-        interestRepository.findMembersByProductId(product.getId()).stream()
+        interestRepository.findMembersByItemId(product.getId()).stream()
                 .filter(member -> !Objects.equals(member.getId(), owner.getId()))
                 .map(member -> Notification.create(
                         member, product, type, forInterestedMembers.title(), forInterestedMembers.message()))
@@ -202,7 +202,7 @@ public class NotificationService {
     }
 
     private List<Notification> interestedMemberNotifications(Product product, NotificationType type, Content content) {
-        return interestRepository.findMembersByProductId(product.getId()).stream()
+        return interestRepository.findMembersByItemId(product.getId()).stream()
                 .map(member -> Notification.create(member, product, type, content.title(), content.message()))
                 .toList();
     }

@@ -155,7 +155,7 @@ public class ProductAnalysisService {
         Product product =
                 productRepository.findById(productId).orElseThrow(() -> new ProductNotFoundException(productId));
         return productAnalysisRepository
-                .findFirstByProductIdOrderByAnalyzedAtDesc(productId)
+                .findFirstByItemIdOrderByAnalyzedAtDesc(productId)
                 .map(analysis -> ProductAnalysisResponse.from(
                         product, analysis, priceForecastRepository.findByAnalysisId(analysis.getId())))
                 .orElseGet(() -> ProductAnalysisResponse.empty(product));
@@ -171,11 +171,32 @@ public class ProductAnalysisService {
      */
     @Transactional(readOnly = true)
     public Optional<Long> calculateMarketAveragePrice(Product product) {
-        List<PlatformListing> candidates = SimilarListingFilter.selectCandidates(
+        return averageOfSimilarListings(
                 product.getTitle(),
                 product.getBrand(),
-                freshSellingListings(product.getCategory().getId()),
-                properties.sampleSize());
+                freshSellingListings(product.getCategory().getId()));
+    }
+
+    /**
+     * {@link #calculateMarketAveragePrice(Product)}와 같은 기준으로 외부 매물의 유사 매물 평균가를 계산한다(분석 이력이 없는
+     * 외부 매물 상세용). 비교 대상에서 자기 자신은 뺀다.
+     *
+     * @param listing 평균가를 계산할 외부 매물(카테고리·제목 사용 — 브랜드 정보는 없음)
+     * @return 유사 매물이 {@code min-listings}보다 적으면 빈 값
+     */
+    @Transactional(readOnly = true)
+    public Optional<Long> calculateMarketAveragePrice(PlatformListing listing) {
+        List<PlatformListing> others = freshSellingListings(
+                        listing.getCategory().getId())
+                .stream()
+                .filter(other -> !other.getId().equals(listing.getId()))
+                .toList();
+        return averageOfSimilarListings(listing.getTitle(), null, others);
+    }
+
+    private Optional<Long> averageOfSimilarListings(String title, String brand, List<PlatformListing> listings) {
+        List<PlatformListing> candidates =
+                SimilarListingFilter.selectCandidates(title, brand, listings, properties.sampleSize());
         List<Long> prices = SimilarListingFilter.removeOutliers(
                 candidates.stream().map(PlatformListing::getPrice).toList());
         if (prices.size() < properties.minListings()) {
@@ -250,7 +271,7 @@ public class ProductAnalysisService {
         // 2단계: AI가 후보 중 같은 물건만 고르고(이전 분석 추이를 함께 줘 추세 판단 근거로 씀), 고른 매물에서 가격
         // 이상치를 뺀 뒤 통계를 낸다
         PriceTrend trend =
-                PriceTrend.of(snapshots(productAnalysisRepository.findByProductIdAndAnalyzedAtAfterOrderByAnalyzedAtAsc(
+                PriceTrend.of(snapshots(productAnalysisRepository.findByItemIdAndAnalyzedAtAfterOrderByAnalyzedAtAsc(
                         product.getId(), LocalDateTime.now().minusMonths(TREND_MONTHS))));
         MarketAnalysisResult aiResult = requestAiAnalysis(product, candidates, trend);
         List<Long> prices =
@@ -271,7 +292,7 @@ public class ProductAnalysisService {
         long maxPrice = stats.getMax();
 
         Optional<ProductAnalysis> previous =
-                productAnalysisRepository.findFirstByProductIdOrderByAnalyzedAtDesc(product.getId());
+                productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(product.getId());
         BigDecimal changeRate = previous.map(p -> calculateChangeRate(p.getAveragePrice(), averagePrice))
                 .orElse(null);
 
@@ -328,7 +349,7 @@ public class ProductAnalysisService {
 
         // 2단계: AI가 후보 중 같은 물건만 고르고(이전 분석 추이 포함), 고른 매물에서 가격 이상치를 뺀 뒤 통계를 낸다
         PriceTrend trend =
-                PriceTrend.of(snapshots(productAnalysisRepository.findByListingIdAndAnalyzedAtAfterOrderByAnalyzedAtAsc(
+                PriceTrend.of(snapshots(productAnalysisRepository.findByItemIdAndAnalyzedAtAfterOrderByAnalyzedAtAsc(
                         listing.getId(), LocalDateTime.now().minusMonths(TREND_MONTHS))));
         MarketAnalysisResult aiResult = requestListingAiAnalysis(listing, candidates, trend);
         if (aiResult.recommendation() != AnalysisRecommendation.BUY
@@ -354,7 +375,7 @@ public class ProductAnalysisService {
         long maxPrice = stats.getMax();
 
         Optional<ProductAnalysis> previous =
-                productAnalysisRepository.findFirstByListingIdOrderByAnalyzedAtDesc(listing.getId());
+                productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(listing.getId());
         BigDecimal changeRate = previous.map(p -> calculateChangeRate(p.getAveragePrice(), averagePrice))
                 .orElse(null);
 

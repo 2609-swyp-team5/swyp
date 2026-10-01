@@ -3,8 +3,8 @@ package com.swyp.team5.interest.dto;
 import java.time.LocalDateTime;
 
 import com.swyp.team5.interest.entity.Interest;
+import com.swyp.team5.item.entity.ListingSource;
 import com.swyp.team5.platform.entity.PlatformListing;
-import com.swyp.team5.product.dto.ListingSource;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;

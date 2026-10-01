@@ -5,11 +5,11 @@ import org.springframework.stereotype.Component;
 import com.swyp.team5.interest.entity.Interest;
 import com.swyp.team5.interest.error.InterestAlreadyExistsException;
 import com.swyp.team5.interest.repository.InterestRepository;
+import com.swyp.team5.item.entity.ListingSource;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.platform.error.PlatformListingNotFoundException;
 import com.swyp.team5.platform.repository.PlatformListingRepository;
-import com.swyp.team5.product.dto.ListingSource;
 
 /** 외부 플랫폼(번개장터 등) 수집 매물을 관심상품으로 등록하는 전략. */
 @Component
@@ -34,7 +34,7 @@ class ListingInterestRegistrar implements InterestRegistrar {
         PlatformListing listing = platformListingRepository
                 .findById(listingId)
                 .orElseThrow(() -> new PlatformListingNotFoundException(listingId));
-        if (interestRepository.existsByMemberIdAndListingId(memberId, listingId)) {
+        if (interestRepository.existsByMemberIdAndItemId(memberId, listingId)) {
             throw new InterestAlreadyExistsException();
         }
         return Interest.ofListing(member, listing);

@@ -1,10 +1,7 @@
 package com.swyp.team5.product.service;
 
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +26,9 @@ import com.swyp.team5.component.entity.Component;
 import com.swyp.team5.component.repository.ComponentRepository;
 import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.interest.service.TargetPriceAlertService;
+import com.swyp.team5.item.entity.Item;
+import com.swyp.team5.item.entity.ListingSource;
+import com.swyp.team5.item.repository.ItemRepository;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.repository.MemberRepository;
 import com.swyp.team5.platform.entity.PlatformListing;
@@ -37,6 +37,9 @@ import com.swyp.team5.product.dto.ProductAiAnalysisResult;
 import com.swyp.team5.product.dto.ProductCreateRequest;
 import com.swyp.team5.product.dto.ProductListItemResponse;
 import com.swyp.team5.product.dto.ProductResponse;
+import com.swyp.team5.product.dto.ProductSearchCondition;
+import com.swyp.team5.product.dto.ProductSearchCursor;
+import com.swyp.team5.product.dto.ProductSearchHit;
 import com.swyp.team5.product.dto.ProductSummaryResponse;
 import com.swyp.team5.product.dto.ProductUpdateRequest;
 import com.swyp.team5.product.entity.DefectStatus;
@@ -44,16 +47,20 @@ import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductImage;
 import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
+import com.swyp.team5.product.error.InvalidProductSearchException;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductImageRequiredException;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.repository.ProductRepository;
+import com.swyp.team5.product.repository.ProductSearchRepository;
+import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
 import com.swyp.team5.productanalysis.service.ProductAnalysisService;
 import com.swyp.team5.search.service.SearchLogService;
 import com.swyp.team5.tag.entity.Tag;
 import com.swyp.team5.tag.repository.TagRepository;
+import org.hibernate.Hibernate;
 
 /**
  * 상품(Product) 도메인의 등록/조회/수정/삭제를 담당하는 서비스.
@@ -68,6 +75,8 @@ public class ProductService {
     private final ComponentRepository componentRepository;
     private final ProductAnalysisRepository productAnalysisRepository;
     private final PlatformListingRepository platformListingRepository;
+    private final ProductSearchRepository productSearchRepository;
+    private final ItemRepository itemRepository;
     private final InterestRepository interestRepository;
     private final SearchLogService searchLogService;
     private final ProductAnalysisService productAnalysisService;
@@ -81,6 +90,8 @@ public class ProductService {
             ComponentRepository componentRepository,
             ProductAnalysisRepository productAnalysisRepository,
             PlatformListingRepository platformListingRepository,
+            ProductSearchRepository productSearchRepository,
+            ItemRepository itemRepository,
             InterestRepository interestRepository,
             SearchLogService searchLogService,
             ProductAnalysisService productAnalysisService,
@@ -92,6 +103,8 @@ public class ProductService {
         this.componentRepository = componentRepository;
         this.productAnalysisRepository = productAnalysisRepository;
         this.platformListingRepository = platformListingRepository;
+        this.productSearchRepository = productSearchRepository;
+        this.itemRepository = itemRepository;
         this.interestRepository = interestRepository;
         this.searchLogService = searchLogService;
         this.productAnalysisService = productAnalysisService;
@@ -223,24 +236,32 @@ public class ProductService {
     }
 
     /**
-     * 상품 상세 정보를 조회한다. 가장 최근 시세 분석 판단({@code recommendation})과 그 분석의 비교 매물
-     * 평균가({@code marketAveragePrice})도 함께 포함한다. 분석 이력이 없으면 판단은 {@code null}이고, 평균가는
-     * 같은 기준으로 지금 수집된 매물에서 계산한다(비교 매물이 부족하면 {@code null}).
+     * 상품 상세 정보를 조회한다. 우리 상품과 외부 수집 매물은 같은 ID 체계({@code items})라 ID만으로 찾고, 외부 매물도 같은
+     * 응답 형태로 내려준다({@code source}로 구분). 가장 최근 시세 분석 판단({@code recommendation})과 그 분석의 비교 매물
+     * 평균가({@code marketAveragePrice})도 함께 포함한다. 분석 이력이 없으면 판단은 {@code null}이고, 평균가는 같은 기준으로
+     * 지금 수집된 매물에서 계산한다(비교 매물이 부족하면 {@code null}). 외부 매물은 번개장터를 다시 조회하지 않고 수집·재확인
+     * 배치가 저장한 값만 쓴다.
      *
-     * @param productId 조회할 상품 ID
+     * @param itemId 조회할 상품(또는 외부 매물) ID
      * @return 상품 상세 정보
-     * @throws ProductNotFoundException 존재하지 않는 상품인 경우
+     * @throws ProductNotFoundException 존재하지 않는 ID인 경우
      */
     @Transactional(readOnly = true)
-    public ProductResponse getProduct(Long productId) {
-        Product product = getProductOrThrow(productId);
-        Optional<ProductAnalysis> latest =
-                productAnalysisRepository.findFirstByProductIdOrderByAnalyzedAtDesc(productId);
-        if (latest.isPresent()) {
-            return ProductResponse.from(
-                    product, latest.get().getRecommendation(), latest.get().getAveragePrice());
+    public ProductResponse getProduct(Long itemId) {
+        Item item = itemRepository.findById(itemId).orElseThrow(() -> new ProductNotFoundException(itemId));
+        Optional<ProductAnalysis> latest = productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(itemId);
+        AnalysisRecommendation recommendation =
+                latest.map(ProductAnalysis::getRecommendation).orElse(null);
+        if (Hibernate.unproxy(item) instanceof PlatformListing listing) {
+            Long averagePrice = latest.map(ProductAnalysis::getAveragePrice).orElseGet(() -> productAnalysisService
+                    .calculateMarketAveragePrice(listing)
+                    .orElse(null));
+            return ProductResponse.fromListing(listing, recommendation, averagePrice);
         }
-        return ProductResponse.from(product, null, calculateMarketAveragePrice(product));
+        Product product = (Product) Hibernate.unproxy(item);
+        Long averagePrice =
+                latest.map(ProductAnalysis::getAveragePrice).orElseGet(() -> calculateMarketAveragePrice(product));
+        return ProductResponse.from(product, recommendation, averagePrice);
     }
 
     private Long calculateMarketAveragePrice(Product product) {
@@ -248,62 +269,73 @@ public class ProductService {
     }
 
     /**
-     * 상품 목록을 커서 기반으로 조회한다(정렬은 등록일시 내림차순, 공개 목록 — 외부 게시 전
-     * {@code DRAFT} 상품도 포함). 우리 회원 상품과 함께, 외부 플랫폼에서
-     * 수집한 매물({@link PlatformListing})도 한 목록에 등록일시 순으로 섞어서 반환한다({@code source}
-     * 필드로 구분) — 단, {@code status} 필터를 지정한 요청은 우리 상품 고유의 상태 개념(등록됨/판매중/품절)이라
-     * 외부 매물과 대응이 안 돼 우리 상품만 반환한다. 각 상품의 가장 최근 시세 분석 판단
-     * ({@code recommendation})/시세 평균가({@code marketAveragePrice})도 함께 포함한다(분석 이력이
-     * 없거나 외부 매물이면 {@code null}).
+     * 상품 목록을 커서 기반으로 조회한다(공개 목록 — 외부 게시 전 {@code DRAFT} 상품도 포함). 우리 회원 상품과 외부
+     * 플랫폼에서 수집한 매물({@link PlatformListing})을 한 목록에 섞어 반환한다({@code source} 필드로 구분). 필터·정렬
+     * 규칙은 {@link ProductSearchCondition}·{@link ProductSearchRepository} 참고 — 우리 상품 고유 정보(상태·등급·하자)로
+     * 거르면 외부 매물은 빠진다. 각 항목의 가장 최근 시세 분석 판단({@code recommendation})/시세 평균가
+     * ({@code marketAveragePrice})도 함께 포함한다(분석 이력이 없으면 {@code null}).
      *
-     * <p>{@code cursor}는 이전 페이지 마지막 항목의 등록일시를 epoch millisecond로 인코딩한 값이다
-     * (두 서로 다른 테이블을 한 목록으로 병합 정렬하기 위해 공통 기준인 등록일시를 커서로 사용 —
-     * 응답의 {@code nextCursor}를 그대로 다음 요청에 돌려주기만 하면 되는 불투명한 값이라 호출 측이
-     * 이 인코딩을 알 필요는 없다).
+     * <p>{@code cursor}는 이전 응답의 {@code nextCursor}를 그대로 돌려받는 불투명한 문자열이다(정렬값·등록일시·출처·ID를
+     * 묶어 인코딩 — 가격순처럼 등록일시가 아닌 값으로 정렬해도 두 테이블을 이어서 페이징하기 위함). 정렬 기준이 다른
+     * 요청의 커서는 거부한다.
      *
      * @param memberId 요청자 회원 ID(키워드 검색 로그 기록용)
-     * @param keyword 제목/설명(외부 매물은 제목만) 키워드 검색(선택, {@code null}이거나 공백이면 미적용)
-     * @param status 상태 필터(선택, {@code null}이면 전체)
-     * @param cursor 이전 페이지 마지막 항목의 등록일시(epoch millisecond, 선택, {@code null}이면 첫 페이지)
+     * @param condition 검색 조건
+     * @param cursor 이전 페이지의 {@code nextCursor}(선택, {@code null}이면 첫 페이지)
      * @param size 페이지 크기
      * @return {@code hasNext}/{@code nextCursor}를 포함한 커서 페이지 응답
+     * @throws InvalidProductSearchException 해석할 수 없는 커서인 경우
      */
     @Transactional(readOnly = true)
     public CursorPageResponse<ProductListItemResponse> getProducts(
-            Long memberId, String keyword, ProductStatus status, Long cursor, int size) {
-        searchLogService.record(memberId, keyword);
-        LocalDateTime cursorTime = cursor == null ? null : epochMillisToDateTime(cursor);
-        Pageable pageable = PageRequest.of(0, size + 1, Sort.by(Sort.Direction.DESC, "createdAt", "id"));
+            Long memberId, ProductSearchCondition condition, String cursor, int size) {
+        ProductSearchCursor searchCursor = ProductSearchCursor.decode(cursor, condition.sort());
+        searchLogService.record(memberId, condition.keyword());
 
-        Specification<Product> productSpec =
-                Specification.where(hasKeyword(keyword)).and(hasStatus(status)).and(createdAtBefore(cursorTime));
-        List<Product> products =
-                productRepository.findAll(productSpec, pageable).getContent();
-        Map<Long, ProductAnalysis> analyses = findLatestAnalyses(products);
-        Stream<ProductListItemResponse> ourItems = products.stream()
-                .map(product -> ProductListItemResponse.fromProduct(product, analyses.get(product.getId())));
+        List<ProductSearchHit> hits = productSearchRepository.search(condition, searchCursor, size + 1);
+        boolean hasNext = hits.size() > size;
+        List<ProductSearchHit> pageHits = hasNext ? hits.subList(0, size) : hits;
+        String nextCursor =
+                hasNext ? pageHits.get(pageHits.size() - 1).toCursor().encode() : null;
 
-        // status 필터는 우리 상품 고유 상태 개념이라 지정된 요청에는 외부 매물을 섞지 않는다.
-        Stream<ProductListItemResponse> externalItems = status != null
-                ? Stream.empty()
-                : platformListingRepository
-                        .findAll(
-                                Specification.where(listingHasKeyword(keyword))
-                                        .and(listingIsSelling())
-                                        .and(listingCreatedAtBefore(cursorTime)),
-                                pageable)
-                        .getContent()
-                        .stream()
-                        .map(ProductListItemResponse::fromListing);
+        Map<Long, Product> products = productRepository.findAllById(idsOf(pageHits, ListingSource.OUR)).stream()
+                .collect(Collectors.toMap(Product::getId, product -> product));
+        Map<Long, PlatformListing> listings =
+                platformListingRepository.findAllById(idsOf(pageHits, ListingSource.EXTERNAL)).stream()
+                        .collect(Collectors.toMap(PlatformListing::getId, listing -> listing));
+        Map<Long, ProductAnalysis> productAnalyses = findLatestAnalyses(List.copyOf(products.values()));
+        Map<Long, ProductAnalysis> listingAnalyses = findLatestListingAnalyses(List.copyOf(listings.keySet()));
 
-        List<ProductListItemResponse> merged = Stream.concat(ourItems, externalItems)
-                .sorted(Comparator.comparing(ProductListItemResponse::createdAt)
-                        .thenComparing(item -> item.source().name())
-                        .thenComparing(ProductListItemResponse::id)
-                        .reversed())
-                .limit(size + 1L)
+        // 조회 사이에 삭제된 항목은 건너뛴다(정렬 순서는 검색 결과 순서를 그대로 따른다).
+        List<ProductListItemResponse> content = pageHits.stream()
+                .map(hit -> hit.source() == ListingSource.OUR
+                        ? Optional.ofNullable(products.get(hit.id()))
+                                .map(product -> ProductListItemResponse.fromProduct(
+                                        product, productAnalyses.get(product.getId())))
+                        : Optional.ofNullable(listings.get(hit.id()))
+                                .map(listing -> ProductListItemResponse.fromListing(
+                                        listing, listingAnalyses.get(listing.getId()))))
+                .flatMap(Optional::stream)
                 .toList();
-        return CursorPageResponse.of(merged, size, item -> toEpochMillis(item.createdAt()));
+        return new CursorPageResponse<>(content, nextCursor, hasNext);
+    }
+
+    private static List<Long> idsOf(List<ProductSearchHit> hits, ListingSource source) {
+        return hits.stream()
+                .filter(hit -> hit.source() == source)
+                .map(ProductSearchHit::id)
+                .toList();
+    }
+
+    private Map<Long, ProductAnalysis> findLatestListingAnalyses(List<Long> listingIds) {
+        if (listingIds.isEmpty()) {
+            return Map.of();
+        }
+        return productAnalysisRepository.findLatestByItemIdIn(listingIds).stream()
+                .collect(Collectors.toMap(
+                        analysis -> analysis.getItem().getId(),
+                        analysis -> analysis,
+                        (existing, replacement) -> replacement));
     }
 
     /**
@@ -382,9 +414,9 @@ public class ProductService {
             return Map.of();
         }
         List<Long> productIds = products.stream().map(Product::getId).toList();
-        return productAnalysisRepository.findLatestByProductIdIn(productIds).stream()
+        return productAnalysisRepository.findLatestByItemIdIn(productIds).stream()
                 .collect(Collectors.toMap(
-                        analysis -> analysis.getProduct().getId(),
+                        analysis -> analysis.getItem().getId(),
                         analysis -> analysis,
                         (existing, replacement) -> replacement));
     }
@@ -665,35 +697,5 @@ public class ProductService {
 
     private static Specification<Product> idLessThan(Long cursor) {
         return (root, query, cb) -> cursor == null ? null : cb.lessThan(root.get("id"), cursor);
-    }
-
-    private static Specification<Product> createdAtBefore(LocalDateTime cursorTime) {
-        return (root, query, cb) -> cursorTime == null ? null : cb.lessThan(root.get("createdAt"), cursorTime);
-    }
-
-    /** 제목에 키워드가 포함된 매물만 조회한다(대소문자 무시). 외부 매물은 설명 필드가 없어 제목만 본다. */
-    private static Specification<PlatformListing> listingHasKeyword(String keyword) {
-        return (root, query, cb) -> {
-            if (keyword == null || keyword.isBlank()) {
-                return null;
-            }
-            return cb.like(cb.lower(root.get("title")), "%" + keyword.trim().toLowerCase() + "%");
-        };
-    }
-
-    private static Specification<PlatformListing> listingIsSelling() {
-        return (root, query, cb) -> cb.equal(root.get("status"), "SELLING");
-    }
-
-    private static Specification<PlatformListing> listingCreatedAtBefore(LocalDateTime cursorTime) {
-        return (root, query, cb) -> cursorTime == null ? null : cb.lessThan(root.get("createdAt"), cursorTime);
-    }
-
-    private static LocalDateTime epochMillisToDateTime(long epochMillis) {
-        return LocalDateTime.ofInstant(Instant.ofEpochMilli(epochMillis), ZoneId.of("Asia/Seoul"));
-    }
-
-    private static long toEpochMillis(LocalDateTime dateTime) {
-        return dateTime.atZone(ZoneId.of("Asia/Seoul")).toInstant().toEpochMilli();
     }
 }

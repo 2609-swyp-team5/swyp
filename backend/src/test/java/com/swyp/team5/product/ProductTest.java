@@ -1,6 +1,11 @@
 package com.swyp.team5.product;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
@@ -18,7 +23,10 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +40,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.RequestBuilder;
+import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -42,23 +52,35 @@ import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.passport.JwtTokenProvider;
 import com.swyp.team5.file.dto.FileUploadResponse;
 import com.swyp.team5.file.service.FileStorageService;
+import com.swyp.team5.interest.entity.Interest;
+import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.entity.MemberRole;
 import com.swyp.team5.member.repository.MemberRepository;
 import com.swyp.team5.platform.entity.CategoryPlatform;
+import com.swyp.team5.platform.entity.Platform;
+import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.platform.repository.CategoryPlatformRepository;
+import com.swyp.team5.platform.repository.PlatformListingRepository;
+import com.swyp.team5.platform.repository.PlatformRepository;
 import com.swyp.team5.product.dto.ProductAiAnalysisResult;
 import com.swyp.team5.product.dto.ProductCreateRequest;
 import com.swyp.team5.product.dto.ProductStatusUpdateRequest;
 import com.swyp.team5.product.dto.ProductUpdateRequest;
 import com.swyp.team5.product.entity.DefectStatus;
+import com.swyp.team5.product.entity.DeliveryType;
+import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.product.service.ProductAiService;
 import com.swyp.team5.product.service.ProductImageLoader;
+import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
+import com.swyp.team5.productanalysis.entity.ProductAnalysis;
+import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
 import com.swyp.team5.tag.repository.TagRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -88,6 +110,23 @@ class ProductTest {
     private TagRepository tagRepository;
 
     @Autowired
+    private PlatformRepository platformRepository;
+
+    @Autowired
+    private PlatformListingRepository platformListingRepository;
+
+    @Autowired
+    private InterestRepository interestRepository;
+
+    @Autowired
+    private ProductAnalysisRepository productAnalysisRepository;
+
+    // 검색 테스트가 만든 행 — 상품 삭제(setUp) 전에 참조 행부터 지운다
+    private final List<Interest> createdInterests = new ArrayList<>();
+    private final List<ProductAnalysis> createdAnalyses = new ArrayList<>();
+    private final List<PlatformListing> createdListings = new ArrayList<>();
+
+    @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
     @MockitoBean
@@ -105,6 +144,13 @@ class ProductTest {
     private Long sellerId;
     private String sellerToken;
     private Category category;
+
+    @AfterEach
+    void cleanUpSearchRows() {
+        interestRepository.deleteAll(createdInterests);
+        productAnalysisRepository.deleteAll(createdAnalyses);
+        platformListingRepository.deleteAll(createdListings);
+    }
 
     @BeforeEach
     void setUp() {
@@ -499,6 +545,163 @@ class ProductTest {
                 .andExpect(jsonPath("$.data.content[0].status").value("DRAFT"));
     }
 
+    // 상품 상세 조회 - 외부 수집 매물도 같은 ID 체계(items)라 /products/{id}로 같은 응답 형태로 조회되고, 우리 상품과 ID가 겹치지 않음
+    @Test
+    void getProductReturnsExternalListingByItemId() throws Exception {
+        Product product = saveProduct(uniqueKeyword() + " 우리 상품", 100_000L, ProductCondition.A, DefectStatus.NORMAL);
+        PlatformListing listing = saveListing(uniqueKeyword() + " 번개 매물", 200_000L, "SOLD_OUT");
+
+        assertThat(listing.getId()).isNotEqualTo(product.getId());
+        mockMvc.perform(get("/products/{id}", listing.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.source").value("EXTERNAL"))
+                .andExpect(jsonPath("$.data.id").value(listing.getId()))
+                .andExpect(jsonPath("$.data.price").value(200_000))
+                .andExpect(jsonPath("$.data.status").value("SOLD_OUT"))
+                .andExpect(jsonPath("$.data.externalStatus").value("SOLD_OUT"))
+                .andExpect(jsonPath("$.data.platformName").value("번개장터"))
+                .andExpect(jsonPath("$.data.memberId").doesNotExist())
+                .andExpect(jsonPath("$.data.category.id").value(category.getId()));
+        mockMvc.perform(get("/products/{id}", product.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.source").value("OUR"))
+                .andExpect(jsonPath("$.data.memberId").value(sellerId));
+    }
+
+    // 상품 목록 조회(검색 필터) - 가격·제품 상태·하자·제외 키워드·플랫폼·거래 상태 필터가 우리 상품/외부 매물에 맞게 적용됨
+    @Test
+    void getProductsAppliesSearchFilters() throws Exception {
+        String keyword = uniqueKeyword();
+        saveProduct(keyword + " 아이폰 A급", 100_000L, ProductCondition.A, DefectStatus.NORMAL);
+        saveProduct(keyword + " 아이폰 S급 파손", 300_000L, ProductCondition.S, DefectStatus.ISSUES);
+        saveListing(keyword + " 아이폰 번개", 200_000L, "SELLING");
+        saveListing(keyword + " 아이폰 판매완료", 150_000L, "SOLD_OUT");
+
+        // 거래 상태 미지정 - 외부 매물은 판매중만
+        searchProducts(keyword).andExpect(jsonPath("$.data.content.length()").value(3));
+        // 제품 상태 등급 지정 - 등급이 없는 외부 매물은 제외
+        searchProducts(keyword, "condition", "A,S")
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.content[*].source", everyItem(is("OUR"))));
+        // 가격 범위(경계 포함)
+        searchProducts(keyword, "minPrice", "150000", "maxPrice", "200000")
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].price").value(200_000));
+        // 제외 키워드
+        searchProducts(keyword, "excludeKeyword", "파손")
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.content[*].title", everyItem(not(containsString("파손")))));
+        // 플랫폼 + 거래 상태
+        searchProducts(keyword, "platform", "BUNJANG", "tradeStatus", "SOLD_OUT")
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].status").value("SOLD_OUT"));
+        searchProducts(keyword, "platform", "OUR", "defectStatus", "ISSUES")
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].defectStatus").value("ISSUES"));
+        // 우리 상품에는 예약중 상태가 없다
+        searchProducts(keyword, "platform", "OUR", "tradeStatus", "RESERVED")
+                .andExpect(jsonPath("$.data.content.length()").value(0));
+    }
+
+    // 상품 목록 조회 - 우리 상품은 거래 지역·택배 가능 여부(거래 방식이 택배면 true)를 내려주고, 외부 매물은 지역 null·택배 가능 true 고정
+    @Test
+    void getProductsIncludesTradeRegionAndDeliveryAvailability() throws Exception {
+        String keyword = uniqueKeyword();
+        Member seller = memberRepository.findById(sellerId).orElseThrow();
+        productRepository.save(Product.create(
+                seller,
+                category,
+                keyword + " 택배 상품",
+                null,
+                "설명",
+                100_000L,
+                ProductCondition.A,
+                DefectStatus.NORMAL,
+                null,
+                false,
+                TradeMethod.DELIVERY,
+                DeliveryType.INCLUDED,
+                "서울 송파구",
+                List.of("https://image.example.com/1.png"),
+                Set.of(),
+                Set.of()));
+        saveProduct(keyword + " 직거래 상품", 200_000L, ProductCondition.A, DefectStatus.NORMAL);
+        saveListing(keyword + " 번개 매물", 300_000L, "SELLING");
+
+        searchProducts(keyword, "sort", "PRICE_LOW")
+                .andExpect(jsonPath("$.data.content[0].tradeRegion").value("서울 송파구"))
+                .andExpect(jsonPath("$.data.content[0].deliveryAvailable").value(true))
+                .andExpect(jsonPath("$.data.content[1].tradeRegion").doesNotExist())
+                .andExpect(jsonPath("$.data.content[1].deliveryAvailable").value(false))
+                .andExpect(jsonPath("$.data.content[2].source").value("EXTERNAL"))
+                .andExpect(jsonPath("$.data.content[2].tradeRegion").doesNotExist())
+                .andExpect(jsonPath("$.data.content[2].deliveryAvailable").value(true));
+    }
+
+    // 상품 목록 조회(정렬) - 가격순은 우리 상품·외부 매물을 섞어 정렬하고 커서로 다음 페이지를 이어서 조회함
+    @Test
+    void getProductsSortsByPriceWithCursor() throws Exception {
+        String keyword = uniqueKeyword();
+        saveProduct(keyword + " 저가", 100_000L, ProductCondition.A, DefectStatus.NORMAL);
+        saveProduct(keyword + " 고가", 300_000L, ProductCondition.A, DefectStatus.NORMAL);
+        saveListing(keyword + " 중간", 200_000L, "SELLING");
+
+        String body = searchProducts(keyword, "sort", "PRICE_LOW", "size", "2")
+                .andExpect(jsonPath("$.data.content[*].price", contains(100_000, 200_000)))
+                .andExpect(jsonPath("$.data.hasNext").value(true))
+                .andReturn()
+                .getResponse()
+                .getContentAsString(StandardCharsets.UTF_8);
+        String nextCursor = objectMapper.readTree(body).at("/data/nextCursor").asText();
+
+        searchProducts(keyword, "sort", "PRICE_LOW", "size", "2", "cursor", nextCursor)
+                .andExpect(jsonPath("$.data.content[*].price", contains(300_000)))
+                .andExpect(jsonPath("$.data.hasNext").value(false));
+        searchProducts(keyword, "sort", "PRICE_HIGH")
+                .andExpect(jsonPath("$.data.content[*].price", contains(300_000, 200_000, 100_000)));
+        // 다른 정렬의 커서는 거부
+        searchRequest(keyword, "sort", "LATEST", "cursor", nextCursor).andExpect(status().isBadRequest());
+    }
+
+    // 상품 목록 조회(정렬) - 관심순은 관심 등록 수, 추천순은 최근 시세 분석이 BUY인 항목이 먼저
+    @Test
+    void getProductsSortsByInterestAndRecommendation() throws Exception {
+        String keyword = uniqueKeyword();
+        Product buyProduct = saveProduct(keyword + " 추천", 100_000L, ProductCondition.A, DefectStatus.NORMAL);
+        PlatformListing interestedListing = saveListing(keyword + " 관심", 200_000L, "SELLING");
+        saveProduct(keyword + " 최신", 300_000L, ProductCondition.A, DefectStatus.NORMAL);
+        Member seller = memberRepository.findById(sellerId).orElseThrow();
+        createdInterests.add(interestRepository.save(Interest.ofListing(seller, interestedListing)));
+        createdAnalyses.add(productAnalysisRepository.save(ProductAnalysis.create(
+                buyProduct,
+                90_000L,
+                110_000L,
+                130_000L,
+                null,
+                AnalysisRecommendation.BUY,
+                null,
+                null,
+                LocalDateTime.now())));
+
+        searchProducts(keyword, "sort", "INTEREST")
+                .andExpect(jsonPath(
+                        "$.data.content[*].title", contains(keyword + " 관심", keyword + " 최신", keyword + " 추천")));
+        searchProducts(keyword, "sort", "RECOMMENDED")
+                .andExpect(jsonPath(
+                        "$.data.content[*].title", contains(keyword + " 추천", keyword + " 최신", keyword + " 관심")))
+                .andExpect(jsonPath("$.data.content[0].recommendation").value("BUY"));
+    }
+
+    // 상품 목록 조회(검색 필터) - 최소 가격이 최대 가격보다 크거나 커서를 해석할 수 없으면 400
+    @Test
+    void getProductsRejectsInvalidSearchCondition() throws Exception {
+        searchRequest("아이폰", "minPrice", "300000", "maxPrice", "100000").andExpect(status().isBadRequest());
+        searchRequest("아이폰", "cursor", "not-a-cursor").andExpect(status().isBadRequest());
+        searchRequest("아이폰", "sort", "UNKNOWN").andExpect(status().isBadRequest());
+    }
+
     // 인기 검색어 조회 - 키워드로 상품 목록을 조회하면 검색 로그가 남고, 인기검색어 조회에 노출됨
     @Test
     void getPopularKeywordsReflectsRecentSearches() throws Exception {
@@ -738,6 +941,54 @@ class ProductTest {
                 categoryPlatformRepository.findCollectTargets("번개장터", ProductStatus.ANALYSIS_TARGETS);
 
         assertThat(targets).extracting(CategoryPlatform::getExternalCategoryId).containsExactly("600700001");
+    }
+
+    private ResultActions searchRequest(String keyword, String... params) throws Exception {
+        MockHttpServletRequestBuilder builder = get("/products")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
+                .param("keyword", keyword);
+        for (int i = 0; i < params.length; i += 2) {
+            builder.param(params[i], params[i + 1]);
+        }
+        return mockMvc.perform(builder);
+    }
+
+    private ResultActions searchProducts(String keyword, String... params) throws Exception {
+        return searchRequest(keyword, params).andExpect(status().isOk());
+    }
+
+    /** 다른 테스트 클래스가 남긴 상품·매물과 섞이지 않도록 검색어로 쓸 고유 단어. */
+    private static String uniqueKeyword() {
+        return "검색" + UUID.randomUUID().toString().substring(0, 8);
+    }
+
+    private Product saveProduct(String title, long price, ProductCondition condition, DefectStatus defectStatus) {
+        Member seller = memberRepository.findById(sellerId).orElseThrow();
+        return productRepository.save(Product.create(
+                seller,
+                category,
+                title,
+                null,
+                "설명",
+                price,
+                condition,
+                defectStatus,
+                null,
+                false,
+                TradeMethod.DIRECT,
+                null,
+                null,
+                List.of("https://image.example.com/1.png"),
+                Set.of(),
+                Set.of()));
+    }
+
+    private PlatformListing saveListing(String title, long price, String status) {
+        Platform platform = platformRepository.findByName("번개장터").orElseThrow();
+        PlatformListing listing = platformListingRepository.save(PlatformListing.create(
+                platform, category, "search-" + UUID.randomUUID(), title, price, status, null, null));
+        createdListings.add(listing);
+        return listing;
     }
 
     private Long createProduct() throws Exception {

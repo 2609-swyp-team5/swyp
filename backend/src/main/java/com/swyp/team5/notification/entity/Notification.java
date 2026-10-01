@@ -18,9 +18,11 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import com.swyp.team5.item.entity.Item;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.product.entity.Product;
+import org.hibernate.Hibernate;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -42,12 +44,8 @@ public class Notification {
     private Member member;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id")
-    private Product product; // 공지성 알림 등 상품과 무관하면 null
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "listing_id")
-    private PlatformListing listing; // 관심 등록된 외부 매물 대상 알림이면 채워짐(product와 동시에 채워지지 않음)
+    @JoinColumn(name = "item_id")
+    private Item item; // 알림 대상(우리 상품 또는 외부 매물), 공지성 알림 등 상품과 무관하면 null
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
@@ -71,16 +69,9 @@ public class Notification {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    private Notification(
-            Member member,
-            Product product,
-            PlatformListing listing,
-            NotificationType type,
-            String title,
-            String message) {
+    private Notification(Member member, Item item, NotificationType type, String title, String message) {
         this.member = member;
-        this.product = product;
-        this.listing = listing;
+        this.item = item;
         this.type = type;
         this.title = title;
         this.message = message;
@@ -89,13 +80,23 @@ public class Notification {
 
     public static Notification create(
             Member member, Product product, NotificationType type, String title, String message) {
-        return new Notification(member, product, null, type, title, message);
+        return new Notification(member, product, type, title, message);
     }
 
     /** 관심 등록된 외부 매물 대상 알림을 생성한다. */
     public static Notification createForListing(
             Member member, PlatformListing listing, NotificationType type, String title, String message) {
-        return new Notification(member, null, listing, type, title, message);
+        return new Notification(member, listing, type, title, message);
+    }
+
+    /** 대상이 우리 상품이면 그 상품, 외부 매물이면 {@code null}. */
+    public Product getProduct() {
+        return Hibernate.unproxy(item) instanceof Product product ? product : null;
+    }
+
+    /** 대상이 외부 매물이면 그 매물, 우리 상품이면 {@code null}. */
+    public PlatformListing getListing() {
+        return Hibernate.unproxy(item) instanceof PlatformListing listing ? listing : null;
     }
 
     public void markRead() {
