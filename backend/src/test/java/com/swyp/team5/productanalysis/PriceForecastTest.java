@@ -42,7 +42,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-// 감가 예측 저장(forecast_period enum 매핑)·최상위 카테고리 조회·분석 조회 응답 통합 테스트. 만든 데이터는 직접 정리한다.
+// 감가 예측 저장(forecast_period enum 매핑)·최상위 카테고리 조회·분석/가격 추이 조회 응답 통합 테스트. 만든 데이터는 직접 정리한다.
 @SpringBootTest
 @AutoConfigureMockMvc
 class PriceForecastTest {
@@ -132,6 +132,52 @@ class PriceForecastTest {
                 .andExpect(jsonPath("$.data.forecasts[0].period").value("1M"))
                 .andExpect(jsonPath("$.data.forecasts[0].expectedPrice").value(970_000))
                 .andExpect(jsonPath("$.data.forecasts[2].period").value("6M"));
+    }
+
+    // 가격 추이 조회 - 기간 안 스냅샷만 날짜별로 묶고, 기간 밖(31일 전) 스냅샷은 제외
+    @Test
+    void returnsDailyPriceTrend() throws Exception {
+        ProductAnalysis yesterday = productAnalysisRepository.save(ProductAnalysis.create(
+                product,
+                800_000L,
+                1_200_000L,
+                1_300_000L,
+                null,
+                null,
+                null,
+                null,
+                LocalDateTime.now().minusDays(1)));
+        ProductAnalysis outOfRange = productAnalysisRepository.save(ProductAnalysis.create(
+                product,
+                800_000L,
+                2_000_000L,
+                2_100_000L,
+                null,
+                null,
+                null,
+                null,
+                LocalDateTime.now().minusDays(31)));
+        try {
+            String token = jwtTokenProvider.createAccessToken(member.getId(), MemberRole.USER);
+            mockMvc.perform(get("/products/{id}/analysis/trend", product.getId())
+                            .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.days").value(30))
+                    .andExpect(jsonPath("$.data.currentPrice").value(1_000_000))
+                    .andExpect(jsonPath("$.data.points.length()").value(2))
+                    .andExpect(jsonPath("$.data.points[0].averagePrice").value(1_200_000))
+                    .andExpect(jsonPath("$.data.points[1].averagePrice").value(1_000_000))
+                    .andExpect(jsonPath("$.data.points[1].analysisCount").value(1))
+                    .andExpect(jsonPath("$.data.averagePrice").value(1_100_000))
+                    .andExpect(jsonPath("$.data.changeRate").value(-0.1667));
+
+            mockMvc.perform(get("/products/{id}/analysis/trend", product.getId())
+                            .param("days", "0")
+                            .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                    .andExpect(status().isBadRequest());
+        } finally {
+            productAnalysisRepository.deleteAll(List.of(yesterday, outOfRange));
+        }
     }
 
     // 최하위 카테고리에서 부모를 따라 올라가 최상위(대분류) 이름을 찾음
