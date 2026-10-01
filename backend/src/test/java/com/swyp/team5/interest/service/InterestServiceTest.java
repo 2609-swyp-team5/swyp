@@ -15,10 +15,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
-
 import com.swyp.team5.category.entity.Category;
+import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.interest.dto.InterestCreateResponse;
 import com.swyp.team5.interest.dto.InterestListItemResponse;
 import com.swyp.team5.interest.dto.TargetPriceResponse;
@@ -154,11 +152,12 @@ class InterestServiceTest {
         Member member = newMember(1L);
         Product product = newProduct(1L, newMember(2L));
         Interest interest = newProductInterest(10L, member, product, 400_000L);
-        when(interestRepository.findByMemberId(eq(1L), any()))
-                .thenReturn(new PageImpl<>(List.of(interest), Pageable.ofSize(10), 1));
+        when(interestRepository.findByMemberIdAndIdLessThan(eq(1L), eq(Long.MAX_VALUE), any()))
+                .thenReturn(List.of(interest));
         when(productAnalysisRepository.findLatestByProductIdIn(List.of(1L))).thenReturn(List.of());
 
-        List<InterestListItemResponse> response = service().getInterests(1L, 0, 10);
+        List<InterestListItemResponse> response =
+                service().getInterests(1L, null, 10).content();
 
         assertThat(response).hasSize(1);
         assertThat(response.get(0).interestId()).isEqualTo(10L);
@@ -179,11 +178,12 @@ class InterestServiceTest {
         Interest interest = newProductInterest(10L, member, product, null);
         ProductAnalysis analysis =
                 ProductAnalysis.create(product, 1000L, 2000L, 3000L, null, null, null, null, LocalDateTime.now());
-        when(interestRepository.findByMemberId(eq(1L), any()))
-                .thenReturn(new PageImpl<>(List.of(interest), Pageable.ofSize(10), 1));
+        when(interestRepository.findByMemberIdAndIdLessThan(eq(1L), eq(Long.MAX_VALUE), any()))
+                .thenReturn(List.of(interest));
         when(productAnalysisRepository.findLatestByProductIdIn(List.of(1L))).thenReturn(List.of(analysis));
 
-        List<InterestListItemResponse> response = service().getInterests(1L, 0, 10);
+        List<InterestListItemResponse> response =
+                service().getInterests(1L, null, 10).content();
 
         assertThat(response).hasSize(1);
         assertThat(response.get(0).recommendation()).isNull();
@@ -197,10 +197,11 @@ class InterestServiceTest {
         Member member = newMember(1L);
         PlatformListing listing = newPlatformListing(100L);
         Interest interest = newListingInterest(11L, member, listing, 20_000L);
-        when(interestRepository.findByMemberId(eq(1L), any()))
-                .thenReturn(new PageImpl<>(List.of(interest), Pageable.ofSize(10), 1));
+        when(interestRepository.findByMemberIdAndIdLessThan(eq(1L), eq(Long.MAX_VALUE), any()))
+                .thenReturn(List.of(interest));
 
-        List<InterestListItemResponse> response = service().getInterests(1L, 0, 10);
+        List<InterestListItemResponse> response =
+                service().getInterests(1L, null, 10).content();
 
         assertThat(response).hasSize(1);
         InterestListItemResponse item = response.get(0);
@@ -222,14 +223,33 @@ class InterestServiceTest {
         Interest interest = newListingInterest(11L, member, listing, null);
         ProductAnalysis analysis = ProductAnalysis.createForListing(
                 listing, 1000L, 2000L, 3000L, null, AnalysisRecommendation.BUY, 1900L, "설명", LocalDateTime.now());
-        when(interestRepository.findByMemberId(eq(1L), any()))
-                .thenReturn(new PageImpl<>(List.of(interest), Pageable.ofSize(10), 1));
+        when(interestRepository.findByMemberIdAndIdLessThan(eq(1L), eq(Long.MAX_VALUE), any()))
+                .thenReturn(List.of(interest));
         when(productAnalysisRepository.findLatestByListingIdIn(List.of(100L))).thenReturn(List.of(analysis));
 
-        List<InterestListItemResponse> response = service().getInterests(1L, 0, 10);
+        List<InterestListItemResponse> response =
+                service().getInterests(1L, null, 10).content();
 
         assertThat(response.get(0).recommendation()).isEqualTo(AnalysisRecommendation.BUY);
         assertThat(response.get(0).marketAveragePrice()).isEqualTo(2000L);
+    }
+
+    // 관심상품 목록 조회 - size+1건이 조회되면 size건만 반환하고 마지막 interestId를 다음 커서로 줌
+    @Test
+    void getInterestsReturnsNextCursorWhenMoreExists() {
+        Member member = newMember(1L);
+        Interest first = newListingInterest(12L, member, newPlatformListing(100L), null);
+        Interest second = newListingInterest(11L, member, newPlatformListing(101L), null);
+        when(interestRepository.findByMemberIdAndIdLessThan(eq(1L), eq(13L), any()))
+                .thenReturn(List.of(first, second));
+
+        CursorPageResponse<InterestListItemResponse> response = service().getInterests(1L, 13L, 1);
+
+        assertThat(response.content())
+                .extracting(InterestListItemResponse::interestId)
+                .containsExactly(12L);
+        assertThat(response.hasNext()).isTrue();
+        assertThat(response.nextCursor()).isEqualTo(12L);
     }
 
     // 관심상품 삭제 성공

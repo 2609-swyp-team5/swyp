@@ -2,10 +2,12 @@ package com.swyp.team5.productanalysis.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -20,11 +22,11 @@ import java.util.Optional;
 import org.springframework.ai.chat.client.ChatClient;
 
 import com.swyp.team5.category.entity.Category;
+import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.ai.AiChatExecutor;
 import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.notification.service.NotificationService;
 import com.swyp.team5.platform.entity.PlatformListing;
-import com.swyp.team5.platform.repository.ListingPriceStats;
 import com.swyp.team5.platform.repository.PlatformListingRepository;
 import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.Product;
@@ -34,9 +36,13 @@ import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.productanalysis.config.ProductAnalysisProperties;
 import com.swyp.team5.productanalysis.dto.MarketAnalysisResult;
+import com.swyp.team5.productanalysis.dto.PriceForecastResponse;
 import com.swyp.team5.productanalysis.dto.ProductAnalysisResponse;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
+import com.swyp.team5.productanalysis.entity.ForecastPeriod;
+import com.swyp.team5.productanalysis.entity.PriceForecast;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
+import com.swyp.team5.productanalysis.repository.PriceForecastRepository;
 import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -68,6 +74,12 @@ class ProductAnalysisServiceTest {
     @Mock
     private InterestRepository interestRepository;
 
+    @Mock
+    private PriceForecastRepository priceForecastRepository;
+
+    @Mock
+    private CategoryRepository categoryRepository;
+
     private ProductAnalysisService service() {
         return new ProductAnalysisService(
                 new AiChatExecutor(geminiAiClient, openAiClient),
@@ -76,7 +88,9 @@ class ProductAnalysisServiceTest {
                 productAnalysisRepository,
                 PROPERTIES,
                 notificationService,
-                interestRepository);
+                interestRepository,
+                priceForecastRepository,
+                categoryRepository);
     }
 
     private static Product product(Long productId, Long categoryId, Long price) {
@@ -99,38 +113,130 @@ class ProductAnalysisServiceTest {
         return listing;
     }
 
-    // 비교 매물 평균가 계산 - 최소 기준(3건) 이상이면 평균을 반올림해 반환(AI 호출 없음)
-    @Test
-    void calculateMarketAveragePriceReturnsRoundedAverage() {
-        when(platformListingRepository.findPriceStats(eq(10L), eq("SELLING"), any()))
-                .thenReturn(new ListingPriceStats(3L, 433_333.5));
-
-        assertThat(service().calculateMarketAveragePrice(10L)).contains(433_334L);
+    private void givenListings(Long categoryId, List<PlatformListing> listings) {
+        when(platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
+                        eq(categoryId), eq("SELLING"), any()))
+                .thenReturn(listings);
     }
 
-    // 비교 매물 평균가 계산 - 최소 기준(3건)보다 적으면 빈 값
+    // 유사 매물 평균가 계산 - 상품명이 겹치는 매물만 평균을 반올림해 반환(다른 물건은 제외, AI 호출 없음)
     @Test
-    void calculateMarketAveragePriceReturnsEmptyWhenListingsBelowThreshold() {
-        when(platformListingRepository.findPriceStats(eq(10L), eq("SELLING"), any()))
-                .thenReturn(new ListingPriceStats(2L, 1_500.0));
+    void calculateMarketAveragePriceUsesOnlyListingsSharingProductKeywords() {
+        Product product = product(1L, 10L, 800_000L);
+        givenListings(
+                10L,
+                List.of(
+                        listing("아이패드 프로 11", 1000L),
+                        listing("아이패드 프로 12.9", 2000L),
+                        listing("아이패드 프로 급처", 2001L),
+                        listing("갤럭시 탭 S9", 9000L)));
 
-        assertThat(service().calculateMarketAveragePrice(10L)).isEmpty();
+        assertThat(service().calculateMarketAveragePrice(product)).contains(1667L);
+        verify(geminiAiClient, never()).prompt();
     }
 
-    // 비교 매물 평균가 계산 - 매물이 하나도 없으면(평균 null) 빈 값
+    // 유사 매물 평균가 계산 - 상품명이 겹치는 매물이 최소 기준(3건)보다 적으면 빈 값
     @Test
-    void calculateMarketAveragePriceReturnsEmptyWhenNoListings() {
-        when(platformListingRepository.findPriceStats(eq(10L), eq("SELLING"), any()))
-                .thenReturn(new ListingPriceStats(0L, null));
+    void calculateMarketAveragePriceReturnsEmptyWhenSimilarListingsBelowThreshold() {
+        Product product = product(1L, 10L, 800_000L);
+        givenListings(
+                10L,
+                List.of(
+                        listing("아이패드 프로 11", 1000L),
+                        listing("아이패드 프로 12.9", 2000L),
+                        listing("갤럭시 탭 S9", 9000L),
+                        listing("갤럭시 탭 S8", 8000L)));
 
-        assertThat(service().calculateMarketAveragePrice(10L)).isEmpty();
+        assertThat(service().calculateMarketAveragePrice(product)).isEmpty();
+    }
+
+    // 분석 건너뜀 - 같은 카테고리 매물은 충분해도 상품명이 겹치는 후보가 3건 미만이면 AI 호출 없이 건너뜀
+    @Test
+    void analyzeProductSkipsWithoutAiCallWhenCandidatesBelowThreshold() {
+        Product product = product(1L, 10L, 800_000L);
+        givenListings(
+                10L,
+                List.of(
+                        listing("아이패드 프로 11", 1000L),
+                        listing("갤럭시 탭 S9", 9000L),
+                        listing("갤럭시 탭 S8", 8000L),
+                        listing("아이패드 케이스", 100L)));
+
+        service().analyzeProduct(product);
+
+        verify(geminiAiClient, never()).prompt();
+        verify(productAnalysisRepository, never()).save(any());
+    }
+
+    // 분석 성공 - AI가 고른 같은 물건 매물만으로 통계 계산(범위 밖·중복 번호 무시)
+    @Test
+    void analyzeProductCalculatesStatsFromAiSelectedListingsOnly() {
+        Product product = product(1L, 10L, 800_000L);
+        givenListings(
+                10L,
+                List.of(
+                        listing("아이패드 프로 매물1", 1000L),
+                        listing("아이패드 프로 매물2", 2000L),
+                        listing("아이패드 프로 매물3", 3000L),
+                        listing("아이패드 프로 매물4", 4000L),
+                        listing("아이패드 프로 매물5", 50_000L)));
+        when(productAnalysisRepository.findFirstByProductIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.empty());
+        givenAiResult(new MarketAnalysisResult(List.of(2, 3, 4, 4, 99), AnalysisRecommendation.HOLD, 3000L, "설명"));
+
+        service().analyzeProduct(product);
+
+        ArgumentCaptor<ProductAnalysis> captor = ArgumentCaptor.forClass(ProductAnalysis.class);
+        verify(productAnalysisRepository).save(captor.capture());
+        assertThat(captor.getValue().getMinPrice()).isEqualTo(2000L);
+        assertThat(captor.getValue().getAveragePrice()).isEqualTo(3000L);
+        assertThat(captor.getValue().getMaxPrice()).isEqualTo(4000L);
+    }
+
+    // 분석 - 이전 30일 스냅샷의 일별 평균가 추이를 AI 프롬프트에 넣음
+    @Test
+    void analyzeProductIncludesPreviousTrendInPrompt() {
+        Product product = product(1L, 10L, 800_000L);
+        givenListings(
+                10L,
+                List.of(listing("아이패드 프로 매물1", 1000L), listing("아이패드 프로 매물2", 2000L), listing("아이패드 프로 매물3", 3000L)));
+        ProductAnalysis old = mock(ProductAnalysis.class);
+        when(old.getAnalyzedAt()).thenReturn(LocalDateTime.of(2026, 9, 20, 6, 0));
+        when(old.getAveragePrice()).thenReturn(2500L);
+        when(productAnalysisRepository.findByProductIdAndAnalyzedAtAfterOrderByAnalyzedAtAsc(eq(1L), any()))
+                .thenReturn(List.of(old));
+        when(productAnalysisRepository.findFirstByProductIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.empty());
+        givenAiResult(new MarketAnalysisResult(List.of(1, 2, 3), AnalysisRecommendation.HOLD, 2000L, "설명"));
+
+        service().analyzeProduct(product);
+
+        ArgumentCaptor<String> prompt = ArgumentCaptor.forClass(String.class);
+        verify(geminiAiClient.prompt().system(anyString()), atLeastOnce()).user(prompt.capture());
+        assertThat(prompt.getAllValues().getLast()).contains("[이전 분석 추이", "2026-09-20: 2,500원");
+    }
+
+    // 분석 건너뜀 - AI가 같은 물건으로 고른 매물이 3건 미만이면 저장·알림 없음
+    @Test
+    void analyzeProductSkipsWhenAiSelectsTooFewSimilarListings() {
+        Product product = product(1L, 10L, 800_000L);
+        givenListings(
+                10L,
+                List.of(listing("아이패드 프로 매물1", 1000L), listing("아이패드 프로 매물2", 2000L), listing("아이패드 프로 매물3", 3000L)));
+        givenAiResult(new MarketAnalysisResult(List.of(1), AnalysisRecommendation.SELL, 1000L, "설명"));
+
+        service().analyzeProduct(product);
+
+        verify(productAnalysisRepository, never()).save(any());
+        verify(productRepository, never()).updateSuggestedPrice(any(), any());
+        verify(notificationService, never()).notifyRecommendationChanged(any(), any(), any());
     }
 
     // 분석 건너뜀 - 비교 매물이 최소 기준(3건)보다 적음
     @Test
     void analyzeProductSkipsWhenComparableListingsBelowThreshold() {
         Product product = product(1L, 10L, 800_000L);
-        List<PlatformListing> listings = List.of(listing("매물1", 1000L), listing("매물2", 2000L));
+        List<PlatformListing> listings = List.of(listing("아이패드 프로 매물1", 1000L), listing("아이패드 프로 매물2", 2000L));
         when(platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
                         eq(10L), eq("SELLING"), any()))
                 .thenReturn(listings);
@@ -148,11 +254,11 @@ class ProductAnalysisServiceTest {
     void analyzeProductSavesSnapshotWithStatsAiResultAndChangeRate() {
         Product product = product(1L, 10L, 800_000L);
         List<PlatformListing> listings = List.of(
-                listing("매물1", 1000L),
-                listing("매물2", 2000L),
-                listing("매물3", 3000L),
-                listing("매물4", 4000L),
-                listing("매물5", 5000L));
+                listing("아이패드 프로 매물1", 1000L),
+                listing("아이패드 프로 매물2", 2000L),
+                listing("아이패드 프로 매물3", 3000L),
+                listing("아이패드 프로 매물4", 4000L),
+                listing("아이패드 프로 매물5", 5000L));
         when(platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
                         eq(10L), eq("SELLING"), any()))
                 .thenReturn(listings);
@@ -161,8 +267,8 @@ class ProductAnalysisServiceTest {
         when(previous.getRecommendation()).thenReturn(AnalysisRecommendation.HOLD);
         when(productAnalysisRepository.findFirstByProductIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.of(previous));
-        MarketAnalysisResult aiResult =
-                new MarketAnalysisResult(AnalysisRecommendation.SELL, 3200L, "시세가 안정적이라 지금 파는 게 좋습니다.");
+        MarketAnalysisResult aiResult = new MarketAnalysisResult(
+                List.of(1, 2, 3, 4, 5), AnalysisRecommendation.SELL, 3200L, "시세가 안정적이라 지금 파는 게 좋습니다.");
         when(geminiAiClient
                         .prompt()
                         .system(anyString())
@@ -170,8 +276,19 @@ class ProductAnalysisServiceTest {
                         .call()
                         .entity(MarketAnalysisResult.class))
                 .thenReturn(aiResult);
+        when(categoryRepository.findRootName(10L)).thenReturn(Optional.of("디지털"));
 
         service().analyzeProduct(product);
+
+        // 감가 예측 - 추세 기록이 없어 "디지털" 기본 감가율(월 -3%)로 1M/3M/6M 예측가를 1,000원 단위로 저장
+        ArgumentCaptor<List<PriceForecast>> forecastCaptor = ArgumentCaptor.captor();
+        verify(priceForecastRepository).saveAll(forecastCaptor.capture());
+        assertThat(forecastCaptor.getValue())
+                .extracting(PriceForecast::getPeriod, PriceForecast::getExpectedPrice)
+                .containsExactly(
+                        tuple(ForecastPeriod.ONE_MONTH, 3000L),
+                        tuple(ForecastPeriod.THREE_MONTHS, 3000L),
+                        tuple(ForecastPeriod.SIX_MONTHS, 2000L));
 
         ArgumentCaptor<ProductAnalysis> captor = ArgumentCaptor.forClass(ProductAnalysis.class);
         verify(productAnalysisRepository).save(captor.capture());
@@ -194,7 +311,8 @@ class ProductAnalysisServiceTest {
     @Test
     void analyzeProductFallsBackToGptWhenGeminiFails() {
         Product product = product(1L, 10L, 800_000L);
-        List<PlatformListing> listings = List.of(listing("매물1", 1000L), listing("매물2", 2000L), listing("매물3", 3000L));
+        List<PlatformListing> listings =
+                List.of(listing("아이패드 프로 매물1", 1000L), listing("아이패드 프로 매물2", 2000L), listing("아이패드 프로 매물3", 3000L));
         when(platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
                         eq(10L), eq("SELLING"), any()))
                 .thenReturn(listings);
@@ -202,7 +320,8 @@ class ProductAnalysisServiceTest {
                 .thenReturn(Optional.empty());
         when(geminiAiClient.prompt()).thenThrow(new IllegalStateException("503 UNAVAILABLE"));
         when(openAiClient.prompt().system(anyString()).user(anyString()).call().entity(MarketAnalysisResult.class))
-                .thenReturn(new MarketAnalysisResult(AnalysisRecommendation.HOLD, 2100L, "GPT 판단"));
+                .thenReturn(
+                        new MarketAnalysisResult(List.of(1, 2, 3, 4, 5), AnalysisRecommendation.HOLD, 2100L, "GPT 판단"));
 
         service().analyzeProduct(product);
 
@@ -217,7 +336,8 @@ class ProductAnalysisServiceTest {
     @Test
     void analyzeProductLeavesChangeRateNullWhenNoPreviousSnapshot() {
         Product product = product(1L, 10L, 800_000L);
-        List<PlatformListing> listings = List.of(listing("매물1", 1000L), listing("매물2", 2000L), listing("매물3", 3000L));
+        List<PlatformListing> listings =
+                List.of(listing("아이패드 프로 매물1", 1000L), listing("아이패드 프로 매물2", 2000L), listing("아이패드 프로 매물3", 3000L));
         when(platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
                         eq(10L), eq("SELLING"), any()))
                 .thenReturn(listings);
@@ -229,7 +349,7 @@ class ProductAnalysisServiceTest {
                         .user(anyString())
                         .call()
                         .entity(MarketAnalysisResult.class))
-                .thenReturn(new MarketAnalysisResult(AnalysisRecommendation.HOLD, 2000L, "설명"));
+                .thenReturn(new MarketAnalysisResult(List.of(1, 2, 3, 4, 5), AnalysisRecommendation.HOLD, 2000L, "설명"));
 
         service().analyzeProduct(product);
 
@@ -249,7 +369,8 @@ class ProductAnalysisServiceTest {
         when(platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
                         eq(10L), anyString(), any()))
                 .thenThrow(new RuntimeException("DB 오류"));
-        List<PlatformListing> listings = List.of(listing("매물1", 1000L), listing("매물2", 2000L), listing("매물3", 3000L));
+        List<PlatformListing> listings =
+                List.of(listing("아이패드 프로 매물1", 1000L), listing("아이패드 프로 매물2", 2000L), listing("아이패드 프로 매물3", 3000L));
         when(platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
                         eq(20L), anyString(), any()))
                 .thenReturn(listings);
@@ -259,7 +380,7 @@ class ProductAnalysisServiceTest {
                         .user(anyString())
                         .call()
                         .entity(MarketAnalysisResult.class))
-                .thenReturn(new MarketAnalysisResult(AnalysisRecommendation.BUY, 1800L, "설명"));
+                .thenReturn(new MarketAnalysisResult(List.of(1, 2, 3, 4, 5), AnalysisRecommendation.BUY, 1800L, "설명"));
 
         service().analyzeAll();
 
@@ -290,7 +411,10 @@ class ProductAnalysisServiceTest {
     void analyzeListingExcludesItselfAndSavesBuyerRecommendation() {
         PlatformListing target = listing(100L, 10L, "아이패드 프로", 900L);
         List<PlatformListing> listings = List.of(
-                target, listing(1L, 10L, "매물1", 1000L), listing(2L, 10L, "매물2", 2000L), listing(3L, 10L, "매물3", 3000L));
+                target,
+                listing(1L, 10L, "아이패드 프로 매물1", 1000L),
+                listing(2L, 10L, "아이패드 프로 매물2", 2000L),
+                listing(3L, 10L, "아이패드 프로 매물3", 3000L));
         when(platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
                         eq(10L), eq("SELLING"), any()))
                 .thenReturn(listings);
@@ -299,7 +423,8 @@ class ProductAnalysisServiceTest {
         when(previous.getRecommendation()).thenReturn(AnalysisRecommendation.WAIT);
         when(productAnalysisRepository.findFirstByListingIdOrderByAnalyzedAtDesc(100L))
                 .thenReturn(Optional.of(previous));
-        givenAiResult(new MarketAnalysisResult(AnalysisRecommendation.BUY, 1900L, "시세보다 저렴해요."));
+        givenAiResult(
+                new MarketAnalysisResult(List.of(1, 2, 3, 4, 5), AnalysisRecommendation.BUY, 1900L, "시세보다 저렴해요."));
 
         service().analyzeListing(target);
 
@@ -324,7 +449,7 @@ class ProductAnalysisServiceTest {
     void analyzeListingSkipsWhenComparableListingsBelowThresholdExcludingItself() {
         PlatformListing target = listing(100L, 10L, "아이패드 프로", 900L);
         List<PlatformListing> listings =
-                List.of(target, listing(1L, 10L, "매물1", 1000L), listing(2L, 10L, "매물2", 2000L));
+                List.of(target, listing(1L, 10L, "아이패드 프로 매물1", 1000L), listing(2L, 10L, "아이패드 프로 매물2", 2000L));
         when(platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
                         eq(10L), eq("SELLING"), any()))
                 .thenReturn(listings);
@@ -339,12 +464,14 @@ class ProductAnalysisServiceTest {
     @Test
     void analyzeListingDiscardsSellerRecommendation() {
         PlatformListing target = listing(100L, 10L, "아이패드 프로", 900L);
-        List<PlatformListing> comparisons =
-                List.of(listing(1L, 10L, "매물1", 1000L), listing(2L, 10L, "매물2", 2000L), listing(3L, 10L, "매물3", 3000L));
+        List<PlatformListing> comparisons = List.of(
+                listing(1L, 10L, "아이패드 프로 매물1", 1000L),
+                listing(2L, 10L, "아이패드 프로 매물2", 2000L),
+                listing(3L, 10L, "아이패드 프로 매물3", 3000L));
         when(platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
                         eq(10L), eq("SELLING"), any()))
                 .thenReturn(comparisons);
-        givenAiResult(new MarketAnalysisResult(AnalysisRecommendation.SELL, 1900L, "설명"));
+        givenAiResult(new MarketAnalysisResult(List.of(1, 2, 3, 4, 5), AnalysisRecommendation.SELL, 1900L, "설명"));
 
         service().analyzeListing(target);
 
@@ -358,14 +485,16 @@ class ProductAnalysisServiceTest {
         when(productRepository.findByStatusIn(ProductStatus.ANALYSIS_TARGETS)).thenReturn(List.of());
         PlatformListing target = listing(100L, 10L, "아이패드 프로", 900L);
         when(interestRepository.findInterestedListingsByStatus("SELLING")).thenReturn(List.of(target));
-        List<PlatformListing> comparisons =
-                List.of(listing(1L, 10L, "매물1", 1000L), listing(2L, 10L, "매물2", 2000L), listing(3L, 10L, "매물3", 3000L));
+        List<PlatformListing> comparisons = List.of(
+                listing(1L, 10L, "아이패드 프로 매물1", 1000L),
+                listing(2L, 10L, "아이패드 프로 매물2", 2000L),
+                listing(3L, 10L, "아이패드 프로 매물3", 3000L));
         when(platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
                         eq(10L), eq("SELLING"), any()))
                 .thenReturn(comparisons);
         when(productAnalysisRepository.findFirstByListingIdOrderByAnalyzedAtDesc(100L))
                 .thenReturn(Optional.empty());
-        givenAiResult(new MarketAnalysisResult(AnalysisRecommendation.WAIT, 1800L, "설명"));
+        givenAiResult(new MarketAnalysisResult(List.of(1, 2, 3, 4, 5), AnalysisRecommendation.WAIT, 1800L, "설명"));
 
         service().analyzeAll();
 
@@ -397,6 +526,7 @@ class ProductAnalysisServiceTest {
         assertThat(response.averagePrice()).isNull();
         assertThat(response.marketPriceDiffRate()).isNull();
         assertThat(response.recommendation()).isNull();
+        assertThat(response.forecasts()).isEmpty();
     }
 
     // 조회 성공 - 가장 최근 스냅샷 반환
@@ -416,9 +546,20 @@ class ProductAnalysisServiceTest {
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(productAnalysisRepository.findFirstByProductIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.of(analysis));
+        when(priceForecastRepository.findByAnalysisId(analysis.getId()))
+                .thenReturn(List.of(
+                        PriceForecast.of(analysis, ForecastPeriod.SIX_MONTHS, 2_000L),
+                        PriceForecast.of(analysis, ForecastPeriod.ONE_MONTH, 3_000L),
+                        PriceForecast.of(analysis, ForecastPeriod.THREE_MONTHS, 3_000L)));
 
         ProductAnalysisResponse response = service().getLatestAnalysis(1L);
 
+        // 감가 예측은 1M/3M/6M 순으로 정렬해 반환
+        assertThat(response.forecasts())
+                .containsExactly(
+                        new PriceForecastResponse("1M", 3_000L),
+                        new PriceForecastResponse("3M", 3_000L),
+                        new PriceForecastResponse("6M", 2_000L));
         assertThat(response.productId()).isEqualTo(1L);
         assertThat(response.recommendation()).isEqualTo(AnalysisRecommendation.SELL);
         assertThat(response.suggestedPrice()).isEqualTo(3200L);

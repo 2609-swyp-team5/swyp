@@ -1,7 +1,5 @@
 package com.swyp.team5.notification.controller;
 
-import java.util.List;
-
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.ResponseEntity;
@@ -15,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.swyp.team5.common.common.ApiResponse;
+import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.common.passport.PrincipalMember;
 import com.swyp.team5.notification.dto.NotificationReadResponse;
 import com.swyp.team5.notification.dto.NotificationResponse;
@@ -32,18 +31,20 @@ public class NotificationController {
     private final NotificationService notificationService;
 
     /**
-     * @param page 페이지 번호(0-base, 기본 0)
+     * 본인 알림 목록을 커서 기반으로 조회한다(정렬은 {@code notificationId} 내림차순 = 최신순).
+     *
+     * @param cursor 이전 페이지 마지막 알림의 {@code notificationId}(선택, 첫 페이지는 생략)
      * @param size 페이지 크기(기본 20)
-     * @return 200 OK + 최신순 알림 목록
+     * @return 200 OK + 커서 페이지 응답
      */
     @Operation(summary = "알림 목록 조회")
     @GetMapping
-    public ResponseEntity<ApiResponse<List<NotificationResponse>>> getNotifications(
+    public ResponseEntity<ApiResponse<CursorPageResponse<NotificationResponse>>> getNotifications(
             @AuthenticationPrincipal PrincipalMember currentMember,
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(required = false) Long cursor,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(
-                ApiResponse.success(notificationService.getNotifications(currentMember.memberId(), page, size)));
+                ApiResponse.success(notificationService.getNotifications(currentMember.memberId(), cursor, size)));
     }
 
     @Operation(summary = "알림 읽음 처리")
