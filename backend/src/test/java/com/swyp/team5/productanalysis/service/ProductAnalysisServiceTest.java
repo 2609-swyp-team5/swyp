@@ -180,7 +180,7 @@ class ProductAnalysisServiceTest {
                         listing("아이패드 프로 매물3", 3000L),
                         listing("아이패드 프로 매물4", 4000L),
                         listing("아이패드 프로 매물5", 50_000L)));
-        when(productAnalysisRepository.findFirstByProductIdOrderByAnalyzedAtDesc(1L))
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.empty());
         givenAiResult(new MarketAnalysisResult(List.of(2, 3, 4, 4, 99), AnalysisRecommendation.HOLD, 3000L, "설명"));
 
@@ -203,9 +203,9 @@ class ProductAnalysisServiceTest {
         ProductAnalysis old = mock(ProductAnalysis.class);
         when(old.getAnalyzedAt()).thenReturn(LocalDateTime.of(2026, 9, 20, 6, 0));
         when(old.getAveragePrice()).thenReturn(2500L);
-        when(productAnalysisRepository.findByProductIdAndAnalyzedAtAfterOrderByAnalyzedAtAsc(eq(1L), any()))
+        when(productAnalysisRepository.findByItemIdAndAnalyzedAtAfterOrderByAnalyzedAtAsc(eq(1L), any()))
                 .thenReturn(List.of(old));
-        when(productAnalysisRepository.findFirstByProductIdOrderByAnalyzedAtDesc(1L))
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.empty());
         givenAiResult(new MarketAnalysisResult(List.of(1, 2, 3), AnalysisRecommendation.HOLD, 2000L, "설명"));
 
@@ -244,7 +244,7 @@ class ProductAnalysisServiceTest {
         service().analyzeProduct(product);
 
         verify(productAnalysisRepository, never()).save(any());
-        verify(productAnalysisRepository, never()).findFirstByProductIdOrderByAnalyzedAtDesc(any());
+        verify(productAnalysisRepository, never()).findFirstByItemIdOrderByAnalyzedAtDesc(any());
         verify(productRepository, never()).updateSuggestedPrice(any(), any());
         verify(notificationService, never()).notifyRecommendationChanged(any(), any(), any());
     }
@@ -265,7 +265,7 @@ class ProductAnalysisServiceTest {
         ProductAnalysis previous = mock(ProductAnalysis.class);
         when(previous.getAveragePrice()).thenReturn(2000L);
         when(previous.getRecommendation()).thenReturn(AnalysisRecommendation.HOLD);
-        when(productAnalysisRepository.findFirstByProductIdOrderByAnalyzedAtDesc(1L))
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.of(previous));
         MarketAnalysisResult aiResult = new MarketAnalysisResult(
                 List.of(1, 2, 3, 4, 5), AnalysisRecommendation.SELL, 3200L, "시세가 안정적이라 지금 파는 게 좋습니다.");
@@ -316,7 +316,7 @@ class ProductAnalysisServiceTest {
         when(platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
                         eq(10L), eq("SELLING"), any()))
                 .thenReturn(listings);
-        when(productAnalysisRepository.findFirstByProductIdOrderByAnalyzedAtDesc(1L))
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.empty());
         when(geminiAiClient.prompt()).thenThrow(new IllegalStateException("503 UNAVAILABLE"));
         when(openAiClient.prompt().system(anyString()).user(anyString()).call().entity(MarketAnalysisResult.class))
@@ -341,7 +341,7 @@ class ProductAnalysisServiceTest {
         when(platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
                         eq(10L), eq("SELLING"), any()))
                 .thenReturn(listings);
-        when(productAnalysisRepository.findFirstByProductIdOrderByAnalyzedAtDesc(1L))
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.empty());
         when(geminiAiClient
                         .prompt()
@@ -421,7 +421,7 @@ class ProductAnalysisServiceTest {
         ProductAnalysis previous = mock(ProductAnalysis.class);
         when(previous.getAveragePrice()).thenReturn(1000L);
         when(previous.getRecommendation()).thenReturn(AnalysisRecommendation.WAIT);
-        when(productAnalysisRepository.findFirstByListingIdOrderByAnalyzedAtDesc(100L))
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(100L))
                 .thenReturn(Optional.of(previous));
         givenAiResult(
                 new MarketAnalysisResult(List.of(1, 2, 3, 4, 5), AnalysisRecommendation.BUY, 1900L, "시세보다 저렴해요."));
@@ -492,7 +492,7 @@ class ProductAnalysisServiceTest {
         when(platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
                         eq(10L), eq("SELLING"), any()))
                 .thenReturn(comparisons);
-        when(productAnalysisRepository.findFirstByListingIdOrderByAnalyzedAtDesc(100L))
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(100L))
                 .thenReturn(Optional.empty());
         givenAiResult(new MarketAnalysisResult(List.of(1, 2, 3, 4, 5), AnalysisRecommendation.WAIT, 1800L, "설명"));
 
@@ -515,7 +515,7 @@ class ProductAnalysisServiceTest {
     void getLatestAnalysisReturnsEmptyResponseWhenNoSnapshotExists() {
         Product product = product(1L, 10L, 800_000L);
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
-        when(productAnalysisRepository.findFirstByProductIdOrderByAnalyzedAtDesc(1L))
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.empty());
 
         ProductAnalysisResponse response = service().getLatestAnalysis(1L);
@@ -544,7 +544,7 @@ class ProductAnalysisServiceTest {
                 "설명",
                 LocalDateTime.of(2026, 9, 19, 10, 0));
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
-        when(productAnalysisRepository.findFirstByProductIdOrderByAnalyzedAtDesc(1L))
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.of(analysis));
         when(priceForecastRepository.findByAnalysisId(analysis.getId()))
                 .thenReturn(List.of(
@@ -583,7 +583,7 @@ class ProductAnalysisServiceTest {
                 "설명",
                 LocalDateTime.of(2026, 9, 30, 10, 0));
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
-        when(productAnalysisRepository.findFirstByProductIdOrderByAnalyzedAtDesc(1L))
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.of(analysis));
 
         ProductAnalysisResponse response = service().getLatestAnalysis(1L);

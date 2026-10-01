@@ -10,19 +10,18 @@ import java.util.Set;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
+import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
+import jakarta.persistence.PrimaryKeyJoinColumn;
 import jakarta.persistence.Table;
 
 import lombok.AccessLevel;
@@ -32,9 +31,10 @@ import lombok.NoArgsConstructor;
 
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.component.entity.Component;
+import com.swyp.team5.item.entity.Item;
+import com.swyp.team5.item.entity.ListingSource;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.tag.entity.Tag;
-import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
@@ -44,34 +44,21 @@ import org.hibernate.type.SqlTypes;
  */
 @Entity
 @Table(name = "products")
+@DiscriminatorValue("OUR")
+@PrimaryKeyJoinColumn(name = "product_id")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Product {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "product_id")
-    private Long id;
+public class Product extends Item {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id", nullable = false)
     private Member member;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id", nullable = false)
-    private Category category;
-
-    @Column(nullable = false, length = 100)
-    private String title; // 상품 제목
 
     @Column(length = 50)
     private String brand; // 브랜드(선택)
 
     @Column(columnDefinition = "TEXT")
     private String description; // 상품 설명
-
-    @Column(nullable = false)
-    private Long price; // 상품 가격
 
     @Column(name = "suggested_price")
     private Long suggestedPrice; // AI 제안가(등록 시 AI 사진 분석 추정가, 이후 시세 분석이 적정가를 내면 갱신)
@@ -131,10 +118,6 @@ public class Product {
             inverseJoinColumns = @JoinColumn(name = "component_id"))
     private Set<Component> components = new LinkedHashSet<>(); // 상품 구성품 목록
 
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt; // 상품 등록일
-
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt; // 상품 수정일
@@ -154,12 +137,10 @@ public class Product {
             TradeMethod tradeMethod,
             DeliveryType deliveryType,
             String preferredTradeRegion) {
+        super(category, title, price);
         this.member = member;
-        this.category = category;
-        this.title = title;
         this.brand = brand;
         this.description = description;
-        this.price = price;
         this.status = ProductStatus.DRAFT;
         this.condition = condition;
         this.defectStatus = defectStatus;
@@ -223,6 +204,11 @@ public class Product {
      * @param memberId 확인할 회원 ID
      * @return 이 상품을 등록한 회원이면 {@code true}
      */
+    @Override
+    public ListingSource getSource() {
+        return ListingSource.OUR;
+    }
+
     public boolean isRegisteredBy(Long memberId) {
         return this.member.getId().equals(memberId);
     }
@@ -247,11 +233,9 @@ public class Product {
             TradeMethod tradeMethod,
             DeliveryType deliveryType,
             String preferredTradeRegion) {
-        this.category = category;
-        this.title = title;
+        changeItemInfo(category, title, price);
         this.brand = brand;
         this.description = description;
-        this.price = price;
         this.status = status;
         this.condition = condition;
         this.defectStatus = defectStatus;

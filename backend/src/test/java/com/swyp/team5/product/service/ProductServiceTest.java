@@ -11,14 +11,11 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.error.CategoryNotFoundException;
@@ -29,16 +26,21 @@ import com.swyp.team5.component.entity.Component;
 import com.swyp.team5.component.repository.ComponentRepository;
 import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.interest.service.TargetPriceAlertService;
+import com.swyp.team5.item.entity.ListingSource;
+import com.swyp.team5.item.repository.ItemRepository;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.repository.MemberRepository;
 import com.swyp.team5.platform.entity.Platform;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.platform.repository.PlatformListingRepository;
-import com.swyp.team5.product.dto.ListingSource;
 import com.swyp.team5.product.dto.ProductAiAnalysisResult;
 import com.swyp.team5.product.dto.ProductCreateRequest;
 import com.swyp.team5.product.dto.ProductListItemResponse;
 import com.swyp.team5.product.dto.ProductResponse;
+import com.swyp.team5.product.dto.ProductSearchCondition;
+import com.swyp.team5.product.dto.ProductSearchCursor;
+import com.swyp.team5.product.dto.ProductSearchHit;
+import com.swyp.team5.product.dto.ProductSortType;
 import com.swyp.team5.product.dto.ProductSummaryResponse;
 import com.swyp.team5.product.dto.ProductUpdateRequest;
 import com.swyp.team5.product.entity.DefectStatus;
@@ -46,10 +48,12 @@ import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
+import com.swyp.team5.product.error.InvalidProductSearchException;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductImageRequiredException;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.repository.ProductRepository;
+import com.swyp.team5.product.repository.ProductSearchRepository;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
@@ -90,6 +94,12 @@ class ProductServiceTest {
     private PlatformListingRepository platformListingRepository;
 
     @Mock
+    private ProductSearchRepository productSearchRepository;
+
+    @Mock
+    private ItemRepository itemRepository;
+
+    @Mock
     private InterestRepository interestRepository;
 
     @Mock
@@ -110,6 +120,8 @@ class ProductServiceTest {
                 componentRepository,
                 productAnalysisRepository,
                 platformListingRepository,
+                productSearchRepository,
+                itemRepository,
                 interestRepository,
                 searchLogService,
                 productAnalysisService,
@@ -382,8 +394,8 @@ class ProductServiceTest {
                 470_000L,
                 "시세 근거",
                 LocalDateTime.now());
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
-        when(productAnalysisRepository.findFirstByProductIdOrderByAnalyzedAtDesc(1L))
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.of(analysis));
 
         ProductResponse response = service().getProduct(1L);
@@ -391,15 +403,15 @@ class ProductServiceTest {
         assertThat(response.recommendation()).isEqualTo(AnalysisRecommendation.SELL);
         assertThat(response.marketAveragePrice()).isEqualTo(450_000L);
         assertThat(response.analysisDescription()).isEqualTo("외관 상태가 양호해 A급으로 판단했습니다.");
-        verify(productAnalysisService, never()).calculateMarketAveragePrice(any());
+        verify(productAnalysisService, never()).calculateMarketAveragePrice(any(Product.class));
     }
 
     // 상품 상세 조회 - 시세 분석 이력이 없으면 유사 매물로 평균가를 바로 계산(유사 매물 부족 시 null)
     @Test
     void getProductCalculatesAveragePriceWhenNoAnalysis() {
         Product product = newProduct(1L, newMember(1L), newCategory(1L, "전자기기"));
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
-        when(productAnalysisRepository.findFirstByProductIdOrderByAnalyzedAtDesc(1L))
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.empty());
         when(productAnalysisService.calculateMarketAveragePrice(product)).thenReturn(Optional.of(430_000L));
 
@@ -413,33 +425,33 @@ class ProductServiceTest {
     // 상품 상세 조회 실패 - 존재하지 않는 상품
     @Test
     void getProductFailsWhenNotFound() {
-        when(productRepository.findById(1L)).thenReturn(Optional.empty());
+        when(itemRepository.findById(1L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service().getProduct(1L)).isInstanceOf(ProductNotFoundException.class);
     }
 
     // 상품 목록 조회 - 다음 페이지 존재(size보다 1개 더 조회되어 hasNext=true, nextCursor=마지막 항목의
-    // 등록일시를 epoch millisecond로 인코딩한 값 — 우리 상품과 외부 매물을 등록일시 기준으로 병합하기
-    // 위한 커서라 id가 아니다)
+    // 정렬값·등록일시·출처·ID를 묶어 인코딩한 문자열). 응답 순서는 검색 쿼리 결과 순서를 그대로 따른다
     @Test
     void getProductsHasNextWhenMoreItemsExist() {
         Category category = newCategory(1L, "전자기기");
         Member member = newMember(1L);
         List<Product> products = List.of(
                 newProduct(3L, member, category), newProduct(2L, member, category), newProduct(1L, member, category));
+        List<ProductSearchHit> hits = products.stream()
+                .map(product -> new ProductSearchHit(ListingSource.OUR, product.getId(), product.getCreatedAt(), null))
+                .toList();
+        ProductSearchCondition condition = ProductSearchCondition.ofKeyword(null);
 
-        when(productRepository.findAll(any(Specification.class), any(Pageable.class)))
-                .thenReturn(new PageImpl<>(products));
-        when(platformListingRepository.findAll(any(Specification.class), any(Pageable.class)))
-                .thenReturn(new PageImpl<>(List.of()));
+        when(productSearchRepository.search(condition, null, 3)).thenReturn(hits);
+        when(productRepository.findAllById(List.of(3L, 2L))).thenReturn(List.of(products.get(1), products.get(0)));
 
-        CursorPageResponse<ProductListItemResponse> response = service().getProducts(1L, null, null, null, 2);
+        CursorPageResponse<ProductListItemResponse> response = service().getProducts(1L, condition, null, 2);
 
-        assertThat(response.content()).hasSize(2);
-        assertThat(response.content().get(0).id()).isEqualTo(3L);
-        assertThat(response.content().get(1).id()).isEqualTo(2L);
+        assertThat(response.content()).extracting(ProductListItemResponse::id).containsExactly(3L, 2L);
         assertThat(response.hasNext()).isTrue();
-        assertThat(response.nextCursor()).isEqualTo(toEpochMillis(LocalDateTime.of(2026, 1, 1, 0, 2)));
+        assertThat(ProductSearchCursor.decode(response.nextCursor(), ProductSortType.LATEST))
+                .isEqualTo(new ProductSearchCursor(null, products.get(1).getCreatedAt(), 2L));
     }
 
     // 상품 목록 조회 - 마지막 페이지(size만큼만 조회되어 hasNext=false, nextCursor=null)
@@ -447,16 +459,16 @@ class ProductServiceTest {
     void getProductsNoNextWhenLastPage() {
         Category category = newCategory(1L, "전자기기");
         Member member = newMember(1L);
-        List<Product> products = List.of(newProduct(2L, member, category), newProduct(1L, member, category));
+        Product product = newProduct(1L, member, category);
+        ProductSearchCondition condition = ProductSearchCondition.ofKeyword(null);
 
-        when(productRepository.findAll(any(Specification.class), any(Pageable.class)))
-                .thenReturn(new PageImpl<>(products));
-        when(platformListingRepository.findAll(any(Specification.class), any(Pageable.class)))
-                .thenReturn(new PageImpl<>(List.of()));
+        when(productSearchRepository.search(condition, null, 3))
+                .thenReturn(List.of(new ProductSearchHit(ListingSource.OUR, 1L, product.getCreatedAt(), null)));
+        when(productRepository.findAllById(List.of(1L))).thenReturn(List.of(product));
 
-        CursorPageResponse<ProductListItemResponse> response = service().getProducts(1L, null, null, null, 2);
+        CursorPageResponse<ProductListItemResponse> response = service().getProducts(1L, condition, null, 2);
 
-        assertThat(response.content()).hasSize(2);
+        assertThat(response.content()).hasSize(1);
         assertThat(response.hasNext()).isFalse();
         assertThat(response.nextCursor()).isNull();
     }
@@ -470,34 +482,38 @@ class ProductServiceTest {
         Product product = newProduct(1L, member, category);
         ProductAnalysis analysis = ProductAnalysis.create(
                 product, 1000L, 2000L, 3000L, null, null, null, null, java.time.LocalDateTime.now());
+        ProductSearchCondition condition = ProductSearchCondition.ofKeyword(null);
 
-        when(productRepository.findAll(any(Specification.class), any(Pageable.class)))
-                .thenReturn(new PageImpl<>(List.of(product)));
-        when(platformListingRepository.findAll(any(Specification.class), any(Pageable.class)))
-                .thenReturn(new PageImpl<>(List.of()));
-        when(productAnalysisRepository.findLatestByProductIdIn(List.of(1L))).thenReturn(List.of(analysis));
+        when(productSearchRepository.search(condition, null, 21))
+                .thenReturn(List.of(new ProductSearchHit(ListingSource.OUR, 1L, product.getCreatedAt(), null)));
+        when(productRepository.findAllById(List.of(1L))).thenReturn(List.of(product));
+        when(productAnalysisRepository.findLatestByItemIdIn(List.of(1L))).thenReturn(List.of(analysis));
 
-        CursorPageResponse<ProductListItemResponse> response = service().getProducts(1L, null, null, null, 20);
+        CursorPageResponse<ProductListItemResponse> response = service().getProducts(1L, condition, null, 20);
 
         assertThat(response.content()).hasSize(1);
         assertThat(response.content().get(0).recommendation()).isNull();
         assertThat(response.content().get(0).marketAveragePrice()).isEqualTo(2000L);
     }
 
-    // 상품 목록 조회 - 외부 플랫폼 매물이 섞여서 반환되고 platformName/externalUrl이 채워짐
+    // 상품 목록 조회 - 외부 플랫폼 매물이 섞여서 반환되고 platformName/externalUrl과 최근 분석(관심 등록 매물)이 채워짐
     @Test
     void getProductsIncludesExternalListingsWithPlatformName() {
-        when(productRepository.findAll(any(Specification.class), any(Pageable.class)))
-                .thenReturn(new PageImpl<>(List.of()));
         Platform platform = newPlatform(1L, "번개장터");
         Category category = newCategory(1L, "전자기기");
         PlatformListing listing = PlatformListing.create(
                 platform, category, "ext-1", "번개장터 아이폰", 400_000L, "SELLING", "https://img", "https://url");
         setField(listing, "id", 100L);
-        when(platformListingRepository.findAll(any(Specification.class), any(Pageable.class)))
-                .thenReturn(new PageImpl<>(List.of(listing)));
+        ProductAnalysis analysis = ProductAnalysis.createForListing(
+                listing, 1000L, 380_000L, 3000L, null, AnalysisRecommendation.BUY, null, null, LocalDateTime.now());
+        ProductSearchCondition condition = ProductSearchCondition.ofKeyword(null);
 
-        CursorPageResponse<ProductListItemResponse> response = service().getProducts(1L, null, null, null, 20);
+        when(productSearchRepository.search(condition, null, 21))
+                .thenReturn(List.of(new ProductSearchHit(ListingSource.EXTERNAL, 100L, LocalDateTime.now(), null)));
+        when(platformListingRepository.findAllById(List.of(100L))).thenReturn(List.of(listing));
+        when(productAnalysisRepository.findLatestByItemIdIn(List.of(100L))).thenReturn(List.of(analysis));
+
+        CursorPageResponse<ProductListItemResponse> response = service().getProducts(1L, condition, null, 20);
 
         assertThat(response.content()).hasSize(1);
         ProductListItemResponse item = response.content().get(0);
@@ -505,36 +521,30 @@ class ProductServiceTest {
         assertThat(item.platformName()).isEqualTo("번개장터");
         assertThat(item.externalUrl()).isEqualTo("https://url");
         assertThat(item.condition()).isNull();
-        assertThat(item.recommendation()).isNull();
+        assertThat(item.recommendation()).isEqualTo(AnalysisRecommendation.BUY);
+        assertThat(item.marketAveragePrice()).isEqualTo(380_000L);
     }
 
-    // 상품 목록 조회 - status 필터 지정 시 외부 매물은 제외되고 우리 상품만 반환됨
+    // 상품 목록 조회 - 다른 정렬의 커서나 해석할 수 없는 커서는 400 대상 예외
     @Test
-    void getProductsExcludesExternalListingsWhenStatusFilterGiven() {
-        Category category = newCategory(1L, "전자기기");
-        Member member = newMember(1L);
-        Product product = newProduct(1L, member, category);
+    void getProductsRejectsInvalidCursor() {
+        ProductSearchCondition priceSort = new ProductSearchCondition(
+                null, null, null, null, null, null, null, null, null, ProductSortType.PRICE_LOW);
+        String latestCursor = new ProductSearchCursor(null, LocalDateTime.now(), 1L).encode();
 
-        when(productRepository.findAll(any(Specification.class), any(Pageable.class)))
-                .thenReturn(new PageImpl<>(List.of(product)));
-
-        CursorPageResponse<ProductListItemResponse> response =
-                service().getProducts(1L, null, ProductStatus.ON_SALE, null, 20);
-
-        assertThat(response.content()).hasSize(1);
-        assertThat(response.content().get(0).source()).isEqualTo(ListingSource.OUR);
-        verify(platformListingRepository, never()).findAll(any(Specification.class), any(Pageable.class));
+        assertThatThrownBy(() -> service().getProducts(1L, priceSort, latestCursor, 20))
+                .isInstanceOf(InvalidProductSearchException.class);
+        assertThatThrownBy(() -> service().getProducts(1L, priceSort, "not-a-cursor", 20))
+                .isInstanceOf(InvalidProductSearchException.class);
     }
 
     // 상품 목록 조회 - 키워드가 있으면 검색 로그를 기록한다
     @Test
     void getProductsRecordsSearchLogWhenKeywordGiven() {
-        when(productRepository.findAll(any(Specification.class), any(Pageable.class)))
-                .thenReturn(new PageImpl<>(List.of()));
-        when(platformListingRepository.findAll(any(Specification.class), any(Pageable.class)))
-                .thenReturn(new PageImpl<>(List.of()));
+        ProductSearchCondition condition = ProductSearchCondition.ofKeyword("아이패드");
+        when(productSearchRepository.search(condition, null, 21)).thenReturn(List.of());
 
-        service().getProducts(1L, "아이패드", null, null, 20);
+        service().getProducts(1L, condition, null, 20);
 
         verify(searchLogService).record(1L, "아이패드");
     }
@@ -902,16 +912,12 @@ class ProductServiceTest {
 
     private void setField(Object target, String fieldName, Object value) {
         try {
-            Field field = target.getClass().getDeclaredField(fieldName);
+            // 상속받은 필드(Item의 id·createdAt 등)도 찾도록 상위 클래스까지 검색
+            Field field = org.springframework.util.ReflectionUtils.findField(target.getClass(), fieldName);
             field.setAccessible(true);
             field.set(target, value);
         } catch (ReflectiveOperationException e) {
             throw new IllegalStateException(e);
         }
-    }
-
-    // ProductService의 등록일시 커서 인코딩과 동일한 방식(Asia/Seoul epoch millisecond)으로 계산한다.
-    private static long toEpochMillis(LocalDateTime dateTime) {
-        return dateTime.atZone(ZoneId.of("Asia/Seoul")).toInstant().toEpochMilli();
     }
 }

@@ -20,8 +20,10 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import com.swyp.team5.item.entity.Item;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.product.entity.Product;
+import org.hibernate.Hibernate;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -44,12 +46,8 @@ public class ProductAnalysis {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id")
-    private Product product; // 우리 상품 대상 분석(listing과 배타적)
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "listing_id")
-    private PlatformListing listing; // 관심 등록된 외부 매물 대상 분석(product와 배타적)
+    @JoinColumn(name = "item_id", nullable = false)
+    private Item item; // 분석 대상(우리 상품 또는 관심 등록된 외부 매물)
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
@@ -97,8 +95,7 @@ public class ProductAnalysis {
             Long suggestedPrice,
             String description,
             LocalDateTime analyzedAt) {
-        this.product = product;
-        this.listing = listing;
+        this.item = product != null ? product : listing;
         this.minPrice = minPrice;
         this.averagePrice = averagePrice;
         this.maxPrice = maxPrice;
@@ -107,6 +104,16 @@ public class ProductAnalysis {
         this.suggestedPrice = suggestedPrice;
         this.description = description;
         this.analyzedAt = analyzedAt;
+    }
+
+    /** 대상이 우리 상품이면 그 상품, 외부 매물이면 {@code null}. */
+    public Product getProduct() {
+        return Hibernate.unproxy(item) instanceof Product product ? product : null;
+    }
+
+    /** 대상이 외부 매물이면 그 매물, 우리 상품이면 {@code null}. */
+    public PlatformListing getListing() {
+        return Hibernate.unproxy(item) instanceof PlatformListing listing ? listing : null;
     }
 
     /**

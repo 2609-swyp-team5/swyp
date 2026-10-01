@@ -48,6 +48,7 @@ import com.swyp.team5.platform.error.ProductPlatformAlreadyLinkedException;
 import com.swyp.team5.platform.error.ProductPlatformNotFoundException;
 import com.swyp.team5.platform.error.ProductPlatformPublishInProgressException;
 import com.swyp.team5.platform.error.UnsupportedPlatformException;
+import com.swyp.team5.product.error.InvalidProductSearchException;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductImageRequiredException;
 import com.swyp.team5.product.error.ProductNotFoundException;
@@ -127,6 +128,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CategoryNotLeafException.class)
     public ResponseEntity<ApiResponse<Void>> handleCategoryNotLeaf(CategoryNotLeafException e) {
         log.warn("최하위가 아닌 카테고리: {}", e.getMessage());
+        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
+    }
+
+    @ExceptionHandler(InvalidProductSearchException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidProductSearch(InvalidProductSearchException e) {
+        log.warn("상품 검색 조건 오류: {}", e.getMessage());
         return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
     }
 

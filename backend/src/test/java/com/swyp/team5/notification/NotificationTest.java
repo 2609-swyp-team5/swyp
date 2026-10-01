@@ -150,7 +150,7 @@ class NotificationTest {
                 .andExpect(jsonPath("$.data.content.length()").value(2))
                 .andExpect(jsonPath("$.data.content[0].title").value("세번째 알림"))
                 .andExpect(jsonPath("$.data.hasNext").value(true))
-                .andExpect(jsonPath("$.data.nextCursor").value(second.getId()));
+                .andExpect(jsonPath("$.data.nextCursor").value(String.valueOf(second.getId())));
 
         mockMvc.perform(get("/notifications")
                         .param("size", "2")

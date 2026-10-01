@@ -16,15 +16,17 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import com.swyp.team5.item.entity.Item;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.product.entity.Product;
+import org.hibernate.Hibernate;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 /**
  * 관심 상품(찜) 엔티티. 회원이 특정 상품 또는 외부 플랫폼 수집 매물에 관심을 등록하면 생성되며, 목표가/
- * 알림 발송 이력을 함께 관리한다. {@code product}/{@code listing}은 배타적(정확히 하나만 채워짐).
+ * 알림 발송 이력을 함께 관리한다. 대상은 {@code item} 하나(우리 상품·외부 매물 공통 부모)로 가리킨다.
  */
 @Entity
 @Table(name = "interests")
@@ -42,12 +44,8 @@ public class Interest {
     private Member member;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id")
-    private Product product; // 우리 회원 상품(listing과 배타적)
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "listing_id")
-    private PlatformListing listing; // 외부 플랫폼 수집 매물(product와 배타적)
+    @JoinColumn(name = "item_id", nullable = false)
+    private Item item; // 관심 대상(우리 상품 또는 외부 매물 — item.getSource()로 구분)
 
     @Column(name = "target_price")
     private Long targetPrice; // 목표 가격(선택, 도달 시 알림 트리거)
@@ -63,23 +61,32 @@ public class Interest {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    private Interest(Member member, Product product, PlatformListing listing) {
+    private Interest(Member member, Item item) {
         this.member = member;
-        this.product = product;
-        this.listing = listing;
+        this.item = item;
     }
 
     public static Interest ofProduct(Member member, Product product) {
-        return new Interest(member, product, null);
+        return new Interest(member, product);
     }
 
     public static Interest ofListing(Member member, PlatformListing listing) {
-        return new Interest(member, null, listing);
+        return new Interest(member, listing);
+    }
+
+    /** 대상이 우리 상품이면 그 상품, 외부 매물이면 {@code null}. */
+    public Product getProduct() {
+        return Hibernate.unproxy(item) instanceof Product product ? product : null;
+    }
+
+    /** 대상이 외부 매물이면 그 매물, 우리 상품이면 {@code null}. */
+    public PlatformListing getListing() {
+        return Hibernate.unproxy(item) instanceof PlatformListing listing ? listing : null;
     }
 
     /** 목표가 알림 대상의 현재 가격(우리 상품은 등록가, 외부 매물은 수집가). */
     public Long currentPrice() {
-        return product != null ? product.getPrice() : listing.getPrice();
+        return item.getPrice();
     }
 
     /** 목표가 도달 알림을 보냈다고 기록한다(같은 도달로 다시 보내지 않음). */

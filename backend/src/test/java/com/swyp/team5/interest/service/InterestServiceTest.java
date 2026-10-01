@@ -24,13 +24,13 @@ import com.swyp.team5.interest.entity.Interest;
 import com.swyp.team5.interest.error.InterestAlreadyExistsException;
 import com.swyp.team5.interest.error.InterestNotFoundException;
 import com.swyp.team5.interest.repository.InterestRepository;
+import com.swyp.team5.item.entity.ListingSource;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.repository.MemberRepository;
 import com.swyp.team5.platform.entity.Platform;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.platform.error.PlatformListingNotFoundException;
 import com.swyp.team5.platform.repository.PlatformListingRepository;
-import com.swyp.team5.product.dto.ListingSource;
 import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
@@ -83,7 +83,7 @@ class InterestServiceTest {
     void registerProductSucceeds() {
         Product product = newProduct(1L, newMember(1L));
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
-        when(interestRepository.existsByMemberIdAndProductId(2L, 1L)).thenReturn(false);
+        when(interestRepository.existsByMemberIdAndItemId(2L, 1L)).thenReturn(false);
         when(memberRepository.getReferenceById(2L)).thenReturn(newMember(2L));
         Interest saved = newProductInterest(10L, newMember(2L), product, null);
         when(interestRepository.save(any())).thenReturn(saved);
@@ -107,7 +107,7 @@ class InterestServiceTest {
     void registerProductFailsWhenAlreadyExists() {
         Product product = newProduct(1L, newMember(1L));
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
-        when(interestRepository.existsByMemberIdAndProductId(2L, 1L)).thenReturn(true);
+        when(interestRepository.existsByMemberIdAndItemId(2L, 1L)).thenReturn(true);
 
         assertThatThrownBy(() -> service().register(2L, ListingSource.OUR, 1L))
                 .isInstanceOf(InterestAlreadyExistsException.class);
@@ -119,7 +119,7 @@ class InterestServiceTest {
     void registerListingSucceeds() {
         PlatformListing listing = newPlatformListing(100L);
         when(platformListingRepository.findById(100L)).thenReturn(Optional.of(listing));
-        when(interestRepository.existsByMemberIdAndListingId(2L, 100L)).thenReturn(false);
+        when(interestRepository.existsByMemberIdAndItemId(2L, 100L)).thenReturn(false);
         when(memberRepository.getReferenceById(2L)).thenReturn(newMember(2L));
         Interest saved = newListingInterest(11L, newMember(2L), listing, null);
         when(interestRepository.save(any())).thenReturn(saved);
@@ -143,7 +143,7 @@ class InterestServiceTest {
     void registerListingFailsWhenAlreadyExists() {
         PlatformListing listing = newPlatformListing(100L);
         when(platformListingRepository.findById(100L)).thenReturn(Optional.of(listing));
-        when(interestRepository.existsByMemberIdAndListingId(2L, 100L)).thenReturn(true);
+        when(interestRepository.existsByMemberIdAndItemId(2L, 100L)).thenReturn(true);
 
         assertThatThrownBy(() -> service().register(2L, ListingSource.EXTERNAL, 100L))
                 .isInstanceOf(InterestAlreadyExistsException.class);
@@ -158,7 +158,7 @@ class InterestServiceTest {
         Interest interest = newProductInterest(10L, member, product, 400_000L);
         when(interestRepository.findByMemberIdAndIdLessThan(eq(1L), eq(Long.MAX_VALUE), any()))
                 .thenReturn(List.of(interest));
-        when(productAnalysisRepository.findLatestByProductIdIn(List.of(1L))).thenReturn(List.of());
+        when(productAnalysisRepository.findLatestByItemIdIn(List.of(1L))).thenReturn(List.of());
 
         List<InterestListItemResponse> response =
                 service().getInterests(1L, null, 10).content();
@@ -184,7 +184,7 @@ class InterestServiceTest {
                 ProductAnalysis.create(product, 1000L, 2000L, 3000L, null, null, null, null, LocalDateTime.now());
         when(interestRepository.findByMemberIdAndIdLessThan(eq(1L), eq(Long.MAX_VALUE), any()))
                 .thenReturn(List.of(interest));
-        when(productAnalysisRepository.findLatestByProductIdIn(List.of(1L))).thenReturn(List.of(analysis));
+        when(productAnalysisRepository.findLatestByItemIdIn(List.of(1L))).thenReturn(List.of(analysis));
 
         List<InterestListItemResponse> response =
                 service().getInterests(1L, null, 10).content();
@@ -216,7 +216,8 @@ class InterestServiceTest {
         assertThat(item.condition()).isNull();
         assertThat(item.recommendation()).isNull();
         assertThat(item.targetPrice()).isEqualTo(20_000L);
-        verify(productAnalysisRepository, never()).findLatestByProductIdIn(any());
+        // 우리 상품 대상이 없으면 상품 분석은 조회하지 않고, 외부 매물 분석만 한 번 조회한다(같은 item 기준 메서드)
+        verify(productAnalysisRepository).findLatestByItemIdIn(List.of(100L));
     }
 
     // 관심상품 목록 조회 - 외부 매물 대상 건도 관심 매물 시세 분석 스냅샷이 있으면 추천·평균가를 채움
@@ -229,7 +230,7 @@ class InterestServiceTest {
                 listing, 1000L, 2000L, 3000L, null, AnalysisRecommendation.BUY, 1900L, "설명", LocalDateTime.now());
         when(interestRepository.findByMemberIdAndIdLessThan(eq(1L), eq(Long.MAX_VALUE), any()))
                 .thenReturn(List.of(interest));
-        when(productAnalysisRepository.findLatestByListingIdIn(List.of(100L))).thenReturn(List.of(analysis));
+        when(productAnalysisRepository.findLatestByItemIdIn(List.of(100L))).thenReturn(List.of(analysis));
 
         List<InterestListItemResponse> response =
                 service().getInterests(1L, null, 10).content();
@@ -253,7 +254,7 @@ class InterestServiceTest {
                 .extracting(InterestListItemResponse::interestId)
                 .containsExactly(12L);
         assertThat(response.hasNext()).isTrue();
-        assertThat(response.nextCursor()).isEqualTo(12L);
+        assertThat(response.nextCursor()).isEqualTo("12");
     }
 
     // 관심상품 삭제 성공
@@ -400,7 +401,8 @@ class InterestServiceTest {
 
     private void setField(Object target, String fieldName, Object value) {
         try {
-            Field field = target.getClass().getDeclaredField(fieldName);
+            // 상속받은 필드(Item의 id·createdAt 등)도 찾도록 상위 클래스까지 검색
+            Field field = org.springframework.util.ReflectionUtils.findField(target.getClass(), fieldName);
             field.setAccessible(true);
             field.set(target, value);
         } catch (ReflectiveOperationException e) {

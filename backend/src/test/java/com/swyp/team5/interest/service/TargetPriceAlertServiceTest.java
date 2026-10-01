@@ -137,7 +137,8 @@ class TargetPriceAlertServiceTest {
 
     private static void setField(Object target, String fieldName, Object value) {
         try {
-            Field field = target.getClass().getDeclaredField(fieldName);
+            // 상속받은 필드(Item의 id·createdAt 등)도 찾도록 상위 클래스까지 검색
+            Field field = org.springframework.util.ReflectionUtils.findField(target.getClass(), fieldName);
             field.setAccessible(true);
             field.set(target, value);
         } catch (ReflectiveOperationException e) {
