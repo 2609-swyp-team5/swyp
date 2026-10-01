@@ -57,7 +57,11 @@ import com.swyp.team5.product.error.ProductRegisterBusyException;
  *
  * <p>업로드와 AI 호출은 트랜잭션 밖에서 하고 저장({@link ProductService#saveDirect}/{@link ProductService#saveFromAnalysis}/
  * {@link ProductService#saveUpdate})만 짧은 트랜잭션으로 처리한다. 실패하면 이번 요청에서 업로드한 파일을 지운다.
- * 클라이언트가 연결을 끊거나 스트림 시간이 지나도 처리는 끝까지 진행한다(결과는 내 상품 목록에서 확인).
+ *
+ * <p>스트림 시간이 지나거나 클라이언트 연결이 끊기면(이벤트 전송 실패로 감지) 요청을 취소 상태로 표시하고, 다음 단계를
+ * 시작할 때(늦어도 상품 저장 직전) 확인해 저장하지 않고 업로드한 파일을 지운다 — 클라이언트가 결과를 받지 못한 요청은 저장되지
+ * 않으므로 다시 시도해도 중복 등록되지 않는다. 진행 중인 업로드·AI 호출 자체는 중단하지 않는다. 이미 저장을 시작한 뒤에 시간이
+ * 지나면 저장은 그대로 끝내고 결과를 내 상품 목록에서 확인하도록 안내한다.
  */
 @Slf4j
 @Service
@@ -246,11 +250,25 @@ public class ProductRegisterStreamService implements DisposableBean {
                 .toList();
     }
 
+    /** 스트림 응답 객체를 만든다(테스트에서 시간 초과·연결 끊김을 흉내 내려고 분리). */
+    SseEmitter createEmitter(long timeoutMillis) {
+        return new SseEmitter(timeoutMillis);
+    }
+
     private SseEmitter start(List<ProductRegisterStep> steps, Function<RegisterStream, ProductResponse> work) {
-        SseEmitter emitter = new SseEmitter(properties.timeout().toMillis());
+        SseEmitter emitter = createEmitter(properties.timeout().toMillis());
         RegisterStream stream = new RegisterStream(emitter, steps);
         emitter.onTimeout(() -> {
-            log.warn("상품 등록·수정 스트림 시간 초과 - 처리는 계속 진행합니다. step={}", stream.currentStep);
+            if (stream.cancel()) {
+                log.warn("상품 등록·수정 스트림 시간 초과 - 저장 전이라 취소합니다. step={}", stream.currentStep);
+                stream.sendAndClose(errorResponse(
+                        stream.currentStep,
+                        HttpStatus.SERVICE_UNAVAILABLE,
+                        "REGISTER_TIMEOUT_CANCELLED",
+                        "처리 시간이 초과되어 요청을 취소했습니다. 잠시 후 다시 시도해 주세요."));
+                return;
+            }
+            log.warn("상품 등록·수정 스트림 시간 초과 - 이미 저장 중이라 처리는 계속 진행합니다. step={}", stream.currentStep);
             stream.sendAndClose(errorResponse(
                     stream.currentStep,
                     HttpStatus.SERVICE_UNAVAILABLE,
@@ -258,7 +276,7 @@ public class ProductRegisterStreamService implements DisposableBean {
                     "처리가 지연되고 있습니다. 처리 결과는 내 상품 목록에서 확인해 주세요."));
         });
         emitter.onCompletion(stream::markClosed);
-        emitter.onError(error -> stream.markClosed());
+        emitter.onError(error -> stream.disconnect());
         try {
             executor.execute(() -> run(stream, work));
         } catch (TaskRejectedException e) {
@@ -275,6 +293,9 @@ public class ProductRegisterStreamService implements DisposableBean {
             ProductResponse product = work.apply(stream);
             stream.send(ApiResponse.success(
                     ProductRegisterResponse.of(product, ProductRegisterAnalysis.of(product, stream.completedSteps))));
+        } catch (RegisterCancelledException e) {
+            log.info("상품 등록·수정 취소 - 결과를 받을 클라이언트가 없어 저장하지 않고 업로드 파일을 지웁니다. step={}", stream.currentStep);
+            deleteUploadedFiles(stream);
         } catch (RuntimeException e) {
             deleteUploadedFiles(stream);
             stream.send(toErrorResponse(stream.currentStep, e));
@@ -345,6 +366,8 @@ public class ProductRegisterStreamService implements DisposableBean {
     private ProductResponse save(
             RegisterStream stream, String startMessage, String doneMessage, Supplier<ProductResponse> saver) {
         stream.begin(ProductRegisterStep.PRODUCT_SAVE, startMessage);
+        // 저장 시작 이벤트 전송까지 끝난 뒤 마지막으로 취소 여부를 확인한다(이후 시간이 지나도 저장은 끝까지 진행)
+        stream.startSaving();
         ProductResponse product = saver.get();
         stream.uploadedKeys.clear(); // 저장이 끝났으므로 이후에는 파일을 지우지 않는다
         stream.done(ProductRegisterStep.PRODUCT_SAVE, doneMessage, null);
@@ -404,6 +427,14 @@ public class ProductRegisterStreamService implements DisposableBean {
         return new ApiResponse<>(false, message, ProductRegisterErrorEvent.of(step), ApiError.of(status, code));
     }
 
+    /** 시간 초과·연결 끊김으로 취소된 요청(저장하지 않고 업로드 파일만 지운다). */
+    private static final class RegisterCancelledException extends RuntimeException {
+
+        private RegisterCancelledException() {
+            super("상품 등록·수정 요청이 취소되었습니다.", null, false, false);
+        }
+    }
+
     /** 요청 하나의 스트림 상태. 작업 스레드와 keepalive 스레드가 함께 보내므로 전송은 동기화한다. */
     private static final class RegisterStream {
 
@@ -414,6 +445,8 @@ public class ProductRegisterStreamService implements DisposableBean {
         private final List<ProductRegisterStepEvent> completedSteps = new CopyOnWriteArrayList<>();
         private volatile ProductRegisterStep currentStep;
         private boolean closed;
+        private boolean cancelled; // 시간 초과·연결 끊김으로 저장하지 않기로 함
+        private boolean saving; // 저장을 시작함(이후에는 취소하지 않음)
 
         private RegisterStream(SseEmitter emitter, List<ProductRegisterStep> steps) {
             this.emitter = emitter;
@@ -421,6 +454,7 @@ public class ProductRegisterStreamService implements DisposableBean {
         }
 
         void begin(ProductRegisterStep step, String message) {
+            throwIfCancelled();
             currentStep = step;
             send(ApiResponse.success(
                     message, ProductRegisterStepEvent.of(step, "START", indexOf(step), steps.size(), null)));
@@ -440,6 +474,37 @@ public class ProductRegisterStreamService implements DisposableBean {
             send(ApiResponse.success(message, event));
         }
 
+        /**
+         * 저장 전이면 취소 상태로 표시한다.
+         *
+         * @return 취소했으면 {@code true}, 이미 저장을 시작해 취소할 수 없으면 {@code false}
+         */
+        synchronized boolean cancel() {
+            if (saving) {
+                return false;
+            }
+            cancelled = true;
+            return true;
+        }
+
+        /** 연결이 끊겨 결과를 보낼 수 없다(저장 전이면 취소). */
+        synchronized void disconnect() {
+            closed = true;
+            cancel();
+        }
+
+        synchronized void throwIfCancelled() {
+            if (cancelled) {
+                throw new RegisterCancelledException();
+            }
+        }
+
+        /** 취소되지 않았으면 저장 시작으로 표시한다(이후 시간 초과는 저장을 막지 않음). */
+        synchronized void startSaving() {
+            throwIfCancelled();
+            saving = true;
+        }
+
         /** 이 방식의 단계 목록 안에서의 순서(1부터). 목록에 없는 단계를 쓰면 개발 실수이므로 바로 실패시킨다. */
         private int indexOf(ProductRegisterStep step) {
             int index = steps.indexOf(step);
@@ -451,7 +516,7 @@ public class ProductRegisterStreamService implements DisposableBean {
 
         /**
          * 이벤트 하나를 {@code data:} 줄로 보낸다. SSE {@code event:} 이름은 쓰지 않고, 이벤트 종류는 응답 JSON의
-         * {@code data.event}(step/complete/error)로 구분한다. 연결이 끊겼으면 보내지 않고 넘어간다(처리는 계속).
+         * {@code data.event}(step/complete/error)로 구분한다. 전송에 실패하면 연결이 끊긴 것으로 보고 저장 전이면 취소한다.
          */
         synchronized void send(ApiResponse<?> response) {
             if (closed) {
@@ -460,7 +525,7 @@ public class ProductRegisterStreamService implements DisposableBean {
             try {
                 emitter.send(SseEmitter.event().data(response, MediaType.APPLICATION_JSON));
             } catch (IOException | IllegalStateException e) {
-                closed = true;
+                disconnect();
                 log.debug("SSE 이벤트 전송 실패(연결 종료): reason={}", e.getMessage());
             }
         }
@@ -472,7 +537,7 @@ public class ProductRegisterStreamService implements DisposableBean {
             try {
                 emitter.send(SseEmitter.event().comment("ping"));
             } catch (IOException | IllegalStateException e) {
-                closed = true;
+                disconnect();
             }
         }
 
