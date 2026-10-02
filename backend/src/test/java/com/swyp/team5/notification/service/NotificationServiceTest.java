@@ -64,38 +64,22 @@ class NotificationServiceTest {
         return captor.getValue();
     }
 
-    // SELL로 바뀌면 판매자와 관심 등록 회원 모두에게 판매 추천 알림(문구는 각자 관점)
+    // SELL로 바뀌면 판매자에게만 판매 추천 알림(관심 등록 회원은 구매자 관점 BUY/WAIT로 따로 받음)
     @Test
-    void notifiesOwnerAndInterestedMembersWhenRecommendationBecomesSell() {
+    void notifiesOnlyOwnerWhenRecommendationBecomesSell() {
         Member owner = member(10L);
-        Member buyer = member(20L);
-        when(interestRepository.findMembersByItemId(1L)).thenReturn(List.of(buyer));
 
         int count = service()
                 .notifyRecommendationChanged(product(owner), AnalysisRecommendation.HOLD, AnalysisRecommendation.SELL);
 
         List<Notification> saved = savedNotifications();
-        assertThat(count).isEqualTo(2);
+        assertThat(count).isEqualTo(1);
         assertThat(saved)
                 .extracting(Notification::getMember, Notification::getType)
-                .containsExactly(tuple(owner, NotificationType.SELL), tuple(buyer, NotificationType.SELL));
+                .containsExactly(tuple(owner, NotificationType.SELL));
         assertThat(saved.get(0).getMessage()).contains("등록하신 '아이패드 프로'", "판매를 추천");
-        assertThat(saved.get(1).getMessage()).contains("관심 상품 '아이패드 프로'", "곧 거래될 수 있어요");
         assertThat(saved).allSatisfy(n -> assertThat(n.isRead()).isFalse());
-    }
-
-    // 판매자가 자기 상품을 관심 등록해 뒀어도 판매자용 알림 1건만
-    @Test
-    void doesNotDuplicateOwnerWhoIsAlsoInterested() {
-        Member owner = member(10L);
-        Member buyer = member(20L);
-        when(interestRepository.findMembersByItemId(1L)).thenReturn(List.of(owner, buyer));
-
-        int count = service()
-                .notifyRecommendationChanged(product(owner), AnalysisRecommendation.HOLD, AnalysisRecommendation.SELL);
-
-        assertThat(count).isEqualTo(2);
-        assertThat(savedNotifications()).extracting(Notification::getMember).containsExactly(owner, buyer);
+        verify(interestRepository, never()).findMembersByItemId(any());
     }
 
     // BUY로 바뀌면 관심 등록한 회원 전원에게 구매 추천 알림
@@ -135,23 +119,20 @@ class NotificationServiceTest {
         verify(notificationRepository, never()).saveAll(anyList());
     }
 
-    // HOLD로 바뀌면 판매자와 관심 등록 회원 모두에게 보류 알림(문구는 각자 관점)
+    // HOLD로 바뀌면 판매자에게만 "기다리면 더 비싸게 팔 수 있다"는 보류 알림
     @Test
-    void notifiesOwnerAndInterestedMembersWhenRecommendationBecomesHold() {
+    void notifiesOnlyOwnerWhenRecommendationBecomesHold() {
         Member owner = member(10L);
-        Member buyer = member(20L);
-        when(interestRepository.findMembersByItemId(1L)).thenReturn(List.of(buyer));
 
         int count = service()
                 .notifyRecommendationChanged(product(owner), AnalysisRecommendation.SELL, AnalysisRecommendation.HOLD);
 
         List<Notification> saved = savedNotifications();
-        assertThat(count).isEqualTo(2);
+        assertThat(count).isEqualTo(1);
         assertThat(saved)
                 .extracting(Notification::getMember, Notification::getType)
-                .containsExactly(tuple(owner, NotificationType.HOLD), tuple(buyer, NotificationType.HOLD));
-        assertThat(saved.get(0).getMessage()).contains("판매를 보류");
-        assertThat(saved.get(1).getMessage()).contains("관심 상품 '아이패드 프로'");
+                .containsExactly(tuple(owner, NotificationType.HOLD));
+        assertThat(saved.get(0).getTitle()).contains("더 비싸게 팔 수 있어요");
     }
 
     // WAIT로 바뀌면 관심 등록한 회원 전원에게 구매 보류 알림

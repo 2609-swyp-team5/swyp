@@ -239,7 +239,7 @@ class NotificationTest {
         assertThat(notificationRepository.existsById(notification.getId())).isFalse();
     }
 
-    // 추천 전환 알림 - SELL/HOLD는 판매자와 관심 등록 회원 모두에게, BUY/WAIT는 관심 등록 회원에게(실제 DB로 수신자 조회 쿼리와 enum 값 검증)
+    // 추천 전환 알림 - SELL/HOLD는 판매자에게만, BUY/WAIT는 관심 등록 회원에게(실제 DB로 수신자 조회 쿼리와 enum 값 검증)
     @Test
     void recommendationChangeCreatesNotificationsForRecipients() throws Exception {
         Product product = productRepository.save(newProduct(owner));
@@ -253,10 +253,11 @@ class NotificationTest {
         notificationService.notifyRecommendationChanged(
                 product, AnalysisRecommendation.WAIT, AnalysisRecommendation.SELL);
 
+        // 관심 등록 회원은 구매자 관점(BUY/WAIT)만, 판매자는 판매자 관점(SELL/HOLD)만 받음
         mockMvc.perform(get("/notifications").header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.content.length()").value(4))
-                .andExpect(jsonPath("$.data.content[*].type", containsInAnyOrder("HOLD", "BUY", "WAIT", "SELL")))
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.content[*].type", containsInAnyOrder("BUY", "WAIT")))
                 .andExpect(jsonPath("$.data.content[0].productId").value(product.getId()));
         mockMvc.perform(get("/notifications").header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
                 .andExpect(status().isOk())

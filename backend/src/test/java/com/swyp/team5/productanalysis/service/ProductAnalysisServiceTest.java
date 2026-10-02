@@ -323,7 +323,7 @@ class ProductAnalysisServiceTest {
         when(geminiAiClient.prompt()).thenThrow(new IllegalStateException("503 UNAVAILABLE"));
         when(openAiClient.prompt().system(anyString()).user(anyString()).call().entity(MarketAnalysisResult.class))
                 .thenReturn(
-                        new MarketAnalysisResult(List.of(1, 2, 3, 4, 5), AnalysisRecommendation.HOLD, 2100L, "GPT 판단"));
+                        new MarketAnalysisResult(List.of(1, 2, 3, 4, 5), AnalysisRecommendation.SELL, 2100L, "GPT 판단"));
 
         service().analyzeProduct(product);
 
@@ -332,6 +332,33 @@ class ProductAnalysisServiceTest {
         assertThat(captor.getValue().getDescription()).isEqualTo("GPT 판단");
         assertThat(captor.getValue().getSuggestedPrice()).isEqualTo(2100L);
         verify(productRepository).updateSuggestedPrice(1L, 2100L);
+    }
+
+    // 분석 성공 - 판매자/구매자 관점을 따로 저장하고, AI 추천이 규칙과 같으면 AI 근거 문장을 그대로 씀
+    @Test
+    void analyzeProductStoresSellerAndBuyerViews() {
+        Product product = product(1L, 10L, 1_900L);
+        List<PlatformListing> listings =
+                List.of(listing("아이패드 프로 매물1", 1000L), listing("아이패드 프로 매물2", 2000L), listing("아이패드 프로 매물3", 3000L));
+        when(platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
+                        eq(10L), eq("SELLING"), any()))
+                .thenReturn(listings);
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.empty());
+        givenAiResult(new MarketAnalysisResult(
+                List.of(1, 2, 3), AnalysisRecommendation.SELL, 2000L, "판매 근거", AnalysisRecommendation.BUY, "구매 근거"));
+
+        service().analyzeProduct(product);
+
+        ArgumentCaptor<ProductAnalysis> captor = ArgumentCaptor.forClass(ProductAnalysis.class);
+        verify(productAnalysisRepository).save(captor.capture());
+        ProductAnalysis saved = captor.getValue();
+        // 추세 없음 → 판매자 SELL, 등록가 1,900원이 평균 2,000원과 5% 이내 → 구매자 BUY
+        assertThat(saved.getRecommendation()).isEqualTo(AnalysisRecommendation.SELL);
+        assertThat(saved.getDescription()).isEqualTo("판매 근거");
+        assertThat(saved.getBuyerRecommendation()).isEqualTo(AnalysisRecommendation.BUY);
+        assertThat(saved.getBuyerDescription()).isEqualTo("구매 근거");
+        assertThat(saved.getBuyerViewRecommendation()).isEqualTo(AnalysisRecommendation.BUY);
     }
 
     // 분석 성공 - 직전 스냅샷이 없으면 변동률은 null
@@ -351,15 +378,16 @@ class ProductAnalysisServiceTest {
                         .user(anyString())
                         .call()
                         .entity(MarketAnalysisResult.class))
-                .thenReturn(new MarketAnalysisResult(List.of(1, 2, 3, 4, 5), AnalysisRecommendation.HOLD, 2000L, "설명"));
+                .thenReturn(new MarketAnalysisResult(List.of(1, 2, 3, 4, 5), AnalysisRecommendation.SELL, 2000L, "설명"));
 
         service().analyzeProduct(product);
 
         ArgumentCaptor<ProductAnalysis> captor = ArgumentCaptor.forClass(ProductAnalysis.class);
         verify(productAnalysisRepository).save(captor.capture());
         assertThat(captor.getValue().getChangeRate()).isNull();
-        // 첫 분석은 직전 추천이 없음(null)
-        verify(notificationService).notifyRecommendationChanged(product, null, AnalysisRecommendation.HOLD);
+        // 첫 분석은 직전 추천이 없음(null) — 판매자 관점(추세 없음 → SELL)·구매자 관점(등록가가 시세보다 비쌈 → WAIT) 각각 알림
+        verify(notificationService).notifyRecommendationChanged(product, null, AnalysisRecommendation.SELL);
+        verify(notificationService).notifyRecommendationChanged(product, null, AnalysisRecommendation.WAIT);
     }
 
     // 배치 - 한 상품이 실패해도 나머지 상품은 계속 분석
@@ -462,9 +490,9 @@ class ProductAnalysisServiceTest {
         verify(notificationService, never()).notifyListingRecommendationChanged(any(), any(), any());
     }
 
-    // 관심 외부 매물 분석 - AI가 판매자 관점(SELL/HOLD)을 내면 저장·알림하지 않음
+    // 관심 외부 매물 분석 - AI가 판매자 관점(SELL)을 내도 구매자 규칙으로 저장하고, 근거는 규칙 기반 문장으로 바꿈
     @Test
-    void analyzeListingDiscardsSellerRecommendation() {
+    void analyzeListingAppliesBuyerRuleWhenAiDisagrees() {
         PlatformListing target = listing(100L, 10L, "아이패드 프로", 900L);
         List<PlatformListing> comparisons = List.of(
                 listing(1L, 10L, "아이패드 프로 매물1", 1000L),
@@ -477,8 +505,13 @@ class ProductAnalysisServiceTest {
 
         service().analyzeListing(target);
 
-        verify(productAnalysisRepository, never()).save(any());
-        verify(notificationService, never()).notifyListingRecommendationChanged(any(), any(), any());
+        ArgumentCaptor<ProductAnalysis> captor = ArgumentCaptor.forClass(ProductAnalysis.class);
+        verify(productAnalysisRepository).save(captor.capture());
+        // 판매가 900원이 평균 시세 2,000원보다 55% 저렴 → BUY
+        assertThat(captor.getValue().getRecommendation()).isEqualTo(AnalysisRecommendation.BUY);
+        assertThat(captor.getValue().getDescription()).contains("55% 저렴");
+        assertThat(captor.getValue().getBuyerRecommendation()).isNull();
+        verify(notificationService).notifyListingRecommendationChanged(target, null, AnalysisRecommendation.BUY);
     }
 
     // 배치 - 우리 상품 다음으로 관심 등록된 판매중 외부 매물도 분석
@@ -496,12 +529,13 @@ class ProductAnalysisServiceTest {
                 .thenReturn(comparisons);
         when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(100L))
                 .thenReturn(Optional.empty());
-        givenAiResult(new MarketAnalysisResult(List.of(1, 2, 3, 4, 5), AnalysisRecommendation.WAIT, 1800L, "설명"));
+        givenAiResult(new MarketAnalysisResult(List.of(1, 2, 3, 4, 5), AnalysisRecommendation.BUY, 1800L, "설명"));
 
         service().analyzeAll();
 
         verify(productAnalysisRepository).save(any());
-        verify(notificationService).notifyListingRecommendationChanged(target, null, AnalysisRecommendation.WAIT);
+        // 판매가 900원이 평균 시세 2,000원보다 저렴해 BUY
+        verify(notificationService).notifyListingRecommendationChanged(target, null, AnalysisRecommendation.BUY);
     }
 
     // 조회 실패 - 존재하지 않는 상품

@@ -20,9 +20,11 @@ public record ProductAnalysisResponse(
         Long maxPrice,
         BigDecimal marketPriceDiffRate, // 등록가가 평균가보다 몇 % 높은지(음수면 저렴, 소수 첫째 자리 반올림)
         BigDecimal changeRate, // 직전 분석 대비 평균가 변동률, 직전 분석이 없으면 null
-        AnalysisRecommendation recommendation,
+        AnalysisRecommendation recommendation, // 우리 상품은 판매자 관점(SELL/HOLD), 외부 매물은 구매자 관점(BUY/WAIT)
         Long suggestedPrice,
-        String description,
+        String description, // recommendation의 근거
+        AnalysisRecommendation buyerRecommendation, // 우리 상품을 관심 등록한 구매자 관점(BUY/WAIT), 외부 매물·관점 분리 이전 분석은 null
+        String buyerDescription, // buyerRecommendation의 근거
         LocalDateTime analyzedAt,
         List<PriceForecastResponse> forecasts) { // 감가 예측가(1M/3M/6M 순), 분석 이력이 없거나 예측 도입 전 분석이면 빈 배열
 
@@ -31,6 +33,8 @@ public record ProductAnalysisResponse(
         return new ProductAnalysisResponse(
                 product.getId(),
                 product.getPrice(),
+                null,
+                null,
                 null,
                 null,
                 null,
@@ -58,6 +62,8 @@ public record ProductAnalysisResponse(
                 analysis.getRecommendation(),
                 analysis.getSuggestedPrice(),
                 analysis.getDescription(),
+                analysis.getBuyerRecommendation(),
+                analysis.getBuyerDescription(),
                 analysis.getAnalyzedAt(),
                 forecasts.stream()
                         .sorted(Comparator.comparing(PriceForecast::getPeriod))

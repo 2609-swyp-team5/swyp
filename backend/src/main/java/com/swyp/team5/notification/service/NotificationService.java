@@ -1,6 +1,5 @@
 package com.swyp.team5.notification.service;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -16,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.interest.entity.Interest;
 import com.swyp.team5.interest.repository.InterestRepository;
-import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.notification.dto.NotificationReadResponse;
 import com.swyp.team5.notification.dto.NotificationResponse;
 import com.swyp.team5.notification.dto.NotificationUnreadCountResponse;
@@ -85,9 +83,10 @@ public class NotificationService {
      * 알림을 생성한다. 시세 분석 추천이 직전 스냅샷과 달라졌을 때만 알림을 만든다(같은 추천이 반복되면 재알림하지 않음, 첫 분석은
      * 직전 값이 없어 전환으로 본다). 목표가 설정 여부와 무관하다.
      * <ul>
-     *   <li>SELL/HOLD: 상품을 등록한 판매자와, 이 상품을 관심 등록한 회원 전원에게(각자 관점의 문구로)
-     *   <li>BUY/WAIT: 이 상품을 관심 등록한 회원 전원에게
+     *   <li>SELL/HOLD(판매자 관점): 상품을 등록한 판매자에게만
+     *   <li>BUY/WAIT(구매자 관점): 이 상품을 관심 등록한 회원 전원에게
      * </ul>
+     * 시세 분석은 관점별로 이 메서드를 따로 호출한다(판매자 추천 전환, 구매자 추천 전환).
      *
      * @return 만든 알림 수
      */
@@ -99,20 +98,16 @@ public class NotificationService {
         String title = product.getTitle();
         List<Notification> notifications =
                 switch (current) {
-                    case SELL -> ownerAndInterestedMemberNotifications(
+                    case SELL -> ownerNotification(
                             product,
                             NotificationType.SELL,
-                            new Content("지금 팔기 좋은 시점이에요", "등록하신 '%s'의 AI 시세 분석 결과, 지금 판매를 추천해요.".formatted(title)),
-                            new Content(
-                                    "관심 상품이 곧 팔릴 수 있어요",
-                                    "관심 상품 '%s'의 AI 시세 분석 결과, 판매하기 좋은 시점이라 곧 거래될 수 있어요.".formatted(title)));
-                    case HOLD -> ownerAndInterestedMemberNotifications(
+                            new Content("지금 팔기 좋은 시점이에요", "등록하신 '%s'의 AI 시세 분석 결과, 지금 판매를 추천해요.".formatted(title)));
+                    case HOLD -> ownerNotification(
                             product,
                             NotificationType.HOLD,
-                            new Content("판매를 잠시 미뤄 보세요", "등록하신 '%s'의 AI 시세 분석 결과, 지금은 판매를 보류하길 추천해요.".formatted(title)),
                             new Content(
-                                    "관심 상품 시세를 지켜보세요",
-                                    "관심 상품 '%s'의 AI 시세 분석 결과, 지금은 시세를 좀 더 지켜보길 추천해요.".formatted(title)));
+                                    "조금 기다리면 더 비싸게 팔 수 있어요",
+                                    "등록하신 '%s'의 시세가 오르고 있어요. 조금 기다렸다가 판매하길 추천해요.".formatted(title)));
                     case BUY -> interestedMemberNotifications(
                             product,
                             NotificationType.BUY,
@@ -195,17 +190,8 @@ public class NotificationService {
     private record Content(String title, String message) {}
 
     /** 판매자 1건 + 관심 등록 회원 전원(판매자 본인이 관심 등록했어도 판매자용 알림만). */
-    private List<Notification> ownerAndInterestedMemberNotifications(
-            Product product, NotificationType type, Content forOwner, Content forInterestedMembers) {
-        Member owner = product.getMember();
-        List<Notification> notifications = new ArrayList<>();
-        notifications.add(Notification.create(owner, product, type, forOwner.title(), forOwner.message()));
-        interestRepository.findMembersByItemId(product.getId()).stream()
-                .filter(member -> !Objects.equals(member.getId(), owner.getId()))
-                .map(member -> Notification.create(
-                        member, product, type, forInterestedMembers.title(), forInterestedMembers.message()))
-                .forEach(notifications::add);
-        return notifications;
+    private List<Notification> ownerNotification(Product product, NotificationType type, Content content) {
+        return List.of(Notification.create(product.getMember(), product, type, content.title(), content.message()));
     }
 
     private List<Notification> interestedMemberNotifications(Product product, NotificationType type, Content content) {
