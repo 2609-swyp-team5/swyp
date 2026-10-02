@@ -84,7 +84,7 @@ class BunjangControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("INVALID_INPUT_VALUE"))
                 .andExpect(jsonPath("$.error.details[0].field").value("platform"))
-                .andExpect(jsonPath("$.error.details[0].content").value("지원하지 않는 플랫폼입니다: karrot"));
+                .andExpect(jsonPath("$.error.details[0].content").value("지원하지 않는 플랫폼이에요."));
 
         verify(bunjangConnectionService, never()).getStatus(2L);
     }

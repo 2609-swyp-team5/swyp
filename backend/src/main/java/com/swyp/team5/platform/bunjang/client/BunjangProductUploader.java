@@ -112,7 +112,7 @@ public class BunjangProductUploader {
         } catch (InvalidPlatformSessionException | PlatformPublishFailedException e) {
             throw e;
         } catch (IOException | PlaywrightException e) {
-            throw new PlatformPublishFailedException("번개장터 매물 등록 중 오류가 발생했습니다: " + e.getMessage(), e);
+            throw new PlatformPublishFailedException("번개장터 매물 등록 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요.", e.getMessage(), e);
         } finally {
             deleteQuietly(imageDir);
         }
@@ -130,16 +130,17 @@ public class BunjangProductUploader {
                 HttpResponse<Path> response = imageHttpClient.send(request, HttpResponse.BodyHandlers.ofFile(target));
                 if (response.statusCode() / 100 != 2) {
                     throw new PlatformPublishFailedException(
-                            "상품 이미지를 내려받지 못했습니다. status=" + response.statusCode() + ", url=" + imageUrl);
+                            "상품 이미지를 내려받지 못했어요. 잠시 후 다시 시도해 주세요.",
+                            "status=" + response.statusCode() + ", url=" + imageUrl);
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                throw new PlatformPublishFailedException("상품 이미지 다운로드가 중단되었습니다.", e);
+                throw new PlatformPublishFailedException("상품 이미지 다운로드가 중단됐어요. 잠시 후 다시 시도해 주세요.", null, e);
             }
             paths.add(target);
         }
         if (paths.isEmpty()) {
-            throw new PlatformPublishFailedException("번개장터에 등록할 상품 이미지가 없습니다.");
+            throw new PlatformPublishFailedException("번개장터에 등록할 상품 이미지가 없어요.");
         }
         return paths;
     }
@@ -177,10 +178,10 @@ public class BunjangProductUploader {
         page.navigate(PRODUCT_FORM_URL, new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
         page.waitForTimeout(3_000);
         if (page.url().contains("/login")) {
-            throw new InvalidPlatformSessionException("번개장터 세션이 만료되었습니다. 번개장터에 다시 로그인한 뒤 세션을 재연동해 주세요.");
+            throw new InvalidPlatformSessionException("번개장터 로그인이 만료됐어요. 번개장터에 다시 로그인한 뒤 계정을 다시 연동해 주세요.");
         }
         if (!exists(page.locator("input[type='file']"))) {
-            throw new PlatformPublishFailedException("번개장터 판매 등록 화면을 확인할 수 없습니다. 현재 url=" + page.url());
+            throw new PlatformPublishFailedException("번개장터 판매 등록 화면을 열지 못했어요. 잠시 후 다시 시도해 주세요.", "url=" + page.url());
         }
     }
 
@@ -194,7 +195,7 @@ public class BunjangProductUploader {
                 page.locator("input[name='common.name']"),
                 page.locator("input[placeholder*='상품명'], input[placeholder*='제목']"));
         if (input == null) {
-            throw new PlatformPublishFailedException("번개장터 상품명 입력창을 찾을 수 없습니다.");
+            throw new PlatformPublishFailedException("번개장터 상품명 입력창을 찾을 수 없어요.");
         }
         input.fill(title);
         page.waitForTimeout(500);
@@ -205,7 +206,8 @@ public class BunjangProductUploader {
         if (selectCategoryListItems(page, categoryPath) || selectSuggestedCategoryChip(page, categoryPath)) {
             return;
         }
-        throw new PlatformPublishFailedException("번개장터 카테고리를 선택하지 못했습니다. category=" + String.join(" > ", categoryPath));
+        throw new PlatformPublishFailedException(
+                "번개장터 카테고리를 선택하지 못했어요.", "category=" + String.join(" > ", categoryPath));
     }
 
     private boolean selectCategoryListItems(Page page, List<String> categoryPath) {
@@ -260,7 +262,7 @@ public class BunjangProductUploader {
         }
         Locator label = page.getByText(looseTextPattern(conditionLabel)).first();
         if (!exists(label)) {
-            throw new PlatformPublishFailedException("번개장터 상품 상태 항목을 찾을 수 없습니다. condition=" + conditionLabel);
+            throw new PlatformPublishFailedException("번개장터 상품 상태 항목을 찾을 수 없어요.", "condition=" + conditionLabel);
         }
         label.click();
         page.waitForTimeout(500);
@@ -270,7 +272,7 @@ public class BunjangProductUploader {
         Locator input =
                 page.locator("input[placeholder*='가격'], input[name*='price']").first();
         if (!exists(input)) {
-            throw new PlatformPublishFailedException("번개장터 가격 입력창을 찾을 수 없습니다.");
+            throw new PlatformPublishFailedException("번개장터 가격 입력창을 찾을 수 없어요.");
         }
         input.fill(String.valueOf(price));
         page.waitForTimeout(500);
@@ -280,7 +282,7 @@ public class BunjangProductUploader {
         Locator input = page.locator("textarea[placeholder*='설명'], textarea[placeholder*='본문']")
                 .first();
         if (!exists(input)) {
-            throw new PlatformPublishFailedException("번개장터 상품 설명 입력창을 찾을 수 없습니다.");
+            throw new PlatformPublishFailedException("번개장터 상품 설명 입력창을 찾을 수 없어요.");
         }
         input.fill(description);
         page.waitForTimeout(500);
@@ -334,7 +336,7 @@ public class BunjangProductUploader {
         Locator submit = page.locator("button:has-text('등록하기'), button:has-text('등록'), button[type='submit']")
                 .last();
         if (!exists(submit) || !submit.isEnabled()) {
-            throw new PlatformPublishFailedException("활성화된 번개장터 등록 버튼을 찾을 수 없습니다(필수 입력값 누락 가능성).");
+            throw new PlatformPublishFailedException("번개장터 등록 버튼이 활성화되지 않았어요. 상품 정보에 빠진 항목이 없는지 확인해 주세요.");
         }
 
         String pid = null;
@@ -348,7 +350,8 @@ public class BunjangProductUploader {
                     });
             if (response.status() / 100 != 2) {
                 throw new PlatformPublishFailedException(
-                        "번개장터 상품 등록 요청이 실패했습니다. status=" + response.status() + ", body=" + truncate(response.text()));
+                        "번개장터 상품 등록 요청이 실패했어요. 잠시 후 다시 시도해 주세요.",
+                        "status=" + response.status() + ", body=" + truncate(response.text()));
             }
             pid = findProductId(response.text());
         } catch (PlaywrightException e) {
@@ -368,7 +371,7 @@ public class BunjangProductUploader {
         }
         if (pid == null) {
             throw new PlatformPublishFailedException(
-                    "번개장터 등록 결과를 확인할 수 없습니다. 번개장터 내 상점에서 등록 여부를 확인한 뒤, 등록되어 있다면 매물 연동 API로 연결해 주세요.");
+                    "번개장터 등록 결과를 확인하지 못했어요. 번개장터 내 상점에서 등록 여부를 확인한 뒤, 등록되어 있다면 매물 주소로 연동해 주세요.");
         }
         return pid;
     }

@@ -63,7 +63,7 @@ public class BunjangProductLinkService {
         String externalProductId = extractProductId(productUrl);
         BunjangProductDetail detail = bunjangProductClient.fetchDetail(externalProductId);
         if (detail.errorCode() != null) {
-            throw new InvalidProductUrlException("존재하지 않거나 삭제된 번개장터 매물입니다. errorCode=" + detail.errorCode());
+            throw new InvalidProductUrlException("존재하지 않거나 삭제된 번개장터 매물이에요.", "errorCode=" + detail.errorCode());
         }
 
         productPlatformRepository
@@ -111,7 +111,7 @@ public class BunjangProductLinkService {
                 .findByMemberIdAndPlatformId(memberId, platform.getId())
                 .orElseThrow(() -> new MemberPlatformNotFoundException(memberId, PLATFORM_NAME));
         if (memberPlatform.getStatus() != MemberPlatformStatus.CONNECTED) {
-            throw new InvalidPlatformSessionException("번개장터 세션이 연동되어 있지 않습니다. 다시 연동한 뒤 시도해 주세요.");
+            throw new InvalidPlatformSessionException("번개장터 계정이 연동되어 있지 않아요. 계정을 연동한 뒤 다시 시도해 주세요.");
         }
         return memberPlatform;
     }
@@ -129,7 +129,7 @@ public class BunjangProductLinkService {
     private String extractProductId(String productUrl) {
         Matcher matcher = PRODUCT_ID_PATTERN.matcher(productUrl);
         if (!matcher.find()) {
-            throw new InvalidProductUrlException("번개장터 매물 주소에서 상품 ID를 찾을 수 없습니다: " + productUrl);
+            throw new InvalidProductUrlException("번개장터 매물 주소가 올바르지 않아요. 주소를 다시 확인해 주세요.", "productUrl=" + productUrl);
         }
         return matcher.group(1);
     }

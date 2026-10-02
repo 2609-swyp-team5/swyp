@@ -28,6 +28,7 @@ import com.swyp.team5.category.error.CategoryNotFoundException;
 import com.swyp.team5.category.error.CategoryNotLeafException;
 import com.swyp.team5.common.common.ApiError;
 import com.swyp.team5.common.common.ApiResponse;
+import com.swyp.team5.common.error.ErrorLogs;
 import com.swyp.team5.file.dto.FileUploadResponse;
 import com.swyp.team5.file.dto.InMemoryMultipartFile;
 import com.swyp.team5.file.error.FileStorageException;
@@ -137,7 +138,7 @@ public class ProductRegisterStreamService implements DisposableBean {
             ProductAiAnalysisResult analysis = analyze(stream, copies);
             return save(
                     stream,
-                    "상품을 등록하고 있습니다.",
+                    "상품을 등록하고 있어요.",
                     "상품 등록 완료",
                     () -> productService.saveDirect(memberId, request, imageUrls, analysis));
         });
@@ -168,7 +169,7 @@ public class ProductRegisterStreamService implements DisposableBean {
             ProductAiAnalysisResult analysis = analyze(stream, copies);
             return save(
                     stream,
-                    "상품을 등록하고 있습니다.",
+                    "상품을 등록하고 있어요.",
                     "상품 등록 완료",
                     () -> productService.saveFromAnalysis(
                             memberId, analysis, imageUrls, purchasedMonths, defectStatus, includedItems));
@@ -209,7 +210,7 @@ public class ProductRegisterStreamService implements DisposableBean {
         return start(UPDATE_STEPS, stream -> {
             List<String> newImageUrls;
             if (copies.isEmpty()) {
-                stream.skip(ProductRegisterStep.IMAGE_UPLOAD, "새로 추가할 이미지가 없습니다.");
+                stream.skip(ProductRegisterStep.IMAGE_UPLOAD, "새로 추가할 이미지가 없어요.");
                 newImageUrls = List.of();
             } else {
                 newImageUrls = uploadImages(stream, copies);
@@ -218,12 +219,12 @@ public class ProductRegisterStreamService implements DisposableBean {
             if (imagesChanged) {
                 analysis = analyzeOrSkip(stream, () -> updatedImages(keptImageUrls, currentImageUrls, copies));
             } else {
-                stream.skip(ProductRegisterStep.IMAGE_ANALYSIS, "이미지가 바뀌지 않아 사진 분석을 건너뜁니다.");
+                stream.skip(ProductRegisterStep.IMAGE_ANALYSIS, "이미지가 바뀌지 않아 사진 분석을 건너뛰어요.");
             }
             ProductAiAnalysisResult finalAnalysis = analysis;
             return save(
                     stream,
-                    "상품을 수정하고 있습니다.",
+                    "상품을 수정하고 있어요.",
                     "상품 수정 완료",
                     () -> productService.saveUpdate(memberId, productId, request, newImageUrls, finalAnalysis));
         });
@@ -243,7 +244,7 @@ public class ProductRegisterStreamService implements DisposableBean {
         return images.stream()
                 .map(image -> {
                     if (image.isEmpty()) {
-                        throw new FileStorageException("업로드할 파일이 비어 있습니다.");
+                        throw new FileStorageException("업로드할 파일이 비어 있어요.");
                     }
                     return (MultipartFile) InMemoryMultipartFile.copyOf(image);
                 })
@@ -265,7 +266,7 @@ public class ProductRegisterStreamService implements DisposableBean {
                         stream.currentStep,
                         HttpStatus.SERVICE_UNAVAILABLE,
                         "REGISTER_TIMEOUT_CANCELLED",
-                        "처리 시간이 초과되어 요청을 취소했습니다. 잠시 후 다시 시도해 주세요."));
+                        "처리 시간이 초과되어 요청을 취소했어요. 잠시 후 다시 시도해 주세요."));
                 return;
             }
             log.warn("상품 등록·수정 스트림 시간 초과 - 이미 저장 중이라 처리는 계속 진행합니다. step={}", stream.currentStep);
@@ -273,7 +274,7 @@ public class ProductRegisterStreamService implements DisposableBean {
                     stream.currentStep,
                     HttpStatus.SERVICE_UNAVAILABLE,
                     "REGISTER_TIMEOUT",
-                    "처리가 지연되고 있습니다. 처리 결과는 내 상품 목록에서 확인해 주세요."));
+                    "처리가 지연되고 있어요. 처리 결과는 내 상품 목록에서 확인해 주세요."));
         });
         emitter.onCompletion(stream::markClosed);
         emitter.onError(error -> stream.disconnect());
@@ -306,7 +307,7 @@ public class ProductRegisterStreamService implements DisposableBean {
     }
 
     private List<String> uploadImages(RegisterStream stream, List<MultipartFile> images) {
-        stream.begin(ProductRegisterStep.IMAGE_UPLOAD, "이미지를 업로드하고 있습니다.");
+        stream.begin(ProductRegisterStep.IMAGE_UPLOAD, "이미지를 업로드하고 있어요.");
         List<String> imageUrls = new ArrayList<>();
         for (MultipartFile image : images) {
             FileUploadResponse uploaded = fileStorageService.upload(image, IMAGE_DIRECTORY);
@@ -322,7 +323,7 @@ public class ProductRegisterStreamService implements DisposableBean {
 
     /** 등록의 AI 사진 분석은 필수라 실패하면 예외를 그대로 던져 등록을 취소한다(run()이 파일 삭제 후 error 이벤트). */
     private ProductAiAnalysisResult analyze(RegisterStream stream, List<MultipartFile> images) {
-        stream.begin(ProductRegisterStep.IMAGE_ANALYSIS, "AI가 사진을 분석하고 있습니다.");
+        stream.begin(ProductRegisterStep.IMAGE_ANALYSIS, "AI가 사진을 분석하고 있어요.");
         ProductAiAnalysisResult analysis = productAiService.analyze(images);
         stream.done(ProductRegisterStep.IMAGE_ANALYSIS, "사진 분석 완료", ImageAnalysisResult.from(analysis));
         return analysis;
@@ -330,13 +331,13 @@ public class ProductRegisterStreamService implements DisposableBean {
 
     /** 수정의 AI 재분석은 제안가/판단 근거 갱신용이라 실패하면 건너뛰고 기존 값으로 수정을 계속한다. */
     private ProductAiAnalysisResult analyzeOrSkip(RegisterStream stream, Supplier<List<MultipartFile>> images) {
-        stream.begin(ProductRegisterStep.IMAGE_ANALYSIS, "AI가 사진을 분석하고 있습니다.");
+        stream.begin(ProductRegisterStep.IMAGE_ANALYSIS, "AI가 사진을 분석하고 있어요.");
         try {
             ProductAiAnalysisResult analysis = productAiService.analyze(images.get());
             stream.done(ProductRegisterStep.IMAGE_ANALYSIS, "사진 분석 완료", ImageAnalysisResult.from(analysis));
             return analysis;
         } catch (RuntimeException e) {
-            log.warn("상품 수정 AI 사진 분석 실패 - 기존 제안가/판단 근거를 유지합니다. reason={}", e.getMessage());
+            log.warn("상품 수정 AI 사진 분석 실패 - 기존 제안가/판단 근거를 유지합니다. reason={}", ErrorLogs.describe(e));
             stream.skip(ProductRegisterStep.IMAGE_ANALYSIS, "사진 분석에 실패해 기존 추천 가격을 유지합니다.");
             return null;
         }
@@ -381,44 +382,45 @@ public class ProductRegisterStreamService implements DisposableBean {
         try {
             fileStorageService.deleteAll(List.copyOf(stream.uploadedKeys));
         } catch (RuntimeException e) {
-            log.warn("등록 실패 후 업로드 파일 삭제 실패: keys={}, reason={}", stream.uploadedKeys, e.getMessage());
+            log.warn("등록 실패 후 업로드 파일 삭제 실패: keys={}, reason={}", stream.uploadedKeys, ErrorLogs.describe(e));
         }
     }
 
     private static ApiResponse<ProductRegisterErrorEvent> toErrorResponse(
             ProductRegisterStep step, RuntimeException e) {
         if (step == ProductRegisterStep.IMAGE_UPLOAD) {
-            log.error("상품 등록 - 이미지 업로드 실패: {}", e.getMessage(), e);
+            log.error("상품 등록 - 이미지 업로드 실패: {}", ErrorLogs.describe(e), e);
             return errorResponse(
-                    step, HttpStatus.BAD_GATEWAY, "IMAGE_UPLOAD_FAILED", "이미지 업로드에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+                    step, HttpStatus.BAD_GATEWAY, "IMAGE_UPLOAD_FAILED", "이미지 업로드에 실패했어요. 잠시 후 다시 시도해 주세요.");
         }
         if (step == ProductRegisterStep.IMAGE_ANALYSIS) {
-            log.error("상품 등록 - AI 사진 분석 실패: {}", e.getMessage(), e);
+            log.error("상품 등록 - AI 사진 분석 실패: {}", ErrorLogs.describe(e), e);
             return errorResponse(
-                    step, HttpStatus.BAD_GATEWAY, "AI_ANALYSIS_FAILED", "AI 사진 분석에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+                    step, HttpStatus.BAD_GATEWAY, "AI_ANALYSIS_FAILED", "AI 사진 분석에 실패했어요. 잠시 후 다시 시도해 주세요.");
         }
         if (e instanceof ProductNotFoundException) {
-            log.warn("상품 수정 - 상품 없음: {}", e.getMessage());
+            log.warn("상품 수정 - 상품 없음: {}", ErrorLogs.describe(e));
             return errorResponse(step, HttpStatus.NOT_FOUND, "NOT_FOUND", e.getMessage());
         }
         if (e instanceof ProductAccessDeniedException) {
-            log.warn("상품 수정 - 권한 없음: {}", e.getMessage());
+            log.warn("상품 수정 - 권한 없음: {}", ErrorLogs.describe(e));
             return errorResponse(step, HttpStatus.FORBIDDEN, "FORBIDDEN", e.getMessage());
         }
         if (e instanceof CategoryNotFoundException) {
-            log.warn("상품 등록 - 카테고리 없음: {}", e.getMessage());
+            log.warn("상품 등록 - 카테고리 없음: {}", ErrorLogs.describe(e));
             return errorResponse(step, HttpStatus.NOT_FOUND, "NOT_FOUND", e.getMessage());
         }
         if (e instanceof CategoryNotLeafException) {
-            log.warn("상품 등록 - 최하위가 아닌 카테고리: {}", e.getMessage());
+            log.warn("상품 등록 - 최하위가 아닌 카테고리: {}", ErrorLogs.describe(e));
             return errorResponse(step, HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
         }
         if (e instanceof DataIntegrityViolationException) {
-            log.warn("상품 등록 - 데이터 무결성 위반: {}", e.getMessage());
-            return errorResponse(step, HttpStatus.CONFLICT, "CONFLICT", "이미 사용 중인 값입니다.");
+            log.warn("상품 등록 - 데이터 무결성 위반: {}", ErrorLogs.describe(e));
+            return errorResponse(step, HttpStatus.CONFLICT, "CONFLICT", "이미 사용 중인 값이에요.");
         }
         log.error("상품 등록 - 처리 실패: step={}", step, e);
-        return errorResponse(step, HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "서버 내부 오류가 발생했습니다.");
+        return errorResponse(
+                step, HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "일시적인 오류가 발생했어요. 잠시 후 다시 시도해 주세요.");
     }
 
     /** 기존 에러 응답과 같은 형태({@code success=false}, {@code error})에 이벤트 종류와 실패 단계를 {@code data}로 담는다. */

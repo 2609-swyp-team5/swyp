@@ -191,7 +191,7 @@ class NotificationTest {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value("NOT_FOUND"))
-                .andExpect(jsonPath("$.message").value("존재하지 않는 알림입니다."));
+                .andExpect(jsonPath("$.message").value("존재하지 않는 알림이에요."));
         mockMvc.perform(delete("/notifications/{id}", notification.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
                 .andExpect(status().isNotFound());

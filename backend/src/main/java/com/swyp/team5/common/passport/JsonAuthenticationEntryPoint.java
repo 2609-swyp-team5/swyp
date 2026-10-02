@@ -31,7 +31,7 @@ public class JsonAuthenticationEntryPoint implements AuthenticationEntryPoint {
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
-        ApiResponse<Void> body = ApiResponse.error("인증이 필요합니다.", ApiError.of(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED"));
+        ApiResponse<Void> body = ApiResponse.error("로그인이 필요해요.", ApiError.of(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED"));
         response.getWriter().write(objectMapper.writeValueAsString(body));
     }
 }

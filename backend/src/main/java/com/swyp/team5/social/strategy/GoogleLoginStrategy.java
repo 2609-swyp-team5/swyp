@@ -37,16 +37,16 @@ public class GoogleLoginStrategy implements SocialLoginStrategy {
         try {
             GoogleIdToken idToken = verifier.verify(token);
             if (idToken == null) {
-                throw new InvalidSocialTokenException("유효하지 않은 구글 토큰입니다.");
+                throw new InvalidSocialTokenException("구글 로그인에 실패했어요. 다시 시도해 주세요.");
             }
             GoogleIdToken.Payload payload = idToken.getPayload();
             if (!Boolean.TRUE.equals(payload.getEmailVerified())) {
-                throw new InvalidSocialTokenException("이메일이 확인되지 않은 구글 계정입니다.");
+                throw new InvalidSocialTokenException("이메일 인증이 완료되지 않은 구글 계정이에요.");
             }
             return new SocialUserInfo(payload.getSubject(), payload.getEmail(), (String) payload.get("name"), (String)
                     payload.get("picture"));
         } catch (GeneralSecurityException | IOException | IllegalArgumentException e) {
-            throw new InvalidSocialTokenException("유효하지 않은 구글 토큰입니다.");
+            throw new InvalidSocialTokenException("구글 로그인에 실패했어요. 다시 시도해 주세요.");
         }
     }
 }
