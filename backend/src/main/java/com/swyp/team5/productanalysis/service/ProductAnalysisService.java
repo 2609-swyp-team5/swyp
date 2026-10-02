@@ -2,11 +2,14 @@ package com.swyp.team5.productanalysis.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.LongSummaryStatistics;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -28,6 +31,7 @@ import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.productanalysis.config.ProductAnalysisProperties;
 import com.swyp.team5.productanalysis.dto.MarketAnalysisResult;
+import com.swyp.team5.productanalysis.dto.PriceTrendResponse;
 import com.swyp.team5.productanalysis.dto.ProductAnalysisResponse;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.PriceForecast;
@@ -159,6 +163,68 @@ public class ProductAnalysisService {
                 .map(analysis -> ProductAnalysisResponse.from(
                         product, analysis, priceForecastRepository.findByAnalysisId(analysis.getId())))
                 .orElseGet(() -> ProductAnalysisResponse.empty(product));
+    }
+
+    /**
+     * 상품의 최근 {@code days}일(오늘 포함) 시세 분석 스냅샷을 날짜별로 묶어 가격 추이를 조회한다. 같은 날 여러 번 분석됐으면
+     * 평균가는 그 평균, 최저/최고가는 그날 중 최저/최고이고, 기간 평균가는 일별 평균가의 평균이다(분석이 몰린 날이 과대 반영되지
+     * 않도록 {@link PriceTrend}와 같은 기준). 분석 이력이 없으면 {@code points}가 빈 배열이다.
+     *
+     * @throws ProductNotFoundException 존재하지 않는 상품인 경우
+     */
+    @Transactional(readOnly = true)
+    public PriceTrendResponse getPriceTrend(Long productId, int days) {
+        Product product =
+                productRepository.findById(productId).orElseThrow(() -> new ProductNotFoundException(productId));
+        LocalDate to = LocalDate.now();
+        LocalDate from = to.minusDays(days - 1L);
+        Map<LocalDate, List<ProductAnalysis>> byDate =
+                productAnalysisRepository
+                        .findByItemIdAndAnalyzedAtGreaterThanEqualOrderByAnalyzedAtAsc(productId, from.atStartOfDay())
+                        .stream()
+                        .collect(Collectors.groupingBy(
+                                analysis -> analysis.getAnalyzedAt().toLocalDate(), TreeMap::new, Collectors.toList()));
+        List<PriceTrendResponse.Point> points = byDate.entrySet().stream()
+                .map(entry -> new PriceTrendResponse.Point(
+                        entry.getKey(),
+                        Math.round(entry.getValue().stream()
+                                .mapToLong(ProductAnalysis::getAveragePrice)
+                                .average()
+                                .orElseThrow()),
+                        entry.getValue().stream()
+                                .mapToLong(ProductAnalysis::getMinPrice)
+                                .min()
+                                .orElseThrow(),
+                        entry.getValue().stream()
+                                .mapToLong(ProductAnalysis::getMaxPrice)
+                                .max()
+                                .orElseThrow(),
+                        entry.getValue().size()))
+                .toList();
+        return new PriceTrendResponse(
+                product.getId(),
+                product.getPrice(),
+                days,
+                from,
+                to,
+                points.isEmpty()
+                        ? null
+                        : Math.round(points.stream()
+                                .mapToLong(PriceTrendResponse.Point::averagePrice)
+                                .average()
+                                .orElseThrow()),
+                trendChangeRate(points),
+                points);
+    }
+
+    /** 첫 기록일 대비 마지막 기록일 평균가 변동률(소수 4자리). 기록일이 2일 미만이거나 첫 평균가가 0이면 null. */
+    private static BigDecimal trendChangeRate(List<PriceTrendResponse.Point> points) {
+        if (points.size() < 2 || points.getFirst().averagePrice() == 0) {
+            return null;
+        }
+        long first = points.getFirst().averagePrice();
+        return BigDecimal.valueOf(points.getLast().averagePrice() - first)
+                .divide(BigDecimal.valueOf(first), 4, RoundingMode.HALF_UP);
     }
 
     /**

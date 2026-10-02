@@ -15,6 +15,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -37,6 +38,7 @@ import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.productanalysis.config.ProductAnalysisProperties;
 import com.swyp.team5.productanalysis.dto.MarketAnalysisResult;
 import com.swyp.team5.productanalysis.dto.PriceForecastResponse;
+import com.swyp.team5.productanalysis.dto.PriceTrendResponse;
 import com.swyp.team5.productanalysis.dto.ProductAnalysisResponse;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.ForecastPeriod;
@@ -589,5 +591,65 @@ class ProductAnalysisServiceTest {
         ProductAnalysisResponse response = service().getLatestAnalysis(1L);
 
         assertThat(response.marketPriceDiffRate()).isEqualByComparingTo("11.1"); // 등록가가 평균보다 11.1% 비쌈
+    }
+
+    // 가격 추이 조회 실패 - 존재하지 않는 상품
+    @Test
+    void getPriceTrendThrowsWhenProductNotFound() {
+        when(productRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service().getPriceTrend(999L, 30)).isInstanceOf(ProductNotFoundException.class);
+    }
+
+    // 가격 추이 조회 - 오늘 포함 days일 전 0시부터 조회하고, 분석 이력이 없으면 빈 배열·평균/변동률 null
+    @Test
+    void getPriceTrendReturnsEmptyPointsWhenNoSnapshotExists() {
+        Product product = product(1L, 10L, 800_000L);
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        LocalDate today = LocalDate.now();
+        when(productAnalysisRepository.findByItemIdAndAnalyzedAtGreaterThanEqualOrderByAnalyzedAtAsc(
+                        1L, today.minusDays(29).atStartOfDay()))
+                .thenReturn(List.of());
+
+        PriceTrendResponse response = service().getPriceTrend(1L, 30);
+
+        assertThat(response.productId()).isEqualTo(1L);
+        assertThat(response.currentPrice()).isEqualTo(800_000L);
+        assertThat(response.days()).isEqualTo(30);
+        assertThat(response.from()).isEqualTo(today.minusDays(29));
+        assertThat(response.to()).isEqualTo(today);
+        assertThat(response.points()).isEmpty();
+        assertThat(response.averagePrice()).isNull();
+        assertThat(response.changeRate()).isNull();
+    }
+
+    // 가격 추이 조회 - 같은 날 스냅샷은 하루로 합치고(평균가 평균·최저/최고), 기간 평균은 일별 평균의 평균, 변동률은 첫날→마지막날
+    @Test
+    void getPriceTrendGroupsSnapshotsByDate() {
+        Product product = product(1L, 10L, 800_000L);
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        LocalDate day1 = LocalDate.now().minusDays(2);
+        LocalDate day2 = LocalDate.now();
+        when(productAnalysisRepository.findByItemIdAndAnalyzedAtGreaterThanEqualOrderByAnalyzedAtAsc(eq(1L), any()))
+                .thenReturn(List.of(
+                        snapshot(product, 900L, 1_000L, 1_100L, day1.atTime(0, 0)),
+                        snapshot(product, 800L, 1_100L, 1_300L, day1.atTime(6, 0)),
+                        snapshot(product, 850L, 1_000L, 1_200L, day1.atTime(12, 0)),
+                        snapshot(product, 700L, 950L, 1_000L, day2.atTime(6, 0))));
+
+        PriceTrendResponse response = service().getPriceTrend(1L, 30);
+
+        assertThat(response.points())
+                .containsExactly(
+                        new PriceTrendResponse.Point(day1, 1_033L, 800L, 1_300L, 3),
+                        new PriceTrendResponse.Point(day2, 950L, 700L, 1_000L, 1));
+        assertThat(response.averagePrice()).isEqualTo(992L); // (1033 + 950) / 2 = 991.5 → 992
+        assertThat(response.changeRate()).isEqualByComparingTo("-0.0803"); // (950 - 1033) / 1033
+    }
+
+    private static ProductAnalysis snapshot(
+            Product product, long minPrice, long averagePrice, long maxPrice, LocalDateTime analyzedAt) {
+        return ProductAnalysis.create(
+                product, minPrice, averagePrice, maxPrice, null, AnalysisRecommendation.HOLD, null, null, analyzedAt);
     }
 }
