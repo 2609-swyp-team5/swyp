@@ -16,6 +16,7 @@ import { ChartContainer, ChartTooltip, type ChartConfig } from "@/common/compone
 import { cn } from "@/common/lib/utils";
 import type { ProductPriceTrend } from "../../../types";
 import { formatPrice } from "../market-analysis/formatters";
+import styles from "./ProductPriceTrendChart.module.css";
 
 type ProductPriceTrendPoint = ProductPriceTrend["priceTrend"]["points"][number];
 
@@ -142,7 +143,10 @@ export function ProductPriceTrendChart({
         latestPoint.averagePrice === Math.max(...points.map((point) => point.averagePrice));
 
     return (
-        <div className="relative min-w-0" aria-label="최근 30일 일 평균 거래가 차트">
+        <div
+            className={cn(styles.chart, "relative min-w-0")}
+            aria-label="최근 30일 일 평균 거래가 차트"
+        >
             <div className="mb-2 flex items-center justify-between gap-3 px-1">
                 <div className="flex items-center gap-2">
                     <span className="size-2 rounded-full bg-[#6653fb]" aria-hidden="true" />

@@ -182,6 +182,12 @@ frontend/
 - 기본 본문은 Inter를 사용하고, 브랜드·푸터 문구에는 `font-brand` 또는 `typography-footer`를 사용한다.
 - 현재 기준 그리드는 데스크톱 8열/20px gutter/112px margin, 태블릿 6열/20px gutter/112px margin, 모바일 2열/5px gutter/40px margin이다.
 - 클래스 조합은 `@/common/lib/utils`의 `cn`을 사용한다.
+- 고정된 컴포넌트 스타일은 Tailwind 유틸리티 클래스를 우선 사용한다.
+- 데이터에 따라 달라지는 크기·위치·CSS 변수만 inline `style` prop으로 지정한다.
+- 컴포넌트 전용 선택자·keyframes·애니메이션은 컴포넌트와 같은 폴더의 `ComponentName.module.css`에 정의한다.
+- Recharts처럼 외부 라이브러리가 생성하는 DOM 클래스를 선택해야 할 때만 CSS Module의 `:global(...)`을 사용한다.
+- `globals.css`에는 디자인 토큰, 공통 레이아웃·타이포그래피, 전역 스타일만 둔다.
+- `cva`는 상태·variant에 따른 클래스 조합을 관리하는 용도로 사용하고, `@keyframes` 같은 CSS 정의 자체를 대체하는 용도로 사용하지 않는다.
 - 공통 버튼 변형은 `Button.tsx`의 CVA 설정에서 관리한다.
 - Prettier 설정을 따른다: 4칸 들여쓰기, 큰따옴표, 세미콜론, trailing comma, LF.
 - Tailwind 클래스 순서는 `prettier-plugin-tailwindcss`에 맡긴다.
