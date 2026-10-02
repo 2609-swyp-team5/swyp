@@ -41,11 +41,13 @@ export function PlatformShortcutDialog({ product }: { product: ProductResponse }
             <DialogTrigger asChild>
                 <Button
                     type="button"
-                    variant="outline"
-                    className="h-9 gap-1.5 rounded-[6px] border-[#dee5ed] px-3 text-[12px] text-[#6b6c7b] hover:bg-[#f5f3ff]"
+                    variant="ghost"
+                    className="h-auto flex-col gap-2 rounded-xl p-2.5 text-[#83889e] hover:bg-[#f5f3ff] hover:text-[#6653fb]"
                 >
-                    <ExternalLink aria-hidden="true" className="size-3.5" />
-                    상품 바로가기
+                    <span className="flex size-10 items-center justify-center rounded-full bg-[#eaeafd]">
+                        <ExternalLink aria-hidden="true" className="size-[22px] text-[#6653fb]" />
+                    </span>
+                    <span className="text-[16px] leading-[25px] font-normal">바로가기</span>
                 </Button>
             </DialogTrigger>
             <DialogContent className="max-w-sm gap-5 rounded-[16px] border-[#dee5ed] p-6">

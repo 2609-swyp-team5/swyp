@@ -12,7 +12,7 @@ export function ProductSummarySkeleton() {
                     ))}
                 </div>
             </div>
-            <div className="flex min-w-0 flex-col gap-4 py-1">
+            <div className="flex h-full min-w-0 flex-col gap-4 py-1">
                 <div className="h-6 w-24 rounded-full bg-[#eef0f5]" />
                 <div className="h-8 w-4/5 rounded bg-[#eef0f5]" />
                 <div className="h-8 w-2/5 rounded bg-[#eef0f5]" />
@@ -20,16 +20,13 @@ export function ProductSummarySkeleton() {
                     <div className="h-9 w-28 rounded-full bg-[#f4f5f8]" />
                     <div className="h-9 w-24 rounded-full bg-[#f4f5f8]" />
                 </div>
-                <div className="mt-auto flex items-end justify-between gap-4">
-                    <div className="h-9 w-28 rounded-[6px] bg-[#f4f5f8]" />
-                    <div className="flex items-end gap-[30px]">
-                        {Array.from({ length: 2 }, (_, index) => (
-                            <div key={index} className="flex flex-col items-center gap-2">
-                                <div className="size-10 rounded-full bg-[#eef0f5]" />
-                                <div className="h-4 w-14 rounded bg-[#f4f5f8]" />
-                            </div>
-                        ))}
-                    </div>
+                <div className="mt-auto flex items-end justify-end gap-[30px] pt-6">
+                    {Array.from({ length: 3 }, (_, index) => (
+                        <div key={index} className="flex flex-col items-center gap-2">
+                            <div className="size-10 rounded-full bg-[#eef0f5]" />
+                            <div className="h-4 w-14 rounded bg-[#f4f5f8]" />
+                        </div>
+                    ))}
                 </div>
             </div>
         </section>

@@ -21,7 +21,7 @@ export function ProductSummaryCard({ product }: { product: ProductResponse }) {
             <div className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
                 <ProductGallery product={product} layout="bottom" />
 
-                <div className="flex min-w-0 flex-col py-1">
+                <div className="flex h-full min-w-0 flex-col py-1">
                     <div className="flex flex-wrap items-center gap-3">
                         <span className="rounded-full bg-[#fff4f4] px-4 py-1 text-[13px] leading-5 font-semibold text-[#fa503d]">
                             {statusLabels[product.status]}
@@ -47,18 +47,14 @@ export function ProductSummaryCard({ product }: { product: ProductResponse }) {
                             {conditionLabels[product.condition]}
                         </span>
                     </div>
-                    <div className="mt-6 flex items-end justify-between gap-4">
+                    <div className="mt-auto flex items-end justify-end gap-[30px] pt-6">
                         {product.status === "ON_SALE" ? (
                             <PlatformShortcutDialog product={product} />
-                        ) : (
-                            <span aria-hidden="true" />
-                        )}
-                        <div className="w-fit">
-                            <ProductSummaryActions
-                                product={product}
-                                editHref={`/sell/manage/${product.id}/edit`}
-                            />
-                        </div>
+                        ) : null}
+                        <ProductSummaryActions
+                            product={product}
+                            editHref={`/sell/manage/${product.id}/edit`}
+                        />
                     </div>
                 </div>
             </div>
