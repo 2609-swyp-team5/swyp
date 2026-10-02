@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 
 import { Button } from "@/common/components/ui/Button";
 import { cn } from "@/common/lib/utils";
@@ -49,6 +49,35 @@ const badgeToneClassNames: Record<ManagementItem["badgeTone"], string> = {
     muted: "bg-[#83889e] text-white",
     warning: "bg-[#fa503d] text-white",
 };
+
+function subscribeToLocation(onStoreChange: () => void) {
+    if (typeof window === "undefined") {
+        return () => undefined;
+    }
+
+    window.addEventListener("popstate", onStoreChange);
+    return () => window.removeEventListener("popstate", onStoreChange);
+}
+
+function getSelectedItemIdSnapshot() {
+    if (typeof window === "undefined") {
+        return null;
+    }
+
+    return new URLSearchParams(window.location.search).get("selected");
+}
+
+function persistSelectedItemId(itemId: string) {
+    const params = new URLSearchParams(window.location.search);
+    params.set("selected", itemId);
+    const query = params.toString();
+    window.history.replaceState(
+        window.history.state,
+        "",
+        `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`,
+    );
+    window.dispatchEvent(new PopStateEvent("popstate"));
+}
 
 function ManagementListItem({
     item,
@@ -153,7 +182,11 @@ export function ManagementShell({
     primaryAction,
 }: ManagementShellProps) {
     const [activeTabKey, setActiveTabKey] = useState(tabs[0]?.key ?? "all");
-    const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+    const selectedItemId = useSyncExternalStore(
+        subscribeToLocation,
+        getSelectedItemIdSnapshot,
+        () => null,
+    );
     const activeTab = tabs.find((tab) => tab.key === activeTabKey) ?? tabs[0];
     const filteredItems = useMemo(
         () => (activeTab ? items.filter(activeTab.filter) : items),
@@ -260,7 +293,9 @@ export function ManagementShell({
                                             key={item.id}
                                             item={item}
                                             isSelected={item.id === selectedItemId}
-                                            onSelect={() => setSelectedItemId(item.id)}
+                                            onSelect={() => {
+                                                persistSelectedItemId(item.id);
+                                            }}
                                         />
                                     ))}
                                 </div>
