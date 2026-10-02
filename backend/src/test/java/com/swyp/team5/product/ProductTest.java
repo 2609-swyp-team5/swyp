@@ -476,6 +476,24 @@ class ProductTest {
                 .andExpect(jsonPath("$.data.category.name").value(category.getName()));
     }
 
+    // 상품 상세 조회 - 판매자 본인에게만 게시 플랫폼·관심 수·조회수를 내려줌
+    @Test
+    void getProductIncludesSellerStatsOnlyForOwner() throws Exception {
+        Long productId = createProduct();
+        String otherToken = createOtherMemberToken();
+
+        mockMvc.perform(get("/products/{id}", productId).header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.platforms.length()").value(0))
+                .andExpect(jsonPath("$.data.interestCount").value(0))
+                .andExpect(jsonPath("$.data.viewCount").isNumber());
+        mockMvc.perform(get("/products/{id}", productId).header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.platforms").doesNotExist())
+                .andExpect(jsonPath("$.data.interestCount").doesNotExist())
+                .andExpect(jsonPath("$.data.viewCount").doesNotExist());
+    }
+
     // 상품 상세 조회 실패 - 존재하지 않는 상품
     @Test
     void getProductFailsWhenNotFound() throws Exception {

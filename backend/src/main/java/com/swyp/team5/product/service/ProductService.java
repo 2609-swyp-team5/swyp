@@ -33,9 +33,11 @@ import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.repository.MemberRepository;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.platform.repository.PlatformListingRepository;
+import com.swyp.team5.platform.repository.ProductPlatformRepository;
 import com.swyp.team5.product.dto.ProductAiAnalysisResult;
 import com.swyp.team5.product.dto.ProductCreateRequest;
 import com.swyp.team5.product.dto.ProductListItemResponse;
+import com.swyp.team5.product.dto.ProductPlatformSummaryResponse;
 import com.swyp.team5.product.dto.ProductResponse;
 import com.swyp.team5.product.dto.ProductSearchCondition;
 import com.swyp.team5.product.dto.ProductSearchCursor;
@@ -81,6 +83,8 @@ public class ProductService {
     private final SearchLogService searchLogService;
     private final ProductAnalysisService productAnalysisService;
     private final TargetPriceAlertService targetPriceAlertService;
+    private final ProductPlatformRepository productPlatformRepository;
+    private final ProductViewCounter productViewCounter;
 
     public ProductService(
             ProductRepository productRepository,
@@ -95,7 +99,9 @@ public class ProductService {
             InterestRepository interestRepository,
             SearchLogService searchLogService,
             ProductAnalysisService productAnalysisService,
-            TargetPriceAlertService targetPriceAlertService) {
+            TargetPriceAlertService targetPriceAlertService,
+            ProductPlatformRepository productPlatformRepository,
+            ProductViewCounter productViewCounter) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
         this.memberRepository = memberRepository;
@@ -109,6 +115,8 @@ public class ProductService {
         this.searchLogService = searchLogService;
         this.productAnalysisService = productAnalysisService;
         this.targetPriceAlertService = targetPriceAlertService;
+        this.productPlatformRepository = productPlatformRepository;
+        this.productViewCounter = productViewCounter;
     }
 
     /**
@@ -240,14 +248,15 @@ public class ProductService {
      * 응답 형태로 내려준다({@code source}로 구분). 가장 최근 시세 분석 판단({@code recommendation})과 그 분석의 비교 매물
      * 평균가({@code marketAveragePrice})도 함께 포함한다. 분석 이력이 없으면 판단은 {@code null}이고, 평균가는 같은 기준으로
      * 지금 수집된 매물에서 계산한다(비교 매물이 부족하면 {@code null}). 외부 매물은 번개장터를 다시 조회하지 않고 수집·재확인
-     * 배치가 저장한 값만 쓴다.
+     * 배치가 저장한 값만 쓴다. 판매자 본인이 조회하면 외부 플랫폼 게시 상태({@code platforms})·관심 수·조회수도 채운다.
      *
      * @param itemId 조회할 상품(또는 외부 매물) ID
+     * @param memberId 조회하는 회원 ID(판매자 본인 여부 판단용)
      * @return 상품 상세 정보
      * @throws ProductNotFoundException 존재하지 않는 ID인 경우
      */
     @Transactional(readOnly = true)
-    public ProductResponse getProduct(Long itemId) {
+    public ProductResponse getProduct(Long itemId, Long memberId) {
         Item item = itemRepository.findById(itemId).orElseThrow(() -> new ProductNotFoundException(itemId));
         Optional<ProductAnalysis> latest = productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(itemId);
         AnalysisRecommendation recommendation =
@@ -261,7 +270,32 @@ public class ProductService {
         Product product = (Product) Hibernate.unproxy(item);
         Long averagePrice =
                 latest.map(ProductAnalysis::getAveragePrice).orElseGet(() -> calculateMarketAveragePrice(product));
-        return ProductResponse.from(product, recommendation, averagePrice);
+        ProductResponse response = ProductResponse.from(product, recommendation, averagePrice);
+        if (!product.isRegisteredBy(memberId)) {
+            return response;
+        }
+        return response.withSellerStats(
+                productPlatformRepository.findByProductId(product.getId()).stream()
+                        .map(ProductPlatformSummaryResponse::from)
+                        .toList(),
+                interestRepository.countByItemId(product.getId()),
+                product.getViewCount());
+    }
+
+    /**
+     * 상품 상세 조회 1건을 조회수에 반영한다. 우리 상품만 세고, 판매자 본인 조회와 같은 회원의 24시간 내 재조회는 세지
+     * 않는다({@link ProductViewCounter}). 없는 ID는 무시한다(상세 조회가 404로 응답).
+     *
+     * @param itemId 조회한 상품(또는 외부 매물) ID
+     * @param memberId 조회한 회원 ID
+     */
+    @Transactional
+    public void recordView(Long itemId, Long memberId) {
+        productRepository
+                .findById(itemId)
+                .filter(product -> !product.isRegisteredBy(memberId))
+                .filter(product -> productViewCounter.isFirstView(product.getId(), memberId))
+                .ifPresent(product -> productRepository.incrementViewCount(product.getId()));
     }
 
     private Long calculateMarketAveragePrice(Product product) {

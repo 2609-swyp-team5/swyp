@@ -27,4 +27,10 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     @Modifying
     @Query("update Product p set p.suggestedPrice = :suggestedPrice where p.id = :productId")
     int updateSuggestedPrice(@Param("productId") Long productId, @Param("suggestedPrice") Long suggestedPrice);
+
+    /** 조회수를 1 올린다(동시 조회에도 누락되지 않도록 DB에서 더한다). */
+    @Transactional
+    @Modifying
+    @Query("update Product p set p.viewCount = p.viewCount + 1 where p.id = :productId")
+    int incrementViewCount(@Param("productId") Long productId);
 }
