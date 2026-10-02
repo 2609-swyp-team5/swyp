@@ -2,174 +2,16 @@
 
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 
 import { Button } from "@/common/components/ui/Button";
 import { cn } from "@/common/lib/utils";
+import { persistSelectedProductId, useSelectedProductId } from "../../hooks/useSelectedProductId";
+import { ProductListItem } from "./ProductListItem";
+import { ProductListSkeleton } from "./ProductListSkeleton";
+import type { ProductListShellProps } from "./productListTypes";
 
-export type ManagementItem = {
-    id: string;
-    title: string;
-    price: number;
-    categoryName: string;
-    thumbnailUrl: string | null;
-    badgeLabel: string | null;
-    badgeTone: "primary" | "dark" | "muted" | "warning";
-    metaLabel: string;
-};
-
-export type ManagementTab = {
-    key: string;
-    label: string;
-    listTitle?: string;
-    filter: (item: ManagementItem) => boolean;
-};
-
-export type ManagementShellProps = {
-    eyebrow: string;
-    title: string;
-    tabs: ManagementTab[];
-    items: ManagementItem[];
-    isLoading: boolean;
-    errorMessage?: string;
-    emptyMessage: string;
-    listTitle: string;
-    detailRenderer?: (item: ManagementItem) => ReactNode;
-    primaryAction?: {
-        label: string;
-        href: string;
-    };
-};
-
-const priceFormatter = new Intl.NumberFormat("ko-KR");
-
-const badgeToneClassNames: Record<ManagementItem["badgeTone"], string> = {
-    primary: "bg-[#6653fb] text-white",
-    dark: "bg-[#272727] text-white",
-    muted: "bg-[#83889e] text-white",
-    warning: "bg-[#fa503d] text-white",
-};
-
-function subscribeToLocation(onStoreChange: () => void) {
-    if (typeof window === "undefined") {
-        return () => undefined;
-    }
-
-    window.addEventListener("popstate", onStoreChange);
-    return () => window.removeEventListener("popstate", onStoreChange);
-}
-
-function getSelectedItemIdSnapshot() {
-    if (typeof window === "undefined") {
-        return null;
-    }
-
-    return new URLSearchParams(window.location.search).get("selected");
-}
-
-function persistSelectedItemId(itemId: string) {
-    const params = new URLSearchParams(window.location.search);
-    params.set("selected", itemId);
-    const query = params.toString();
-    window.history.replaceState(
-        window.history.state,
-        "",
-        `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`,
-    );
-    window.dispatchEvent(new PopStateEvent("popstate"));
-}
-
-function ManagementListItem({
-    item,
-    isSelected,
-    onSelect,
-}: {
-    item: ManagementItem;
-    isSelected: boolean;
-    onSelect: () => void;
-}) {
-    return (
-        <button
-            type="button"
-            aria-pressed={isSelected}
-            className={cn(
-                "flex h-[100px] w-full items-center gap-3 border-b border-[#d3d3d3] px-3 py-3 text-left transition-colors last:border-b-0 hover:bg-[#faf9ff] focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-[#6653fb] focus-visible:ring-inset",
-                isSelected && "bg-[#f1f1f1] hover:bg-[#f1f1f1]",
-            )}
-            onClick={onSelect}
-        >
-            <div className="flex min-w-0 flex-1 flex-col">
-                <p className="truncate text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#374151]">
-                    {item.title}
-                </p>
-                <p className="truncate text-[10px] leading-[15px] tracking-[-0.5px] text-[#9aa0b0]">
-                    등록가 {priceFormatter.format(item.price)}원
-                </p>
-            </div>
-            <div className="flex w-14 shrink-0 flex-col items-center gap-[5px]">
-                {item.badgeLabel ? (
-                    <span
-                        className={cn(
-                            "inline-flex h-5 w-14 items-center justify-center rounded-full text-[13px] leading-5 font-semibold tracking-[-0.5px]",
-                            badgeToneClassNames[item.badgeTone],
-                        )}
-                    >
-                        {item.badgeLabel}
-                    </span>
-                ) : (
-                    <span className="h-5 w-14" aria-hidden="true" />
-                )}
-                <span className="min-w-max text-center text-[10px] leading-[15px] tracking-[-0.5px] whitespace-nowrap text-[#6b6c7b]">
-                    {item.metaLabel}
-                </span>
-            </div>
-        </button>
-    );
-}
-
-function ListSkeleton() {
-    return (
-        <div aria-label="상품 목록을 불러오는 중">
-            {Array.from({ length: 6 }, (_, index) => (
-                <div
-                    key={index}
-                    className="flex h-[100px] items-center gap-3 border-b border-[#d3d3d3] px-3 py-3 last:border-b-0"
-                >
-                    <div className="flex min-w-0 flex-1 flex-col gap-2">
-                        <div className="h-4 w-3/4 animate-pulse rounded bg-[#eef0f5]" />
-                        <div className="h-2 w-1/2 animate-pulse rounded bg-[#f4f5f8]" />
-                    </div>
-                    <div className="flex w-14 flex-col gap-[5px]">
-                        <div className="h-5 w-14 animate-pulse rounded-full bg-[#eef0f5]" />
-                        <div className="h-2 w-14 animate-pulse rounded bg-[#f4f5f8]" />
-                    </div>
-                </div>
-            ))}
-        </div>
-    );
-}
-
-function DetailSkeleton() {
-    return (
-        <section
-            aria-label="상품 상세 정보를 불러오는 중"
-            className="grid min-h-[430px] animate-pulse gap-6 rounded-[16px] border border-[#dee5ed] bg-white p-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]"
-        >
-            <div className="min-h-[260px] rounded-[10px] bg-[#eef0f5]" />
-            <div className="flex flex-col gap-4 py-2">
-                <div className="h-6 w-24 rounded-full bg-[#eef0f5]" />
-                <div className="h-8 w-4/5 rounded bg-[#eef0f5]" />
-                <div className="h-8 w-2/5 rounded bg-[#eef0f5]" />
-                <div className="mt-3 flex gap-2">
-                    <div className="h-9 w-28 rounded-full bg-[#f4f5f8]" />
-                    <div className="h-9 w-24 rounded-full bg-[#f4f5f8]" />
-                </div>
-            </div>
-        </section>
-    );
-}
-
-export function ManagementShell({
+export function ProductListShell({
     eyebrow,
     title,
     tabs,
@@ -180,13 +22,9 @@ export function ManagementShell({
     listTitle,
     detailRenderer,
     primaryAction,
-}: ManagementShellProps) {
+}: ProductListShellProps) {
     const [activeTabKey, setActiveTabKey] = useState(tabs[0]?.key ?? "all");
-    const selectedItemId = useSyncExternalStore(
-        subscribeToLocation,
-        getSelectedItemIdSnapshot,
-        () => null,
-    );
+    const selectedItemId = useSelectedProductId();
     const activeTab = tabs.find((tab) => tab.key === activeTabKey) ?? tabs[0];
     const filteredItems = useMemo(
         () => (activeTab ? items.filter(activeTab.filter) : items),
@@ -275,7 +113,7 @@ export function ManagementShell({
                             </h2>
                         </div>
                         <div className="mt-[30px] max-h-[600px] overflow-y-auto">
-                            {isLoading ? <ListSkeleton /> : null}
+                            {isLoading ? <ProductListSkeleton /> : null}
                             {!isLoading && errorMessage ? (
                                 <div className="px-5 py-12 text-center text-[14px] leading-5 font-medium text-[#d65353]">
                                     {errorMessage}
@@ -289,12 +127,12 @@ export function ManagementShell({
                             {!isLoading && !errorMessage && filteredItems.length > 0 ? (
                                 <div>
                                     {filteredItems.map((item) => (
-                                        <ManagementListItem
+                                        <ProductListItem
                                             key={item.id}
                                             item={item}
                                             isSelected={item.id === selectedItemId}
                                             onSelect={() => {
-                                                persistSelectedItemId(item.id);
+                                                persistSelectedProductId(item.id);
                                             }}
                                         />
                                     ))}
@@ -303,9 +141,7 @@ export function ManagementShell({
                         </div>
                     </aside>
 
-                    {isLoading && detailRenderer ? (
-                        <DetailSkeleton />
-                    ) : selectedItem && detailRenderer ? (
+                    {selectedItem && detailRenderer ? (
                         detailRenderer(selectedItem)
                     ) : (
                         <section className="flex min-h-[430px] items-center justify-center rounded-[14px] border border-dashed border-[#d3d3d3] bg-[#fafbff] px-6 py-16 text-center">

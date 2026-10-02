@@ -1,11 +1,9 @@
 "use client";
 
 import { getApiErrorMessage } from "@/common/lib/api/error";
-import {
-    ManagementShell,
-    type ManagementTab,
-} from "@/features/product-management/components/ManagementShell";
-import { ProductSummaryDetail } from "@/features/product-management/components/ProductSummaryDetail";
+import { ProductListShell } from "@/features/product-management/components/product-list/ProductListShell";
+import type { ProductListTab } from "@/features/product-management/components/product-list/productListTypes";
+import { ProductManagementDetail } from "@/features/product-management/components/ProductManagementDetail";
 import { useMyProductsQuery } from "@/features/sell/hooks/queries/useMyProductsQuery";
 import type { ProductStatus } from "@/features/sell/types";
 
@@ -20,7 +18,7 @@ const recommendationLabels: Record<string, string> = {
     HOLD: "HOLD",
 };
 
-const tabs: ManagementTab[] = [
+const tabs: ProductListTab[] = [
     { key: "all", label: "전체", listTitle: "전체 상품 목록", filter: () => true },
     {
         key: "draft",
@@ -47,7 +45,7 @@ export default function SellManagePage() {
     const products = data?.content ?? [];
 
     return (
-        <ManagementShell
+        <ProductListShell
             eyebrow="등록한 상품을 한눈에"
             title="판매 상품 관리"
             tabs={tabs}
@@ -72,7 +70,7 @@ export default function SellManagePage() {
             errorMessage={error ? getApiErrorMessage(error) : undefined}
             emptyMessage="등록된 상품이 없습니다."
             listTitle="전체 상품 목록"
-            detailRenderer={(item) => <ProductSummaryDetail productId={Number(item.id)} />}
+            detailRenderer={(item) => <ProductManagementDetail productId={Number(item.id)} />}
             primaryAction={{ label: "상품 등록하기", href: "/sell/register" }}
         />
     );

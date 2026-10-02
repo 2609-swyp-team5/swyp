@@ -3,10 +3,9 @@
 import { useState } from "react";
 
 import Image from "next/image";
-
-import { getApiErrorMessage } from "@/common/lib/api/error";
-import { Button } from "@/common/components/ui/Button";
 import { ArrowUpRight, ExternalLink, Globe2, X } from "lucide-react";
+
+import { Button } from "@/common/components/ui/Button";
 import {
     Dialog,
     DialogClose,
@@ -15,54 +14,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/common/components/ui/Dialog";
-import { ProductGallery } from "@/features/sell/components/manage/ProductGallery";
-import { ProductSummaryActions } from "@/features/sell/components/manage/ProductSummaryActions";
-import { useProductQuery } from "@/features/sell/hooks/queries/useProductQuery";
 import type { ProductPlatform, ProductResponse } from "@/features/sell/types";
-import {
-    conditionLabels,
-    formatRegisteredAt,
-    priceFormatter,
-    statusLabels,
-} from "@/features/sell/components/manage/productReviewUtils";
-
-function ProductSummarySkeleton() {
-    return (
-        <section
-            aria-label="상품 정보를 불러오는 중"
-            className="grid min-h-[430px] animate-pulse gap-6 rounded-[16px] border border-[#dee5ed] bg-white p-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]"
-        >
-            <div className="flex min-w-0 flex-col gap-3">
-                <div className="aspect-[1.15] w-full rounded-[10px] bg-[#eef0f5]" />
-                <div className="grid grid-cols-4 gap-2">
-                    {Array.from({ length: 4 }, (_, index) => (
-                        <div key={index} className="aspect-square rounded-lg bg-[#f4f5f8]" />
-                    ))}
-                </div>
-            </div>
-            <div className="flex min-w-0 flex-col gap-4 py-1">
-                <div className="h-6 w-24 rounded-full bg-[#eef0f5]" />
-                <div className="h-8 w-4/5 rounded bg-[#eef0f5]" />
-                <div className="h-8 w-2/5 rounded bg-[#eef0f5]" />
-                <div className="mt-3 flex gap-2.5">
-                    <div className="h-9 w-28 rounded-full bg-[#f4f5f8]" />
-                    <div className="h-9 w-24 rounded-full bg-[#f4f5f8]" />
-                </div>
-                <div className="mt-auto flex items-end justify-between gap-4">
-                    <div className="h-9 w-28 rounded-[6px] bg-[#f4f5f8]" />
-                    <div className="flex items-end gap-[30px]">
-                        {Array.from({ length: 2 }, (_, index) => (
-                            <div key={index} className="flex flex-col items-center gap-2">
-                                <div className="size-10 rounded-full bg-[#eef0f5]" />
-                                <div className="h-4 w-14 rounded bg-[#f4f5f8]" />
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        </section>
-    );
-}
 
 const platformStatusLabels: Record<ProductPlatform["status"], string> = {
     POSTING: "등록 중",
@@ -80,7 +32,7 @@ const platformIconPaths: Record<string, string> = {
     중고나라: "/my/home/joonggonara.png",
 };
 
-function PlatformShortcutDialog({ product }: { product: ProductResponse }) {
+export function PlatformShortcutDialog({ product }: { product: ProductResponse }) {
     const [isOpen, setIsOpen] = useState(false);
     const platforms = product.platforms ?? [];
 
@@ -199,78 +151,4 @@ function PlatformShortcutDialog({ product }: { product: ProductResponse }) {
             </DialogContent>
         </Dialog>
     );
-}
-
-function ProductSummaryCard({ product }: { product: ProductResponse }) {
-    return (
-        <section
-            aria-labelledby="product-summary-detail-title"
-            className="rounded-[16px] border border-[#dee5ed] bg-white p-5"
-        >
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-                <ProductGallery product={product} layout="bottom" />
-
-                <div className="flex min-w-0 flex-col py-1">
-                    <div className="flex flex-wrap items-center gap-3">
-                        <span className="rounded-full bg-[#fff4f4] px-4 py-1 text-[13px] leading-5 font-semibold text-[#fa503d]">
-                            {statusLabels[product.status]}
-                        </span>
-                        <span className="text-[11px] leading-4 text-[#6b6c7b]">
-                            {formatRegisteredAt(product.createdAt)}
-                        </span>
-                    </div>
-                    <h2
-                        id="product-summary-detail-title"
-                        className="mt-4 text-[24px] leading-9 font-bold break-keep text-[#363636]"
-                    >
-                        {product.title}
-                    </h2>
-                    <p className="mt-1 text-[26px] leading-9 font-bold text-[#6653fb]">
-                        {priceFormatter.format(product.price)}원
-                    </p>
-                    <div className="mt-5 flex flex-wrap gap-2.5">
-                        <span className="rounded-full border border-[#d3d3d3] bg-[#fafbff] px-4 py-2 text-[13px] leading-5 font-semibold text-[#83889e]">
-                            {product.category.name}
-                        </span>
-                        <span className="rounded-full border border-[#d3d3d3] bg-[#fafbff] px-4 py-2 text-[13px] leading-5 font-semibold text-[#6653fb]">
-                            {conditionLabels[product.condition]}
-                        </span>
-                    </div>
-                    <div className="mt-6 flex items-end justify-between gap-4">
-                        {product.status === "ON_SALE" ? (
-                            <PlatformShortcutDialog product={product} />
-                        ) : (
-                            <span aria-hidden="true" />
-                        )}
-                        <div className="w-fit">
-                            <ProductSummaryActions
-                                product={product}
-                                editHref={`/sell/manage/${product.id}/edit`}
-                            />
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-    );
-}
-
-export function ProductSummaryDetail({ productId }: { productId: number }) {
-    const { data, error, isPending } = useProductQuery(productId);
-
-    if (isPending) {
-        return <ProductSummarySkeleton />;
-    }
-
-    if (error || !data) {
-        return (
-            <section className="flex min-h-[430px] items-center justify-center rounded-[16px] border border-[#dee5ed] bg-white p-6 text-center">
-                <p className="text-[14px] leading-6 font-medium text-[#d65353]">
-                    {getApiErrorMessage(error)}
-                </p>
-            </section>
-        );
-    }
-
-    return <ProductSummaryCard product={data} />;
 }

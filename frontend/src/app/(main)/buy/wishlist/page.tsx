@@ -1,10 +1,8 @@
 "use client";
 
 import { getApiErrorMessage } from "@/common/lib/api/error";
-import {
-    ManagementShell,
-    type ManagementTab,
-} from "@/features/product-management/components/ManagementShell";
+import { ProductListShell } from "@/features/product-management/components/product-list/ProductListShell";
+import type { ProductListTab } from "@/features/product-management/components/product-list/productListTypes";
 import { useInterestsQuery } from "@/features/interest/hooks/queries/useInterestsQuery";
 
 const statusMetaLabels: Record<string, string> = {
@@ -13,7 +11,7 @@ const statusMetaLabels: Record<string, string> = {
     SOLD_OUT: "판매완료 상품",
 };
 
-const tabs: ManagementTab[] = [
+const tabs: ProductListTab[] = [
     { key: "all", label: "전체", listTitle: "전체 상품 목록", filter: () => true },
     {
         key: "buy",
@@ -40,7 +38,7 @@ export default function WishlistPage() {
     const interests = data ?? [];
 
     return (
-        <ManagementShell
+        <ProductListShell
             eyebrow="AI가 가격변화를 추적하고 있어요"
             title="관심 상품"
             tabs={tabs}
