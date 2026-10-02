@@ -65,12 +65,15 @@ export default function SellManagePage() {
                           ? "dark"
                           : "muted",
                 metaLabel: statusMetaLabels[product.status],
+                status: product.status,
             }))}
             isLoading={isPending}
             errorMessage={error ? getApiErrorMessage(error) : undefined}
             emptyMessage="등록된 상품이 없습니다."
             listTitle="전체 상품 목록"
-            detailRenderer={(item) => <ProductManagementDetail productId={Number(item.id)} />}
+            detailRenderer={(item) => (
+                <ProductManagementDetail productId={Number(item.id)} initialStatus={item.status} />
+            )}
             primaryAction={{ label: "상품 등록하기", href: "/sell/register" }}
         />
     );

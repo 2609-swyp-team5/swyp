@@ -2,6 +2,7 @@
 
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { useProductQuery } from "@/features/sell/hooks/queries/useProductQuery";
+import type { ProductStatus } from "@/features/sell/types";
 import { useProductManagementSectionsQuery } from "../hooks/useProductManagementSectionsQuery";
 import { MarketAnalysisSection } from "./analysis/market-analysis/MarketAnalysisSection";
 import { ProductTradeHistorySection } from "./analysis/trade-history/ProductTradeHistorySection";
@@ -9,9 +10,19 @@ import { ProductCompetitionSection } from "./competition/ProductCompetitionSecti
 import { ProductSummaryCard } from "./product-summary/ProductSummaryCard";
 import { ProductSummarySkeleton } from "./product-summary/ProductSummarySkeleton";
 
-export function ProductManagementDetail({ productId }: { productId: number }) {
+export function ProductManagementDetail({
+    productId,
+    initialStatus,
+}: {
+    productId: number;
+    initialStatus?: ProductStatus;
+}) {
     const { data, error, isPending } = useProductQuery(productId);
-    const sections = useProductManagementSectionsQuery(productId);
+    const currentStatus = data?.status ?? (isPending ? initialStatus : undefined);
+    const shouldShowCompetition = currentStatus === "ON_SALE" || currentStatus === "SOLD_OUT";
+    const sections = useProductManagementSectionsQuery(productId, {
+        competitionEnabled: shouldShowCompetition,
+    });
 
     return (
         <div className="flex min-w-0 flex-col gap-6">
@@ -32,7 +43,7 @@ export function ProductManagementDetail({ productId }: { productId: number }) {
                 valuationForecastQuery={sections.section4}
             />
             <ProductTradeHistorySection query={sections.section5} />
-            <ProductCompetitionSection query={sections.section6} />
+            {shouldShowCompetition ? <ProductCompetitionSection query={sections.section6} /> : null}
         </div>
     );
 }

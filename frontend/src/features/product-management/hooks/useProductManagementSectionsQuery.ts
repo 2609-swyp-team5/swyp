@@ -18,8 +18,12 @@ const sectionQueryOptions = {
     retry: false,
 };
 
-export function useProductManagementSectionsQuery(productId: number) {
+export function useProductManagementSectionsQuery(
+    productId: number,
+    options?: { competitionEnabled?: boolean },
+) {
     const enabled = isValidProductId(productId);
+    const competitionEnabled = enabled && (options?.competitionEnabled ?? true);
 
     const section2 = useQuery({
         ...sectionQueryOptions,
@@ -53,7 +57,7 @@ export function useProductManagementSectionsQuery(productId: number) {
         ...sectionQueryOptions,
         queryKey: ["product-management", "competition", productId] as const,
         queryFn: () => getProductCompetitionMock(productId),
-        enabled,
+        enabled: competitionEnabled,
     });
 
     return { section2, section3, section4, section5, section6 };

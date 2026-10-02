@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import type { ProductStatus } from "@/features/sell/types";
+
 export type ProductListItemData = {
     id: string;
     title: string;
@@ -9,6 +11,7 @@ export type ProductListItemData = {
     badgeLabel: string | null;
     badgeTone: "primary" | "dark" | "muted" | "warning";
     metaLabel: string;
+    status?: ProductStatus;
 };
 
 export type ProductListTab = {
