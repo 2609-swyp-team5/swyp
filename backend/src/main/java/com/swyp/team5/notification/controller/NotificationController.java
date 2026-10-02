@@ -17,6 +17,7 @@ import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.common.passport.PrincipalMember;
 import com.swyp.team5.notification.dto.NotificationReadResponse;
 import com.swyp.team5.notification.dto.NotificationResponse;
+import com.swyp.team5.notification.dto.NotificationUnreadCountResponse;
 import com.swyp.team5.notification.service.NotificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -45,6 +46,18 @@ public class NotificationController {
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(
                 ApiResponse.success(notificationService.getNotifications(currentMember.memberId(), cursor, size)));
+    }
+
+    /**
+     * 본인의 안 읽은 알림 수를 조회한다(헤더 알림 배지용).
+     *
+     * @return 200 OK + 안 읽은 알림 수
+     */
+    @Operation(summary = "안 읽은 알림 수 조회")
+    @GetMapping("/unread-count")
+    public ResponseEntity<ApiResponse<NotificationUnreadCountResponse>> getUnreadCount(
+            @AuthenticationPrincipal PrincipalMember currentMember) {
+        return ResponseEntity.ok(ApiResponse.success(notificationService.getUnreadCount(currentMember.memberId())));
     }
 
     @Operation(summary = "알림 읽음 처리")
