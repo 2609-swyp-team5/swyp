@@ -20,8 +20,7 @@ import com.swyp.team5.member.entity.Member;
 import org.hibernate.annotations.CreationTimestamp;
 
 /**
- * 상품 목록 키워드 검색 요청 1건의 로그. 인기검색어 집계에 사용한다. {@code member}는 nullable —
- * 현재는 인증된 요청만 존재해 항상 채워지지만, 비회원 조회가 추가돼도 스키마 변경 없이 수용하기 위함.
+ * 상품 목록 키워드 검색 요청 1건의 로그. 인기검색어 집계에 사용한다. {@code member}는 비로그인 검색이면 null.
  */
 @Entity
 @Table(name = "search_logs")

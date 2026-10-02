@@ -79,6 +79,7 @@ import com.swyp.team5.product.service.ProductImageLoader;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
+import com.swyp.team5.search.repository.SearchLogRepository;
 import com.swyp.team5.tag.repository.TagRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -121,6 +122,9 @@ class ProductTest {
     @Autowired
     private ProductAnalysisRepository productAnalysisRepository;
 
+    @Autowired
+    private SearchLogRepository searchLogRepository;
+
     // 검색 테스트가 만든 행 — 상품 삭제(setUp) 전에 참조 행부터 지운다
     private final List<Interest> createdInterests = new ArrayList<>();
     private final List<ProductAnalysis> createdAnalyses = new ArrayList<>();
@@ -150,6 +154,10 @@ class ProductTest {
         interestRepository.deleteAll(createdInterests);
         productAnalysisRepository.deleteAll(createdAnalyses);
         platformListingRepository.deleteAll(createdListings);
+        // 비로그인 검색 로그는 회원 삭제로 함께 지워지지 않아 인기 검색어 테스트에 섞이지 않도록 직접 지운다
+        searchLogRepository.deleteAll(searchLogRepository.findAll().stream()
+                .filter(log -> log.getMember() == null)
+                .toList());
     }
 
     @BeforeEach
@@ -638,6 +646,44 @@ class ProductTest {
                 .andExpect(jsonPath("$.data.content[2].source").value("EXTERNAL"))
                 .andExpect(jsonPath("$.data.content[2].tradeRegion").doesNotExist())
                 .andExpect(jsonPath("$.data.content[2].deliveryAvailable").value(true));
+    }
+
+    // 비로그인 검색 - 목록·인기 검색어·인기 상품·카테고리는 토큰 없이 조회되고, 검색 로그는 회원 없이 남음
+    @Test
+    void guestCanSearchProducts() throws Exception {
+        String keyword = uniqueKeyword();
+        saveProduct(keyword + " 아이폰", 100_000L, ProductCondition.A, DefectStatus.NORMAL);
+
+        mockMvc.perform(get("/products").param("keyword", keyword))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1));
+        mockMvc.perform(get("/products/keywords/trending")).andExpect(status().isOk());
+        mockMvc.perform(get("/products/popular")).andExpect(status().isOk());
+        mockMvc.perform(get("/categories")).andExpect(status().isOk());
+
+        assertThat(searchLogRepository.findAll())
+                .filteredOn(log -> log.getKeyword().equals(keyword))
+                .singleElement()
+                .satisfies(log -> assertThat(log.getMember()).isNull());
+    }
+
+    // 비로그인 검색 - 만료·위조 토큰이 붙어 있어도 비회원으로 조회됨
+    @Test
+    void guestSearchIgnoresInvalidToken() throws Exception {
+        mockMvc.perform(get("/products").header(HttpHeaders.AUTHORIZATION, "Bearer invalid-token"))
+                .andExpect(status().isOk());
+    }
+
+    // 비로그인 검색 - 검색 외 조회(상세·내 상품)와 목록 경로의 다른 메서드는 여전히 로그인 필요
+    @Test
+    void guestCannotUseFeaturesOtherThanSearch() throws Exception {
+        Long productId = saveProduct(uniqueKeyword(), 100_000L, ProductCondition.A, DefectStatus.NORMAL)
+                .getId();
+
+        mockMvc.perform(get("/products/{id}", productId)).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/products/{id}/analysis", productId)).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/products/me")).andExpect(status().isUnauthorized());
+        mockMvc.perform(multipart("/products").file(imagePart())).andExpect(status().isUnauthorized());
     }
 
     // 상품 목록 조회(정렬) - 가격순은 우리 상품·외부 매물을 섞어 정렬하고 커서로 다음 페이지를 이어서 조회함
