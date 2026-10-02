@@ -37,7 +37,7 @@ export function WithdrawalContent({
     onRequest,
 }: WithdrawalContentProps) {
     return (
-        <div className="pt-[40px]">
+        <div>
             <section className="rounded-[10px] bg-[#f1f1f1] p-[30px] text-[#fa503d]">
                 <h2 className="flex items-center gap-[5px] text-[20px] leading-[30px] font-semibold tracking-[0.5px]">
                     <TriangleAlert

@@ -70,23 +70,21 @@ export function MyPasswordPage() {
             eyebrow=""
             title="비밀번호 변경"
             eyebrowClassName="hidden"
-            titleClassName="text-[32px] leading-[42px] tracking-[0.5px] text-[#363636] sm:text-[40px] sm:leading-[50px] xl:text-[53px] xl:leading-[75px]"
+            titleClassName="text-[#363636]"
         >
-            <div className="pt-10">
-                <MyPasswordForm
-                    form={form}
-                    visible={visible}
-                    isPending={isPending}
-                    isSuccess={isSuccess}
-                    onSubmit={onSubmit}
-                    onChange={() => {
-                        if (error) resetMutation();
-                    }}
-                    onVisibilityChange={(name) =>
-                        setVisible((previous) => ({ ...previous, [name]: !previous[name] }))
-                    }
-                />
-            </div>
+            <MyPasswordForm
+                form={form}
+                visible={visible}
+                isPending={isPending}
+                isSuccess={isSuccess}
+                onSubmit={onSubmit}
+                onChange={() => {
+                    if (error) resetMutation();
+                }}
+                onVisibilityChange={(name) =>
+                    setVisible((previous) => ({ ...previous, [name]: !previous[name] }))
+                }
+            />
             <MyResultDialog
                 open={isSuccess || Boolean(error)}
                 onOpenChange={(open) => {

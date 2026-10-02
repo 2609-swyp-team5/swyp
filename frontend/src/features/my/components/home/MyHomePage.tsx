@@ -4,7 +4,6 @@ import { useMeQuery } from "@/features/member/hooks/queries/useMeQuery";
 
 import { MyHomeHeader } from "@/features/my/components/home/MyHomeHeader";
 import { MySummaryCards } from "@/features/my/components/home/MySummaryCards";
-import { MyConnectionAlerts } from "@/features/my/components/home/MyConnectionAlerts";
 
 export function MyHomePage() {
     const { data: member, isError, isFetching, refetch } = useMeQuery();
@@ -20,8 +19,6 @@ export function MyHomePage() {
                 />
                 <MySummaryCards />
             </div>
-
-            <MyConnectionAlerts />
         </main>
     );
 }

@@ -10,7 +10,7 @@ const statusLabels: Record<ConnectionStatus, string> = {
 
 export function PlatformSummary({ statuses }: { statuses: Record<string, ConnectionStatus> }) {
     return (
-        <div className="mb-[30px] grid grid-cols-3 gap-3 pt-[60px]">
+        <div className="mb-[30px] grid grid-cols-3 gap-3">
             {(Object.keys(statusLabels) as ConnectionStatus[]).map((status) => (
                 <div
                     key={status}

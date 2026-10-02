@@ -21,7 +21,7 @@ export function MyProductsPage() {
             eyebrow="판매 관리"
             title="등록된 상품 확인"
             eyebrowClassName="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#83889e]"
-            titleClassName="text-[32px] leading-[42px] tracking-[0.5px] text-[#1a1f35] sm:text-[40px] sm:leading-[50px] xl:text-[53px] xl:leading-[75px]"
+            titleClassName="text-[#1a1f35]"
         >
             <ProductFilters filter={filter} onFilterChange={setFilter} />
             <ProductTable products={products} />

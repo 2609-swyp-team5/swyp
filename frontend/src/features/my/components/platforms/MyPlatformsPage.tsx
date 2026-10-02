@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Sparkles } from "lucide-react";
 
 import { MyPageContent } from "@/features/my/components/MyPageContent";
@@ -16,34 +17,10 @@ const platforms = [
     {
         id: "bunjang",
         name: "번개장터",
-        icon: "/my/home/bunjang.svg",
+        icon: "/my/platforms/bunjang.png",
         description: "중고거래 플랫폼",
         status: "expired",
         updated: "2시간 전",
-    },
-    {
-        id: "carrot",
-        name: "당근마켓",
-        icon: "/my/home/daangn.svg",
-        description: "동네 직거래 플랫폼",
-        status: "connected",
-        updated: "2026.09.01 연결",
-    },
-    {
-        id: "joongna",
-        name: "중고나라",
-        icon: "/my/home/joonggonara.png",
-        description: "대한민국 최대 중고마켓",
-        status: "expired",
-        updated: "2시간 전",
-    },
-    {
-        id: "fruits",
-        name: "후르츠패밀리",
-        icon: null,
-        description: "명품·프리미엄 중고거래",
-        status: "disconnected",
-        updated: "",
     },
 ] as const;
 
@@ -59,10 +36,10 @@ export function MyPlatformsPage() {
             eyebrow="연동 관리"
             title="플랫폼 별 연동 확인"
             eyebrowClassName="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#83889e]"
-            titleClassName="text-[32px] leading-[42px] tracking-[0.5px] text-[#363636] sm:text-[40px] sm:leading-[50px] xl:text-[53px] xl:leading-[75px]"
+            titleClassName="text-[#363636]"
         >
             <PlatformSummary statuses={statuses} />
-            <div className="mb-5 flex items-start gap-3 rounded-xl border border-[#d3d3d3] bg-[#fafbff] px-5 py-4">
+            <div className="flex items-start gap-3 rounded-xl border border-[#d3d3d3] bg-[#fafbff] px-5 py-4">
                 <Sparkles className="mt-0.5 size-4 shrink-0 text-[#363636]" aria-hidden="true" />
                 <div>
                     <h2 className="text-[15px] leading-[22px] font-semibold tracking-[-0.5px] text-[#363636]">
@@ -73,6 +50,17 @@ export function MyPlatformsPage() {
                         알려드립니다.
                     </p>
                 </div>
+            </div>
+            <div className="flex items-center gap-[11px] py-[30px] text-[#545d82]">
+                <div className="flex shrink-0 flex-col items-start gap-[5px]">
+                    <Image src="/my/platforms/connection-bell.svg" alt="" width={29} height={29} />
+                    <span className="text-base leading-[25px] text-[#d3d3d3]">1건</span>
+                </div>
+                <h2 className="text-[20px] leading-[30px] font-semibold tracking-[0.5px]">
+                    연결 알림을
+                    <br />
+                    확인해주세요
+                </h2>
             </div>
             <div className="grid gap-[10px] md:grid-cols-2 xl:grid-cols-3">
                 {platforms.map((item) => (

@@ -120,7 +120,7 @@ export function MySettingsPage() {
             eyebrow="계정 설정"
             title="사용자 정보 설정"
             eyebrowClassName="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#83889e]"
-            titleClassName="text-[32px] leading-[42px] tracking-[0.5px] text-[#464646] sm:text-[40px] sm:leading-[50px] xl:text-[53px] xl:leading-[75px]"
+            titleClassName="text-[#464646]"
         >
             <MyPanel className="w-full p-6 sm:p-8">
                 {isError ? (

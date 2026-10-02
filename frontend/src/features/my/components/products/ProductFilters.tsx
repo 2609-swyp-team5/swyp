@@ -17,11 +17,7 @@ type ProductFiltersProps = {
 
 export function ProductFilters({ filter, onFilterChange }: ProductFiltersProps) {
     return (
-        <div
-            role="group"
-            aria-label="상품 분류"
-            className="mb-[50px] flex flex-wrap gap-[10px] pt-[50px]"
-        >
+        <div role="group" aria-label="상품 분류" className="mb-[50px] flex flex-wrap gap-[10px]">
             {filters.map((item) => (
                 <Button
                     key={item.id}

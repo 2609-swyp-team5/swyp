@@ -18,7 +18,7 @@ export function MyHomeHeader({ nickname, isError, isFetching, onRetry }: MyHomeH
                     <p className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#83889e]">
                         AI와 함께하는 똑똑한 중고거래
                     </p>
-                    <h1 className="mt-[10px] text-[32px] leading-tight font-bold tracking-[0.5px] text-[#464646] lg:text-[42px] xl:text-[53px] xl:leading-[75px]">
+                    <h1 className="mt-[10px] text-[44px] leading-[52px] font-bold tracking-[0.5px] text-[#464646]">
                         {nickname !== undefined ? `안녕하세요, ${nickname}님` : "안녕하세요"}
                     </h1>
                 </div>

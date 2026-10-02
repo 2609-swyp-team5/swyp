@@ -83,7 +83,7 @@ export function MyNotificationsPage() {
             eyebrow="계정 설정"
             title="알림 설정"
             eyebrowClassName="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#83889e]"
-            titleClassName="text-[32px] leading-[42px] tracking-[0.5px] text-[#464646] sm:text-[40px] sm:leading-[50px] xl:text-[53px] xl:leading-[75px]"
+            titleClassName="text-[#464646]"
         >
             <div className="w-full space-y-4">
                 {groups.map((group) => (
