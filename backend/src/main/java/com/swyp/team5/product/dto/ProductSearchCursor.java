@@ -51,6 +51,6 @@ public record ProductSearchCursor(Long sortKey, LocalDateTime createdAt, Long id
     }
 
     private static InvalidProductSearchException invalid() {
-        return new InvalidProductSearchException("커서 값이 올바르지 않습니다.");
+        return new InvalidProductSearchException("목록 위치 정보가 올바르지 않아요. 목록을 처음부터 다시 불러와 주세요.");
     }
 }

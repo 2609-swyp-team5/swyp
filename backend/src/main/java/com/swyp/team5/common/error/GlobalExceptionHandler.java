@@ -60,13 +60,13 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(FileStorageException.class)
     public ResponseEntity<ApiResponse<Void>> handleFileStorageException(FileStorageException e) {
-        log.warn("파일 스토리지 처리 실패: {}", e.getMessage(), e);
+        log.warn("파일 스토리지 처리 실패: {}", ErrorLogs.describe(e), e);
         return errorResponse(HttpStatus.BAD_REQUEST, "BAD_REQUEST", e.getMessage());
     }
 
     @ExceptionHandler({DuplicateEmailException.class, DuplicatePhoneException.class})
     public ResponseEntity<ApiResponse<Void>> handleDuplicateSignUpField(RuntimeException e) {
-        log.warn("회원가입 실패: {}", e.getMessage());
+        log.warn("회원가입 실패: {}", ErrorLogs.describe(e));
         return errorResponse(HttpStatus.CONFLICT, "CONFLICT", e.getMessage());
     }
 
@@ -78,25 +78,25 @@ public class GlobalExceptionHandler {
         InvalidCurrentPasswordException.class
     })
     public ResponseEntity<ApiResponse<Void>> handleAuthenticationFailure(RuntimeException e) {
-        log.warn("인증 실패: {}", e.getMessage());
+        log.warn("인증 실패: {}", ErrorLogs.describe(e));
         return errorResponse(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", e.getMessage());
     }
 
     @ExceptionHandler(InactiveMemberException.class)
     public ResponseEntity<ApiResponse<Void>> handleInactiveMember(InactiveMemberException e) {
-        log.warn("비활성 계정 접근 시도: {}", e.getMessage());
+        log.warn("비활성 계정 접근 시도: {}", ErrorLogs.describe(e));
         return errorResponse(HttpStatus.FORBIDDEN, "FORBIDDEN", e.getMessage());
     }
 
     @ExceptionHandler(PasswordChangeNotAllowedException.class)
     public ResponseEntity<ApiResponse<Void>> handlePasswordChangeNotAllowed(PasswordChangeNotAllowedException e) {
-        log.warn("비밀번호 변경 불가: {}", e.getMessage());
+        log.warn("비밀번호 변경 불가: {}", ErrorLogs.describe(e));
         return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
     }
 
     @ExceptionHandler(UnsupportedSocialProviderException.class)
     public ResponseEntity<ApiResponse<Void>> handleUnsupportedSocialProvider(UnsupportedSocialProviderException e) {
-        log.warn("지원하지 않는 소셜 로그인 provider: {}", e.getMessage());
+        log.warn("지원하지 않는 소셜 로그인 provider: {}", ErrorLogs.describe(e));
         return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
     }
 
@@ -111,7 +111,7 @@ public class GlobalExceptionHandler {
         NotificationNotFoundException.class
     })
     public ResponseEntity<ApiResponse<Void>> handleNotFound(RuntimeException e) {
-        log.warn("리소스를 찾을 수 없음: {}", e.getMessage());
+        log.warn("리소스를 찾을 수 없음: {}", ErrorLogs.describe(e));
         return errorResponse(HttpStatus.NOT_FOUND, "NOT_FOUND", e.getMessage());
     }
 
@@ -121,62 +121,62 @@ public class GlobalExceptionHandler {
         UnsupportedPlatformException.class
     })
     public ResponseEntity<ApiResponse<Void>> handleInvalidPlatformInput(RuntimeException e) {
-        log.warn("외부 플랫폼 연동 입력값 오류: {}", e.getMessage());
+        log.warn("외부 플랫폼 연동 입력값 오류: {}", ErrorLogs.describe(e));
         return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
     }
 
     @ExceptionHandler(CategoryNotLeafException.class)
     public ResponseEntity<ApiResponse<Void>> handleCategoryNotLeaf(CategoryNotLeafException e) {
-        log.warn("최하위가 아닌 카테고리: {}", e.getMessage());
+        log.warn("최하위가 아닌 카테고리: {}", ErrorLogs.describe(e));
         return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
     }
 
     @ExceptionHandler(InvalidProductSearchException.class)
     public ResponseEntity<ApiResponse<Void>> handleInvalidProductSearch(InvalidProductSearchException e) {
-        log.warn("상품 검색 조건 오류: {}", e.getMessage());
+        log.warn("상품 검색 조건 오류: {}", ErrorLogs.describe(e));
         return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
     }
 
     @ExceptionHandler(ProductImageRequiredException.class)
     public ResponseEntity<ApiResponse<Void>> handleProductImageRequired(ProductImageRequiredException e) {
-        log.warn("상품 이미지 누락: {}", e.getMessage());
+        log.warn("상품 이미지 누락: {}", ErrorLogs.describe(e));
         return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
     }
 
     @ExceptionHandler({ProductPlatformAlreadyLinkedException.class, ProductPlatformPublishInProgressException.class})
     public ResponseEntity<ApiResponse<Void>> handleProductPlatformConflict(RuntimeException e) {
-        log.warn("이미 연동/등록 중인 외부 플랫폼 상품: {}", e.getMessage());
+        log.warn("이미 연동/등록 중인 외부 플랫폼 상품: {}", ErrorLogs.describe(e));
         return errorResponse(HttpStatus.CONFLICT, "CONFLICT", e.getMessage());
     }
 
     @ExceptionHandler(PlatformPublishFailedException.class)
     public ResponseEntity<ApiResponse<Void>> handlePlatformPublishFailed(PlatformPublishFailedException e) {
-        log.error("외부 플랫폼 매물 등록 실패: {}", e.getMessage(), e);
+        log.error("외부 플랫폼 매물 등록 실패: {}", ErrorLogs.describe(e), e);
         return errorResponse(HttpStatus.BAD_GATEWAY, "BAD_GATEWAY", e.getMessage());
     }
 
     @ExceptionHandler(ProductRegisterBusyException.class)
     public ResponseEntity<ApiResponse<Void>> handleProductRegisterBusy(ProductRegisterBusyException e) {
-        log.warn("상품 등록 대기열 포화: {}", e.getMessage());
+        log.warn("상품 등록 대기열 포화: {}", ErrorLogs.describe(e));
         return errorResponse(HttpStatus.SERVICE_UNAVAILABLE, "PRODUCT_REGISTER_BUSY", e.getMessage());
     }
 
     @ExceptionHandler(ProductAccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleProductAccessDenied(ProductAccessDeniedException e) {
-        log.warn("상품 접근 권한 없음: {}", e.getMessage());
+        log.warn("상품 접근 권한 없음: {}", ErrorLogs.describe(e));
         return errorResponse(HttpStatus.FORBIDDEN, "FORBIDDEN", e.getMessage());
     }
 
     @ExceptionHandler(InterestAlreadyExistsException.class)
     public ResponseEntity<ApiResponse<Void>> handleInterestAlreadyExists(InterestAlreadyExistsException e) {
-        log.warn("관심상품 중복 등록 시도: {}", e.getMessage());
+        log.warn("관심상품 중복 등록 시도: {}", ErrorLogs.describe(e));
         return errorResponse(HttpStatus.CONFLICT, "CONFLICT", e.getMessage());
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolation(DataIntegrityViolationException e) {
-        log.warn("데이터 무결성 제약 위반: {}", e.getMessage());
-        return errorResponse(HttpStatus.CONFLICT, "CONFLICT", "이미 사용 중인 값입니다.");
+        log.warn("데이터 무결성 제약 위반: {}", ErrorLogs.describe(e));
+        return errorResponse(HttpStatus.CONFLICT, "CONFLICT", "이미 사용 중인 값이에요.");
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -185,7 +185,7 @@ public class GlobalExceptionHandler {
                 .map(fieldError -> new ErrorDetail(fieldError.getField(), fieldError.getDefaultMessage()))
                 .toList();
         log.warn("요청 검증 실패: {}", details);
-        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", "입력값이 올바르지 않습니다.", details);
+        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", "입력값이 올바르지 않아요.", details);
     }
 
     /**
@@ -200,7 +200,7 @@ public class GlobalExceptionHandler {
                         lastPathSegment(violation.getPropertyPath().toString()), violation.getMessage()))
                 .toList();
         log.warn("요청 파라미터 검증 실패: {}", details);
-        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", "입력값이 올바르지 않습니다.", details);
+        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", "입력값이 올바르지 않아요.", details);
     }
 
     /**
@@ -208,9 +208,9 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ApiResponse<Void>> handleMissingRequestParameter(MissingServletRequestParameterException e) {
-        List<ErrorDetail> details = List.of(new ErrorDetail(e.getParameterName(), "필수 값입니다."));
+        List<ErrorDetail> details = List.of(new ErrorDetail(e.getParameterName(), "필수 값이에요."));
         log.warn("필수 요청 파라미터 누락: {}", e.getParameterName());
-        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", "입력값이 올바르지 않습니다.", details);
+        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", "입력값이 올바르지 않아요.", details);
     }
 
     /**
@@ -218,9 +218,9 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(MissingServletRequestPartException.class)
     public ResponseEntity<ApiResponse<Void>> handleMissingRequestPart(MissingServletRequestPartException e) {
-        List<ErrorDetail> details = List.of(new ErrorDetail(e.getRequestPartName(), "필수 값입니다."));
+        List<ErrorDetail> details = List.of(new ErrorDetail(e.getRequestPartName(), "필수 값이에요."));
         log.warn("필수 요청 파트 누락: {}", e.getRequestPartName());
-        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", "입력값이 올바르지 않습니다.", details);
+        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", "입력값이 올바르지 않아요.", details);
     }
 
     /**
@@ -232,10 +232,10 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleArgumentTypeMismatch(MethodArgumentTypeMismatchException e) {
         String reason = e.getMostSpecificCause() instanceof UnsupportedPlatformException cause
                 ? cause.getMessage()
-                : "형식이 올바르지 않습니다.";
+                : "형식이 올바르지 않아요.";
         List<ErrorDetail> details = List.of(new ErrorDetail(e.getName(), reason));
         log.warn("요청 파라미터 타입 변환 실패: {}={}", e.getName(), e.getValue());
-        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", "입력값이 올바르지 않습니다.", details);
+        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", "입력값이 올바르지 않아요.", details);
     }
 
     /**
@@ -245,8 +245,8 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiResponse<Void>> handleUnreadableRequestBody(HttpMessageNotReadableException e) {
-        log.warn("요청 본문을 읽을 수 없습니다: {}", e.getMessage());
-        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", "요청 본문의 형식이 올바르지 않습니다.");
+        log.warn("요청 본문을 읽을 수 없습니다: {}", ErrorLogs.describe(e));
+        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", "요청 형식이 올바르지 않아요.");
     }
 
     /**
@@ -256,13 +256,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleNoResourceFound(NoResourceFoundException e) {
         log.warn("존재하지 않는 정적 리소스 요청: {}", e.getResourcePath());
-        return errorResponse(HttpStatus.NOT_FOUND, "NOT_FOUND", "요청한 리소스를 찾을 수 없습니다.");
+        return errorResponse(HttpStatus.NOT_FOUND, "NOT_FOUND", "요청한 정보를 찾을 수 없어요.");
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
         log.error("예기치 못한 오류가 발생했습니다.", e);
-        return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "서버 내부 오류가 발생했습니다.");
+        return errorResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "일시적인 오류가 발생했어요. 잠시 후 다시 시도해 주세요.");
     }
 
     private ResponseEntity<ApiResponse<Void>> errorResponse(HttpStatus status, String code, String message) {

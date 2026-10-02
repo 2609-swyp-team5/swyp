@@ -182,7 +182,7 @@ public class BunjangProductPublishService {
                 .findByMemberIdAndPlatformId(memberId, platform.getId())
                 .orElseThrow(() -> new MemberPlatformNotFoundException(memberId, PLATFORM_NAME));
         if (memberPlatform.getStatus() != MemberPlatformStatus.CONNECTED) {
-            throw new InvalidPlatformSessionException("번개장터 세션이 연동되어 있지 않습니다. 다시 연동한 뒤 시도해 주세요.");
+            throw new InvalidPlatformSessionException("번개장터 계정이 연동되어 있지 않아요. 계정을 연동한 뒤 다시 시도해 주세요.");
         }
         return memberPlatform;
     }

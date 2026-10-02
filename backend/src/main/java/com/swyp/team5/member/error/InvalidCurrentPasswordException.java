@@ -3,6 +3,6 @@ package com.swyp.team5.member.error;
 public class InvalidCurrentPasswordException extends RuntimeException {
 
     public InvalidCurrentPasswordException() {
-        super("현재 비밀번호가 일치하지 않습니다.");
+        super("현재 비밀번호가 일치하지 않아요.");
     }
 }

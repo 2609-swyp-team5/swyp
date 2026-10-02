@@ -53,7 +53,8 @@ public final class InMemoryMultipartFile implements MultipartFile {
             return new InMemoryMultipartFile(
                     file.getName(), file.getOriginalFilename(), file.getContentType(), file.getBytes());
         } catch (IOException e) {
-            throw new FileStorageException("업로드한 파일을 읽지 못했습니다: " + file.getOriginalFilename(), e);
+            throw new FileStorageException(
+                    "업로드한 파일을 읽지 못했어요. 다시 선택해 주세요.", "filename=" + file.getOriginalFilename(), e);
         }
     }
 

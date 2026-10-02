@@ -47,7 +47,7 @@ public record ProductSearchCondition(
         defectStatuses = copy(defectStatuses, DefectStatus.class);
         sort = sort == null ? ProductSortType.LATEST : sort;
         if (minPrice != null && maxPrice != null && minPrice > maxPrice) {
-            throw new InvalidProductSearchException("최소 가격은 최대 가격보다 클 수 없습니다.");
+            throw new InvalidProductSearchException("최소 가격은 최대 가격보다 클 수 없어요.");
         }
     }
 

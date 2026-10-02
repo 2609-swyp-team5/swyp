@@ -44,10 +44,10 @@ public class BunjangConnectionService {
     public BunjangConnectionResponse connect(Long memberId, String cookie) {
         String sessionToken = BunjangSessionTokenParser.extract(cookie);
         if (sessionToken == null) {
-            throw new InvalidPlatformSessionException("올바른 번개장터 로그인 쿠키(bun_session)를 찾을 수 없습니다. 쿠키 값을 다시 확인해 주세요.");
+            throw new InvalidPlatformSessionException("올바른 번개장터 로그인 쿠키(bun_session)를 찾을 수 없어요. 쿠키 값을 다시 확인해 주세요.");
         }
         if (!bunjangSessionClient.verify(sessionToken)) {
-            throw new InvalidPlatformSessionException("세션이 유효하지 않거나 만료되었습니다. 번개장터에 다시 로그인한 뒤 쿠키를 복사해 주세요.");
+            throw new InvalidPlatformSessionException("번개장터 로그인 정보가 유효하지 않거나 만료됐어요. 번개장터에 다시 로그인한 뒤 쿠키를 복사해 주세요.");
         }
 
         Platform platform = getPlatform();

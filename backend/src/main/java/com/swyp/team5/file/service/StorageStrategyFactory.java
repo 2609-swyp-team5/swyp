@@ -27,7 +27,7 @@ public class StorageStrategyFactory {
     public StorageStrategy getStrategy(StorageType type) {
         StorageStrategy strategy = strategiesByType.get(type);
         if (strategy == null) {
-            throw new FileStorageException("지원하지 않는 스토리지 타입입니다: " + type);
+            throw new FileStorageException("파일 저장소 설정이 올바르지 않아요.", "type=" + type);
         }
         return strategy;
     }
