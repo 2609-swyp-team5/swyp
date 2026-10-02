@@ -54,7 +54,7 @@ public class NotificationController {
      * @return 200 OK + 안 읽은 알림 수
      */
     @Operation(summary = "안 읽은 알림 수 조회")
-    @GetMapping("/unread-count")
+    @GetMapping("/unread")
     public ResponseEntity<ApiResponse<NotificationUnreadCountResponse>> getUnreadCount(
             @AuthenticationPrincipal PrincipalMember currentMember) {
         return ResponseEntity.ok(ApiResponse.success(notificationService.getUnreadCount(currentMember.memberId())));

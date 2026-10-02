@@ -189,23 +189,23 @@ class NotificationTest {
         notificationRepository.save(Notification.create(owner, null, NotificationType.NOTICE, "알림2", "내용"));
         notificationRepository.save(Notification.create(other, null, NotificationType.NOTICE, "남의 알림", "내용"));
 
-        mockMvc.perform(get("/notifications/unread-count").header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
+        mockMvc.perform(get("/notifications/unread").header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.unreadCount").value(2));
+                .andExpect(jsonPath("$.data.count").value(2));
 
         mockMvc.perform(patch("/notifications/{id}/read", first.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(get("/notifications/unread-count").header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
+        mockMvc.perform(get("/notifications/unread").header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.unreadCount").value(1));
+                .andExpect(jsonPath("$.data.count").value(1));
     }
 
     // 안 읽은 알림 수 - 인증 없으면 401
     @Test
     void getUnreadCountFailsWithoutAuthentication() throws Exception {
-        mockMvc.perform(get("/notifications/unread-count")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/notifications/unread")).andExpect(status().isUnauthorized());
     }
 
     // 남의 알림은 읽음/삭제 모두 404
