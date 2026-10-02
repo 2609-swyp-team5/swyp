@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
     createProductMarketAnalysisMock,
     createProductPriceTrendMock,
+    createProductValuationForecastMock,
     productManagementMockSource,
 } from "./productManagementMock";
 
@@ -53,5 +54,15 @@ describe("product management analysis mock", () => {
         expect(trend.totalTransactionCount).toBe(
             trend.points.reduce((total, point) => total + point.transactionCount, 0),
         );
+    });
+
+    it("provides current and 1, 3, and 6 month valuation forecasts", () => {
+        const forecast = createProductValuationForecastMock(42).valuationForecast;
+
+        expect(forecast.baseValueRate).toBe(100);
+        expect(forecast.forecasts.map((item) => item.period)).toEqual(["1M", "3M", "6M"]);
+        expect(forecast.forecasts.map((item) => item.expectedValue)).toEqual([
+            266000, 251000, 232000,
+        ]);
     });
 });

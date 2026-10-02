@@ -5,7 +5,6 @@ import { useProductQuery } from "@/features/sell/hooks/queries/useProductQuery";
 import { useProductManagementSectionsQuery } from "../hooks/useProductManagementSectionsQuery";
 import { MarketAnalysisSection } from "./analysis/market-analysis/MarketAnalysisSection";
 import { ProductTradeHistorySection } from "./analysis/trade-history/ProductTradeHistorySection";
-import { ProductValuationForecastSection } from "./analysis/valuation-forecast/ProductValuationForecastSection";
 import { ProductCompetitionSection } from "./competition/ProductCompetitionSection";
 import { ProductSummaryCard } from "./product-summary/ProductSummaryCard";
 import { ProductSummarySkeleton } from "./product-summary/ProductSummarySkeleton";
@@ -30,8 +29,8 @@ export function ProductManagementDetail({ productId }: { productId: number }) {
                 error={sections.section2.error}
                 isPending={sections.section2.isPending}
                 priceTrendQuery={sections.section3}
+                valuationForecastQuery={sections.section4}
             />
-            <ProductValuationForecastSection query={sections.section4} />
             <ProductTradeHistorySection query={sections.section5} />
             <ProductCompetitionSection query={sections.section6} />
         </div>

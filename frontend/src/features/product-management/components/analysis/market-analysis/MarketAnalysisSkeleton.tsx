@@ -1,11 +1,17 @@
-import type { ProductPriceTrendResult } from "../../../api/productManagementMockApi";
+import type {
+    ProductPriceTrendResult,
+    ProductValuationForecastResult,
+} from "../../../api/productManagementMockApi";
 import type { StreamingQueryState } from "../../shared/streaming/productManagementStreamingTypes";
 import { ProductPriceTrendSection } from "../price-trend/ProductPriceTrendSection";
+import { ProductValuationForecastSection } from "../valuation-forecast/ProductValuationForecastSection";
 
 export function MarketAnalysisSkeleton({
     priceTrendQuery,
+    valuationForecastQuery,
 }: {
     priceTrendQuery: StreamingQueryState<ProductPriceTrendResult>;
+    valuationForecastQuery: StreamingQueryState<ProductValuationForecastResult>;
 }) {
     return (
         <div aria-label="AI 시세 분석을 불러오는 중">
@@ -34,6 +40,7 @@ export function MarketAnalysisSkeleton({
                     </div>
                 </div>
                 <ProductPriceTrendSection query={priceTrendQuery} />
+                <ProductValuationForecastSection query={valuationForecastQuery} />
             </div>
         </div>
     );
