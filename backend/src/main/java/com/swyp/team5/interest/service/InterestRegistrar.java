@@ -1,8 +1,8 @@
 package com.swyp.team5.interest.service;
 
 import com.swyp.team5.interest.entity.Interest;
+import com.swyp.team5.item.entity.ListingSource;
 import com.swyp.team5.member.entity.Member;
-import com.swyp.team5.product.dto.ListingSource;
 
 /**
  * 관심상품 등록 대상(source)별 검증·생성 전략. 새 source가 추가되면 이 인터페이스의 구현체만

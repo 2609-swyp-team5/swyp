@@ -15,13 +15,13 @@
 
 [예시 화면명] — 주요 화면 캡처나 데모 GIF 추가
 
-## 배포 링크 (임시로 변경될 수 있음)
+## 배포 링크
 
-| 구분     | URL                                      |
-| -------- | ---------------------------------------- |
-| Frontend | [링크](https://app.haru-dev.me/)         |
-| Backend  | [링크](https://api.haru-dev.me/)         |
-| API 문서 | [링크](https://api.haru-dev.me/api-docs) |
+| 구분               | URL                                                                        |
+| ------------------ | -------------------------------------------------------------------------- |
+| Frontend           | [https://jigeumini.live](https://jigeumini.live)                           |
+| Backend            | [https://api.jigeumini.live](https://api.jigeumini.live)                   |
+| API 문서 (Swagger) | [https://api.jigeumini.live/api-docs](https://api.jigeumini.live/api-docs) |
 
 ## 프로젝트 기간
 
@@ -44,8 +44,10 @@
 **Backend**
 
 - Java 21, Spring Boot 4.1.1
-- Spring Data JPA + PostgreSQL
-- Spring Data Redis
+- Spring Data JPA + PostgreSQL (Neon), Flyway
+- Spring Data Redis (Upstash)
+- Spring AI (Gemini, 실패 시 OpenAI GPT 대체)
+- Playwright for Java (번개장터 매물 자동 등록)
 - Cloudflare R2
 - springdoc-openapi (Swagger UI)
 - Gradle (Kotlin DSL), Spotless
@@ -60,8 +62,9 @@
 
 **Infra**
 
-- Docker Compose: PostgreSQL, pgAdmin, Redis, RedisInsight, Kafka, Kafka UI
-- GitLab CI/CD: 테스트 → 빌드 → 배포, Gemini 기반 MR 자동 코드 리뷰
+- DB는 Neon(PostgreSQL), Redis는 Upstash 클라우드를 사용
+- Docker Compose(로컬 도구): pgAdmin, RedisInsight, Kafka, Kafka UI
+- GitLab CI/CD: 테스트 → 빌드(배포 잡은 현재 비활성), Gemini API 기반 MR 자동 코드 리뷰
 
 ## 프로젝트 구조
 
@@ -69,10 +72,22 @@
 .
 ├── backend/                             # Spring Boot 애플리케이션
 │   ├── src/main/java/com/swyp/team5/
-│   │   ├── common/                      # 공통 설정, 예외 처리, 필터
+│   │   ├── auth/                        # 회원가입·로그인·토큰 재발급·로그아웃
+│   │   ├── social/                      # 소셜 로그인(구글·카카오·네이버)
+│   │   ├── member/                      # 회원 엔티티·내 정보
+│   │   ├── product/                     # 상품 등록(SSE)·수정·조회·상태 변경
+│   │   ├── category/ tag/ component/    # 카테고리(번개장터 체계)·태그·구성품
+│   │   ├── productanalysis/             # 시세 분석 배치·추천(SELL/HOLD/BUY/WAIT)
+│   │   ├── crawl/                       # 번개장터 시세 매물 수집·재확인 배치
+│   │   ├── platform/                    # 외부 플랫폼 연동·수집 매물·자동 등록
+│   │   ├── interest/                    # 관심상품·목표가
+│   │   ├── notification/                # 알림
+│   │   ├── search/                      # 인기 검색어·인기 상품
+│   │   ├── common/                      # 공통 설정, 예외 처리, 필터, AI 호출
 │   │   └── file/                        # 파일 스토리지(R2/S3/Naver/Local) 추상화
 │   ├── src/main/resources/
-│   │   ├── application-local.yaml       # 로컬 개발 프로파일 설정 (H2 등)
+│   │   ├── db/migration/                # Flyway 마이그레이션(V1~)
+│   │   ├── application-local.yaml       # 로컬 개발 프로파일 설정 (Neon swyp-local 브랜치)
 │   │   ├── application-dev.yaml         # 개발 서버 프로파일 설정
 │   │   ├── application-prod.yaml        # 운영 프로파일 설정
 │   │   └── logback-spring.xml           # 프로파일별 로깅 설정
@@ -80,7 +95,8 @@
 │   ├── build.gradle.kts
 │   └── Dockerfile
 ├── frontend/                 # Next.js 애플리케이션
-│   ├── app/                  # App Router 페이지
+│   ├── src/app/              # App Router 페이지
+│   ├── src/features/         # 기능별 화면·API·상태
 │   ├── tests/                # 공용 단위·컴포넌트 테스트 설정과 mock
 │   ├── e2e/                  # Playwright E2E 테스트
 │   ├── docs/
@@ -90,7 +106,7 @@
 │   ├── playwright.config.ts  # Playwright 설정
 │   ├── public/
 │   └── package.json
-├── docker-compose.yml        # 로컬 개발용 인프라(PostgreSQL, Redis, Kafka 등)
+├── docker-compose.yml        # 로컬 개발용 도구(pgAdmin, RedisInsight, Kafka 등)
 └── .gitlab-ci.yml            # CI/CD 파이프라인 정의
 ```
 
@@ -118,10 +134,10 @@ npm run test:e2e
 
 ## CI/CD
 
-Merge Request가 열리면 다음이 자동 실행됩니다.
+Merge Request가 열리거나 MR이 없는 브랜치에 push하면 변경된 쪽 잡만 자동 실행됩니다(기능 브랜치 push는 `develop` 대비 변경 기준).
 
 - `backend-test` / `backend-build`: `backend/**` 변경 시 테스트와 빌드
 - `frontend-test`: `frontend/**` 변경 시 타입 체크, 린트, 포맷 검사와 단위·컴포넌트 테스트
 - `frontend-e2e`: `frontend/**` 변경 시 Playwright E2E 테스트
 - `frontend-build`: `frontend/**` 변경 시 Next.js 빌드
-- `code-review`: Gemini CLI 기반 자동 코드 리뷰를 MR 코멘트로 등록
+- `code-review`: MR 전용. diff를 Gemini API로 직접 보내 리뷰 결과를 MR 코멘트로 등록(요청당 120초·최대 2회 재시도, 잡 제한 10분)

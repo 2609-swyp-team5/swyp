@@ -20,6 +20,7 @@ import com.swyp.team5.notification.entity.Notification;
 import com.swyp.team5.notification.entity.NotificationType;
 import com.swyp.team5.notification.error.NotificationNotFoundException;
 import com.swyp.team5.notification.repository.NotificationRepository;
+import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import org.junit.jupiter.api.Test;
@@ -68,7 +69,7 @@ class NotificationServiceTest {
     void notifiesOwnerAndInterestedMembersWhenRecommendationBecomesSell() {
         Member owner = member(10L);
         Member buyer = member(20L);
-        when(interestRepository.findMembersByProductId(1L)).thenReturn(List.of(buyer));
+        when(interestRepository.findMembersByItemId(1L)).thenReturn(List.of(buyer));
 
         int count = service()
                 .notifyRecommendationChanged(product(owner), AnalysisRecommendation.HOLD, AnalysisRecommendation.SELL);
@@ -88,7 +89,7 @@ class NotificationServiceTest {
     void doesNotDuplicateOwnerWhoIsAlsoInterested() {
         Member owner = member(10L);
         Member buyer = member(20L);
-        when(interestRepository.findMembersByProductId(1L)).thenReturn(List.of(owner, buyer));
+        when(interestRepository.findMembersByItemId(1L)).thenReturn(List.of(owner, buyer));
 
         int count = service()
                 .notifyRecommendationChanged(product(owner), AnalysisRecommendation.HOLD, AnalysisRecommendation.SELL);
@@ -103,7 +104,7 @@ class NotificationServiceTest {
         Member buyer1 = mock(Member.class);
         Member buyer2 = mock(Member.class);
         Product product = product(mock(Member.class));
-        when(interestRepository.findMembersByProductId(1L)).thenReturn(List.of(buyer1, buyer2));
+        when(interestRepository.findMembersByItemId(1L)).thenReturn(List.of(buyer1, buyer2));
 
         int count =
                 service().notifyRecommendationChanged(product, AnalysisRecommendation.WAIT, AnalysisRecommendation.BUY);
@@ -139,7 +140,7 @@ class NotificationServiceTest {
     void notifiesOwnerAndInterestedMembersWhenRecommendationBecomesHold() {
         Member owner = member(10L);
         Member buyer = member(20L);
-        when(interestRepository.findMembersByProductId(1L)).thenReturn(List.of(buyer));
+        when(interestRepository.findMembersByItemId(1L)).thenReturn(List.of(buyer));
 
         int count = service()
                 .notifyRecommendationChanged(product(owner), AnalysisRecommendation.SELL, AnalysisRecommendation.HOLD);
@@ -159,7 +160,7 @@ class NotificationServiceTest {
         Member buyer1 = mock(Member.class);
         Member buyer2 = mock(Member.class);
         Product product = product(mock(Member.class));
-        when(interestRepository.findMembersByProductId(1L)).thenReturn(List.of(buyer1, buyer2));
+        when(interestRepository.findMembersByItemId(1L)).thenReturn(List.of(buyer1, buyer2));
 
         int count =
                 service().notifyRecommendationChanged(product, AnalysisRecommendation.BUY, AnalysisRecommendation.WAIT);
@@ -173,13 +174,54 @@ class NotificationServiceTest {
     // 관심 등록 회원이 없으면 WAIT/BUY 알림은 0건
     @Test
     void createsNoWaitNotificationWhenNoInterestedMembers() {
-        when(interestRepository.findMembersByProductId(1L)).thenReturn(List.of());
+        when(interestRepository.findMembersByItemId(1L)).thenReturn(List.of());
 
         int count = service()
                 .notifyRecommendationChanged(
                         product(mock(Member.class)), AnalysisRecommendation.HOLD, AnalysisRecommendation.WAIT);
 
         assertThat(count).isZero();
+    }
+
+    private static PlatformListing listing() {
+        PlatformListing listing = mock(PlatformListing.class);
+        lenient().when(listing.getId()).thenReturn(100L);
+        lenient().when(listing.getTitle()).thenReturn("아이패드 프로");
+        return listing;
+    }
+
+    // 관심 외부 매물이 BUY로 바뀌면 관심 등록 회원 전원에게 매물을 가리키는 구매 추천 알림
+    @Test
+    void notifiesListingInterestedMembersWhenRecommendationBecomesBuy() {
+        Member buyer1 = member(2L);
+        Member buyer2 = member(3L);
+        PlatformListing listing = listing();
+        when(interestRepository.findMembersByItemId(100L)).thenReturn(List.of(buyer1, buyer2));
+
+        int count = service()
+                .notifyListingRecommendationChanged(listing, AnalysisRecommendation.WAIT, AnalysisRecommendation.BUY);
+
+        assertThat(count).isEqualTo(2);
+        assertThat(savedNotifications())
+                .extracting(
+                        Notification::getMember,
+                        Notification::getType,
+                        Notification::getListing,
+                        Notification::getProduct)
+                .containsExactly(
+                        tuple(buyer1, NotificationType.BUY, listing, null),
+                        tuple(buyer2, NotificationType.BUY, listing, null));
+    }
+
+    // 관심 외부 매물 추천이 그대로면 알림 없음
+    @Test
+    void doesNotNotifyListingWhenRecommendationUnchanged() {
+        int count = service()
+                .notifyListingRecommendationChanged(
+                        listing(), AnalysisRecommendation.WAIT, AnalysisRecommendation.WAIT);
+
+        assertThat(count).isZero();
+        verify(notificationRepository, never()).saveAll(anyList());
     }
 
     // 본인 알림이 아니면(또는 없으면) 404

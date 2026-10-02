@@ -44,7 +44,7 @@ public class R2StorageStrategy implements StorageStrategy {
     @Override
     public FileUploadResponse upload(MultipartFile file, String directory) {
         if (file.isEmpty()) {
-            throw new FileStorageException("업로드할 파일이 비어 있습니다.");
+            throw new FileStorageException("업로드할 파일이 비어 있어요.");
         }
 
         String key = buildKey(directory, file.getOriginalFilename());
@@ -59,7 +59,7 @@ public class R2StorageStrategy implements StorageStrategy {
 
             r2Client.putObject(putObjectRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
         } catch (IOException | S3Exception e) {
-            throw new FileStorageException("파일 업로드에 실패했습니다: " + key, e);
+            throw new FileStorageException("파일 업로드에 실패했어요. 잠시 후 다시 시도해 주세요.", "key=" + key, e);
         }
 
         String url = resolveUrl(key);
@@ -74,7 +74,7 @@ public class R2StorageStrategy implements StorageStrategy {
                     .key(key)
                     .build());
         } catch (S3Exception e) {
-            throw new FileStorageException("파일 삭제에 실패했습니다: " + key, e);
+            throw new FileStorageException("파일 삭제에 실패했어요. 잠시 후 다시 시도해 주세요.", "key=" + key, e);
         }
     }
 
@@ -89,7 +89,7 @@ public class R2StorageStrategy implements StorageStrategy {
         } catch (NoSuchKeyException e) {
             return false;
         } catch (S3Exception e) {
-            throw new FileStorageException("파일 존재 여부 확인에 실패했습니다: " + key, e);
+            throw new FileStorageException("파일 확인에 실패했어요. 잠시 후 다시 시도해 주세요.", "key=" + key, e);
         }
     }
 

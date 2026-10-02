@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -26,6 +27,7 @@ import com.swyp.team5.common.passport.JwtTokenProvider;
 import com.swyp.team5.file.service.FileStorageService;
 import com.swyp.team5.interest.entity.Interest;
 import com.swyp.team5.interest.repository.InterestRepository;
+import com.swyp.team5.interest.service.TargetPriceAlertService;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.entity.MemberRole;
 import com.swyp.team5.member.repository.MemberRepository;
@@ -69,6 +71,9 @@ class NotificationTest {
 
     @Autowired
     private InterestRepository interestRepository;
+
+    @Autowired
+    private TargetPriceAlertService targetPriceAlertService;
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
@@ -120,12 +125,41 @@ class NotificationTest {
 
         mockMvc.perform(get("/notifications").header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(2))
-                .andExpect(jsonPath("$.data[0].title").value("두번째 알림"))
-                .andExpect(jsonPath("$.data[0].type").value("NOTICE"))
-                .andExpect(jsonPath("$.data[0].isRead").value(false))
-                .andExpect(jsonPath("$.data[0].productId").doesNotExist())
-                .andExpect(jsonPath("$.data[1].title").value("첫 알림"));
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.content[0].title").value("두번째 알림"))
+                .andExpect(jsonPath("$.data.content[0].type").value("NOTICE"))
+                .andExpect(jsonPath("$.data.content[0].isRead").value(false))
+                .andExpect(jsonPath("$.data.content[0].productId").doesNotExist())
+                .andExpect(jsonPath("$.data.content[1].title").value("첫 알림"))
+                .andExpect(jsonPath("$.data.hasNext").value(false))
+                .andExpect(jsonPath("$.data.nextCursor").doesNotExist());
+    }
+
+    // 커서 페이징 - size만큼 최신순으로 주고, nextCursor로 다음 페이지를 이어서 조회
+    @Test
+    void getNotificationsPagesByCursor() throws Exception {
+        notificationRepository.save(Notification.create(owner, null, NotificationType.NOTICE, "첫 알림", "내용1"));
+        Notification second =
+                notificationRepository.save(Notification.create(owner, null, NotificationType.NOTICE, "두번째 알림", "내용2"));
+        notificationRepository.save(Notification.create(owner, null, NotificationType.NOTICE, "세번째 알림", "내용3"));
+
+        mockMvc.perform(get("/notifications")
+                        .param("size", "2")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.content[0].title").value("세번째 알림"))
+                .andExpect(jsonPath("$.data.hasNext").value(true))
+                .andExpect(jsonPath("$.data.nextCursor").value(String.valueOf(second.getId())));
+
+        mockMvc.perform(get("/notifications")
+                        .param("size", "2")
+                        .param("cursor", String.valueOf(second.getId()))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].title").value("첫 알림"))
+                .andExpect(jsonPath("$.data.hasNext").value(false));
     }
 
     // 읽음 처리
@@ -147,6 +181,33 @@ class NotificationTest {
                 .isTrue();
     }
 
+    // 안 읽은 알림 수 - 본인 알림 중 읽지 않은 것만 세고, 읽음 처리하면 줄어듦
+    @Test
+    void getUnreadCountCountsOwnUnreadNotifications() throws Exception {
+        Notification first =
+                notificationRepository.save(Notification.create(owner, null, NotificationType.NOTICE, "알림1", "내용"));
+        notificationRepository.save(Notification.create(owner, null, NotificationType.NOTICE, "알림2", "내용"));
+        notificationRepository.save(Notification.create(other, null, NotificationType.NOTICE, "남의 알림", "내용"));
+
+        mockMvc.perform(get("/notifications/unread").header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.count").value(2));
+
+        mockMvc.perform(patch("/notifications/{id}/read", first.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/notifications/unread").header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.count").value(1));
+    }
+
+    // 안 읽은 알림 수 - 인증 없으면 401
+    @Test
+    void getUnreadCountFailsWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/notifications/unread")).andExpect(status().isUnauthorized());
+    }
+
     // 남의 알림은 읽음/삭제 모두 404
     @Test
     void otherMembersNotificationIsNotFound() throws Exception {
@@ -157,7 +218,7 @@ class NotificationTest {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value("NOT_FOUND"))
-                .andExpect(jsonPath("$.message").value("존재하지 않는 알림입니다."));
+                .andExpect(jsonPath("$.message").value("존재하지 않는 알림이에요."));
         mockMvc.perform(delete("/notifications/{id}", notification.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
                 .andExpect(status().isNotFound());
@@ -194,13 +255,36 @@ class NotificationTest {
 
         mockMvc.perform(get("/notifications").header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(4))
-                .andExpect(jsonPath("$.data[*].type", containsInAnyOrder("HOLD", "BUY", "WAIT", "SELL")))
-                .andExpect(jsonPath("$.data[0].productId").value(product.getId()));
+                .andExpect(jsonPath("$.data.content.length()").value(4))
+                .andExpect(jsonPath("$.data.content[*].type", containsInAnyOrder("HOLD", "BUY", "WAIT", "SELL")))
+                .andExpect(jsonPath("$.data.content[0].productId").value(product.getId()));
         mockMvc.perform(get("/notifications").header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(2))
-                .andExpect(jsonPath("$.data[*].type", containsInAnyOrder("HOLD", "SELL")));
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.content[*].type", containsInAnyOrder("HOLD", "SELL")));
+    }
+
+    // 목표가 도달 - 목표가 설정 즉시 확인해 TARGET_PRICE 알림(실제 DB enum V19) 1번만 생성, 다시 설정하면 재알림
+    @Test
+    void targetPriceReachedCreatesNotificationOnce() throws Exception {
+        Product product = productRepository.save(newProduct(owner)); // 등록가 100,000원
+        Interest interest = interestRepository.save(Interest.ofProduct(other, product));
+        String body = "{\"targetPrice\": 120000}";
+
+        mockMvc.perform(patch("/interests/{id}/target-price", interest.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk());
+        targetPriceAlertService.checkAll(); // 이미 보냈으므로 추가 알림 없음
+
+        mockMvc.perform(get("/notifications").header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].type").value("TARGET_PRICE"))
+                .andExpect(jsonPath("$.data.content[0].productId").value(product.getId()));
+        assertThat(interestRepository.findById(interest.getId()).orElseThrow().getNotifiedAt())
+                .isNotNull();
     }
 
     private static Member newMember(String prefix) {

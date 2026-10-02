@@ -170,7 +170,7 @@ product:
     core-pool-size: 4 # 등록 처리 스레드 기본 수
     max-pool-size: 8 # 등록 처리 스레드 최대 수
     queue-capacity: 20 # 대기열 크기(가득 차면 503)
-    timeout: 90s # 스트림 최대 유지 시간(지나면 error 이벤트, 등록은 계속 진행)
+    timeout: ${PRODUCT_REGISTER_STREAM_TIMEOUT:180s} # 스트림 최대 유지 시간(지나면 error 이벤트 — 저장 전이면 요청 취소, 저장 중이면 저장은 끝까지 진행) — AI 사진 분석 지연(재시도·GPT 대체)으로 90초를 넘는 경우가 있어 늘림
     keep-alive-interval: 15s # 연결 유지용 주석 이벤트 간격
 
 # 시세 분석(감가/추천) 배치 설정

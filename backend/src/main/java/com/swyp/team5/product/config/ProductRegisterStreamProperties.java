@@ -15,5 +15,5 @@ public record ProductRegisterStreamProperties(
         @NotNull @Positive Integer corePoolSize, // 등록 처리 스레드 기본 수
         @NotNull @Positive Integer maxPoolSize, // 등록 처리 스레드 최대 수
         @NotNull Integer queueCapacity, // 대기열 크기(가득 차면 503)
-        @NotNull Duration timeout, // 스트림 최대 유지 시간(지나면 error 이벤트 후 종료, 등록은 계속 진행)
+        @NotNull Duration timeout, // 스트림 최대 유지 시간(지나면 error 이벤트 후 종료 — 저장 전이면 요청 취소, 저장 중이면 저장은 끝까지 진행)
         @NotNull Duration keepAliveInterval) {} // 연결 유지용 주석 이벤트 전송 간격

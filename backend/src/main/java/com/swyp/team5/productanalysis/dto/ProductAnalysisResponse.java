@@ -3,9 +3,12 @@ package com.swyp.team5.productanalysis.dto;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.List;
 
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
+import com.swyp.team5.productanalysis.entity.PriceForecast;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 
 public record ProductAnalysisResponse(
@@ -20,15 +23,29 @@ public record ProductAnalysisResponse(
         AnalysisRecommendation recommendation,
         Long suggestedPrice,
         String description,
-        LocalDateTime analyzedAt) {
+        LocalDateTime analyzedAt,
+        List<PriceForecastResponse> forecasts) { // 감가 예측가(1M/3M/6M 순), 분석 이력이 없거나 예측 도입 전 분석이면 빈 배열
 
     /** 아직 분석 이력이 없는 상품(분석 배치가 아직 돌지 않았거나, 비교 매물이 부족해 건너뛴 경우)에 사용한다. */
     public static ProductAnalysisResponse empty(Product product) {
         return new ProductAnalysisResponse(
-                product.getId(), product.getPrice(), null, null, null, null, null, null, null, null, null, null);
+                product.getId(),
+                product.getPrice(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                List.of());
     }
 
-    public static ProductAnalysisResponse from(Product product, ProductAnalysis analysis) {
+    public static ProductAnalysisResponse from(
+            Product product, ProductAnalysis analysis, List<PriceForecast> forecasts) {
         return new ProductAnalysisResponse(
                 product.getId(),
                 product.getPrice(),
@@ -41,7 +58,11 @@ public record ProductAnalysisResponse(
                 analysis.getRecommendation(),
                 analysis.getSuggestedPrice(),
                 analysis.getDescription(),
-                analysis.getAnalyzedAt());
+                analysis.getAnalyzedAt(),
+                forecasts.stream()
+                        .sorted(Comparator.comparing(PriceForecast::getPeriod))
+                        .map(PriceForecastResponse::from)
+                        .toList());
     }
 
     /** (등록가 − 평균가) / 평균가 × 100을 소수 첫째 자리로 반올림한다. 평균가가 0이면 null. */

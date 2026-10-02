@@ -74,11 +74,11 @@ public class MemberService {
     @Transactional
     public MemberResponse updateProfileImage(Long memberId, MultipartFile image) {
         if (image == null || image.isEmpty()) {
-            throw new FileStorageException("업로드할 이미지가 없습니다.");
+            throw new FileStorageException("업로드할 이미지가 없어요.");
         }
         String contentType = image.getContentType();
         if (contentType == null || !contentType.startsWith("image/")) {
-            throw new FileStorageException("이미지 파일만 등록할 수 있습니다.");
+            throw new FileStorageException("이미지 파일만 등록할 수 있어요.");
         }
 
         Member member = findMember(memberId);

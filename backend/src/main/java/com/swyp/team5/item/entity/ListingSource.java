@@ -1,4 +1,4 @@
-package com.swyp.team5.product.dto;
+package com.swyp.team5.item.entity;
 
 public enum ListingSource {
     OUR, // 우리 회원이 등록한 상품

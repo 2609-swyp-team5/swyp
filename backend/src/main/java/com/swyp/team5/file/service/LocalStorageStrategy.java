@@ -35,7 +35,7 @@ public class LocalStorageStrategy implements StorageStrategy {
     @Override
     public FileUploadResponse upload(MultipartFile file, String directory) {
         if (file.isEmpty()) {
-            throw new FileStorageException("업로드할 파일이 비어 있습니다.");
+            throw new FileStorageException("업로드할 파일이 비어 있어요.");
         }
 
         String key = buildKey(directory, file.getOriginalFilename());
@@ -46,7 +46,7 @@ public class LocalStorageStrategy implements StorageStrategy {
             Files.createDirectories(target.getParent());
             file.transferTo(target);
         } catch (IOException e) {
-            throw new FileStorageException("파일 업로드에 실패했습니다: " + key, e);
+            throw new FileStorageException("파일 업로드에 실패했어요. 잠시 후 다시 시도해 주세요.", "key=" + key, e);
         }
 
         return new FileUploadResponse(key, buildUrl(key), file.getSize(), contentType);
@@ -57,7 +57,7 @@ public class LocalStorageStrategy implements StorageStrategy {
         try {
             Files.deleteIfExists(resolveSafePath(key));
         } catch (IOException e) {
-            throw new FileStorageException("파일 삭제에 실패했습니다: " + key, e);
+            throw new FileStorageException("파일 삭제에 실패했어요. 잠시 후 다시 시도해 주세요.", "key=" + key, e);
         }
     }
 
@@ -79,7 +79,7 @@ public class LocalStorageStrategy implements StorageStrategy {
     private Path resolveSafePath(String key) {
         Path resolved = baseDir.resolve(key).normalize();
         if (!resolved.startsWith(baseDir)) {
-            throw new FileStorageException("허용되지 않는 파일 경로입니다: " + key);
+            throw new FileStorageException("허용되지 않는 파일 경로예요.", "key=" + key);
         }
         return resolved;
     }

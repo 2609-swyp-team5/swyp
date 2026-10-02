@@ -12,15 +12,16 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.interest.dto.InterestCreateResponse;
 import com.swyp.team5.interest.dto.InterestListItemResponse;
 import com.swyp.team5.interest.dto.TargetPriceResponse;
 import com.swyp.team5.interest.entity.Interest;
 import com.swyp.team5.interest.error.InterestNotFoundException;
 import com.swyp.team5.interest.repository.InterestRepository;
+import com.swyp.team5.item.entity.ListingSource;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.repository.MemberRepository;
-import com.swyp.team5.product.dto.ListingSource;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
 
@@ -33,6 +34,7 @@ public class InterestService {
     private final MemberRepository memberRepository;
     private final ProductAnalysisRepository productAnalysisRepository;
     private final List<InterestRegistrar> registrars;
+    private final TargetPriceAlertService targetPriceAlertService;
 
     /**
      * 상품 또는 외부 플랫폼 수집 매물을 관심상품으로 등록한다. {@code source}에 맞는
@@ -58,25 +60,31 @@ public class InterestService {
     }
 
     /**
-     * 인증된 본인의 관심상품 목록을 조회한다. 등록일시 내림차순. 우리 상품 대상 건은 상품 목록 조회와
+     * 인증된 본인의 관심상품 목록을 커서 기반으로 조회한다({@code id} 내림차순 = 등록 최신순). 우리 상품 대상 건은 상품 목록 조회와
      * 동일하게 각 상품의 가장 최근 시세 분석 스냅샷({@code recommendation}/{@code marketAveragePrice})도
-     * 함께 포함한다(분석 이력이 없으면 {@code null}). 외부 매물 대상 건은 둘 다 항상 {@code null}이다.
+     * 함께 포함한다(분석 이력이 없으면 {@code null}). 외부 매물 대상 건도 관심 매물 시세 분석 스냅샷이 있으면 채운다.
      *
      * @param memberId 요청자 회원 ID
-     * @param page 페이지 번호(0-base)
+     * @param cursor 이전 페이지 마지막 관심상품의 {@code interestId}(선택, {@code null}이면 첫 페이지)
      * @param size 페이지 크기
-     * @return 관심상품 목록
+     * @return {@code hasNext}/{@code nextCursor}를 포함한 커서 페이지 응답
      */
     @Transactional(readOnly = true)
-    public List<InterestListItemResponse> getInterests(Long memberId, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        List<Interest> interests =
-                interestRepository.findByMemberId(memberId, pageable).getContent();
+    public CursorPageResponse<InterestListItemResponse> getInterests(Long memberId, Long cursor, int size) {
+        Pageable pageable = PageRequest.of(0, size + 1, Sort.by(Sort.Direction.DESC, "id"));
+        List<Interest> interests = interestRepository.findByMemberIdAndIdLessThan(
+                memberId, cursor == null ? Long.MAX_VALUE : cursor, pageable);
         Map<Long, ProductAnalysis> analyses = findLatestAnalyses(interests);
-        return interests.stream()
+        Map<Long, ProductAnalysis> listingAnalyses = findLatestListingAnalyses(interests);
+        List<InterestListItemResponse> items = interests.stream()
                 .map(interest -> {
                     if (interest.getProduct() == null) {
-                        return InterestListItemResponse.fromListing(interest);
+                        ProductAnalysis analysis =
+                                listingAnalyses.get(interest.getListing().getId());
+                        return InterestListItemResponse.fromListing(
+                                interest,
+                                analysis == null ? null : analysis.getRecommendation(),
+                                analysis == null ? null : analysis.getAveragePrice());
                     }
                     ProductAnalysis analysis =
                             analyses.get(interest.getProduct().getId());
@@ -86,6 +94,7 @@ public class InterestService {
                             analysis == null ? null : analysis.getAveragePrice());
                 })
                 .toList();
+        return CursorPageResponse.of(items, size, InterestListItemResponse::interestId);
     }
 
     /**
@@ -100,9 +109,25 @@ public class InterestService {
         if (productIds.isEmpty()) {
             return Map.of();
         }
-        return productAnalysisRepository.findLatestByProductIdIn(productIds).stream()
+        return productAnalysisRepository.findLatestByItemIdIn(productIds).stream()
                 .collect(Collectors.toMap(
-                        analysis -> analysis.getProduct().getId(),
+                        analysis -> analysis.getItem().getId(),
+                        analysis -> analysis,
+                        (existing, replacement) -> replacement));
+    }
+
+    /** 관심상품 목록 중 외부 매물 대상 건들의 가장 최근 시세 분석 스냅샷을 한 번의 쿼리로 조회한다(N+1 방지). */
+    private Map<Long, ProductAnalysis> findLatestListingAnalyses(List<Interest> interests) {
+        List<Long> listingIds = interests.stream()
+                .filter(interest -> interest.getListing() != null)
+                .map(interest -> interest.getListing().getId())
+                .toList();
+        if (listingIds.isEmpty()) {
+            return Map.of();
+        }
+        return productAnalysisRepository.findLatestByItemIdIn(listingIds).stream()
+                .collect(Collectors.toMap(
+                        analysis -> analysis.getItem().getId(),
                         analysis -> analysis,
                         (existing, replacement) -> replacement));
     }
@@ -129,6 +154,8 @@ public class InterestService {
     public TargetPriceResponse setTargetPrice(Long memberId, Long interestId, Long targetPrice) {
         Interest interest = getInterestOrThrow(memberId, interestId);
         interest.changeTargetPrice(targetPrice);
+        // 이미 목표가 이하인 가격이면 바로 알림
+        targetPriceAlertService.check(interest);
         return new TargetPriceResponse(interestId, targetPrice);
     }
 
