@@ -29,19 +29,16 @@ export function MarketAnalysisRecommendation({ analysis }: { analysis: ProductMa
             </div>
             <div className="relative grid min-h-[274px] place-items-center">
                 <Image
-                    src="/figma/product-management/hold-mascot.png"
+                    src={
+                        isHold
+                            ? "/figma/product-management/hold-mascot.svg"
+                            : "/figma/product-management/sell-mascot.svg"
+                    }
                     alt="AI 시세 분석 캐릭터"
                     width={274}
                     height={274}
                     className="size-[274px] object-contain"
                 />
-                <div className="absolute top-0 right-0 flex h-[95px] w-[141px] items-center justify-center rounded-[50%] border border-[#d3d3d3] bg-white px-3 text-center text-[16px] leading-[25px] font-semibold text-black shadow-sm after:absolute after:right-[25px] after:-bottom-[8px] after:size-4 after:rotate-45 after:border-r after:border-b after:border-[#d3d3d3] after:bg-white">
-                    <span className="relative z-10">
-                        조금만 더
-                        <br />
-                        기다려봐요!
-                    </span>
-                </div>
             </div>
         </div>
     );
