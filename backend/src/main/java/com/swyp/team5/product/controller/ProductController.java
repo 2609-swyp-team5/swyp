@@ -144,7 +144,7 @@ public class ProductController {
      * 목록에 섞어 반환한다({@code source} 필드로 구분, {@link ProductService#getProducts} 참고). 복수 값 필터는 같은
      * 파라미터를 반복하거나 쉼표로 구분해 보낸다. 인증된 본인 상품만 보려면 {@link #getMyProducts} 참고.
      *
-     * @param currentMember 인증된 요청자(키워드 검색 로그 기록용)
+     * @param currentMember 요청자(키워드 검색 로그 기록용, 비로그인이면 null — 비로그인도 조회 가능)
      * @param keyword 제목/설명(외부 매물은 제목만) 키워드 검색(선택)
      * @param excludeKeyword 제외 키워드(선택, 공백·쉼표로 구분한 단어 중 하나라도 제목/설명에 있으면 제외)
      * @param status 우리 상품 상태 필터(선택, 지정 시 외부 매물 제외)
@@ -186,8 +186,8 @@ public class ProductController {
                 condition,
                 defectStatus,
                 sort);
-        return ResponseEntity.ok(ApiResponse.success(
-                productService.getProducts(currentMember.memberId(), searchCondition, cursor, size)));
+        return ResponseEntity.ok(ApiResponse.success(productService.getProducts(
+                currentMember == null ? null : currentMember.memberId(), searchCondition, cursor, size)));
     }
 
     /**

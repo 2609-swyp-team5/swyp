@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -48,6 +49,11 @@ public class SecurityConfig {
         "/actuator/**"
     };
 
+    /** 비로그인 사용자에게도 허용하는 일반 검색용 조회 API(GET만). 상세·분석·관심 등 그 밖의 기능은 로그인이 필요하다. */
+    private static final String[] PUBLIC_GET_PATTERNS = {
+        "/products", "/products/keywords/trending", "/products/popular", "/categories"
+    };
+
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     private final JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint;
@@ -64,6 +70,8 @@ public class SecurityConfig {
                         .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR)
                         .permitAll()
                         .requestMatchers(PERMIT_ALL_PATTERNS)
+                        .permitAll()
+                        .requestMatchers(HttpMethod.GET, PUBLIC_GET_PATTERNS)
                         .permitAll()
                         .anyRequest()
                         .authenticated())
