@@ -16,4 +16,6 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     List<Notification> findByMemberIdAndIdLessThan(Long memberId, Long cursor, Pageable pageable);
 
     Optional<Notification> findByIdAndMemberId(Long notificationId, Long memberId);
+
+    long countByMemberIdAndReadFalse(Long memberId);
 }

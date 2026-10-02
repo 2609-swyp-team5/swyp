@@ -19,6 +19,7 @@ import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.notification.dto.NotificationReadResponse;
 import com.swyp.team5.notification.dto.NotificationResponse;
+import com.swyp.team5.notification.dto.NotificationUnreadCountResponse;
 import com.swyp.team5.notification.entity.Notification;
 import com.swyp.team5.notification.entity.NotificationType;
 import com.swyp.team5.notification.error.NotificationNotFoundException;
@@ -56,6 +57,12 @@ public class NotificationService {
                         .map(NotificationResponse::from)
                         .toList();
         return CursorPageResponse.of(items, size, NotificationResponse::notificationId);
+    }
+
+    /** 본인의 안 읽은 알림 수를 센다. */
+    @Transactional(readOnly = true)
+    public NotificationUnreadCountResponse getUnreadCount(Long memberId) {
+        return new NotificationUnreadCountResponse(notificationRepository.countByMemberIdAndReadFalse(memberId));
     }
 
     /**
