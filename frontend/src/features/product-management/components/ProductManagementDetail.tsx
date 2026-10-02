@@ -4,7 +4,6 @@ import { getApiErrorMessage } from "@/common/lib/api/error";
 import { useProductQuery } from "@/features/sell/hooks/queries/useProductQuery";
 import { useProductManagementSectionsQuery } from "../hooks/useProductManagementSectionsQuery";
 import { MarketAnalysisSection } from "./analysis/market-analysis/MarketAnalysisSection";
-import { ProductPriceTrendSection } from "./analysis/price-trend/ProductPriceTrendSection";
 import { ProductTradeHistorySection } from "./analysis/trade-history/ProductTradeHistorySection";
 import { ProductValuationForecastSection } from "./analysis/valuation-forecast/ProductValuationForecastSection";
 import { ProductCompetitionSection } from "./competition/ProductCompetitionSection";
@@ -30,8 +29,8 @@ export function ProductManagementDetail({ productId }: { productId: number }) {
                 result={sections.section2.data}
                 error={sections.section2.error}
                 isPending={sections.section2.isPending}
+                priceTrendQuery={sections.section3}
             />
-            <ProductPriceTrendSection query={sections.section3} />
             <ProductValuationForecastSection query={sections.section4} />
             <ProductTradeHistorySection query={sections.section5} />
             <ProductCompetitionSection query={sections.section6} />

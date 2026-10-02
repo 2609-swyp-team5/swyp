@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
     createProductMarketAnalysisMock,
+    createProductPriceTrendMock,
     productManagementMockSource,
 } from "./productManagementMock";
 
@@ -32,5 +33,25 @@ describe("product management analysis mock", () => {
 
         expect(second.productId).toBe(2);
         expect(second.priceDistribution[0].count).toBe(2);
+    });
+
+    it("provides 30 daily average-price points for the price trend chart", () => {
+        const trend = createProductPriceTrendMock(42).priceTrend;
+
+        expect(trend.period).toBe("1M");
+        expect(trend.points).toHaveLength(30);
+        expect(trend.points[0]).toMatchObject({
+            date: "2026-09-02",
+            averagePrice: 259000,
+            change: null,
+        });
+        expect(trend.points.at(-1)).toMatchObject({
+            date: "2026-10-01",
+            averagePrice: 276000,
+            change: { comparedDate: "2026-09-30", amount: 1000, rate: 0.36 },
+        });
+        expect(trend.totalTransactionCount).toBe(
+            trend.points.reduce((total, point) => total + point.transactionCount, 0),
+        );
     });
 });

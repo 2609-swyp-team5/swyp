@@ -1,6 +1,10 @@
 "use client";
 
-import type { ProductMarketAnalysisResult } from "../../../api/productManagementMockApi";
+import type {
+    ProductMarketAnalysisResult,
+    ProductPriceTrendResult,
+} from "../../../api/productManagementMockApi";
+import type { StreamingQueryState } from "../../shared/streaming/productManagementStreamingTypes";
 import { MarketAnalysisContent } from "./MarketAnalysisContent";
 import { MarketAnalysisSkeleton } from "./MarketAnalysisSkeleton";
 
@@ -8,9 +12,15 @@ type MarketAnalysisSectionProps = {
     result: ProductMarketAnalysisResult | undefined;
     error: unknown;
     isPending: boolean;
+    priceTrendQuery: StreamingQueryState<ProductPriceTrendResult>;
 };
 
-export function MarketAnalysisSection({ result, error, isPending }: MarketAnalysisSectionProps) {
+export function MarketAnalysisSection({
+    result,
+    error,
+    isPending,
+    priceTrendQuery,
+}: MarketAnalysisSectionProps) {
     return (
         <div className="flex min-w-0 flex-col gap-2">
             <div className="flex items-center gap-[10px]">
@@ -29,13 +39,16 @@ export function MarketAnalysisSection({ result, error, isPending }: MarketAnalys
                 className="w-full overflow-hidden rounded-[16px] border border-[#83889e] bg-[#fafbff] shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]"
             >
                 {isPending ? (
-                    <MarketAnalysisSkeleton />
+                    <MarketAnalysisSkeleton priceTrendQuery={priceTrendQuery} />
                 ) : error ? (
                     <p className="bg-white px-6 py-16 text-center text-[14px] leading-6 text-[#d65353]">
                         시세 분석 데이터를 불러오지 못했습니다.
                     </p>
                 ) : result ? (
-                    <MarketAnalysisContent analysis={result.data} />
+                    <MarketAnalysisContent
+                        analysis={result.data}
+                        priceTrendQuery={priceTrendQuery}
+                    />
                 ) : null}
             </section>
         </div>

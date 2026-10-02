@@ -1,6 +1,9 @@
 import { cn } from "@/common/lib/utils";
 
+import type { ProductPriceTrendResult } from "../../../api/productManagementMockApi";
 import type { ProductMarketAnalysis } from "../../../types";
+import type { StreamingQueryState } from "../../shared/streaming/productManagementStreamingTypes";
+import { ProductPriceTrendSection } from "../price-trend/ProductPriceTrendSection";
 import { formatPrice, formatSignedPercent } from "./formatters";
 import { MarketAnalysisPriceDistribution } from "./MarketAnalysisPriceDistribution";
 import { MarketAnalysisRecommendation } from "./MarketAnalysisRecommendation";
@@ -25,7 +28,13 @@ function MetricRow({
     );
 }
 
-export function MarketAnalysisContent({ analysis }: { analysis: ProductMarketAnalysis }) {
+export function MarketAnalysisContent({
+    analysis,
+    priceTrendQuery,
+}: {
+    analysis: ProductMarketAnalysis;
+    priceTrendQuery: StreamingQueryState<ProductPriceTrendResult>;
+}) {
     return (
         <>
             <MarketAnalysisRecommendation analysis={analysis} />
@@ -69,6 +78,7 @@ export function MarketAnalysisContent({ analysis }: { analysis: ProductMarketAna
                     </div>
                     <MarketAnalysisPriceDistribution analysis={analysis} />
                 </div>
+                <ProductPriceTrendSection query={priceTrendQuery} />
             </div>
         </>
     );
