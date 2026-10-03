@@ -7,11 +7,12 @@ import java.util.List;
 
 import com.swyp.team5.category.dto.CategoryResponse;
 import com.swyp.team5.item.entity.ListingSource;
+import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.ProductStatus;
 
 /**
  * 상품 상세 요약 응답(판매 관리 화면의 요약 영역용). 우리 상품과 외부 수집 매물을 같은 형태로 내려주며, 외부 매물에 없는
- * 정보(브랜드·설명·태그·구성품·조회수)는 {@code null}이거나 빈 목록이다. 시세 정보는 {@code /analysis}에서 따로 조회한다.
+ * 정보(브랜드·설명·상태 등급·태그·구성품·조회수)는 {@code null}이거나 빈 목록이다. 시세 정보는 {@code /analysis}에서 따로 조회한다.
  */
 public record ProductDetailSummaryResponse(
         ListingSource source, // OUR/EXTERNAL
@@ -24,6 +25,7 @@ public record ProductDetailSummaryResponse(
         List<String> imageUrls, // 상품 이미지 URL 목록(등록 순서)
         List<String> tags, // 태그 이름 목록, 외부 매물은 []
         List<String> includedItems, // 구성품 이름 목록, 외부 매물은 []
+        ProductCondition condition, // 상품 상태 등급(S/A/B/C/D), 외부 매물은 null
         ProductStatus status, // 게시 상태(외부 매물은 판매중·예약중=ON_SALE, 그 외=SOLD_OUT)
         LocalDateTime createdAt, // 등록 일시(외부 매물은 최초 수집 일시)
         LocalDateTime updatedAt, // 수정 일시(외부 매물은 마지막으로 판매 상태를 확인한 일시)
@@ -57,6 +59,7 @@ public record ProductDetailSummaryResponse(
                 detail.imageUrls(),
                 detail.tags(),
                 detail.includedItems(),
+                detail.condition(),
                 detail.status(),
                 detail.createdAt(),
                 detail.updatedAt(),

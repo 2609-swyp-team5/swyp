@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Constructor;
@@ -15,6 +16,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+
+import org.springframework.context.ApplicationEventPublisher;
 
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.common.common.CursorPageResponse;
@@ -25,6 +28,7 @@ import com.swyp.team5.interest.dto.TargetPriceResponse;
 import com.swyp.team5.interest.entity.Interest;
 import com.swyp.team5.interest.error.InterestAlreadyExistsException;
 import com.swyp.team5.interest.error.InterestNotFoundException;
+import com.swyp.team5.interest.event.InterestRegisteredEvent;
 import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.item.entity.ListingSource;
 import com.swyp.team5.member.entity.Member;
@@ -69,6 +73,9 @@ class InterestServiceTest {
     @Mock
     private TargetPriceAlertService targetPriceAlertService;
 
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
     private InterestService service() {
         return new InterestService(
                 interestRepository,
@@ -77,7 +84,8 @@ class InterestServiceTest {
                 List.of(
                         new ProductInterestRegistrar(interestRepository, productRepository),
                         new ListingInterestRegistrar(interestRepository, platformListingRepository)),
-                targetPriceAlertService);
+                targetPriceAlertService,
+                eventPublisher);
     }
 
     // 관심상품 등록 성공 - 우리 상품
@@ -93,6 +101,8 @@ class InterestServiceTest {
         InterestCreateResponse response = service().register(2L, ListingSource.OUR, 1L);
 
         assertThat(response.interestId()).isEqualTo(10L);
+        // 커밋 후 대상 시세 분석을 돌리도록 등록 이벤트 발행
+        verify(eventPublisher).publishEvent(new InterestRegisteredEvent(1L));
     }
 
     // 관심상품 토글 - 등록돼 있지 않으면 등록
@@ -122,6 +132,7 @@ class InterestServiceTest {
         assertThat(response.interested()).isFalse();
         assertThat(response.interestId()).isNull();
         verify(interestRepository).delete(interest);
+        verifyNoInteractions(eventPublisher);
     }
 
     // 관심상품 토글 - 외부 매물도 같은 방식으로 해제

@@ -12,6 +12,12 @@ import com.swyp.team5.search.entity.SearchLog;
 
 public interface SearchLogRepository extends JpaRepository<SearchLog, Long> {
 
-    @Query("SELECT s.keyword FROM SearchLog s WHERE s.createdAt >= :since GROUP BY s.keyword ORDER BY COUNT(s) DESC")
+    /** 결과가 0건이었던 검색은 빼고 센다(결과 건수를 기록하기 전 로그는 null이라 포함). */
+    @Query(
+            """
+            SELECT s.keyword FROM SearchLog s
+            WHERE s.createdAt >= :since AND (s.resultCount IS NULL OR s.resultCount > 0)
+            GROUP BY s.keyword ORDER BY COUNT(s) DESC
+            """)
     List<String> findPopularKeywords(@Param("since") LocalDateTime since, Pageable pageable);
 }

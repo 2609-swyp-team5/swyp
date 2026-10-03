@@ -1,5 +1,7 @@
 package com.swyp.team5.notification.repository;
 
+import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -8,6 +10,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.swyp.team5.notification.entity.Notification;
+import com.swyp.team5.notification.entity.NotificationType;
 
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
@@ -20,4 +23,7 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     long countByMemberIdAndReadFalse(Long memberId);
 
     long countByMemberId(Long memberId);
+
+    long countByMemberIdAndTypeInAndCreatedAtGreaterThanEqual(
+            Long memberId, Collection<NotificationType> types, LocalDateTime from);
 }

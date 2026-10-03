@@ -383,7 +383,6 @@ public class ProductService {
     public CursorPageResponse<ProductListItemResponse> getProducts(
             Long memberId, ProductSearchCondition condition, String cursor, int size) {
         ProductSearchCursor searchCursor = ProductSearchCursor.decode(cursor, condition.sort());
-        searchLogService.record(memberId, condition.keyword());
 
         List<ProductSearchHit> hits = productSearchRepository.search(condition, searchCursor, size + 1);
         boolean hasNext = hits.size() > size;
@@ -412,8 +411,14 @@ public class ProductService {
                 .toList();
         CursorPageResponse<ProductListItemResponse> page =
                 new CursorPageResponse<>(content, nextCursor, hasNext, null, null);
-        // 전체 건수는 첫 페이지에서만 센다(스크롤마다 COUNT를 돌리지 않음)
-        return cursor == null ? page.withTotalCount(productSearchRepository.count(condition)) : page;
+        // 전체 건수는 첫 페이지에서만 센다(스크롤마다 COUNT를 돌리지 않음). 검색 로그도 첫 페이지에서만 결과 건수와 함께
+        // 남긴다(다음 페이지 요청마다 같은 검색이 여러 번 집계되지 않게)
+        if (cursor != null) {
+            return page;
+        }
+        long totalCount = productSearchRepository.count(condition);
+        searchLogService.record(memberId, condition.keyword(), totalCount);
+        return page.withTotalCount(totalCount);
     }
 
     private static List<Long> idsOf(List<ProductSearchHit> hits, ListingSource source) {

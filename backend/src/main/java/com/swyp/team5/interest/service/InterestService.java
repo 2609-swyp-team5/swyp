@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -20,6 +21,7 @@ import com.swyp.team5.interest.dto.InterestToggleResponse;
 import com.swyp.team5.interest.dto.TargetPriceResponse;
 import com.swyp.team5.interest.entity.Interest;
 import com.swyp.team5.interest.error.InterestNotFoundException;
+import com.swyp.team5.interest.event.InterestRegisteredEvent;
 import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.item.entity.ListingSource;
 import com.swyp.team5.member.entity.Member;
@@ -41,11 +43,12 @@ public class InterestService {
     private final ProductAnalysisRepository productAnalysisRepository;
     private final List<InterestRegistrar> registrars;
     private final TargetPriceAlertService targetPriceAlertService;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 상품 또는 외부 플랫폼 수집 매물을 관심상품으로 등록한다. {@code source}에 맞는
      * {@link InterestRegistrar}에게 대상 검증·중복 검증을 위임한다(새 source 추가 시 이 메서드는
-     * 수정하지 않아도 됨).
+     * 수정하지 않아도 됨). 등록이 커밋되면 대상의 시세 분석을 1회 돌리도록 {@link InterestRegisteredEvent}를 발행한다.
      *
      * @param memberId 요청자 회원 ID
      * @param source 등록 대상 종류(OUR/EXTERNAL)
@@ -55,7 +58,9 @@ public class InterestService {
     public InterestCreateResponse register(Long memberId, ListingSource source, Long targetId) {
         Member member = memberRepository.getReferenceById(memberId);
         Interest interest = registrarFor(source).register(member, memberId, targetId);
-        return new InterestCreateResponse(interestRepository.save(interest).getId());
+        Long interestId = interestRepository.save(interest).getId();
+        eventPublisher.publishEvent(new InterestRegisteredEvent(targetId));
+        return new InterestCreateResponse(interestId);
     }
 
     /**

@@ -490,6 +490,7 @@ class ProductServiceTest {
         ProductDetailSummaryResponse response = service().getProductSummary(1L);
 
         assertThat(response.source()).isEqualTo(ListingSource.OUR);
+        assertThat(response.condition()).isEqualTo(ProductCondition.A);
         assertThat(response.viewCount()).isEqualTo(7L);
         assertThat(response.interestCount()).isEqualTo(3L);
         assertThat(response.daysOnSale()).isEqualTo(3L);
@@ -519,6 +520,7 @@ class ProductServiceTest {
 
         assertThat(response.source()).isEqualTo(ListingSource.EXTERNAL);
         assertThat(response.status()).isEqualTo(ProductStatus.ON_SALE);
+        assertThat(response.condition()).isNull();
         assertThat(response.viewCount()).isNull();
         assertThat(response.interestCount()).isEqualTo(2L);
         assertThat(response.daysOnSale()).isEqualTo(1L);
@@ -695,15 +697,30 @@ class ProductServiceTest {
                 .isInstanceOf(InvalidProductSearchException.class);
     }
 
-    // 상품 목록 조회 - 키워드가 있으면 검색 로그를 기록한다
+    // 상품 목록 조회 - 첫 페이지에서 검색 결과 전체 건수와 함께 검색 로그를 기록한다
     @Test
-    void getProductsRecordsSearchLogWhenKeywordGiven() {
+    void getProductsRecordsSearchLogWithResultCountOnFirstPage() {
         ProductSearchCondition condition = ProductSearchCondition.ofKeyword("아이패드");
         when(productSearchRepository.search(condition, null, 21)).thenReturn(List.of());
+        when(productSearchRepository.count(condition)).thenReturn(12L);
 
         service().getProducts(1L, condition, null, 20);
 
-        verify(searchLogService).record(1L, "아이패드");
+        verify(searchLogService).record(1L, "아이패드", 12L);
+    }
+
+    // 상품 목록 조회 - 다음 페이지(커서 있음)는 같은 검색이라 검색 로그를 다시 남기지 않는다
+    @Test
+    void getProductsDoesNotRecordSearchLogOnNextPage() {
+        ProductSearchCondition condition = ProductSearchCondition.ofKeyword("아이패드");
+        String cursor = new ProductSearchCursor(null, LocalDateTime.now(), 10L).encode();
+        when(productSearchRepository.search(
+                        any(ProductSearchCondition.class), any(ProductSearchCursor.class), anyInt()))
+                .thenReturn(List.of());
+
+        service().getProducts(1L, condition, cursor, 20);
+
+        verifyNoInteractions(searchLogService);
     }
 
     // 인기 상품 조회 - 관심상품(찜) 등록 수 내림차순으로 정렬됨
