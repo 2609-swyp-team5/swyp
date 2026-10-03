@@ -11,6 +11,7 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -155,6 +156,27 @@ class ProductAnalysisServiceTest {
                         listing("갤럭시 탭 S8", 8000L)));
 
         assertThat(service().calculateMarketAveragePrice(product)).isEmpty();
+    }
+
+    // 등록 직후 분석 - 분석 대상 상태(DRAFT/ON_SALE)인 상품만 배치와 같은 방식으로 분석(후보 부족이면 AI 호출 없이 건너뜀)
+    @Test
+    void analyzeProductByIdAnalyzesOnlyAnalysisTargets() {
+        Product draft = product(1L, 10L, 800_000L);
+        when(draft.getStatus()).thenReturn(ProductStatus.DRAFT);
+        Product soldOut = product(2L, 10L, 800_000L);
+        when(soldOut.getStatus()).thenReturn(ProductStatus.SOLD_OUT);
+        when(productRepository.findById(1L)).thenReturn(Optional.of(draft));
+        when(productRepository.findById(2L)).thenReturn(Optional.of(soldOut));
+        when(productRepository.findById(3L)).thenReturn(Optional.empty());
+        givenListings(10L, List.of(listing("갤럭시 탭 S9", 9000L)));
+
+        service().analyzeProductById(1L);
+        service().analyzeProductById(2L); // 판매 완료 — 건너뜀
+        service().analyzeProductById(3L); // 삭제됨 — 건너뜀
+
+        verify(platformListingRepository, times(1))
+                .findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(eq(10L), anyString(), any());
+        verify(geminiAiClient, never()).prompt();
     }
 
     // 분석 건너뜀 - 같은 카테고리 매물은 충분해도 상품명이 겹치는 후보가 3건 미만이면 AI 호출 없이 건너뜀

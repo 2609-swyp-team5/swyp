@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 
 import com.swyp.team5.category.entity.Category;
@@ -54,6 +55,7 @@ import com.swyp.team5.product.error.InvalidProductSearchException;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductImageRequiredException;
 import com.swyp.team5.product.error.ProductNotFoundException;
+import com.swyp.team5.product.event.ProductRegisteredEvent;
 import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.product.repository.ProductSearchRepository;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
@@ -119,6 +121,9 @@ class ProductServiceTest {
     @Mock
     private ProductViewCounter productViewCounter;
 
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
     private ProductService service() {
         return new ProductService(
                 productRepository,
@@ -135,7 +140,8 @@ class ProductServiceTest {
                 productAnalysisService,
                 targetPriceAlertService,
                 productPlatformRepository,
-                productViewCounter);
+                productViewCounter,
+                eventPublisher);
     }
 
     // 상품 등록 성공
@@ -181,6 +187,8 @@ class ProductServiceTest {
         assertThat(response.purchasedMonths()).isEqualTo(3);
         assertThat(response.imageUrls()).containsExactly(IMAGE_URL);
         assertThat(response.status()).isEqualTo(ProductStatus.DRAFT); // 등록 직후는 외부 미게시
+        // 커밋 후 시세 분석 1회를 위한 등록 이벤트 발행
+        verify(eventPublisher).publishEvent(new ProductRegisteredEvent(response.id()));
     }
 
     // 상품 등록 성공 - 태그 포함(기존 태그 재사용 + 신규 태그 생성)
