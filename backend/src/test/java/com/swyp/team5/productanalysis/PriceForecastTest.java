@@ -30,6 +30,7 @@ import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.repository.ProductRepository;
+import com.swyp.team5.product.service.ProductAiSearchService;
 import com.swyp.team5.product.service.ProductAiService;
 import com.swyp.team5.product.service.ProductImageLoader;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
@@ -78,6 +79,9 @@ class PriceForecastTest {
 
     @MockitoBean
     private ProductAiService productAiService;
+
+    @MockitoBean
+    private ProductAiSearchService productAiSearchService;
 
     @MockitoBean
     private ProductImageLoader productImageLoader;

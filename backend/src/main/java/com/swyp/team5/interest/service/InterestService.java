@@ -88,9 +88,10 @@ public class InterestService {
                     }
                     ProductAnalysis analysis =
                             analyses.get(interest.getProduct().getId());
+                    // 관심 등록한 회원에게는 구매자 관점 추천(BUY/WAIT)을 보여 준다
                     return InterestListItemResponse.fromProduct(
                             interest,
-                            analysis == null ? null : analysis.getRecommendation(),
+                            analysis == null ? null : analysis.getBuyerViewRecommendation(),
                             analysis == null ? null : analysis.getAveragePrice());
                 })
                 .toList();

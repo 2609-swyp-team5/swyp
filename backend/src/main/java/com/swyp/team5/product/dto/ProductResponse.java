@@ -47,13 +47,16 @@ public record ProductResponse(
         List<String> includedItems, // 구성품 이름 목록
         AnalysisRecommendation recommendation, // 가장 최근 시세 분석 판단(지금 팔기/기다리기 등), 분석 이력 없으면 null
         Long marketAveragePrice, // 비교 매물(수집 데이터) 평균가 — AI 제안가와 별개. 등록/상세 응답에만 포함, 비교 매물 부족 시 null
-        Long suggestedPrice, // AI 제안가(등록 시 AI 추정가, 이후 시세 분석이 적정가를 내면 그 값으로 갱신, 없으면 null)
+        Long suggestedPrice, // AI 제안가(AI 사진 분석 추정가, 시세 분석으로는 바뀌지 않음 — 시세 기반 추천 가격은 /analysis의 suggestedPrice, 없으면 null)
         String analysisDescription, // 등록 시 AI 사진 분석의 상태 등급/제안가 판단 근거(저장값, AI 분석 실패 시 null)
         String platformName, // 우리 상품은 null, 외부 매물은 수집 플랫폼명(예: "번개장터")
         String externalUrl, // 우리 상품은 null, 외부 매물은 원본 매물 링크
         String externalStatus, // 우리 상품은 null, 외부 매물은 원본 상태 문자열(SELLING/RESERVED/SOLD_OUT 또는 재확인 에러 코드)
         LocalDateTime createdAt, // 등록 일시(외부 매물은 최초 수집 일시)
-        LocalDateTime updatedAt) { // 수정 일시(외부 매물은 마지막으로 판매 상태를 확인한 일시)
+        LocalDateTime updatedAt, // 수정 일시(외부 매물은 마지막으로 판매 상태를 확인한 일시)
+        List<ProductPlatformSummaryResponse> platforms, // 외부 플랫폼 게시 상태(연동 기록만, 없으면 []) — 판매자 본인 상세 조회만, 그 외 null
+        Long interestCount, // 관심 등록 수 — 판매자 본인 상세 조회만, 그 외 null
+        Long viewCount) { // 조회수(본인 제외, 회원당 24시간 1회) — 판매자 본인 상세 조회만, 그 외 null
 
     private static final Set<String> EXTERNAL_ON_SALE_STATUSES = Set.of("SELLING", "RESERVED");
 
@@ -100,7 +103,10 @@ public record ProductResponse(
                 null,
                 null,
                 product.getCreatedAt(),
-                product.getUpdatedAt());
+                product.getUpdatedAt(),
+                null,
+                null,
+                null);
     }
 
     /**
@@ -143,6 +149,48 @@ public record ProductResponse(
                 listing.getListingUrl(),
                 listing.getStatus(),
                 listing.getCreatedAt(),
-                listing.getLastSeenAt());
+                listing.getLastSeenAt(),
+                null,
+                null,
+                null);
+    }
+
+    /** 판매자 본인 상세 조회용으로 게시 플랫폼·관심 수·조회수를 채운 복사본을 만든다. */
+    public ProductResponse withSellerStats(
+            List<ProductPlatformSummaryResponse> platforms, long interestCount, long viewCount) {
+        return new ProductResponse(
+                source,
+                id,
+                memberId,
+                nickname,
+                category,
+                title,
+                brand,
+                description,
+                price,
+                status,
+                condition,
+                defectStatus,
+                purchasedAt,
+                purchasedMonths,
+                allowPriceSuggestion,
+                tradeMethod,
+                deliveryType,
+                preferredTradeRegion,
+                imageUrls,
+                tags,
+                includedItems,
+                recommendation,
+                marketAveragePrice,
+                suggestedPrice,
+                analysisDescription,
+                platformName,
+                externalUrl,
+                externalStatus,
+                createdAt,
+                updatedAt,
+                platforms,
+                interestCount,
+                viewCount);
     }
 }

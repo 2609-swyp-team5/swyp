@@ -65,6 +65,8 @@ import com.swyp.team5.platform.repository.PlatformListingRepository;
 import com.swyp.team5.platform.repository.PlatformRepository;
 import com.swyp.team5.product.dto.ProductAiAnalysisResult;
 import com.swyp.team5.product.dto.ProductCreateRequest;
+import com.swyp.team5.product.dto.ProductSearchCondition;
+import com.swyp.team5.product.dto.ProductSortType;
 import com.swyp.team5.product.dto.ProductStatusUpdateRequest;
 import com.swyp.team5.product.dto.ProductUpdateRequest;
 import com.swyp.team5.product.entity.DefectStatus;
@@ -74,11 +76,13 @@ import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.repository.ProductRepository;
+import com.swyp.team5.product.service.ProductAiSearchService;
 import com.swyp.team5.product.service.ProductAiService;
 import com.swyp.team5.product.service.ProductImageLoader;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
+import com.swyp.team5.search.repository.SearchLogRepository;
 import com.swyp.team5.tag.repository.TagRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -121,6 +125,9 @@ class ProductTest {
     @Autowired
     private ProductAnalysisRepository productAnalysisRepository;
 
+    @Autowired
+    private SearchLogRepository searchLogRepository;
+
     // 검색 테스트가 만든 행 — 상품 삭제(setUp) 전에 참조 행부터 지운다
     private final List<Interest> createdInterests = new ArrayList<>();
     private final List<ProductAnalysis> createdAnalyses = new ArrayList<>();
@@ -139,6 +146,9 @@ class ProductTest {
     private ProductAiService productAiService;
 
     @MockitoBean
+    private ProductAiSearchService productAiSearchService;
+
+    @MockitoBean
     private ProductImageLoader productImageLoader;
 
     private Long sellerId;
@@ -150,6 +160,10 @@ class ProductTest {
         interestRepository.deleteAll(createdInterests);
         productAnalysisRepository.deleteAll(createdAnalyses);
         platformListingRepository.deleteAll(createdListings);
+        // 비로그인 검색 로그는 회원 삭제로 함께 지워지지 않아 인기 검색어 테스트에 섞이지 않도록 직접 지운다
+        searchLogRepository.deleteAll(searchLogRepository.findAll().stream()
+                .filter(log -> log.getMember() == null)
+                .toList());
     }
 
     @BeforeEach
@@ -218,10 +232,10 @@ class ProductTest {
         assertThat(productRepository.count()).isEqualTo(1);
     }
 
-    // AI 제안가/판단 근거 - 등록 시 AI 추정가와 판단 근거가 저장돼 상세 조회에도 포함되고, 시세 분석 갱신값이 반영됨.
+    // AI 제안가/판단 근거 - 등록 시 AI 사진 추정가와 판단 근거가 저장돼 상세 조회에도 포함되고, 사용자 수정으로는 바뀌지 않음.
     // 비교 매물 평균가는 수집 매물이 없어 null
     @Test
-    void suggestedPriceIsStoredAndRefreshedByAnalysis() throws Exception {
+    void suggestedPriceIsStoredAndKeptOnUpdate() throws Exception {
         when(productAiService.analyze(anyList()))
                 .thenReturn(new ProductAiAnalysisResult(
                         category.getId(),
@@ -245,12 +259,6 @@ class ProductTest {
                 .file(requestPart(updateRequest(category.getId(), ProductStatus.ON_SALE)))
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken));
         assertThat(updated.at("/data/suggestedPrice").asLong()).isEqualTo(470_000L); // 사용자 수정으로는 바뀌지 않음
-
-        productRepository.updateSuggestedPrice(productId, 430_000L); // 시세 분석의 갱신 경로
-
-        mockMvc.perform(get("/products/{id}", productId).header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.suggestedPrice").value(430_000));
     }
 
     // 상품 등록 실패 - 인증 없음
@@ -476,6 +484,24 @@ class ProductTest {
                 .andExpect(jsonPath("$.data.category.name").value(category.getName()));
     }
 
+    // 상품 상세 조회 - 판매자 본인에게만 게시 플랫폼·관심 수·조회수를 내려줌
+    @Test
+    void getProductIncludesSellerStatsOnlyForOwner() throws Exception {
+        Long productId = createProduct();
+        String otherToken = createOtherMemberToken();
+
+        mockMvc.perform(get("/products/{id}", productId).header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.platforms.length()").value(0))
+                .andExpect(jsonPath("$.data.interestCount").value(0))
+                .andExpect(jsonPath("$.data.viewCount").isNumber());
+        mockMvc.perform(get("/products/{id}", productId).header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.platforms").doesNotExist())
+                .andExpect(jsonPath("$.data.interestCount").doesNotExist())
+                .andExpect(jsonPath("$.data.viewCount").doesNotExist());
+    }
+
     // 상품 상세 조회 실패 - 존재하지 않는 상품
     @Test
     void getProductFailsWhenNotFound() throws Exception {
@@ -638,6 +664,93 @@ class ProductTest {
                 .andExpect(jsonPath("$.data.content[2].source").value("EXTERNAL"))
                 .andExpect(jsonPath("$.data.content[2].tradeRegion").doesNotExist())
                 .andExpect(jsonPath("$.data.content[2].deliveryAvailable").value(true));
+    }
+
+    // 비로그인 검색 - 목록·인기 검색어·인기 상품·카테고리는 토큰 없이 조회되고, 검색 로그는 회원 없이 남음
+    @Test
+    void guestCanSearchProducts() throws Exception {
+        String keyword = uniqueKeyword();
+        saveProduct(keyword + " 아이폰", 100_000L, ProductCondition.A, DefectStatus.NORMAL);
+
+        mockMvc.perform(get("/products").param("keyword", keyword))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1));
+        mockMvc.perform(get("/products/keywords/trending")).andExpect(status().isOk());
+        mockMvc.perform(get("/products/popular")).andExpect(status().isOk());
+        mockMvc.perform(get("/categories")).andExpect(status().isOk());
+
+        assertThat(searchLogRepository.findAll())
+                .filteredOn(log -> log.getKeyword().equals(keyword))
+                .singleElement()
+                .satisfies(log -> assertThat(log.getMember()).isNull());
+    }
+
+    // 비로그인 검색 - 만료·위조 토큰이 붙어 있어도 비회원으로 조회됨
+    @Test
+    void guestSearchIgnoresInvalidToken() throws Exception {
+        mockMvc.perform(get("/products").header(HttpHeaders.AUTHORIZATION, "Bearer invalid-token"))
+                .andExpect(status().isOk());
+    }
+
+    // 비로그인 검색 - 검색 외 조회(상세·내 상품)와 목록 경로의 다른 메서드는 여전히 로그인 필요
+    @Test
+    void guestCannotUseFeaturesOtherThanSearch() throws Exception {
+        Long productId = saveProduct(uniqueKeyword(), 100_000L, ProductCondition.A, DefectStatus.NORMAL)
+                .getId();
+
+        mockMvc.perform(get("/products/{id}", productId)).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/products/{id}/analysis", productId)).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/products/me")).andExpect(status().isUnauthorized());
+        mockMvc.perform(multipart("/products").file(imagePart())).andExpect(status().isUnauthorized());
+    }
+
+    // AI 상품 검색 - 비로그인도 AI가 해석한 조건(키워드·최대 가격·정렬)으로 검색되고, 조건과 해석한 키워드 검색 로그가 남음
+    @Test
+    void guestCanSearchProductsWithAi() throws Exception {
+        String keyword = uniqueKeyword();
+        String query = keyword + " 50만원 이하 싼 순으로";
+        saveProduct(keyword + " 저가", 100_000L, ProductCondition.A, DefectStatus.NORMAL);
+        saveProduct(keyword + " 고가", 600_000L, ProductCondition.A, DefectStatus.NORMAL);
+        saveListing(keyword + " 중간", 200_000L, "SELLING");
+        when(productAiSearchService.interpret(query))
+                .thenReturn(new ProductAiSearchService.Interpretation(
+                        true,
+                        new ProductSearchCondition(
+                                keyword,
+                                List.of("깨짐"),
+                                null,
+                                null,
+                                null,
+                                null,
+                                500_000L,
+                                null,
+                                null,
+                                ProductSortType.PRICE_LOW)));
+
+        mockMvc.perform(get("/products/analysis/search").param("query", query))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.aiApplied").value(true))
+                .andExpect(jsonPath("$.data.condition.keyword").value(keyword))
+                .andExpect(jsonPath("$.data.condition.excludeKeyword").value("깨짐"))
+                .andExpect(jsonPath("$.data.condition.maxPrice").value(500_000))
+                .andExpect(jsonPath("$.data.condition.minPrice").doesNotExist())
+                .andExpect(jsonPath("$.data.condition.sort").value("PRICE_LOW"))
+                .andExpect(jsonPath("$.data.result.content[*].price", contains(100_000, 200_000)))
+                .andExpect(jsonPath("$.data.result.hasNext").value(false));
+
+        assertThat(searchLogRepository.findAll())
+                .filteredOn(log -> log.getKeyword().equals(keyword))
+                .singleElement()
+                .satisfies(log -> assertThat(log.getMember()).isNull());
+    }
+
+    // AI 상품 검색 - 검색 문장이 비었거나 200자를 넘으면 400
+    @Test
+    void searchProductsWithAiRejectsInvalidQuery() throws Exception {
+        mockMvc.perform(get("/products/analysis/search").param("query", " ")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/products/analysis/search").param("query", "가".repeat(201)))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/products/analysis/search")).andExpect(status().isBadRequest());
     }
 
     // 상품 목록 조회(정렬) - 가격순은 우리 상품·외부 매물을 섞어 정렬하고 커서로 다음 페이지를 이어서 조회함

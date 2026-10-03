@@ -17,6 +17,8 @@ public interface InterestRepository extends JpaRepository<Interest, Long> {
 
     boolean existsByMemberIdAndItemId(Long memberId, Long itemId);
 
+    long countByItemId(Long itemId);
+
     Optional<Interest> findByIdAndMemberId(Long interestId, Long memberId);
 
     /** 커서({@code id}) 미만의 본인 관심상품을 대상 상품/매물과 함께 조회한다(정렬·개수는 {@code pageable}). */

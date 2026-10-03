@@ -32,7 +32,7 @@ public class SearchLogService {
     /**
      * 키워드 검색 요청 1건을 로그로 남긴다. 키워드가 없거나 공백뿐이면 아무것도 하지 않는다.
      *
-     * @param memberId 요청자 회원 ID(비회원 확장 대비 nullable)
+     * @param memberId 요청자 회원 ID(비로그인 검색이면 null)
      * @param keyword 검색 키워드
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)

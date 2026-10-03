@@ -4,11 +4,13 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.LongSummaryStatistics;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -21,6 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.ai.AiChatExecutor;
 import com.swyp.team5.interest.repository.InterestRepository;
+import com.swyp.team5.item.entity.Item;
+import com.swyp.team5.item.repository.ItemRepository;
 import com.swyp.team5.notification.service.NotificationService;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.platform.repository.PlatformListingRepository;
@@ -34,6 +38,7 @@ import com.swyp.team5.productanalysis.dto.MarketAnalysisResult;
 import com.swyp.team5.productanalysis.dto.PriceTrendResponse;
 import com.swyp.team5.productanalysis.dto.ProductAnalysisResponse;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
+import com.swyp.team5.productanalysis.entity.ForecastPeriod;
 import com.swyp.team5.productanalysis.entity.PriceForecast;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 import com.swyp.team5.productanalysis.repository.PriceForecastRepository;
@@ -67,9 +72,17 @@ public class ProductAnalysisService {
             [이전 분석 추이]는 지난 분석들에서 같은 물건 매물의 평균가가 어떻게 변해 왔는지야. "하락/상승 추세"는
             반드시 이 기록으로만 판단하고, 기록이 없거나 판단 보류면 추세를 지어내지 말고 현재 가격 수준만으로 판단해.
 
-            등록된 상품은 판매 목적으로 등록된 매물이야. 기본적으로 판매자 관점(SELL/HOLD)에서 판단하되,
-            시세가 뚜렷하게 하락 추세이거나 등록가가 시세보다 눈에 띄게 저렴하면 지금 관심 있는 구매자에게도
-            좋은 타이밍이라는 의미로 BUY를 선택해도 돼. 반대로 시세가 오르는 추세면 구매는 WAIT를 선택해도 돼.
+            등록된 상품은 판매 목적으로 등록된 매물이야. 두 관점을 따로 판단해(기준 시세 = 네가 고른 같은 물건 매물의 평균가,
+            추세 = [이전 분석 추이]의 "추세(월 변화율)").
+            1) recommendation(판매자 관점, SELL/HOLD만):
+               - HOLD: 추세가 월 +3% 이상 오르는 중일 때만. 근거에 "조금 기다리면 더 비싸게 팔 수 있다"는 점을 밝혀.
+               - SELL: 그 밖의 모든 경우(하락·보합·추세 판단 보류). 중고는 시간이 지날수록 값이 떨어지기 때문이야.
+                 등록가가 기준 시세보다 5% 이상 높으면 적정가로 낮춰 파는 걸 권해.
+            2) buyerRecommendation(이 상품을 관심 등록한 구매자 관점, BUY/WAIT만):
+               - 등록가가 기준 시세보다 5% 이상 싸면 BUY, 5% 이상 비싸면 WAIT.
+               - 그 사이면 추세가 월 +3% 이상 오르는 중이면 BUY(오르기 전에 구매), 월 -3% 이하로 내리는 중이면 WAIT
+                 (기다리면 더 싸짐), 뚜렷한 추세가 없으면 적정 가격이라 BUY.
+            description과 buyerDescription에는 각 추천의 근거를 1~2문장으로 써.
             """;
 
     private static final String USER_PROMPT_TEMPLATE =
@@ -100,8 +113,12 @@ public class ProductAnalysisService {
             [이전 분석 추이]는 지난 분석들에서 같은 물건 매물의 평균가가 어떻게 변해 왔는지야. "하락/상승 추세"는
             반드시 이 기록으로만 판단하고, 기록이 없거나 판단 보류면 추세를 지어내지 말고 현재 가격 수준만으로 판단해.
 
-            구매자 관점에서만 판단해. 시세 대비 저렴하거나 시세가 오르는 추세라 지금 사는 게 유리하면 BUY,
-            시세보다 비싸거나 시세가 내려가는 추세라 기다리는 게 유리하면 WAIT를 선택해. SELL/HOLD는 선택하지 마.
+            구매자 관점(BUY/WAIT)에서만 판단해 recommendation에 담아(SELL/HOLD는 선택하지 마). 기준 시세 = 네가 고른 같은
+            물건 매물의 평균가, 추세 = [이전 분석 추이]의 "추세(월 변화율)".
+            - 판매가가 기준 시세보다 5% 이상 싸면 BUY, 5% 이상 비싸면 WAIT.
+            - 그 사이면 추세가 월 +3% 이상 오르는 중이면 BUY(오르기 전에 구매), 월 -3% 이하로 내리는 중이면 WAIT
+              (기다리면 더 싸짐), 뚜렷한 추세가 없으면 적정 가격이라 BUY.
+            buyerRecommendation과 buyerDescription은 비워 둬(null).
             """;
 
     private static final String LISTING_USER_PROMPT_TEMPLATE =
@@ -126,6 +143,7 @@ public class ProductAnalysisService {
     private final InterestRepository interestRepository;
     private final PriceForecastRepository priceForecastRepository;
     private final CategoryRepository categoryRepository;
+    private final ItemRepository itemRepository;
 
     public ProductAnalysisService(
             AiChatExecutor aiChatExecutor,
@@ -136,7 +154,8 @@ public class ProductAnalysisService {
             NotificationService notificationService,
             InterestRepository interestRepository,
             PriceForecastRepository priceForecastRepository,
-            CategoryRepository categoryRepository) {
+            CategoryRepository categoryRepository,
+            ItemRepository itemRepository) {
         this.aiChatExecutor = aiChatExecutor;
         this.productRepository = productRepository;
         this.platformListingRepository = platformListingRepository;
@@ -146,36 +165,47 @@ public class ProductAnalysisService {
         this.interestRepository = interestRepository;
         this.priceForecastRepository = priceForecastRepository;
         this.categoryRepository = categoryRepository;
+        this.itemRepository = itemRepository;
     }
 
     /**
-     * 상품의 가장 최근 시세 분석 스냅샷을 감가 예측(1M/3M/6M)과 함께 조회한다. 분석 이력이 없으면(배치가 아직 안 돌았거나 비교
-     * 매물 부족으로 건너뛴 경우) 상품 ID·현재 등록가만 채우고 나머지 필드는 null인 응답을 반환한다.
+     * 상품(또는 외부 매물)의 가장 최근 시세 분석 스냅샷을 감가 예측(1M/3M/6M)과 함께 조회한다. 외부 매물은 관심 등록된 것만
+     * 구매자 관점으로 분석되므로 그 밖의 매물은 분석 이력이 없다. 분석 이력이 없으면(배치가 아직 안 돌았거나 비교 매물 부족으로
+     * 건너뛴 경우) 상품 ID·현재 가격만 채우고 나머지 필드는 null인 응답을 반환한다.
      *
-     * @throws ProductNotFoundException 존재하지 않는 상품인 경우
+     * @throws ProductNotFoundException 존재하지 않는 상품(외부 매물 포함)인 경우
      */
     @Transactional(readOnly = true)
     public ProductAnalysisResponse getLatestAnalysis(Long productId) {
-        Product product =
-                productRepository.findById(productId).orElseThrow(() -> new ProductNotFoundException(productId));
+        Item item = getItemOrThrow(productId);
         return productAnalysisRepository
                 .findFirstByItemIdOrderByAnalyzedAtDesc(productId)
                 .map(analysis -> ProductAnalysisResponse.from(
-                        product, analysis, priceForecastRepository.findByAnalysisId(analysis.getId())))
-                .orElseGet(() -> ProductAnalysisResponse.empty(product));
+                        item,
+                        analysis,
+                        ConfidenceRule.current(
+                                analysis.getConfidence(),
+                                analysis.getAnalyzedAt(),
+                                LocalDateTime.now(),
+                                properties.confidence()),
+                        analysis.getListingCount() == null
+                                ? null
+                                : ConfidenceRule.rate(analysis.getListingCount(), properties.confidence()),
+                        priceForecastRepository.findByAnalysisId(analysis.getId())))
+                .orElseGet(() -> ProductAnalysisResponse.empty(item));
     }
 
     /**
      * 상품의 최근 {@code days}일(오늘 포함) 시세 분석 스냅샷을 날짜별로 묶어 가격 추이를 조회한다. 같은 날 여러 번 분석됐으면
      * 평균가는 그 평균, 최저/최고가는 그날 중 최저/최고이고, 기간 평균가는 일별 평균가의 평균이다(분석이 몰린 날이 과대 반영되지
-     * 않도록 {@link PriceTrend}와 같은 기준). 분석 이력이 없으면 {@code points}가 빈 배열이다.
+     * 않도록 {@link PriceTrend}와 같은 기준). 각 점에는 직전 기록일 대비 변화가 붙는다(첫 점은 null). 외부 매물(관심 등록된
+     * 매물의 구매자 관점 분석)도 같은 방식으로 조회한다. 분석 이력이 없으면 {@code points}가 빈 배열이다.
      *
-     * @throws ProductNotFoundException 존재하지 않는 상품인 경우
+     * @throws ProductNotFoundException 존재하지 않는 상품(외부 매물 포함)인 경우
      */
     @Transactional(readOnly = true)
     public PriceTrendResponse getPriceTrend(Long productId, int days) {
-        Product product =
-                productRepository.findById(productId).orElseThrow(() -> new ProductNotFoundException(productId));
+        Item item = getItemOrThrow(productId);
         LocalDate to = LocalDate.now();
         LocalDate from = to.minusDays(days - 1L);
         Map<LocalDate, List<ProductAnalysis>> byDate =
@@ -184,26 +214,32 @@ public class ProductAnalysisService {
                         .stream()
                         .collect(Collectors.groupingBy(
                                 analysis -> analysis.getAnalyzedAt().toLocalDate(), TreeMap::new, Collectors.toList()));
-        List<PriceTrendResponse.Point> points = byDate.entrySet().stream()
-                .map(entry -> new PriceTrendResponse.Point(
-                        entry.getKey(),
-                        Math.round(entry.getValue().stream()
-                                .mapToLong(ProductAnalysis::getAveragePrice)
-                                .average()
-                                .orElseThrow()),
-                        entry.getValue().stream()
-                                .mapToLong(ProductAnalysis::getMinPrice)
-                                .min()
-                                .orElseThrow(),
-                        entry.getValue().stream()
-                                .mapToLong(ProductAnalysis::getMaxPrice)
-                                .max()
-                                .orElseThrow(),
-                        entry.getValue().size()))
-                .toList();
+        List<PriceTrendResponse.Point> points = new ArrayList<>();
+        PriceTrendResponse.Point previous = null;
+        for (Map.Entry<LocalDate, List<ProductAnalysis>> entry : byDate.entrySet()) {
+            long averagePrice = Math.round(entry.getValue().stream()
+                    .mapToLong(ProductAnalysis::getAveragePrice)
+                    .average()
+                    .orElseThrow());
+            PriceTrendResponse.Point point = new PriceTrendResponse.Point(
+                    entry.getKey(),
+                    averagePrice,
+                    entry.getValue().stream()
+                            .mapToLong(ProductAnalysis::getMinPrice)
+                            .min()
+                            .orElseThrow(),
+                    entry.getValue().stream()
+                            .mapToLong(ProductAnalysis::getMaxPrice)
+                            .max()
+                            .orElseThrow(),
+                    entry.getValue().size(),
+                    PriceTrendResponse.Change.between(previous, averagePrice));
+            points.add(point);
+            previous = point;
+        }
         return new PriceTrendResponse(
-                product.getId(),
-                product.getPrice(),
+                item.getId(),
+                item.getPrice(),
                 days,
                 from,
                 to,
@@ -215,6 +251,10 @@ public class ProductAnalysisService {
                                 .orElseThrow()),
                 trendChangeRate(points),
                 points);
+    }
+
+    private Item getItemOrThrow(Long productId) {
+        return itemRepository.findById(productId).orElseThrow(() -> new ProductNotFoundException(productId));
     }
 
     /** 첫 기록일 대비 마지막 기록일 평균가 변동률(소수 4자리). 기록일이 2일 미만이거나 첫 평균가가 0이면 null. */
@@ -292,6 +332,21 @@ public class ProductAnalysisService {
         }
     }
 
+    /**
+     * 상품 1건을 정기 배치와 같은 방식으로 분석한다(등록 직후 분석 진입점). 이미 삭제됐거나 분석 대상 상태가 아니면
+     * 건너뛰고, 실패해도 예외를 던지지 않는다(로그만 남김).
+     *
+     * @param productId 분석할 상품 ID
+     */
+    public void analyzeProductById(Long productId) {
+        productRepository
+                .findById(productId)
+                .filter(product -> ProductStatus.ANALYSIS_TARGETS.contains(product.getStatus()))
+                .ifPresentOrElse(
+                        this::analyzeProductSafely,
+                        () -> log.info("상품 {}: 없거나 분석 대상 상태가 아니라 등록 직후 분석을 건너뜁니다.", productId));
+    }
+
     private void analyzeListingSafely(PlatformListing listing) {
         try {
             analyzeListing(listing);
@@ -362,30 +417,56 @@ public class ProductAnalysisService {
         BigDecimal changeRate = previous.map(p -> calculateChangeRate(p.getAveragePrice(), averagePrice))
                 .orElse(null);
 
+        // 추천은 규칙으로 정한다(AI 추천이 규칙과 다르면 근거 문장도 규칙 기반으로 바꿈)
+        LocalDateTime analyzedAt = LocalDateTime.now();
+        OptionalDouble monthlyRate = trend.plus(analyzedAt, averagePrice).monthlyRate();
+        AnalysisRecommendation sellerRecommendation = RecommendationRule.forSeller(monthlyRate);
+        AnalysisRecommendation buyerRecommendation =
+                RecommendationRule.forBuyer(product.getPrice(), averagePrice, monthlyRate);
         ProductAnalysis analysis = ProductAnalysis.create(
                 product,
                 minPrice,
                 averagePrice,
                 maxPrice,
                 changeRate,
-                aiResult.recommendation(),
+                sellerRecommendation,
                 aiResult.suggestedPrice(),
-                aiResult.description(),
-                LocalDateTime.now());
+                aiResult.recommendation() == sellerRecommendation
+                        ? aiResult.description()
+                        : RecommendationRule.sellerReason(
+                                sellerRecommendation, product.getPrice(), averagePrice, monthlyRate),
+                analyzedAt);
+        analysis.assignBuyerView(
+                buyerRecommendation,
+                aiResult.buyerRecommendation() == buyerRecommendation && aiResult.buyerDescription() != null
+                        ? aiResult.buyerDescription()
+                        : RecommendationRule.buyerReason(
+                                buyerRecommendation, product.getPrice(), averagePrice, monthlyRate));
+        analysis.assignConfidence(prices.size(), ConfidenceRule.grade(prices, properties.confidence()));
+
+        // 감가 예측(1M/3M/6M)과, 판매자 추천에 붙는 1개월 가격 전망(SELL=감가 예측, HOLD=시세 추세)
+        PriceTrend trendWithNow = trend.plus(analyzedAt, averagePrice);
+        String rootCategoryName =
+                categoryRepository.findRootName(product.getCategory().getId()).orElse(null);
+        List<DepreciationForecaster.Forecast> forecasts =
+                DepreciationForecaster.forecast(averagePrice, trendWithNow, rootCategoryName);
+        PriceOutlookRule.Outlook outlook = PriceOutlookRule.forSeller(
+                sellerRecommendation,
+                monthlyRate,
+                DepreciationForecaster.monthlyRate(trendWithNow, rootCategoryName),
+                averagePrice,
+                oneMonthForecast(forecasts));
+        analysis.assignOutlook(outlook.waitPeriod(), outlook.expectedPrice(), outlook.expectedPriceChangeRate());
         productAnalysisRepository.save(analysis);
-        saveForecasts(
-                analysis,
-                trend.plus(analysis.getAnalyzedAt(), averagePrice),
-                product.getCategory().getId());
+        saveForecasts(analysis, forecasts);
 
-        // 시세 분석이 적정가를 냈으면 상품의 AI 제안가도 최신 값으로 갱신(상세/수정 응답의 suggestedPrice)
-        if (aiResult.suggestedPrice() != null) {
-            productRepository.updateSuggestedPrice(product.getId(), aiResult.suggestedPrice());
-        }
+        // 시세 분석의 적정가는 스냅샷에만 저장한다 — 상품의 AI 제안가(products.suggested_price)는 사진 추정가로 고정
 
-        // 추천이 직전 스냅샷과 달라졌으면 판매자(SELL)/관심 등록 회원(BUY)에게 알림
+        // 관점별 추천이 직전 스냅샷과 달라졌으면 판매자(SELL/HOLD)·관심 등록 회원(BUY/WAIT)에게 각각 알림
         notificationService.notifyRecommendationChanged(
-                product, previous.map(ProductAnalysis::getRecommendation).orElse(null), aiResult.recommendation());
+                product, previous.map(ProductAnalysis::getRecommendation).orElse(null), sellerRecommendation);
+        notificationService.notifyRecommendationChanged(
+                product, previous.map(ProductAnalysis::getBuyerRecommendation).orElse(null), buyerRecommendation);
     }
 
     /**
@@ -418,11 +499,6 @@ public class ProductAnalysisService {
                 PriceTrend.of(snapshots(productAnalysisRepository.findByItemIdAndAnalyzedAtAfterOrderByAnalyzedAtAsc(
                         listing.getId(), LocalDateTime.now().minusMonths(TREND_MONTHS))));
         MarketAnalysisResult aiResult = requestListingAiAnalysis(listing, candidates, trend);
-        if (aiResult.recommendation() != AnalysisRecommendation.BUY
-                && aiResult.recommendation() != AnalysisRecommendation.WAIT) {
-            log.warn("외부 매물 {}: 구매자 관점이 아닌 추천({})이 와서 저장하지 않습니다.", listing.getId(), aiResult.recommendation());
-            return;
-        }
         List<Long> prices =
                 SimilarListingFilter.removeOutliers(similarPrices(candidates, aiResult.similarListingNumbers()));
         if (prices.size() < properties.minListings()) {
@@ -445,28 +521,43 @@ public class ProductAnalysisService {
         BigDecimal changeRate = previous.map(p -> calculateChangeRate(p.getAveragePrice(), averagePrice))
                 .orElse(null);
 
-        productAnalysisRepository.save(ProductAnalysis.createForListing(
+        // 추천은 구매자 관점 규칙으로 정한다(AI 추천이 규칙과 다르면 근거 문장도 규칙 기반으로 바꿈)
+        LocalDateTime analyzedAt = LocalDateTime.now();
+        OptionalDouble monthlyRate = trend.plus(analyzedAt, averagePrice).monthlyRate();
+        AnalysisRecommendation recommendation =
+                RecommendationRule.forBuyer(listing.getPrice(), averagePrice, monthlyRate);
+        ProductAnalysis analysis = ProductAnalysis.createForListing(
                 listing,
                 minPrice,
                 averagePrice,
                 maxPrice,
                 changeRate,
-                aiResult.recommendation(),
+                recommendation,
                 aiResult.suggestedPrice(),
-                aiResult.description(),
-                LocalDateTime.now()));
+                aiResult.recommendation() == recommendation
+                        ? aiResult.description()
+                        : RecommendationRule.buyerReason(recommendation, listing.getPrice(), averagePrice, monthlyRate),
+                analyzedAt);
+        analysis.assignConfidence(prices.size(), ConfidenceRule.grade(prices, properties.confidence()));
+        productAnalysisRepository.save(analysis);
 
         notificationService.notifyListingRecommendationChanged(
-                listing, previous.map(ProductAnalysis::getRecommendation).orElse(null), aiResult.recommendation());
+                listing, previous.map(ProductAnalysis::getRecommendation).orElse(null), recommendation);
     }
 
     /** 이번 스냅샷 기준 감가 예측가(1M/3M/6M)를 저장한다({@link DepreciationForecaster}). */
-    private void saveForecasts(ProductAnalysis analysis, PriceTrend trend, Long categoryId) {
-        String rootCategoryName = categoryRepository.findRootName(categoryId).orElse(null);
-        priceForecastRepository.saveAll(
-                DepreciationForecaster.forecast(analysis.getAveragePrice(), trend, rootCategoryName).stream()
-                        .map(forecast -> PriceForecast.of(analysis, forecast.period(), forecast.expectedPrice()))
-                        .toList());
+    private void saveForecasts(ProductAnalysis analysis, List<DepreciationForecaster.Forecast> forecasts) {
+        priceForecastRepository.saveAll(forecasts.stream()
+                .map(forecast -> PriceForecast.of(analysis, forecast.period(), forecast.expectedPrice()))
+                .toList());
+    }
+
+    private static long oneMonthForecast(List<DepreciationForecaster.Forecast> forecasts) {
+        return forecasts.stream()
+                .filter(forecast -> forecast.period() == ForecastPeriod.ONE_MONTH)
+                .findFirst()
+                .orElseThrow()
+                .expectedPrice();
     }
 
     private MarketAnalysisResult requestListingAiAnalysis(

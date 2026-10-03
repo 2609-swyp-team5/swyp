@@ -35,6 +35,7 @@ import com.swyp.team5.common.common.ApiResponse;
 import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.common.passport.PrincipalMember;
 import com.swyp.team5.product.dto.ListingTradeStatus;
+import com.swyp.team5.product.dto.ProductAiSearchResponse;
 import com.swyp.team5.product.dto.ProductCreateRequest;
 import com.swyp.team5.product.dto.ProductListItemResponse;
 import com.swyp.team5.product.dto.ProductResponse;
@@ -47,6 +48,7 @@ import com.swyp.team5.product.dto.ProductUpdateRequest;
 import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.ProductStatus;
+import com.swyp.team5.product.service.ProductAiSearchService;
 import com.swyp.team5.product.service.ProductRegisterStreamService;
 import com.swyp.team5.product.service.ProductService;
 import com.swyp.team5.search.service.SearchLogService;
@@ -63,6 +65,7 @@ public class ProductController {
     private final ProductService productService;
     private final ProductRegisterStreamService productRegisterStreamService;
     private final SearchLogService searchLogService;
+    private final ProductAiSearchService productAiSearchService;
 
     /**
      * 상품을 직접 등록하며 진행 상황을 SSE로 보낸다. 상품 사진 파일을 직접 받아 서버가 업로드 → AI 사진 분석 → 저장까지 한 번에
@@ -128,15 +131,18 @@ public class ProductController {
 
     /**
      * 상품 상세 정보를 조회한다. 외부 수집 매물도 같은 ID 체계라 목록 응답의 {@code id}를 그대로 넘기면 같은 응답 형태로
-     * 조회된다({@code source}로 구분).
+     * 조회된다({@code source}로 구분). 판매자 본인이 조회하면 게시 플랫폼·관심 수·조회수도 포함하고, 다른 회원의 조회는 조회수에 반영한다.
      *
+     * @param currentMember 인증된 요청자
      * @param productId 조회할 상품(또는 외부 매물) ID
      * @return 200 OK + 상품 상세 정보
      */
     @Operation(summary = "상품 상세 조회")
     @GetMapping("/{productId}")
-    public ResponseEntity<ApiResponse<ProductResponse>> getProduct(@PathVariable Long productId) {
-        return ResponseEntity.ok(ApiResponse.success(productService.getProduct(productId)));
+    public ResponseEntity<ApiResponse<ProductResponse>> getProduct(
+            @AuthenticationPrincipal PrincipalMember currentMember, @PathVariable Long productId) {
+        productService.recordView(productId, currentMember.memberId());
+        return ResponseEntity.ok(ApiResponse.success(productService.getProduct(productId, currentMember.memberId())));
     }
 
     /**
@@ -144,7 +150,7 @@ public class ProductController {
      * 목록에 섞어 반환한다({@code source} 필드로 구분, {@link ProductService#getProducts} 참고). 복수 값 필터는 같은
      * 파라미터를 반복하거나 쉼표로 구분해 보낸다. 인증된 본인 상품만 보려면 {@link #getMyProducts} 참고.
      *
-     * @param currentMember 인증된 요청자(키워드 검색 로그 기록용)
+     * @param currentMember 요청자(키워드 검색 로그 기록용, 비로그인이면 null — 비로그인도 조회 가능)
      * @param keyword 제목/설명(외부 매물은 제목만) 키워드 검색(선택)
      * @param excludeKeyword 제외 키워드(선택, 공백·쉼표로 구분한 단어 중 하나라도 제목/설명에 있으면 제외)
      * @param status 우리 상품 상태 필터(선택, 지정 시 외부 매물 제외)
@@ -186,8 +192,31 @@ public class ProductController {
                 condition,
                 defectStatus,
                 sort);
+        return ResponseEntity.ok(ApiResponse.success(productService.getProducts(
+                currentMember == null ? null : currentMember.memberId(), searchCondition, cursor, size)));
+    }
+
+    /**
+     * 자연어 문장을 AI로 해석해 상품 목록을 검색한다(예: "아이폰 15 프로 50만원 이하 하자 없는 거"). 해석한 조건으로
+     * {@link #getProducts}와 같은 검색을 실행해 첫 페이지를 돌려주며, 다음 페이지는 응답의 {@code condition}과
+     * {@code result.nextCursor}로 {@code GET /products}를 호출한다. AI 해석에 실패하면 문장 전체를 키워드로 검색한다.
+     *
+     * @param currentMember 요청자(검색 로그 기록용, 비로그인이면 null — 비로그인도 조회 가능)
+     * @param query 검색 문장(필수, 200자 이하)
+     * @param size 페이지 크기(기본 20, 1~100)
+     * @return 200 OK + 적용한 검색 조건과 첫 페이지 결과
+     */
+    @Operation(summary = "AI 상품 검색")
+    @GetMapping("/analysis/search")
+    public ResponseEntity<ApiResponse<ProductAiSearchResponse>> searchProductsWithAi(
+            @AuthenticationPrincipal PrincipalMember currentMember,
+            @RequestParam @NotBlank @Size(max = 200) String query,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        ProductAiSearchService.Interpretation interpretation = productAiSearchService.interpret(query);
+        CursorPageResponse<ProductListItemResponse> result = productService.getProducts(
+                currentMember == null ? null : currentMember.memberId(), interpretation.condition(), null, size);
         return ResponseEntity.ok(ApiResponse.success(
-                productService.getProducts(currentMember.memberId(), searchCondition, cursor, size)));
+                ProductAiSearchResponse.of(interpretation.aiApplied(), interpretation.condition(), result)));
     }
 
     /**
