@@ -74,6 +74,12 @@ test("mobile reduced-motion users can read the cards without horizontal overflow
     expect(
         await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);
+    await page.addStyleTag({
+        content: "section[aria-labelledby='audiences-heading'] article { min-height: 600px; }",
+    });
+    expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
     await page.getByRole("button", { name: "맨 위로 이동" }).click();
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
     await page.getByRole("link", { name: "지금 시작하기" }).scrollIntoViewIfNeeded();

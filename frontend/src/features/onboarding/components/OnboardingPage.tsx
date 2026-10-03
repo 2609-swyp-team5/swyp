@@ -16,7 +16,7 @@ export function OnboardingPage() {
     return (
         <MotionConfig reducedMotion="user">
             <LazyMotion features={domAnimation} strict>
-                <main className="bg-white">
+                <main className="overflow-x-clip bg-white">
                     <HeroSection startHref="/home" isInitialized={isInitialized} />
                     <StepsSection />
                     <AnalysisSection />
