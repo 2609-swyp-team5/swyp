@@ -6,6 +6,7 @@ export const defectStatusSchema = z.enum(["NORMAL", "ISSUES", "UNKNOWN"]);
 export const tradeMethodSchema = z.enum(["DIRECT", "DELIVERY"]);
 export const deliveryTypeSchema = z.enum(["INCLUDED", "PREPAID"]);
 export const operationStatusSchema = z.enum(["normal", "issues", "unknown"]);
+export const productPlatformStatusSchema = z.enum(["POSTING", "POSTED", "FAILED", "REMOVED"]);
 
 const productImageFileSchema = z
     .custom<File>(

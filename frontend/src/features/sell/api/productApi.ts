@@ -1,6 +1,14 @@
 import { api } from "@/common/lib/api/client";
-import type { ApiErrorResponse, ApiResponse } from "@/common/lib/api/types";
+import type { ApiErrorResponse, ApiResponse, CursorPageResponse } from "@/common/lib/api/types";
 import { useAuthStore } from "@/features/auth/store/authStore";
+import type {
+    ProductAnalysisResponse,
+    ProductCompetitionResponse,
+    ProductDetailSummaryResponse,
+    ProductPriceTrendResponse,
+    ProductValuationForecastResponse,
+} from "@/features/product-management/schemas/productManagementResponseSchema";
+import { productRegisterStreamEventSchema } from "../schemas/productRegisterStreamSchema";
 
 import {
     aiProductCreateInputSchema,
@@ -13,39 +21,15 @@ import type {
     AiProductCreateInput,
     DirectProductCreateInput,
     ProductResponse,
+    ProductStatus,
+    ProductSummaryResponse,
     ProductRegisterProgress,
     ProductRegisterError,
     ProductRegisterStep,
-    ProductRegisterStepStatus,
     ProductUpdateInput,
 } from "../types";
 
 type ProductRegisterProgressHandler = (progress: ProductRegisterProgress) => void;
-
-type ProductRegisterStepEvent = {
-    event: "step";
-    step: ProductRegisterProgress["step"];
-    status: ProductRegisterStepStatus;
-    index: number;
-    total: number;
-    result: unknown;
-};
-
-type ProductRegisterCompleteEvent = ProductResponse & {
-    event: "complete";
-};
-
-type ProductRegisterErrorEvent = {
-    event: "error";
-    step: ProductRegisterProgress["step"] | null;
-};
-
-type ProductRegisterStreamEvent = {
-    success: boolean;
-    message: string;
-    data: ProductRegisterStepEvent | ProductRegisterCompleteEvent | ProductRegisterErrorEvent;
-    error: { code?: string; message?: string } | null;
-};
 
 const productRegisterSteps: ProductRegisterStep[] = [
     "IMAGE_UPLOAD",
@@ -54,6 +38,31 @@ const productRegisterSteps: ProductRegisterStep[] = [
 ];
 
 const getProduct = (id: number) => api.get<ApiResponse<ProductResponse>>(`/products/${id}`);
+
+const getProductManagementSummary = (id: number) =>
+    api.get<ApiResponse<ProductDetailSummaryResponse>>(`/products/${id}/summary`);
+
+const getProductAnalysis = (id: number) =>
+    api.get<ApiResponse<ProductAnalysisResponse>>(`/products/${id}/analysis`);
+
+const getProductPriceTrend = (id: number) =>
+    api.get<ApiResponse<ProductPriceTrendResponse>>(`/products/${id}/analysis/trend`);
+
+const getProductValuationForecast = (id: number, analysisId: number) =>
+    api.get<ApiResponse<ProductValuationForecastResponse>>(
+        `/products/${id}/analysis/${analysisId}/forecast`,
+    );
+
+const getProductCompetition = (id: number) =>
+    api.get<ApiResponse<ProductCompetitionResponse>>(`/products/${id}/competition`);
+
+const getMyProducts = (params?: { status?: ProductStatus; size?: number }) =>
+    api.get<ApiResponse<CursorPageResponse<ProductSummaryResponse>>>("/products/me", {
+        params: {
+            status: params?.status,
+            size: params?.size ?? 20,
+        },
+    });
 
 const deleteProduct = (id: number) => api.delete<ApiResponse<null>>(`/products/${id}`);
 
@@ -95,9 +104,9 @@ const readSseStream = async (
             return;
         }
 
-        const event = JSON.parse(
-            dataLine.slice("data:".length).trim(),
-        ) as ProductRegisterStreamEvent;
+        const event = productRegisterStreamEventSchema.parse(
+            JSON.parse(dataLine.slice("data:".length).trim()),
+        );
 
         if (event.data.event === "step") {
             onProgress?.({
@@ -294,6 +303,12 @@ const updateProduct = async (
 
 export const productApi = {
     getProduct,
+    getProductManagementSummary,
+    getProductAnalysis,
+    getProductPriceTrend,
+    getProductValuationForecast,
+    getProductCompetition,
+    getMyProducts,
     deleteProduct,
     createDirectProduct,
     createAiProduct,

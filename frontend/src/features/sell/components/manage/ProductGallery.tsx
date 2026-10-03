@@ -62,7 +62,13 @@ function GalleryImage({
     );
 }
 
-export function ProductGallery({ product }: { product: ProductResponse }) {
+type ProductGalleryProps = {
+    product: Pick<ProductResponse, "imageUrls" | "title">;
+    layout?: "side" | "bottom";
+};
+
+export function ProductGallery({ product, layout = "side" }: ProductGalleryProps) {
+    const isBottomLayout = layout === "bottom";
     const [selectedIndex, setSelectedIndex] = useState(0);
     const [isImagePopoverOpen, setIsImagePopoverOpen] = useState(false);
     const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
@@ -104,16 +110,26 @@ export function ProductGallery({ product }: { product: ProductResponse }) {
     }
 
     return (
-        <div className="flex items-start gap-3 lg:gap-5">
+        <div
+            className={
+                isBottomLayout ? "flex w-full flex-col gap-3" : "flex items-start gap-3 lg:gap-5"
+            }
+        >
             {product.imageUrls.length > 1 && (
-                <div className="flex w-[72px] shrink-0 flex-col gap-3 lg:w-[100px] lg:gap-[10px]">
+                <div
+                    className={
+                        isBottomLayout
+                            ? "order-2 grid w-full grid-cols-4 gap-2"
+                            : "order-1 flex w-[72px] shrink-0 flex-col gap-3 lg:w-[100px] lg:gap-[10px]"
+                    }
+                >
                     {visibleImageIndexes.map((imageIndex) => (
                         <button
                             key={product.imageUrls[imageIndex]}
                             type="button"
                             aria-label={`${imageIndex + 1}번 상품 사진 보기`}
                             aria-pressed={selectedIndex === imageIndex}
-                            className={`relative aspect-square overflow-hidden rounded-lg bg-[#f5f5f7] focus-visible:ring-2 focus-visible:ring-[#6653fb] focus-visible:ring-offset-2 ${
+                            className={`relative aspect-square w-full overflow-hidden rounded-lg bg-[#f5f5f7] focus-visible:ring-2 focus-visible:ring-[#6653fb] focus-visible:ring-offset-2 ${
                                 selectedIndex === imageIndex ? "border-2 border-[#6653fb]" : ""
                             }`}
                             onClick={() => setSelectedIndex(imageIndex)}
@@ -132,13 +148,13 @@ export function ProductGallery({ product }: { product: ProductResponse }) {
                                 <button
                                     type="button"
                                     aria-label={`추가 상품 사진 ${hiddenImageCount}개 보기`}
-                                    className="flex aspect-square items-center justify-center rounded-lg bg-[#f3f3ff] text-[20px] font-medium tracking-[0.5px] text-[#6b6c7b] hover:bg-[#eaeafd] focus-visible:ring-2 focus-visible:ring-[#6653fb] focus-visible:ring-offset-2"
+                                    className="flex aspect-square w-full items-center justify-center rounded-lg bg-[#f3f3ff] text-[20px] font-medium tracking-[0.5px] text-[#6b6c7b] hover:bg-[#eaeafd] focus-visible:ring-2 focus-visible:ring-[#6653fb] focus-visible:ring-offset-2"
                                 >
                                     +{hiddenImageCount}
                                 </button>
                             </PopoverTrigger>
                             <PopoverContent
-                                side="right"
+                                side={isBottomLayout ? "top" : "right"}
                                 align="start"
                                 sideOffset={16}
                                 className="w-[494px] gap-5 rounded-[16px] border border-[#dee5ed] bg-white px-[30px] py-8 shadow-[0_12px_30px_rgba(54,54,54,0.14)]"
@@ -200,151 +216,164 @@ export function ProductGallery({ product }: { product: ProductResponse }) {
                     )}
                 </div>
             )}
-            <Dialog open={isImageViewerOpen} onOpenChange={setIsImageViewerOpen}>
-                <DialogTrigger asChild>
-                    <button
-                        type="button"
-                        aria-label={`${product.title} 상품 사진 ${selectedIndex + 1} 크게 보기`}
-                        className="relative aspect-square min-w-0 flex-1 cursor-zoom-in overflow-hidden rounded-[10px] bg-[#f5f5f7] focus-visible:ring-2 focus-visible:ring-[#6653fb] focus-visible:ring-offset-2 lg:size-[432px] lg:flex-none"
-                        onClick={() => setViewerIndex(selectedIndex)}
-                    >
-                        <GalleryImage
-                            src={selectedImage}
-                            alt={`${product.title} 상품 사진 ${selectedIndex + 1}`}
-                            className="object-cover"
-                            sizes="(min-width: 1024px) 432px, 100vw"
-                        />
-                    </button>
-                </DialogTrigger>
-                <DialogContent className="top-0 left-0 flex h-dvh w-dvw max-w-none translate-x-0 translate-y-0 flex-col gap-5 overflow-hidden rounded-none border-0 bg-[rgba(17,18,22,0.91)] px-6 pt-7 pb-[26px] text-white shadow-none md:px-10">
-                    <DialogTitle className="sr-only">
-                        {product.title} 상품 사진 크게 보기
-                    </DialogTitle>
-                    <DialogDescription className="sr-only">
-                        선택한 상품 사진을 원본 비율로 크게 보고 있습니다. 화살표 키로 사진을 이동할
-                        수 있습니다.
-                    </DialogDescription>
-                    <div className="flex w-full shrink-0 items-start justify-between">
-                        <div className="flex flex-col gap-0.5">
-                            <div className="flex items-center gap-2.5">
-                                <Image
-                                    src="/sell/viewer-image-icon.svg"
-                                    alt=""
-                                    width={22}
-                                    height={22}
-                                />
-                                <span className="text-[20px] leading-[30px] font-semibold tracking-[0.5px]">
-                                    상품 이미지
+            <div className={isBottomLayout ? "order-1 min-w-0" : "order-2 min-w-0 flex-1"}>
+                <Dialog open={isImageViewerOpen} onOpenChange={setIsImageViewerOpen}>
+                    <DialogTrigger asChild>
+                        <button
+                            type="button"
+                            aria-label={`${product.title} 상품 사진 ${selectedIndex + 1} 크게 보기`}
+                            className={`relative cursor-zoom-in overflow-hidden rounded-[10px] bg-[#f5f5f7] focus-visible:ring-2 focus-visible:ring-[#6653fb] focus-visible:ring-offset-2 ${
+                                isBottomLayout
+                                    ? "aspect-[1.15] w-full"
+                                    : "aspect-square w-full min-w-0 lg:size-[432px] lg:flex-none"
+                            }`}
+                            onClick={() => setViewerIndex(selectedIndex)}
+                        >
+                            <GalleryImage
+                                src={selectedImage}
+                                alt={`${product.title} 상품 사진 ${selectedIndex + 1}`}
+                                className="object-cover"
+                                sizes="(min-width: 1024px) 432px, 100vw"
+                            />
+                        </button>
+                    </DialogTrigger>
+                    <DialogContent className="top-0 left-0 flex h-dvh w-dvw max-w-none translate-x-0 translate-y-0 flex-col gap-5 overflow-hidden rounded-none border-0 bg-[rgba(17,18,22,0.91)] px-6 pt-7 pb-[26px] text-white shadow-none md:px-10">
+                        <DialogTitle className="sr-only">
+                            {product.title} 상품 사진 크게 보기
+                        </DialogTitle>
+                        <DialogDescription className="sr-only">
+                            선택한 상품 사진을 원본 비율로 크게 보고 있습니다. 화살표 키로 사진을
+                            이동할 수 있습니다.
+                        </DialogDescription>
+                        <div className="flex w-full shrink-0 items-start justify-between">
+                            <div className="flex flex-col gap-0.5">
+                                <div className="flex items-center gap-2.5">
+                                    <Image
+                                        src="/sell/viewer-image-icon.svg"
+                                        alt=""
+                                        width={22}
+                                        height={22}
+                                    />
+                                    <span className="text-[20px] leading-[30px] font-semibold tracking-[0.5px]">
+                                        상품 이미지
+                                    </span>
+                                </div>
+                                <span className="text-[16px] leading-[25px] font-normal text-white/72">
+                                    ← → 키로도 이동할 수 있어요
                                 </span>
                             </div>
-                            <span className="text-[16px] leading-[25px] font-normal text-white/72">
-                                ← → 키로도 이동할 수 있어요
-                            </span>
+                            <div className="flex items-center gap-2 rounded-full bg-[rgba(37,38,44,0.8)] px-3.5 py-2 text-[20px] leading-[30px] tracking-[0.5px]">
+                                <span className="font-semibold text-white">{viewerIndex + 1}</span>
+                                <span className="font-medium text-white/48">/</span>
+                                <span className="font-medium text-white/72">
+                                    {product.imageUrls.length}
+                                </span>
+                            </div>
+                            <DialogClose asChild>
+                                <button
+                                    type="button"
+                                    aria-label="상품 이미지 크게 보기 닫기"
+                                    className="flex h-11 items-center gap-2 rounded-full bg-white px-4 text-[#0b0c0f] shadow-[0_8px_24px_rgba(0,0,0,0.3)] hover:bg-[#f2f2f6] focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#111216]"
+                                >
+                                    <Image
+                                        src="/sell/viewer-close.svg"
+                                        alt=""
+                                        width={20}
+                                        height={20}
+                                    />
+                                    <span className="text-[16px] leading-[25px] font-semibold tracking-[0.5px]">
+                                        닫기
+                                    </span>
+                                    <span className="rounded-[5px] bg-[#f2f2f6] px-1.5 py-0.5 text-[10px] leading-normal font-semibold text-[#6b6c7b]">
+                                        ESC
+                                    </span>
+                                </button>
+                            </DialogClose>
                         </div>
-                        <div className="flex items-center gap-2 rounded-full bg-[rgba(37,38,44,0.8)] px-3.5 py-2 text-[20px] leading-[30px] tracking-[0.5px]">
-                            <span className="font-semibold text-white">{viewerIndex + 1}</span>
-                            <span className="font-medium text-white/48">/</span>
-                            <span className="font-medium text-white/72">
-                                {product.imageUrls.length}
-                            </span>
-                        </div>
-                        <DialogClose asChild>
+                        <div className="flex min-h-0 w-full flex-1 items-center justify-between gap-4 px-0 md:px-8 lg:px-[88px] xl:px-[128px]">
                             <button
                                 type="button"
-                                aria-label="상품 이미지 크게 보기 닫기"
-                                className="flex h-11 items-center gap-2 rounded-full bg-white px-4 text-[#0b0c0f] shadow-[0_8px_24px_rgba(0,0,0,0.3)] hover:bg-[#f2f2f6] focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#111216]"
+                                aria-label="이전 상품 사진"
+                                disabled={viewerIndex === 0}
+                                className="flex shrink-0 flex-col items-center gap-2.5 text-white/72 transition hover:text-white focus-visible:ring-2 focus-visible:ring-white disabled:pointer-events-none disabled:opacity-40"
+                                onClick={() =>
+                                    setViewerIndex((current) => Math.max(current - 1, 0))
+                                }
                             >
-                                <Image src="/sell/viewer-close.svg" alt="" width={20} height={20} />
-                                <span className="text-[16px] leading-[25px] font-semibold tracking-[0.5px]">
-                                    닫기
-                                </span>
-                                <span className="rounded-[5px] bg-[#f2f2f6] px-1.5 py-0.5 text-[10px] leading-normal font-semibold text-[#6b6c7b]">
-                                    ESC
-                                </span>
-                            </button>
-                        </DialogClose>
-                    </div>
-                    <div className="flex min-h-0 w-full flex-1 items-center justify-between gap-4 px-0 md:px-8 lg:px-[88px] xl:px-[128px]">
-                        <button
-                            type="button"
-                            aria-label="이전 상품 사진"
-                            disabled={viewerIndex === 0}
-                            className="flex shrink-0 flex-col items-center gap-2.5 text-white/72 transition hover:text-white focus-visible:ring-2 focus-visible:ring-white disabled:pointer-events-none disabled:opacity-40"
-                            onClick={() => setViewerIndex((current) => Math.max(current - 1, 0))}
-                        >
-                            <span className="relative size-14">
-                                <Image
-                                    src="/sell/viewer-prev.svg"
-                                    alt=""
-                                    width={104}
-                                    height={104}
-                                    className="absolute -inset-6 max-w-none"
-                                />
-                            </span>
-                            <span className="text-[16px] leading-[25px] font-semibold tracking-[0.5px]">
-                                이전
-                            </span>
-                        </button>
-                        <div className="relative aspect-square h-full max-h-[680px] w-auto max-w-[680px]">
-                            <GalleryImage
-                                src={viewerImage}
-                                alt={`${product.title} 상품 사진 ${viewerIndex + 1} 크게 보기`}
-                                className="object-contain"
-                                sizes="min(680px, 70vw)"
-                            />
-                        </div>
-                        <button
-                            type="button"
-                            aria-label="다음 상품 사진"
-                            disabled={viewerIndex === product.imageUrls.length - 1}
-                            className="flex shrink-0 flex-col items-center gap-2.5 text-white/72 transition hover:text-white focus-visible:ring-2 focus-visible:ring-white disabled:pointer-events-none disabled:opacity-40"
-                            onClick={() =>
-                                setViewerIndex((current) =>
-                                    Math.min(current + 1, product.imageUrls.length - 1),
-                                )
-                            }
-                        >
-                            <span className="relative size-14">
-                                <Image
-                                    src="/sell/viewer-next.svg"
-                                    alt=""
-                                    width={104}
-                                    height={104}
-                                    className="absolute -inset-6 max-w-none"
-                                />
-                            </span>
-                            <span className="text-[16px] leading-[25px] font-semibold tracking-[0.5px]">
-                                다음
-                            </span>
-                        </button>
-                    </div>
-                    <div className="flex h-[86px] max-w-full shrink-0 items-center justify-center gap-2.5 self-center overflow-x-auto px-[18px]">
-                        {product.imageUrls.map((imageUrl, imageIndex) => (
-                            <button
-                                key={`${imageUrl}-${imageIndex}`}
-                                type="button"
-                                aria-label={`${imageIndex + 1}번 상품 사진 전체 보기`}
-                                aria-current={viewerIndex === imageIndex ? "true" : undefined}
-                                className={`relative shrink-0 overflow-hidden rounded-xl focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#111216] ${
-                                    viewerIndex === imageIndex
-                                        ? "size-[76px] bg-[#6653fb] p-[3px] shadow-[0_8px_24px_rgba(0,0,0,0.3)]"
-                                        : "size-[68px]"
-                                }`}
-                                onClick={() => setViewerIndex(imageIndex)}
-                            >
-                                <span className="relative block size-full overflow-hidden rounded-lg">
-                                    <GalleryImage
-                                        src={imageUrl}
-                                        alt={`${product.title} 상품 사진 ${imageIndex + 1} 미리보기`}
-                                        className="object-cover"
-                                        sizes="76px"
+                                <span className="relative size-14">
+                                    <Image
+                                        src="/sell/viewer-prev.svg"
+                                        alt=""
+                                        width={104}
+                                        height={104}
+                                        className="absolute -inset-6 max-w-none"
                                     />
                                 </span>
+                                <span className="text-[16px] leading-[25px] font-semibold tracking-[0.5px]">
+                                    이전
+                                </span>
                             </button>
-                        ))}
-                    </div>
-                </DialogContent>
-            </Dialog>
+                            <div className="relative aspect-square h-full max-h-[680px] w-auto max-w-[680px]">
+                                <GalleryImage
+                                    src={viewerImage}
+                                    alt={`${product.title} 상품 사진 ${viewerIndex + 1} 크게 보기`}
+                                    className="object-contain"
+                                    sizes="min(680px, 70vw)"
+                                />
+                            </div>
+                            <button
+                                type="button"
+                                aria-label="다음 상품 사진"
+                                disabled={viewerIndex === product.imageUrls.length - 1}
+                                className="flex shrink-0 flex-col items-center gap-2.5 text-white/72 transition hover:text-white focus-visible:ring-2 focus-visible:ring-white disabled:pointer-events-none disabled:opacity-40"
+                                onClick={() =>
+                                    setViewerIndex((current) =>
+                                        Math.min(current + 1, product.imageUrls.length - 1),
+                                    )
+                                }
+                            >
+                                <span className="relative size-14">
+                                    <Image
+                                        src="/sell/viewer-next.svg"
+                                        alt=""
+                                        width={104}
+                                        height={104}
+                                        className="absolute -inset-6 max-w-none"
+                                    />
+                                </span>
+                                <span className="text-[16px] leading-[25px] font-semibold tracking-[0.5px]">
+                                    다음
+                                </span>
+                            </button>
+                        </div>
+                        <div className="flex h-[86px] max-w-full shrink-0 items-center justify-center gap-2.5 self-center overflow-x-auto px-[18px]">
+                            {product.imageUrls.map((imageUrl, imageIndex) => (
+                                <button
+                                    key={`${imageUrl}-${imageIndex}`}
+                                    type="button"
+                                    aria-label={`${imageIndex + 1}번 상품 사진 전체 보기`}
+                                    aria-current={viewerIndex === imageIndex ? "true" : undefined}
+                                    className={`relative shrink-0 overflow-hidden rounded-xl focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#111216] ${
+                                        viewerIndex === imageIndex
+                                            ? "size-[76px] bg-[#6653fb] p-[3px] shadow-[0_8px_24px_rgba(0,0,0,0.3)]"
+                                            : "size-[68px]"
+                                    }`}
+                                    onClick={() => setViewerIndex(imageIndex)}
+                                >
+                                    <span className="relative block size-full overflow-hidden rounded-lg">
+                                        <GalleryImage
+                                            src={imageUrl}
+                                            alt={`${product.title} 상품 사진 ${imageIndex + 1} 미리보기`}
+                                            className="object-cover"
+                                            sizes="76px"
+                                        />
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            </div>
         </div>
     );
 }

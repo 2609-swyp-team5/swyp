@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { productApi } from "@/features/sell/api/productApi";
 import type {
@@ -17,12 +17,17 @@ interface UseCreateAiProductMutationCallbacks {
 }
 
 export function useCreateAiProductMutation(callbacks?: UseCreateAiProductMutationCallbacks) {
+    const queryClient = useQueryClient();
+
     return useMutation<ProductResponse, ProductRegisterError, AiProductCreateInput>({
         mutationFn: async (input: AiProductCreateInput) => {
             return productApi.createAiProduct(input, callbacks?.onProgress);
         },
         retry: false,
-        onSuccess: (data) => callbacks?.onSuccess?.(data),
+        onSuccess: (data) => {
+            void queryClient.invalidateQueries({ queryKey: ["my-products"] });
+            callbacks?.onSuccess?.(data);
+        },
         onError: (error) => callbacks?.onError?.(error),
     });
 }

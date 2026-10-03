@@ -20,3 +20,9 @@ export interface ApiSuccessResponse<T> {
 }
 
 export type ApiResponse<T> = ApiSuccessResponse<T> | ApiErrorResponse;
+
+export interface CursorPageResponse<T> {
+    content: T[];
+    nextCursor: string | null;
+    hasNext: boolean;
+}
