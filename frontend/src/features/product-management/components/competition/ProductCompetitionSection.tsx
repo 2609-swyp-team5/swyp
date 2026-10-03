@@ -7,8 +7,12 @@ import { ProductCompetitionSkeleton } from "./ProductCompetitionSkeleton";
 
 export function ProductCompetitionSection({
     query,
+    heading,
+    showCompetitionMeta,
 }: {
     query: StreamingQueryState<ProductCompetitionResult>;
+    heading?: string;
+    showCompetitionMeta?: boolean;
 }) {
     const isError = Boolean(query.error);
 
@@ -21,7 +25,11 @@ export function ProductCompetitionSection({
                     경쟁 상품 데이터를 불러오지 못했습니다.
                 </p>
             ) : query.data ? (
-                <ProductCompetitionContent competition={query.data.data.competition} />
+                <ProductCompetitionContent
+                    competition={query.data.data.competition}
+                    heading={heading}
+                    showCompetitionMeta={showCompetitionMeta}
+                />
             ) : null}
         </section>
     );

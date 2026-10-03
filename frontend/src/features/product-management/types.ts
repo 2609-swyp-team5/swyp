@@ -39,6 +39,7 @@ export type ProductMarketAnalysis = {
 };
 
 export type ProductMarketAnalysisDataSource = "mock" | "api";
+export type ProductManagementPerspective = "SELL" | "BUY";
 
 export type ProductPriceTrendChange = {
     comparedDate: string;

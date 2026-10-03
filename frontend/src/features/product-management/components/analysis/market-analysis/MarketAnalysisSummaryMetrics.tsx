@@ -2,6 +2,7 @@ import type { ProductMarketAnalysis } from "../../../types";
 import { formatSignedPercent } from "./formatters";
 
 export function MarketAnalysisSummaryMetrics({ analysis }: { analysis: ProductMarketAnalysis }) {
+    const isBuyerView = analysis.recommendation === "BUY" || analysis.recommendation === "WAIT";
     const metrics =
         analysis.summary.type === "SALE_STATS"
             ? [
@@ -11,7 +12,7 @@ export function MarketAnalysisSummaryMetrics({ analysis }: { analysis: ProductMa
               ]
             : [
                   {
-                      label: "추천 대기 기간",
+                      label: isBuyerView ? "구매 대기 기간" : "추천 대기 기간",
                       value: `${Math.ceil(analysis.summary.waitPeriodDays / 7)}주`,
                   },
                   {

@@ -9,6 +9,7 @@ import {
     getProductTransactionsMock,
     getProductValuationForecastMock,
 } from "../api/productManagementMockApi";
+import type { ProductManagementPerspective } from "../types";
 
 const isValidProductId = (productId: number) => Number.isInteger(productId) && productId > 0;
 
@@ -20,15 +21,19 @@ const sectionQueryOptions = {
 
 export function useProductManagementSectionsQuery(
     productId: number,
-    options?: { competitionEnabled?: boolean },
+    options?: {
+        competitionEnabled?: boolean;
+        perspective?: ProductManagementPerspective;
+    },
 ) {
     const enabled = isValidProductId(productId);
     const competitionEnabled = enabled && (options?.competitionEnabled ?? true);
+    const perspective = options?.perspective ?? "SELL";
 
     const section2 = useQuery({
         ...sectionQueryOptions,
-        queryKey: ["product-management", "market-analysis", productId] as const,
-        queryFn: () => getProductMarketAnalysisMock(productId),
+        queryKey: ["product-management", "market-analysis", perspective, productId] as const,
+        queryFn: () => getProductMarketAnalysisMock(productId, perspective),
         enabled,
     });
 
@@ -55,8 +60,8 @@ export function useProductManagementSectionsQuery(
 
     const section6 = useQuery({
         ...sectionQueryOptions,
-        queryKey: ["product-management", "competition", productId] as const,
-        queryFn: () => getProductCompetitionMock(productId),
+        queryKey: ["product-management", "competition", perspective, productId] as const,
+        queryFn: () => getProductCompetitionMock(productId, perspective),
         enabled: competitionEnabled,
     });
 

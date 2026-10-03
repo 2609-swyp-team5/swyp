@@ -24,6 +24,16 @@ export function useSelectedProductId() {
 export function persistSelectedProductId(itemId: string) {
     const params = new URLSearchParams(window.location.search);
     params.set("selected", itemId);
+    persistSelectionParams(params);
+}
+
+export function clearSelectedProductId() {
+    const params = new URLSearchParams(window.location.search);
+    params.delete("selected");
+    persistSelectionParams(params);
+}
+
+function persistSelectionParams(params: URLSearchParams) {
     const query = params.toString();
     window.history.replaceState(
         window.history.state,

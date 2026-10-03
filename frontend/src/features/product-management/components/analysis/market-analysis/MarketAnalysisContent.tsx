@@ -41,6 +41,8 @@ export function MarketAnalysisContent({
     priceTrendQuery: StreamingQueryState<ProductPriceTrendResult>;
     valuationForecastQuery: StreamingQueryState<ProductValuationForecastResult>;
 }) {
+    const isBuyerView = analysis.recommendation === "BUY" || analysis.recommendation === "WAIT";
+
     return (
         <>
             <MarketAnalysisRecommendation analysis={analysis} />
@@ -53,21 +55,27 @@ export function MarketAnalysisContent({
                                 <span aria-hidden="true">✦</span>
                                 <span>AI 추천 가격</span>
                             </div>
-                            <div className="flex items-center justify-between bg-[#6653fb] p-[10px]">
+                            <div className="flex items-center justify-between gap-3 bg-[#6653fb] p-[10px]">
                                 <span className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-white">
                                     {formatPrice(analysis.suggestedPrice)}
                                 </span>
-                                <button
-                                    type="button"
-                                    className="rounded-full bg-white px-4 py-[6px] text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6653fb]"
-                                >
-                                    추천 가격으로 변경
-                                </button>
+                                {isBuyerView ? (
+                                    <span className="rounded-full bg-white px-4 py-[6px] text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6653fb]">
+                                        구매 고려 가격
+                                    </span>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        className="rounded-full bg-white px-4 py-[6px] text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6653fb]"
+                                    >
+                                        추천 가격으로 변경
+                                    </button>
+                                )}
                             </div>
                         </div>
                         <div>
                             <MetricRow
-                                label="현재 등록가"
+                                label={isBuyerView ? "현재 가격" : "현재 등록가"}
                                 value={formatPrice(analysis.currentPrice)}
                             />
                             <MetricRow

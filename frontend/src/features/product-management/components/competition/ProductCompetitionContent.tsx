@@ -84,8 +84,12 @@ function CompetitionCard({ item }: { item: ProductCompetition["competition"]["it
 
 export function ProductCompetitionContent({
     competition,
+    heading = "경쟁 상품 수",
+    showCompetitionMeta = true,
 }: {
     competition: ProductCompetition["competition"];
+    heading?: string;
+    showCompetitionMeta?: boolean;
 }) {
     return (
         <div className="flex flex-col gap-5 px-10 py-5">
@@ -94,16 +98,18 @@ export function ProductCompetitionContent({
                     id="product-competition-title"
                     className="text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#464646]"
                 >
-                    경쟁 상품 수
+                    {heading}
                 </h2>
-                <div className="flex items-center gap-3">
-                    <span className="text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#6653fb]">
-                        {competition.count}건
-                    </span>
-                    <span className="rounded-full border border-[#6653fb] px-[15px] py-0.5 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6653fb]">
-                        {competition.levelLabel}
-                    </span>
-                </div>
+                {showCompetitionMeta ? (
+                    <div className="flex items-center gap-3">
+                        <span className="text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#6653fb]">
+                            {competition.count}건
+                        </span>
+                        <span className="rounded-full border border-[#6653fb] px-[15px] py-0.5 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6653fb]">
+                            {competition.levelLabel}
+                        </span>
+                    </div>
+                ) : null}
             </div>
             {competition.items.length > 0 ? (
                 <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

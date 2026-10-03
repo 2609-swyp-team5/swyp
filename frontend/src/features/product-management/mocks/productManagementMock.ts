@@ -1,6 +1,7 @@
 import type {
     ProductCompetition,
     ProductMarketAnalysis,
+    ProductManagementPerspective,
     ProductPriceTrend,
     ProductTransactions,
     ProductValuationForecast,
@@ -12,7 +13,7 @@ const baseAnalysis: Omit<ProductMarketAnalysis, "productId"> = {
     analysisId: 5,
     currentPrice: 495000,
     suggestedPrice: 468000,
-    recommendation: "HOLD",
+    recommendation: "SELL",
     description:
         "최근 시장 가격이 점진적으로 상승하고 있고, 유사 상품 등록량이 감소하고 있어요. 조금만 더 기다리면 더 좋은 가격에 판매할 가능성이 있어요.",
     minPrice: 180000,
@@ -71,9 +72,34 @@ const priceTrendMockPoints: Array<Omit<ProductPriceTrendPoint, "change">> = [
     { date: "2026-10-01", averagePrice: 276000, transactionCount: 101 },
 ];
 
-export function createProductMarketAnalysisMock(productId: number): ProductMarketAnalysis {
+export function createProductMarketAnalysisMock(
+    productId: number,
+    perspective: ProductManagementPerspective = "SELL",
+): ProductMarketAnalysis {
+    const isBuyerView = perspective === "BUY";
+
     return {
         ...baseAnalysis,
+        ...(isBuyerView
+            ? {
+                  currentPrice: 320000,
+                  suggestedPrice: 320000,
+                  recommendation: "BUY" as const,
+                  description: "최근 평균 시세보다 낮은 가격이에요. 지금 구매를 고려해볼 만해요.",
+                  minPrice: 280000,
+                  averagePrice: 350000,
+                  maxPrice: 420000,
+                  marketPriceDiffRate: -8.6,
+                  marketExpectedPrice: 320000,
+                  priceDistribution: [
+                      { from: 280000, to: 310000, count: 2 },
+                      { from: 310000, to: 340000, count: 5 },
+                      { from: 340000, to: 370000, count: 7 },
+                      { from: 370000, to: 400000, count: 4 },
+                      { from: 400000, to: 420000, count: 2 },
+                  ],
+              }
+            : {}),
         productId,
         priceDistribution: baseAnalysis.priceDistribution.map((bucket) => ({ ...bucket })),
         summary: { ...baseAnalysis.summary },
@@ -164,42 +190,85 @@ export function createProductTransactionsMock(productId: number): ProductTransac
     };
 }
 
-export function createProductCompetitionMock(productId: number): ProductCompetition {
-    const items = [
+export function createProductCompetitionMock(
+    productId: number,
+    perspective: ProductManagementPerspective = "SELL",
+): ProductCompetition {
+    const sellItems = [
         {
             productId: "external-001",
             platform: "CARROT",
             platformName: "당근마켓",
-            imageUrl: "https://example.com/image1.jpg",
-            title: "아이패드 프로 11인치 4세대",
-            listingPrice: 320000,
-            marketAveragePrice: 350000,
-            priceDiffRate: -8.57,
-            productUrl: "https://example.com/products/1",
+            imageUrl:
+                "https://img.kr.gcp-karroter.net/car/article/fc4f1cd0272ed1102addfcd27279590cb807fcc30dc6916f8936736f9232ec85_1767704949560.png?q=95&s=1440x1440&t=inside&service=web-mixer",
+            title: "60만원 의자형마사지기 안마기 안마의자할인!!",
+            listingPrice: 19500000,
+            marketAveragePrice: 22000000,
+            priceDiffRate: -11.36,
+            productUrl:
+                "https://www.daangn.com/kr/cars/e%ED%81%B4%EB%9E%98%EC%8A%A4-3%EC%84%B8%EB%8C%80-e55-amg-x6cggbasr76o/",
         },
         {
             productId: "external-002",
             platform: "JOONGNA",
             platformName: "중고나라",
-            imageUrl: "https://example.com/image2.jpg",
-            title: "아이패드 프로 11인치 4세대",
-            listingPrice: 320000,
-            marketAveragePrice: 350000,
-            priceDiffRate: -8.57,
-            productUrl: "https://example.com/products/2",
+            imageUrl:
+                "https://img2.joongna.com/media/original/2026/09/23/17901243280321Lf_aZjpZ.jpg?impolicy=thumb&size=150",
+            title: "아이패드 프로 5세대 12.9인치 1TB 와이파이모델 + 매직키보드",
+            listingPrice: 1100000,
+            marketAveragePrice: 1300000,
+            priceDiffRate: -15.38,
+            productUrl: "https://web.joongna.com/product/232658062",
         },
         {
             productId: "external-003",
             platform: "BUNJANG",
             platformName: "번개장터",
-            imageUrl: "https://example.com/image3.jpg",
-            title: "아이패드 프로 11인치 4세대",
+            imageUrl: "https://media.bunjang.co.kr/product/404048469_1_1790312486_w360.jpg",
+            title: "아이폰 16/16 pro 헬로키티 케이스",
+            listingPrice: 5000,
+            marketAveragePrice: 3000,
+            priceDiffRate: 66.67,
+            productUrl: "https://m.bunjang.co.kr/products/404048469",
+        },
+    ];
+
+    const buyerItems = [
+        {
+            productId: "similar-001",
+            platform: "CARROT",
+            platformName: "당근마켓",
+            imageUrl: "",
+            title: "아이폰 13미니 128GB",
             listingPrice: 320000,
             marketAveragePrice: 350000,
             priceDiffRate: -8.57,
-            productUrl: "https://example.com/products/3",
+            productUrl: "https://www.daangn.com/",
+        },
+        {
+            productId: "similar-002",
+            platform: "JOONGNA",
+            platformName: "중고나라",
+            imageUrl: "",
+            title: "아이폰 13미니 128GB",
+            listingPrice: 320000,
+            marketAveragePrice: 350000,
+            priceDiffRate: -8.57,
+            productUrl: "https://web.joongna.com/",
+        },
+        {
+            productId: "similar-003",
+            platform: "BUNJANG",
+            platformName: "번개장터",
+            imageUrl: "",
+            title: "아이폰 13미니 128GB",
+            listingPrice: 320000,
+            marketAveragePrice: 350000,
+            priceDiffRate: -8.57,
+            productUrl: "https://m.bunjang.co.kr/",
         },
     ];
+    const items = perspective === "BUY" ? buyerItems : sellItems;
 
     return {
         productId,

@@ -23,6 +23,6 @@ export type ApiResponse<T> = ApiSuccessResponse<T> | ApiErrorResponse;
 
 export interface CursorPageResponse<T> {
     content: T[];
-    nextCursor: number | null;
+    nextCursor: string | null;
     hasNext: boolean;
 }

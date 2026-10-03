@@ -10,6 +10,7 @@ import type {
     ProductCompetition,
     ProductMarketAnalysis,
     ProductMarketAnalysisDataSource,
+    ProductManagementPerspective,
     ProductPriceTrend,
     ProductTransactions,
     ProductValuationForecast,
@@ -40,13 +41,14 @@ function waitForMockResponse(delayMs: number) {
 
 export async function getProductMarketAnalysisMock(
     productId: number,
+    perspective: ProductManagementPerspective = "SELL",
 ): Promise<ProductMarketAnalysisResult> {
     // Keep the independent loading state visible until the real endpoint replaces this adapter.
     await waitForMockResponse(mockResponseDelayMs.marketAnalysis);
 
     return {
         source: productManagementMockSource,
-        data: createProductMarketAnalysisMock(productId),
+        data: createProductMarketAnalysisMock(productId, perspective),
     };
 }
 
@@ -85,11 +87,12 @@ export async function getProductTransactionsMock(
 
 export async function getProductCompetitionMock(
     productId: number,
+    perspective: ProductManagementPerspective = "SELL",
 ): Promise<ProductCompetitionResult> {
     await waitForMockResponse(mockResponseDelayMs.competition);
 
     return {
         source: productManagementMockSource,
-        data: createProductCompetitionMock(productId),
+        data: createProductCompetitionMock(productId, perspective),
     };
 }
