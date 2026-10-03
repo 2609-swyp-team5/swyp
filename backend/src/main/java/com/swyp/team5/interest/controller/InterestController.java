@@ -1,5 +1,7 @@
 package com.swyp.team5.interest.controller;
 
+import java.util.Set;
+
 import jakarta.validation.Valid;
 
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ import com.swyp.team5.common.passport.PrincipalMember;
 import com.swyp.team5.interest.dto.InterestCreateResponse;
 import com.swyp.team5.interest.dto.InterestListItemResponse;
 import com.swyp.team5.interest.dto.InterestRegisterRequest;
+import com.swyp.team5.interest.dto.InterestStatus;
 import com.swyp.team5.interest.dto.InterestToggleResponse;
 import com.swyp.team5.interest.dto.TargetPriceRequest;
 import com.swyp.team5.interest.dto.TargetPriceResponse;
@@ -79,6 +82,7 @@ public class InterestController {
      * 인증된 본인의 관심상품 목록을 커서 기반으로 조회한다(정렬은 {@code interestId} 내림차순 = 등록 최신순).
      *
      * @param currentMember 인증된 요청자
+     * @param status 관심상품 상태 필터(선택, BUY/WATCHING/SOLD_OUT/PENDING 복수 — 응답 항목의 {@code interestStatus} 기준)
      * @param cursor 이전 페이지 마지막 관심상품의 {@code interestId}(선택, 첫 페이지는 생략)
      * @param size 페이지 크기(기본 10)
      * @return 200 OK + 커서 페이지 응답
@@ -87,10 +91,11 @@ public class InterestController {
     @GetMapping
     public ResponseEntity<ApiResponse<CursorPageResponse<InterestListItemResponse>>> getInterests(
             @AuthenticationPrincipal PrincipalMember currentMember,
+            @RequestParam(required = false) Set<InterestStatus> status,
             @RequestParam(required = false) Long cursor,
             @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(
-                ApiResponse.success(interestService.getInterests(currentMember.memberId(), cursor, size)));
+                ApiResponse.success(interestService.getInterests(currentMember.memberId(), status, cursor, size)));
     }
 
     /**

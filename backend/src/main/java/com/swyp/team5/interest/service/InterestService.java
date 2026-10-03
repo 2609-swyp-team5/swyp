@@ -1,22 +1,22 @@
 package com.swyp.team5.interest.service;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.interest.dto.InterestCreateResponse;
 import com.swyp.team5.interest.dto.InterestListItemResponse;
+import com.swyp.team5.interest.dto.InterestStatus;
 import com.swyp.team5.interest.dto.InterestToggleResponse;
 import com.swyp.team5.interest.dto.TargetPriceResponse;
 import com.swyp.team5.interest.entity.Interest;
@@ -26,12 +26,8 @@ import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.item.entity.ListingSource;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.repository.MemberRepository;
-import com.swyp.team5.platform.entity.PlatformListing;
-import com.swyp.team5.product.entity.Product;
-import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
-import org.hibernate.Hibernate;
 
 @Service
 @RequiredArgsConstructor
@@ -96,52 +92,55 @@ public class InterestService {
      * 동일하게 각 상품의 가장 최근 시세 분석 스냅샷({@code recommendation}/{@code marketAveragePrice})도
      * 함께 포함한다(분석 이력이 없으면 {@code null}). 외부 매물 대상 건도 관심 매물 시세 분석 스냅샷이 있으면 채운다.
      *
+     * <p>관심상품 상태({@link InterestStatus} — 구매추천·관찰중·판매종료·분석대기 탭과 1:1)로 거를 수 있다. 필터는 커서보다 먼저
+     * 적용하므로 {@code hasNext}·{@code totalCount}는 필터 기준이고, 탭 숫자용 {@code statusCounts}는 필터와 무관하게 관심상품 전체 기준이다.
+     *
      * @param memberId 요청자 회원 ID
+     * @param statuses 관심상품 상태 필터(비어 있으면 전체)
      * @param cursor 이전 페이지 마지막 관심상품의 {@code interestId}(선택, {@code null}이면 첫 페이지)
      * @param size 페이지 크기
      * @return {@code hasNext}/{@code nextCursor}를 포함한 커서 페이지 응답
      */
     @Transactional(readOnly = true)
-    public CursorPageResponse<InterestListItemResponse> getInterests(Long memberId, Long cursor, int size) {
-        Pageable pageable = PageRequest.of(0, size + 1, Sort.by(Sort.Direction.DESC, "id"));
-        List<Interest> interests = interestRepository.findByMemberIdAndIdLessThan(
-                memberId, cursor == null ? Long.MAX_VALUE : cursor, pageable);
-        Map<Long, ProductAnalysis> analyses = findLatestAnalyses(interests);
-        Map<Long, ProductAnalysis> listingAnalyses = findLatestListingAnalyses(interests);
-        List<InterestListItemResponse> items = interests.stream()
-                .map(interest -> {
-                    if (interest.getProduct() == null) {
-                        ProductAnalysis analysis =
-                                listingAnalyses.get(interest.getListing().getId());
-                        return InterestListItemResponse.fromListing(
-                                interest,
-                                analysis == null ? null : analysis.getRecommendation(),
-                                analysis == null ? null : analysis.getAveragePrice());
-                    }
-                    ProductAnalysis analysis =
-                            analyses.get(interest.getProduct().getId());
-                    // 관심 등록한 회원에게는 구매자 관점 추천(BUY/WAIT)을 보여 준다
-                    return InterestListItemResponse.fromProduct(
-                            interest,
-                            analysis == null ? null : analysis.getBuyerViewRecommendation(),
-                            analysis == null ? null : analysis.getAveragePrice());
-                })
-                .toList();
-        CursorPageResponse<InterestListItemResponse> page =
-                CursorPageResponse.of(items, size, InterestListItemResponse::interestId);
-        // 전체 건수·상태별 건수는 매 페이지 센다(회원 본인 관심상품이라 부담이 작음, 관심 대상의 현재 상태 기준)
+    public CursorPageResponse<InterestListItemResponse> getInterests(
+            Long memberId, Set<InterestStatus> statuses, Long cursor, int size) {
+        // 관찰 상태는 저장하지 않고 계산하므로, 회원 본인 관심상품 전체를 읽어 걸러낸 뒤 커서를 적용한다(회원 단위라 양이 적음)
         List<Interest> all = interestRepository.findAllWithItemByMemberId(memberId);
-        return page.withTotalCount(all.size())
-                .withStatusCounts(ProductStatus.countByStatus(all.stream().map(InterestService::targetStatus)));
+        Map<Long, ProductAnalysis> analyses = findLatestAnalyses(all);
+        Map<Long, ProductAnalysis> listingAnalyses = findLatestListingAnalyses(all);
+        List<InterestListItemResponse> items = all.stream()
+                .sorted(Comparator.comparing(Interest::getId).reversed())
+                .map(interest -> toListItem(interest, analyses, listingAnalyses))
+                .toList();
+        List<InterestListItemResponse> matched = items.stream()
+                .filter(item -> statuses == null || statuses.isEmpty() || statuses.contains(item.interestStatus()))
+                .toList();
+        List<InterestListItemResponse> pageItems = matched.stream()
+                .filter(item -> cursor == null || item.interestId() < cursor)
+                .limit(size + 1L)
+                .toList();
+        // 매 페이지 센다 — 전체 건수는 필터 결과 기준, 상태별 건수는 탭 숫자용이라 필터와 무관하게 관심상품 전체 기준
+        return CursorPageResponse.of(pageItems, size, InterestListItemResponse::interestId)
+                .withTotalCount(matched.size())
+                .withStatusCounts(
+                        InterestStatus.countByStatus(items.stream().map(InterestListItemResponse::interestStatus)));
     }
 
-    /** 관심 대상의 상품 상태(외부 매물은 원본 상태를 같은 체계로 변환). */
-    private static ProductStatus targetStatus(Interest interest) {
-        Object item = Hibernate.unproxy(interest.getItem());
-        if (item instanceof Product product) {
-            return product.getStatus();
+    private static InterestListItemResponse toListItem(
+            Interest interest, Map<Long, ProductAnalysis> analyses, Map<Long, ProductAnalysis> listingAnalyses) {
+        if (interest.getProduct() == null) {
+            ProductAnalysis analysis = listingAnalyses.get(interest.getListing().getId());
+            return InterestListItemResponse.fromListing(
+                    interest,
+                    analysis == null ? null : analysis.getRecommendation(),
+                    analysis == null ? null : analysis.getAveragePrice());
         }
-        return ProductStatus.fromExternal(((PlatformListing) item).getStatus());
+        ProductAnalysis analysis = analyses.get(interest.getProduct().getId());
+        // 관심 등록한 회원에게는 구매자 관점 추천(BUY/WAIT)을 보여 준다
+        return InterestListItemResponse.fromProduct(
+                interest,
+                analysis == null ? null : analysis.getBuyerViewRecommendation(),
+                analysis == null ? null : analysis.getAveragePrice());
     }
 
     /**

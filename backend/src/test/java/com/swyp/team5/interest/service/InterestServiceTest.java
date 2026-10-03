@@ -3,8 +3,8 @@ package com.swyp.team5.interest.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.entry;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -23,6 +23,7 @@ import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.interest.dto.InterestCreateResponse;
 import com.swyp.team5.interest.dto.InterestListItemResponse;
+import com.swyp.team5.interest.dto.InterestStatus;
 import com.swyp.team5.interest.dto.InterestToggleResponse;
 import com.swyp.team5.interest.dto.TargetPriceResponse;
 import com.swyp.team5.interest.entity.Interest;
@@ -210,12 +211,11 @@ class InterestServiceTest {
         Member member = newMember(1L);
         Product product = newProduct(1L, newMember(2L));
         Interest interest = newProductInterest(10L, member, product, 400_000L);
-        when(interestRepository.findByMemberIdAndIdLessThan(eq(1L), eq(Long.MAX_VALUE), any()))
-                .thenReturn(List.of(interest));
+        when(interestRepository.findAllWithItemByMemberId(1L)).thenReturn(List.of(interest));
         when(productAnalysisRepository.findLatestByItemIdIn(List.of(1L))).thenReturn(List.of());
 
         List<InterestListItemResponse> response =
-                service().getInterests(1L, null, 10).content();
+                service().getInterests(1L, null, null, 10).content();
 
         assertThat(response).hasSize(1);
         assertThat(response.get(0).interestId()).isEqualTo(10L);
@@ -236,12 +236,11 @@ class InterestServiceTest {
         Interest interest = newProductInterest(10L, member, product, null);
         ProductAnalysis analysis =
                 ProductAnalysis.create(product, 1000L, 2000L, 3000L, null, null, null, null, LocalDateTime.now());
-        when(interestRepository.findByMemberIdAndIdLessThan(eq(1L), eq(Long.MAX_VALUE), any()))
-                .thenReturn(List.of(interest));
+        when(interestRepository.findAllWithItemByMemberId(1L)).thenReturn(List.of(interest));
         when(productAnalysisRepository.findLatestByItemIdIn(List.of(1L))).thenReturn(List.of(analysis));
 
         List<InterestListItemResponse> response =
-                service().getInterests(1L, null, 10).content();
+                service().getInterests(1L, null, null, 10).content();
 
         assertThat(response).hasSize(1);
         assertThat(response.get(0).recommendation()).isNull();
@@ -255,11 +254,10 @@ class InterestServiceTest {
         Member member = newMember(1L);
         PlatformListing listing = newPlatformListing(100L);
         Interest interest = newListingInterest(11L, member, listing, 20_000L);
-        when(interestRepository.findByMemberIdAndIdLessThan(eq(1L), eq(Long.MAX_VALUE), any()))
-                .thenReturn(List.of(interest));
+        when(interestRepository.findAllWithItemByMemberId(1L)).thenReturn(List.of(interest));
 
         List<InterestListItemResponse> response =
-                service().getInterests(1L, null, 10).content();
+                service().getInterests(1L, null, null, 10).content();
 
         assertThat(response).hasSize(1);
         InterestListItemResponse item = response.get(0);
@@ -274,28 +272,26 @@ class InterestServiceTest {
         verify(productAnalysisRepository).findLatestByItemIdIn(List.of(100L));
     }
 
-    // 관심상품 목록 조회 - 매 페이지 전체 건수와 대상 상태별 건수(외부 매물은 원본 상태 변환)
+    // 관심상품 목록 조회 - 매 페이지 전체 건수와 관심상품 상태별 건수(외부 매물은 원본 상태 변환 후 판정)
     @Test
     void getInterestsIncludesStatusCountsOnEveryPage() {
         Member member = newMember(1L);
         Product draft = newProduct(5L, newMember(2L));
         PlatformListing selling = newPlatformListing(100L);
         PlatformListing reserved = newPlatformListing(101L);
-        setField(reserved, "status", "RESERVED");
+        setField(reserved, "status", "SOLD_OUT");
         List<Interest> all = List.of(
                 newProductInterest(10L, member, draft, null),
                 newListingInterest(11L, member, selling, null),
                 newListingInterest(12L, member, reserved, null));
-        when(interestRepository.findByMemberIdAndIdLessThan(eq(1L), eq(Long.MAX_VALUE), any()))
-                .thenReturn(all);
+        when(interestRepository.findAllWithItemByMemberId(1L)).thenReturn(all);
         when(interestRepository.findAllWithItemByMemberId(1L)).thenReturn(all);
 
-        var page = service().getInterests(1L, null, 10);
+        var page = service().getInterests(1L, null, null, 10);
 
         assertThat(page.totalCount()).isEqualTo(3L);
         assertThat(page.statusCounts())
-                .containsExactly(
-                        entry("DRAFT", 1L), entry("ON_SALE", 1L), entry("RESERVED", 1L), entry("SOLD_OUT", 0L));
+                .containsExactly(entry("BUY", 0L), entry("WATCHING", 2L), entry("SOLD_OUT", 1L), entry("PENDING", 0L));
     }
 
     // 관심상품 목록 조회 - 외부 매물 대상 건도 관심 매물 시세 분석 스냅샷이 있으면 추천·평균가를 채움
@@ -306,12 +302,11 @@ class InterestServiceTest {
         Interest interest = newListingInterest(11L, member, listing, null);
         ProductAnalysis analysis = ProductAnalysis.createForListing(
                 listing, 1000L, 2000L, 3000L, null, AnalysisRecommendation.BUY, 1900L, "설명", LocalDateTime.now());
-        when(interestRepository.findByMemberIdAndIdLessThan(eq(1L), eq(Long.MAX_VALUE), any()))
-                .thenReturn(List.of(interest));
+        when(interestRepository.findAllWithItemByMemberId(1L)).thenReturn(List.of(interest));
         when(productAnalysisRepository.findLatestByItemIdIn(List.of(100L))).thenReturn(List.of(analysis));
 
         List<InterestListItemResponse> response =
-                service().getInterests(1L, null, 10).content();
+                service().getInterests(1L, null, null, 10).content();
 
         assertThat(response.get(0).recommendation()).isEqualTo(AnalysisRecommendation.BUY);
         assertThat(response.get(0).marketAveragePrice()).isEqualTo(2000L);
@@ -321,18 +316,159 @@ class InterestServiceTest {
     @Test
     void getInterestsReturnsNextCursorWhenMoreExists() {
         Member member = newMember(1L);
+        Interest newest = newListingInterest(13L, member, newPlatformListing(102L), null);
         Interest first = newListingInterest(12L, member, newPlatformListing(100L), null);
         Interest second = newListingInterest(11L, member, newPlatformListing(101L), null);
-        when(interestRepository.findByMemberIdAndIdLessThan(eq(1L), eq(13L), any()))
-                .thenReturn(List.of(first, second));
+        when(interestRepository.findAllWithItemByMemberId(1L)).thenReturn(List.of(second, newest, first));
 
-        CursorPageResponse<InterestListItemResponse> response = service().getInterests(1L, 13L, 1);
+        CursorPageResponse<InterestListItemResponse> response = service().getInterests(1L, null, 13L, 1);
 
         assertThat(response.content())
                 .extracting(InterestListItemResponse::interestId)
                 .containsExactly(12L);
         assertThat(response.hasNext()).isTrue();
         assertThat(response.nextCursor()).isEqualTo("12");
+    }
+
+    // 관심상품 목록 조회 - 관심상품 상태: 판매 완료=판매종료(추천보다 우선), 최근 분석 BUY=구매추천, WAIT=관찰중,
+    // 분석 없음은 등록 6시간 이내 관찰중·이후 분석대기
+    @Test
+    void getInterestsComputesInterestStatus() {
+        Member member = newMember(1L);
+        PlatformListing buy = newPlatformListing(100L);
+        PlatformListing wait = newPlatformListing(101L);
+        PlatformListing buySold = newPlatformListing(104L);
+        setField(buySold, "status", "SOLD_OUT");
+        Interest buyInterest = newListingInterest(11L, member, buy, null);
+        Interest waitInterest = newListingInterest(12L, member, wait, null);
+        Interest fresh = newListingInterest(13L, member, newPlatformListing(102L), null);
+        setField(fresh, "createdAt", LocalDateTime.now().minusHours(1));
+        Interest stale = newListingInterest(14L, member, newPlatformListing(103L), null);
+        setField(stale, "createdAt", LocalDateTime.now().minusHours(7));
+        Interest soldInterest = newListingInterest(15L, member, buySold, null);
+        when(interestRepository.findAllWithItemByMemberId(1L))
+                .thenReturn(List.of(buyInterest, waitInterest, fresh, stale, soldInterest));
+        when(productAnalysisRepository.findLatestByItemIdIn(any()))
+                .thenReturn(List.of(
+                        ProductAnalysis.createForListing(
+                                buy, 1L, 2L, 3L, null, AnalysisRecommendation.BUY, null, null, LocalDateTime.now()),
+                        ProductAnalysis.createForListing(
+                                wait, 1L, 2L, 3L, null, AnalysisRecommendation.WAIT, null, null, LocalDateTime.now()),
+                        ProductAnalysis.createForListing(
+                                buySold,
+                                1L,
+                                2L,
+                                3L,
+                                null,
+                                AnalysisRecommendation.BUY,
+                                null,
+                                null,
+                                LocalDateTime.now())));
+
+        List<InterestListItemResponse> all =
+                service().getInterests(1L, null, null, 10).content();
+
+        assertThat(all)
+                .extracting(
+                        InterestListItemResponse::interestId,
+                        InterestListItemResponse::status,
+                        InterestListItemResponse::interestStatus)
+                .containsExactly(
+                        tuple(15L, "SOLD_OUT", InterestStatus.SOLD_OUT),
+                        tuple(14L, "ON_SALE", InterestStatus.PENDING),
+                        tuple(13L, "ON_SALE", InterestStatus.WATCHING),
+                        tuple(12L, "ON_SALE", InterestStatus.WATCHING),
+                        tuple(11L, "ON_SALE", InterestStatus.BUY));
+    }
+
+    // 관심상품 목록 조회 - status 파라미터는 관심상품 상태로 거름(탭과 1:1, 복수 가능), totalCount는 필터 기준·statusCounts는 전체 기준
+    @Test
+    void getInterestsFiltersByInterestStatus() {
+        Member member = newMember(1L);
+        PlatformListing buySelling = newPlatformListing(100L);
+        PlatformListing buySold = newPlatformListing(101L);
+        setField(buySold, "status", "SOLD_OUT");
+        Interest pending = newListingInterest(13L, member, newPlatformListing(102L), null);
+        setField(pending, "createdAt", LocalDateTime.now().minusHours(7));
+        when(interestRepository.findAllWithItemByMemberId(1L))
+                .thenReturn(List.of(
+                        newListingInterest(11L, member, buySelling, null),
+                        newListingInterest(12L, member, buySold, null),
+                        pending));
+        when(productAnalysisRepository.findLatestByItemIdIn(any()))
+                .thenReturn(List.of(
+                        ProductAnalysis.createForListing(
+                                buySelling,
+                                1L,
+                                2L,
+                                3L,
+                                null,
+                                AnalysisRecommendation.BUY,
+                                null,
+                                null,
+                                LocalDateTime.now()),
+                        ProductAnalysis.createForListing(
+                                buySold,
+                                1L,
+                                2L,
+                                3L,
+                                null,
+                                AnalysisRecommendation.BUY,
+                                null,
+                                null,
+                                LocalDateTime.now())));
+
+        // 구매추천 탭 — 판매 완료된 BUY는 판매종료로 빠짐
+        var buy = service().getInterests(1L, Set.of(InterestStatus.BUY), null, 10);
+        assertThat(buy.content())
+                .extracting(InterestListItemResponse::interestId)
+                .containsExactly(11L);
+        assertThat(buy.totalCount()).isEqualTo(1L);
+        // 탭 숫자용 상태별 건수는 필터와 무관하게 전체 기준
+        assertThat(buy.statusCounts())
+                .containsExactly(entry("BUY", 1L), entry("WATCHING", 0L), entry("SOLD_OUT", 1L), entry("PENDING", 1L));
+
+        // 판매종료 탭
+        var soldOut = service().getInterests(1L, Set.of(InterestStatus.SOLD_OUT), null, 10);
+        assertThat(soldOut.content())
+                .extracting(InterestListItemResponse::interestId)
+                .containsExactly(12L);
+        assertThat(soldOut.hasNext()).isFalse();
+
+        // 여러 상태를 함께
+        assertThat(service()
+                        .getInterests(1L, Set.of(InterestStatus.PENDING, InterestStatus.BUY), null, 10)
+                        .content())
+                .extracting(InterestListItemResponse::interestId)
+                .containsExactly(13L, 11L);
+    }
+
+    // 관심상품 목록 조회 - 필터가 커서보다 먼저 적용돼 hasNext가 필터 기준
+    @Test
+    void getInterestsHasNextFollowsFilter() {
+        Member member = newMember(1L);
+        PlatformListing sold1 = newPlatformListing(100L);
+        setField(sold1, "status", "SOLD_OUT");
+        PlatformListing sold2 = newPlatformListing(101L);
+        setField(sold2, "status", "SOLD_OUT");
+        when(interestRepository.findAllWithItemByMemberId(1L))
+                .thenReturn(List.of(
+                        newListingInterest(11L, member, sold1, null),
+                        newListingInterest(12L, member, newPlatformListing(102L), null),
+                        newListingInterest(13L, member, sold2, null),
+                        newListingInterest(14L, member, newPlatformListing(103L), null)));
+
+        var first = service().getInterests(1L, Set.of(InterestStatus.SOLD_OUT), null, 1);
+        assertThat(first.content())
+                .extracting(InterestListItemResponse::interestId)
+                .containsExactly(13L);
+        assertThat(first.hasNext()).isTrue();
+
+        var second = service().getInterests(1L, Set.of(InterestStatus.SOLD_OUT), 13L, 1);
+        assertThat(second.content())
+                .extracting(InterestListItemResponse::interestId)
+                .containsExactly(11L);
+        assertThat(second.hasNext()).isFalse();
     }
 
     // 관심상품 삭제 성공

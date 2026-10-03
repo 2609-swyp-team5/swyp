@@ -26,6 +26,7 @@ public record InterestListItemResponse(
         String categoryName, // 카테고리명
         String thumbnailUrl, // 대표 이미지 URL
         AnalysisRecommendation recommendation, // 분석 이력 없으면 null(외부 매물은 구매자 관점 BUY/WAIT만)
+        InterestStatus interestStatus, // 관심상품 상태 BUY(구매추천)/WATCHING(관찰중)/SOLD_OUT(판매종료)/PENDING(분석대기) — 조회 시 계산
         Long marketAveragePrice, // 분석 이력 없으면 null
         String platformName, // 우리 상품은 null, 외부 매물은 수집 플랫폼명(예: "번개장터")
         String externalUrl, // 우리 상품은 null, 외부 매물은 원본 매물 링크
@@ -57,6 +58,7 @@ public record InterestListItemResponse(
                 product.getCategory().getName(),
                 thumbnailUrl,
                 recommendation,
+                InterestStatus.of(product.getStatus(), recommendation, interest.getCreatedAt(), LocalDateTime.now()),
                 marketAveragePrice,
                 null,
                 null,
@@ -68,17 +70,19 @@ public record InterestListItemResponse(
     public static InterestListItemResponse fromListing(
             Interest interest, AnalysisRecommendation recommendation, Long marketAveragePrice) {
         PlatformListing listing = interest.getListing();
+        ProductStatus status = ProductStatus.fromExternal(listing.getStatus());
         return new InterestListItemResponse(
                 interest.getId(),
                 ListingSource.EXTERNAL,
                 listing.getId(),
                 listing.getTitle(),
                 listing.getPrice(),
-                ProductStatus.fromExternal(listing.getStatus()).name(),
+                status.name(),
                 null,
                 listing.getCategory().getName(),
                 listing.getImageUrl(),
                 recommendation,
+                InterestStatus.of(status, recommendation, interest.getCreatedAt(), LocalDateTime.now()),
                 marketAveragePrice,
                 listing.getPlatform().getName(),
                 listing.getListingUrl(),
