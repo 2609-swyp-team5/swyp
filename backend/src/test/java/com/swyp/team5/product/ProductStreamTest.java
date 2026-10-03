@@ -58,6 +58,7 @@ import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.repository.ProductRepository;
+import com.swyp.team5.product.service.ProductAiSearchService;
 import com.swyp.team5.product.service.ProductAiService;
 import com.swyp.team5.product.service.ProductImageLoader;
 import com.swyp.team5.tag.repository.TagRepository;
@@ -98,6 +99,9 @@ class ProductStreamTest {
 
     @MockitoBean
     private ProductAiService productAiService;
+
+    @MockitoBean
+    private ProductAiSearchService productAiSearchService;
 
     @MockitoBean
     private ProductImageLoader productImageLoader;
