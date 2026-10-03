@@ -332,6 +332,10 @@ class ProductAnalysisServiceTest {
         // 신뢰도 - 통계에 쓴 매물 5건(비율 25%)이라 LOW
         assertThat(saved.getListingCount()).isEqualTo(5);
         assertThat(saved.getConfidence()).isEqualTo(AnalysisConfidence.LOW);
+        // 1개월 전망 - SELL이라 대기 기간 없음, 감가 예측 1M 값(3,000원)과 "디지털" 기본 감가율(월 -3%)
+        assertThat(saved.getWaitPeriod()).isNull();
+        assertThat(saved.getExpectedPrice()).isEqualTo(3000L);
+        assertThat(saved.getExpectedPriceChangeRate()).isEqualByComparingTo("-0.03");
         // 시세 분석의 적정가는 스냅샷에만 저장하고 상품의 사진 추정가(products.suggested_price)는 건드리지 않음
         verifyNoInteractions(productRepository);
         verify(product, never()).changeSuggestedPrice(any());
@@ -500,6 +504,8 @@ class ProductAnalysisServiceTest {
         assertThat(saved.getRecommendation()).isEqualTo(AnalysisRecommendation.BUY);
         assertThat(saved.getListingCount()).isEqualTo(3); // 자신을 뺀 비교 매물 3건
         assertThat(saved.getConfidence()).isEqualTo(AnalysisConfidence.LOW);
+        // 외부 매물은 판매자 1개월 전망 대상이 아님
+        assertThat(saved.getExpectedPrice()).isNull();
         // 외부 매물은 우리 상품 제안가 갱신 대상이 아님
         verify(notificationService)
                 .notifyListingRecommendationChanged(target, AnalysisRecommendation.WAIT, AnalysisRecommendation.BUY);
@@ -637,6 +643,35 @@ class ProductAnalysisServiceTest {
         assertThat(response.confidence()).isNull();
         assertThat(response.confidenceRate()).isNull();
         assertThat(response.listingCount()).isNull();
+        assertThat(response.waitPeriod()).isNull();
+        assertThat(response.expectedPrice()).isNull();
+        assertThat(response.expectedPriceChangeRate()).isNull();
+    }
+
+    // 조회 성공 - HOLD 분석은 대기 기간(1M)·1개월 예상 가격·변화율을 반환
+    @Test
+    void getLatestAnalysisReturnsHoldOutlook() {
+        Product product = product(1L, 10L, 800_000L);
+        ProductAnalysis analysis = ProductAnalysis.create(
+                product,
+                400_000L,
+                500_000L,
+                600_000L,
+                null,
+                AnalysisRecommendation.HOLD,
+                510_000L,
+                "설명",
+                LocalDateTime.now());
+        analysis.assignOutlook(ForecastPeriod.ONE_MONTH, 520_000L, new BigDecimal("0.0400"));
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.of(analysis));
+
+        ProductAnalysisResponse response = service().getLatestAnalysis(1L);
+
+        assertThat(response.waitPeriod()).isEqualTo("1M");
+        assertThat(response.expectedPrice()).isEqualTo(520_000L);
+        assertThat(response.expectedPriceChangeRate()).isEqualByComparingTo("0.04");
     }
 
     // 조회 성공 - 신뢰도 비율은 매물 수로 계산하고, 분석 후 24시간이 지났으면 등급을 한 단계 낮춤

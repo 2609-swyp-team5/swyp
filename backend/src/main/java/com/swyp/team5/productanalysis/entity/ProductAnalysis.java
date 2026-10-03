@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -24,6 +25,7 @@ import com.swyp.team5.item.entity.Item;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.product.entity.Product;
 import org.hibernate.Hibernate;
+import org.hibernate.annotations.ColumnTransformer;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -81,6 +83,19 @@ public class ProductAnalysis {
     @Column(columnDefinition = "analysis_confidence")
     private AnalysisConfidence confidence; // 분석 시점 신뢰도 등급, 신뢰도 도입 이전 스냅샷은 null
 
+    // 우리 상품만: 판매자 추천에 붙는 1개월 가격 전망. 대기 기간은 HOLD일 때만(1M), 예상 가격·변화율은 SELL(감가 예측)·HOLD(시세
+    // 추세) 모두. 외부 매물 분석·도입 이전 스냅샷은 null
+    @Convert(converter = ForecastPeriodConverter.class)
+    @ColumnTransformer(write = "CAST(? AS forecast_period)")
+    @Column(name = "wait_period", columnDefinition = "forecast_period")
+    private ForecastPeriod waitPeriod;
+
+    @Column(name = "expected_price")
+    private Long expectedPrice;
+
+    @Column(name = "expected_price_change_rate", precision = 7, scale = 4)
+    private BigDecimal expectedPriceChangeRate;
+
     @Column(name = "max_price", nullable = false)
     private Long maxPrice;
 
@@ -134,6 +149,13 @@ public class ProductAnalysis {
     public void assignConfidence(int listingCount, AnalysisConfidence confidence) {
         this.listingCount = listingCount;
         this.confidence = confidence;
+    }
+
+    /** 우리 상품 분석에 1개월 가격 전망(대기 기간은 HOLD일 때만)을 붙인다. */
+    public void assignOutlook(ForecastPeriod waitPeriod, long expectedPrice, BigDecimal expectedPriceChangeRate) {
+        this.waitPeriod = waitPeriod;
+        this.expectedPrice = expectedPrice;
+        this.expectedPriceChangeRate = expectedPriceChangeRate;
     }
 
     /**

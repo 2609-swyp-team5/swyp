@@ -38,6 +38,7 @@ import com.swyp.team5.productanalysis.dto.MarketAnalysisResult;
 import com.swyp.team5.productanalysis.dto.PriceTrendResponse;
 import com.swyp.team5.productanalysis.dto.ProductAnalysisResponse;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
+import com.swyp.team5.productanalysis.entity.ForecastPeriod;
 import com.swyp.team5.productanalysis.entity.PriceForecast;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 import com.swyp.team5.productanalysis.repository.PriceForecastRepository;
@@ -442,11 +443,22 @@ public class ProductAnalysisService {
                         : RecommendationRule.buyerReason(
                                 buyerRecommendation, product.getPrice(), averagePrice, monthlyRate));
         analysis.assignConfidence(prices.size(), ConfidenceRule.grade(prices, properties.confidence()));
+
+        // 감가 예측(1M/3M/6M)과, 판매자 추천에 붙는 1개월 가격 전망(SELL=감가 예측, HOLD=시세 추세)
+        PriceTrend trendWithNow = trend.plus(analyzedAt, averagePrice);
+        String rootCategoryName =
+                categoryRepository.findRootName(product.getCategory().getId()).orElse(null);
+        List<DepreciationForecaster.Forecast> forecasts =
+                DepreciationForecaster.forecast(averagePrice, trendWithNow, rootCategoryName);
+        PriceOutlookRule.Outlook outlook = PriceOutlookRule.forSeller(
+                sellerRecommendation,
+                monthlyRate,
+                DepreciationForecaster.monthlyRate(trendWithNow, rootCategoryName),
+                averagePrice,
+                oneMonthForecast(forecasts));
+        analysis.assignOutlook(outlook.waitPeriod(), outlook.expectedPrice(), outlook.expectedPriceChangeRate());
         productAnalysisRepository.save(analysis);
-        saveForecasts(
-                analysis,
-                trend.plus(analysis.getAnalyzedAt(), averagePrice),
-                product.getCategory().getId());
+        saveForecasts(analysis, forecasts);
 
         // 시세 분석의 적정가는 스냅샷에만 저장한다 — 상품의 AI 제안가(products.suggested_price)는 사진 추정가로 고정
 
@@ -534,12 +546,18 @@ public class ProductAnalysisService {
     }
 
     /** 이번 스냅샷 기준 감가 예측가(1M/3M/6M)를 저장한다({@link DepreciationForecaster}). */
-    private void saveForecasts(ProductAnalysis analysis, PriceTrend trend, Long categoryId) {
-        String rootCategoryName = categoryRepository.findRootName(categoryId).orElse(null);
-        priceForecastRepository.saveAll(
-                DepreciationForecaster.forecast(analysis.getAveragePrice(), trend, rootCategoryName).stream()
-                        .map(forecast -> PriceForecast.of(analysis, forecast.period(), forecast.expectedPrice()))
-                        .toList());
+    private void saveForecasts(ProductAnalysis analysis, List<DepreciationForecaster.Forecast> forecasts) {
+        priceForecastRepository.saveAll(forecasts.stream()
+                .map(forecast -> PriceForecast.of(analysis, forecast.period(), forecast.expectedPrice()))
+                .toList());
+    }
+
+    private static long oneMonthForecast(List<DepreciationForecaster.Forecast> forecasts) {
+        return forecasts.stream()
+                .filter(forecast -> forecast.period() == ForecastPeriod.ONE_MONTH)
+                .findFirst()
+                .orElseThrow()
+                .expectedPrice();
     }
 
     private MarketAnalysisResult requestListingAiAnalysis(

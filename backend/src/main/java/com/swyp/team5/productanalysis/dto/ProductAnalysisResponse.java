@@ -30,6 +30,9 @@ public record ProductAnalysisResponse(
         AnalysisConfidence confidence, // 신뢰도 등급(HIGH/MEDIUM/LOW) — 매물 수 비율·가격 변동 중 낮은 쪽, 분석 24시간 경과 시 한 단계 하향
         Integer confidenceRate, // 신뢰도 비율(0~100, 매물 수 기반 — 비교 매물 20건 이상이면 100)
         Integer listingCount, // 통계에 쓴 비교 매물 수(위 세 필드는 신뢰도 도입 이전 분석이면 null)
+        String waitPeriod, // 판매자 추천이 HOLD일 때 권장 대기 기간(1M), SELL·외부 매물이면 null
+        Long expectedPrice, // 1개월 뒤 예상 가격(HOLD=시세 추세 기반 상승, SELL=감가 예측 1M), 외부 매물이면 null
+        BigDecimal expectedPriceChangeRate, // 1개월 예상 변화율(소수 4자리 비율, 0.04 = +4%), 외부 매물이면 null
         List<PriceForecastResponse> forecasts) { // 감가 예측가(1M/3M/6M 순), 분석 이력이 없거나 예측 도입 전 분석이면 빈 배열
 
     /** 아직 분석 이력이 없는 상품(분석 배치가 아직 돌지 않았거나, 비교 매물이 부족해 건너뛴 경우)에 사용한다. */
@@ -37,6 +40,9 @@ public record ProductAnalysisResponse(
         return new ProductAnalysisResponse(
                 product.getId(),
                 product.getPrice(),
+                null,
+                null,
+                null,
                 null,
                 null,
                 null,
@@ -83,6 +89,11 @@ public record ProductAnalysisResponse(
                 confidence,
                 confidenceRate,
                 analysis.getListingCount(),
+                analysis.getWaitPeriod() == null
+                        ? null
+                        : analysis.getWaitPeriod().getCode(),
+                analysis.getExpectedPrice(),
+                analysis.getExpectedPriceChangeRate(),
                 forecasts.stream()
                         .sorted(Comparator.comparing(PriceForecast::getPeriod))
                         .map(PriceForecastResponse::from)
