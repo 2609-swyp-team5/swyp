@@ -1,5 +1,7 @@
 "use client";
 
+import { useCallback } from "react";
+
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { ProductListShell } from "@/features/product-management/components/product-list/ProductListShell";
 import type { ProductListTab } from "@/features/product-management/components/product-list/productListTypes";
@@ -38,8 +40,19 @@ const tabs: ProductListTab[] = [
 ];
 
 export default function WishlistPage() {
-    const { data, error, isPending } = useInterestsQuery();
-    const interests = data ?? [];
+    const {
+        data,
+        error,
+        isPending,
+        hasNextPage,
+        isFetchingNextPage,
+        isFetchNextPageError,
+        fetchNextPage,
+    } = useInterestsQuery();
+    const interests = data?.pages.flatMap((page) => page.content) ?? [];
+    const loadMore = useCallback(() => {
+        void fetchNextPage();
+    }, [fetchNextPage]);
 
     return (
         <ProductListShell
@@ -63,6 +76,11 @@ export default function WishlistPage() {
             })}
             isLoading={isPending}
             errorMessage={error ? getApiErrorMessage(error) : undefined}
+            hasNextPage={hasNextPage}
+            isFetchingNextPage={isFetchingNextPage}
+            isFetchNextPageError={isFetchNextPageError}
+            onLoadMore={loadMore}
+            onRetryLoadMore={loadMore}
             emptyMessage="관심상품이 없습니다. 상품을 검색해 관심상품으로 등록해 보세요."
             listTitle="전체 상품 목록"
             detailRenderer={(item) => {
