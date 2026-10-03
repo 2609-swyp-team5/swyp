@@ -28,6 +28,7 @@ export function useUpdateProductMutation(callbacks?: UseUpdateProductMutationCal
         retry: false,
         onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: ["my-products"] });
+            void queryClient.invalidateQueries({ queryKey: ["product-management"] });
         },
     });
 }

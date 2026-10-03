@@ -1,10 +1,10 @@
 import { cn } from "@/common/lib/utils";
 
 import type {
-    ProductPriceTrendResult,
-    ProductValuationForecastResult,
-} from "../../../api/productManagementMockApi";
-import type { ProductMarketAnalysis } from "../../../types";
+    ProductMarketAnalysis,
+    ProductPriceTrend,
+    ProductValuationForecast,
+} from "../../../types";
 import type { StreamingQueryState } from "../../shared/streaming/productManagementStreamingTypes";
 import { ProductPriceTrendSection } from "../price-trend/ProductPriceTrendSection";
 import { ProductValuationForecastSection } from "../valuation-forecast/ProductValuationForecastSection";
@@ -38,8 +38,8 @@ export function MarketAnalysisContent({
     valuationForecastQuery,
 }: {
     analysis: ProductMarketAnalysis;
-    priceTrendQuery: StreamingQueryState<ProductPriceTrendResult>;
-    valuationForecastQuery: StreamingQueryState<ProductValuationForecastResult>;
+    priceTrendQuery: StreamingQueryState<ProductPriceTrend>;
+    valuationForecastQuery: StreamingQueryState<ProductValuationForecast>;
 }) {
     const isBuyerView = analysis.recommendation === "BUY" || analysis.recommendation === "WAIT";
 

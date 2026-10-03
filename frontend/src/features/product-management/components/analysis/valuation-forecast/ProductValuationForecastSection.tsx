@@ -1,6 +1,6 @@
 "use client";
 
-import type { ProductValuationForecastResult } from "../../../api/productManagementMockApi";
+import type { ProductValuationForecast } from "../../../types";
 import type { StreamingQueryState } from "../../shared/streaming/productManagementStreamingTypes";
 import { ProductValuationForecastChart } from "./ProductValuationForecastChart";
 import { ProductValuationForecastSkeleton } from "./ProductValuationForecastSkeleton";
@@ -8,7 +8,7 @@ import { ProductValuationForecastSkeleton } from "./ProductValuationForecastSkel
 export function ProductValuationForecastSection({
     query,
 }: {
-    query: StreamingQueryState<ProductValuationForecastResult>;
+    query: StreamingQueryState<ProductValuationForecast>;
 }) {
     if (query.isPending) {
         return <ProductValuationForecastSkeleton />;
@@ -35,7 +35,7 @@ export function ProductValuationForecastSection({
                 감가 상각률
             </h3>
             <section className="min-h-[320px] min-w-0 rounded-[10px] border border-[#d3d3d3] bg-white px-5 py-[22px]">
-                <ProductValuationForecastChart forecast={query.data.data.valuationForecast} />
+                <ProductValuationForecastChart forecast={query.data.valuationForecast} />
             </section>
         </div>
     );

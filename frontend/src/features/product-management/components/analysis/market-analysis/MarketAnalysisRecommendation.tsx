@@ -16,11 +16,11 @@ export function MarketAnalysisRecommendation({ analysis }: { analysis: ProductMa
         },
         BUY: {
             title: "지금 구매를 추천해요!",
-            image: "/figma/product-management/sell-mascot.svg",
+            image: "/figma/product-management/buy-mascot.svg",
         },
         WAIT: {
             title: "조금 더 기다리면 좋아요",
-            image: "/figma/product-management/hold-mascot.svg",
+            image: "/figma/product-management/wait-mascot.svg",
         },
     }[analysis.recommendation];
     const isWait = analysis.recommendation === "HOLD" || analysis.recommendation === "WAIT";

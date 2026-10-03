@@ -63,7 +63,7 @@ function GalleryImage({
 }
 
 type ProductGalleryProps = {
-    product: ProductResponse;
+    product: Pick<ProductResponse, "imageUrls" | "title">;
     layout?: "side" | "bottom";
 };
 

@@ -4,6 +4,7 @@ import { getApiErrorMessage } from "@/common/lib/api/error";
 import { ProductListShell } from "@/features/product-management/components/product-list/ProductListShell";
 import type { ProductListTab } from "@/features/product-management/components/product-list/productListTypes";
 import { ProductManagementDetail } from "@/features/product-management/components/ProductManagementDetail";
+import type { AnalysisRecommendation } from "@/features/product-management/types";
 import { useMyProductsQuery } from "@/features/sell/hooks/queries/useMyProductsQuery";
 import type { ProductStatus } from "@/features/sell/types";
 
@@ -17,6 +18,7 @@ const recommendationLabels: Record<string, string> = {
     SELL: "SELL",
     HOLD: "HOLD",
 };
+const analysisRecommendations: AnalysisRecommendation[] = ["SELL", "HOLD", "BUY", "WAIT"];
 
 const tabs: ProductListTab[] = [
     { key: "all", label: "전체", listTitle: "전체 상품 목록", filter: () => true },
@@ -71,9 +73,22 @@ export default function SellManagePage() {
             errorMessage={error ? getApiErrorMessage(error) : undefined}
             emptyMessage="등록된 상품이 없습니다."
             listTitle="전체 상품 목록"
-            detailRenderer={(item) => (
-                <ProductManagementDetail productId={Number(item.id)} initialStatus={item.status} />
-            )}
+            detailRenderer={(item) => {
+                const product = products.find((candidate) => String(candidate.id) === item.id);
+                const initialRecommendation = analysisRecommendations.includes(
+                    product?.recommendation as AnalysisRecommendation,
+                )
+                    ? (product?.recommendation as AnalysisRecommendation)
+                    : undefined;
+
+                return (
+                    <ProductManagementDetail
+                        productId={Number(item.id)}
+                        initialStatus={item.status}
+                        initialRecommendation={initialRecommendation}
+                    />
+                );
+            }}
             primaryAction={{ label: "상품 등록하기", href: "/sell/register" }}
         />
     );

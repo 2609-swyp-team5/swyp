@@ -39,36 +39,42 @@ export function MarketAnalysisPriceDistribution({ analysis }: { analysis: Produc
                 </div>
                 <div className="relative h-[169px] px-[10px]">
                     <div className="absolute inset-x-[10px] top-0 bottom-6 flex items-end gap-2 border-b border-[#d3d3d3]">
-                        {buckets.map((bucket) => {
-                            const highlightsAverage =
-                                analysis.averagePrice >= bucket.from &&
-                                analysis.averagePrice <= bucket.to;
-                            const highlightsExpected =
-                                analysis.marketExpectedPrice >= bucket.from &&
-                                analysis.marketExpectedPrice <= bucket.to;
+                        {buckets.length > 0 ? (
+                            buckets.map((bucket) => {
+                                const highlightsAverage =
+                                    analysis.averagePrice >= bucket.from &&
+                                    analysis.averagePrice <= bucket.to;
+                                const highlightsExpected =
+                                    analysis.marketExpectedPrice >= bucket.from &&
+                                    analysis.marketExpectedPrice <= bucket.to;
 
-                            return (
-                                <div
-                                    key={`${bucket.from}-${bucket.to}`}
-                                    className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1"
-                                >
-                                    <span className="text-[10px] leading-[15px] text-[#777987]">
-                                        {bucket.count}
-                                    </span>
+                                return (
                                     <div
-                                        className={cn(
-                                            "w-full max-w-9 rounded-t-[5px]",
-                                            highlightsAverage || highlightsExpected
-                                                ? "bg-[#6653fb]"
-                                                : "bg-[#eeeefe]",
-                                        )}
-                                        style={{
-                                            height: `${Math.max((bucket.count / maxCount) * 96, 12)}px`,
-                                        }}
-                                    />
-                                </div>
-                            );
-                        })}
+                                        key={`${bucket.from}-${bucket.to}`}
+                                        className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1"
+                                    >
+                                        <span className="text-[10px] leading-[15px] text-[#777987]">
+                                            {bucket.count}
+                                        </span>
+                                        <div
+                                            className={cn(
+                                                "w-full max-w-9 rounded-t-[5px]",
+                                                highlightsAverage || highlightsExpected
+                                                    ? "bg-[#6653fb]"
+                                                    : "bg-[#eeeefe]",
+                                            )}
+                                            style={{
+                                                height: `${Math.max((bucket.count / maxCount) * 96, 12)}px`,
+                                            }}
+                                        />
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <div className="flex h-full w-full items-center justify-center text-[13px] text-[#a1a3ae]">
+                                가격 분포 데이터가 없습니다.
+                            </div>
+                        )}
                     </div>
                     <div
                         className="absolute top-2 bottom-6 w-px bg-[#6653fb]"

@@ -22,7 +22,7 @@ export function ProductSummary({ product, registrationMethod }: ProductSummaryPr
                 등록된 상품 요약
             </h2>
             <div className="flex flex-col gap-8 lg:flex-row lg:gap-[50px]">
-                <ProductGallery product={product} />
+                <ProductGallery key={product.id} product={product} />
 
                 <div className="flex min-w-0 flex-1 flex-col py-2.5 lg:min-h-[432px]">
                     <div className="flex flex-wrap items-center gap-3">

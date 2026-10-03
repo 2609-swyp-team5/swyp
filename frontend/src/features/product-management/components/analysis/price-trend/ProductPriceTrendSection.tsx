@@ -1,6 +1,6 @@
 "use client";
 
-import type { ProductPriceTrendResult } from "../../../api/productManagementMockApi";
+import type { ProductPriceTrend } from "../../../types";
 import type { StreamingQueryState } from "../../shared/streaming/productManagementStreamingTypes";
 import { ProductPriceTrendChart } from "./ProductPriceTrendChart";
 import { ProductPriceTrendSkeleton } from "./ProductPriceTrendSkeleton";
@@ -8,7 +8,7 @@ import { ProductPriceTrendSkeleton } from "./ProductPriceTrendSkeleton";
 export function ProductPriceTrendSection({
     query,
 }: {
-    query: StreamingQueryState<ProductPriceTrendResult>;
+    query: StreamingQueryState<ProductPriceTrend>;
 }) {
     if (query.isPending) {
         return <ProductPriceTrendSkeleton />;
@@ -29,7 +29,7 @@ export function ProductPriceTrendSection({
         );
     }
 
-    const { points, totalTransactionCount } = query.data.data.priceTrend;
+    const { points, totalTransactionCount } = query.data.priceTrend;
 
     if (points.length === 0) {
         return null;

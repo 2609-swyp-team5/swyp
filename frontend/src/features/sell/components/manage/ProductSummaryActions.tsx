@@ -11,7 +11,7 @@ import { useDeleteProductMutation } from "@/features/sell/hooks/mutations/useDel
 import type { ProductResponse } from "@/features/sell/types";
 
 type ProductSummaryActionsProps = {
-    product: ProductResponse;
+    product: Pick<ProductResponse, "id">;
     editHref: string;
     onDeleted?: () => void;
 };

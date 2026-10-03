@@ -4,14 +4,12 @@ import {
     createProductMarketAnalysisMock,
     createProductPriceTrendMock,
     createProductValuationForecastMock,
-    productManagementMockSource,
 } from "./productManagementMock";
 
 describe("product management analysis mock", () => {
     it("provides the expected response shape for the step 2 HOLD screen", () => {
         const analysis = createProductMarketAnalysisMock(42);
 
-        expect(productManagementMockSource).toBe("mock");
         expect(analysis).toMatchObject({
             productId: 42,
             analysisId: 5,
@@ -34,6 +32,17 @@ describe("product management analysis mock", () => {
 
         expect(second.productId).toBe(2);
         expect(second.priceDistribution[0].count).toBe(2);
+    });
+
+    it("keeps the requested recommendation and summary aligned", () => {
+        const sellAnalysis = createProductMarketAnalysisMock(3, "SELL", "SELL");
+
+        expect(sellAnalysis).toMatchObject({
+            recommendation: "SELL",
+            summary: {
+                type: "SALE_STATS",
+            },
+        });
     });
 
     it("provides 30 daily average-price points for the price trend chart", () => {

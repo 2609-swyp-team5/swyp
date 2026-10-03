@@ -1,20 +1,20 @@
 "use client";
 
 import type {
-    ProductMarketAnalysisResult,
-    ProductPriceTrendResult,
-    ProductValuationForecastResult,
-} from "../../../api/productManagementMockApi";
+    ProductMarketAnalysis,
+    ProductPriceTrend,
+    ProductValuationForecast,
+} from "../../../types";
 import type { StreamingQueryState } from "../../shared/streaming/productManagementStreamingTypes";
 import { MarketAnalysisContent } from "./MarketAnalysisContent";
 import { MarketAnalysisSkeleton } from "./MarketAnalysisSkeleton";
 
 type MarketAnalysisSectionProps = {
-    result: ProductMarketAnalysisResult | undefined;
+    result: ProductMarketAnalysis | undefined;
     error: unknown;
     isPending: boolean;
-    priceTrendQuery: StreamingQueryState<ProductPriceTrendResult>;
-    valuationForecastQuery: StreamingQueryState<ProductValuationForecastResult>;
+    priceTrendQuery: StreamingQueryState<ProductPriceTrend>;
+    valuationForecastQuery: StreamingQueryState<ProductValuationForecast>;
 };
 
 export function MarketAnalysisSection({
@@ -52,7 +52,7 @@ export function MarketAnalysisSection({
                     </p>
                 ) : result ? (
                     <MarketAnalysisContent
-                        analysis={result.data}
+                        analysis={result}
                         priceTrendQuery={priceTrendQuery}
                         valuationForecastQuery={valuationForecastQuery}
                     />

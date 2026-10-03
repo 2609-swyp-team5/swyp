@@ -1,6 +1,6 @@
 "use client";
 
-import type { ProductCompetitionResult } from "../../api/productManagementMockApi";
+import type { ProductCompetition } from "../../types";
 import type { StreamingQueryState } from "../shared/streaming/productManagementStreamingTypes";
 import { ProductCompetitionContent } from "./ProductCompetitionContent";
 import { ProductCompetitionSkeleton } from "./ProductCompetitionSkeleton";
@@ -10,7 +10,7 @@ export function ProductCompetitionSection({
     heading,
     showCompetitionMeta,
 }: {
-    query: StreamingQueryState<ProductCompetitionResult>;
+    query: StreamingQueryState<ProductCompetition>;
     heading?: string;
     showCompetitionMeta?: boolean;
 }) {
@@ -26,7 +26,7 @@ export function ProductCompetitionSection({
                 </p>
             ) : query.data ? (
                 <ProductCompetitionContent
-                    competition={query.data.data.competition}
+                    competition={query.data.competition}
                     heading={heading}
                     showCompetitionMeta={showCompetitionMeta}
                 />

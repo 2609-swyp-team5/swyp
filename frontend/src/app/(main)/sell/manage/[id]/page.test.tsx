@@ -62,6 +62,7 @@ const product: ProductResponse = {
     recommendation: "HOLD",
     suggestedPrice: 335000,
     analysisDescription: null,
+    platforms: null,
     createdAt: "2026-09-27T14:32:00",
     updatedAt: "2026-09-27T14:32:00",
 };

@@ -1,19 +1,20 @@
+import { mockProducts } from "@/features/sell/mocks/productMock";
+import type { ProductDetailSummaryResponse } from "../schemas/productManagementResponseSchema";
+
 import type {
     ProductCompetition,
     ProductMarketAnalysis,
+    AnalysisRecommendation,
     ProductManagementPerspective,
     ProductPriceTrend,
-    ProductTransactions,
     ProductValuationForecast,
 } from "../types";
-
-export const productManagementMockSource = "mock" as const;
 
 const baseAnalysis: Omit<ProductMarketAnalysis, "productId"> = {
     analysisId: 5,
     currentPrice: 495000,
     suggestedPrice: 468000,
-    recommendation: "SELL",
+    recommendation: "HOLD",
     description:
         "최근 시장 가격이 점진적으로 상승하고 있고, 유사 상품 등록량이 감소하고 있어요. 조금만 더 기다리면 더 좋은 가격에 판매할 가능성이 있어요.",
     minPrice: 180000,
@@ -35,6 +36,13 @@ const baseAnalysis: Omit<ProductMarketAnalysis, "productId"> = {
         confidenceScore: 88,
     },
     analyzedAt: "2026-10-02T12:00:00",
+};
+
+const saleStatsSummary: ProductMarketAnalysis["summary"] = {
+    type: "SALE_STATS",
+    salesDurationDays: 21,
+    viewCount: 128,
+    interestCount: 14,
 };
 
 type ProductPriceTrendPoint = ProductPriceTrend["priceTrend"]["points"][number];
@@ -75,34 +83,69 @@ const priceTrendMockPoints: Array<Omit<ProductPriceTrendPoint, "change">> = [
 export function createProductMarketAnalysisMock(
     productId: number,
     perspective: ProductManagementPerspective = "SELL",
+    recommendation?: AnalysisRecommendation,
 ): ProductMarketAnalysis {
     const isBuyerView = perspective === "BUY";
+    const resolvedRecommendation = recommendation ?? (isBuyerView ? "BUY" : "HOLD");
+    const summary =
+        resolvedRecommendation === "SELL" ? { ...saleStatsSummary } : { ...baseAnalysis.summary };
+    const description =
+        resolvedRecommendation === "SELL"
+            ? "관심과 조회가 충분히 쌓여 지금 판매를 고려해볼 만해요."
+            : isBuyerView && resolvedRecommendation === "WAIT"
+              ? "최근 가격 변화를 조금 더 지켜보면 더 좋은 구매 시점을 찾을 수 있어요."
+              : isBuyerView
+                ? "최근 평균 시세보다 낮은 가격이에요. 지금 구매를 고려해볼 만해요."
+                : baseAnalysis.description;
+
+    const priceDistribution = isBuyerView
+        ? [
+              { from: 280000, to: 310000, count: 2 },
+              { from: 310000, to: 340000, count: 5 },
+              { from: 340000, to: 370000, count: 7 },
+              { from: 370000, to: 400000, count: 4 },
+              { from: 400000, to: 420000, count: 2 },
+          ]
+        : baseAnalysis.priceDistribution;
 
     return {
         ...baseAnalysis,
+        recommendation: resolvedRecommendation,
+        description,
         ...(isBuyerView
             ? {
                   currentPrice: 320000,
                   suggestedPrice: 320000,
-                  recommendation: "BUY" as const,
-                  description: "최근 평균 시세보다 낮은 가격이에요. 지금 구매를 고려해볼 만해요.",
                   minPrice: 280000,
                   averagePrice: 350000,
                   maxPrice: 420000,
                   marketPriceDiffRate: -8.6,
                   marketExpectedPrice: 320000,
-                  priceDistribution: [
-                      { from: 280000, to: 310000, count: 2 },
-                      { from: 310000, to: 340000, count: 5 },
-                      { from: 340000, to: 370000, count: 7 },
-                      { from: 370000, to: 400000, count: 4 },
-                      { from: 400000, to: 420000, count: 2 },
-                  ],
               }
             : {}),
         productId,
-        priceDistribution: baseAnalysis.priceDistribution.map((bucket) => ({ ...bucket })),
-        summary: { ...baseAnalysis.summary },
+        priceDistribution: priceDistribution.map((bucket) => ({ ...bucket })),
+        summary,
+    };
+}
+
+export function createProductSummaryMock(productId: number): ProductDetailSummaryResponse {
+    const product = mockProducts.find((item) => item.id === productId);
+
+    return {
+        id: productId,
+        category: {
+            id: 1,
+            name: product?.categoryName ?? "전자기기",
+            parentId: null,
+        },
+        title: product?.title ?? `상품 ${productId}`,
+        price: product?.price ?? 495000,
+        status: product?.status ?? "ON_SALE",
+        condition: product?.condition ?? "A",
+        imageUrls: product?.thumbnailUrl ? [product.thumbnailUrl] : [],
+        platforms: [],
+        createdAt: product?.createdAt ?? "2026-10-02T12:00:00",
     };
 }
 
@@ -169,23 +212,6 @@ export function createProductValuationForecastMock(productId: number): ProductVa
                     expectedChangeRate: -15.33,
                 },
             ],
-        },
-    };
-}
-
-export function createProductTransactionsMock(productId: number): ProductTransactions {
-    return {
-        productId,
-        period: "30D",
-        transactions: [
-            { transactionId: "tx-001", tradedAt: "2026-09-05T10:30:00+09:00", price: 265000 },
-            { transactionId: "tx-002", tradedAt: "2026-09-08T14:20:00+09:00", price: 278000 },
-            { transactionId: "tx-003", tradedAt: "2026-09-15T16:10:00+09:00", price: 274000 },
-        ],
-        majorTransactionRange: {
-            minPrice: 265000,
-            maxPrice: 278000,
-            transactionCount: 18,
         },
     };
 }

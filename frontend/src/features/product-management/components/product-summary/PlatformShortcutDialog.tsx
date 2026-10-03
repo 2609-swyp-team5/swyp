@@ -14,7 +14,12 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/common/components/ui/Dialog";
-import type { ProductPlatform, ProductResponse } from "@/features/sell/types";
+import type { ProductPlatform } from "@/features/sell/types";
+
+type ProductPlatformShortcut = Pick<
+    ProductPlatform,
+    "platform" | "platformName" | "status" | "productUrl"
+>;
 
 const platformStatusLabels: Record<ProductPlatform["status"], string> = {
     POSTING: "등록 중",
@@ -32,9 +37,13 @@ const platformIconPaths: Record<string, string> = {
     중고나라: "/my/home/joonggonara.png",
 };
 
-export function PlatformShortcutDialog({ product }: { product: ProductResponse }) {
+export function PlatformShortcutDialog({
+    product,
+}: {
+    product: { platforms: ProductPlatformShortcut[] };
+}) {
     const [isOpen, setIsOpen] = useState(false);
-    const platforms = product.platforms ?? [];
+    const platforms = product.platforms;
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -81,7 +90,7 @@ export function PlatformShortcutDialog({ product }: { product: ProductResponse }
                             if (!canOpen) {
                                 return (
                                     <div
-                                        key={`${platform.platform}-${platform.externalProductId ?? "unknown"}`}
+                                        key={`${platform.platform}-${platform.productUrl ?? "unknown"}`}
                                         aria-disabled="true"
                                         className={`${itemClassName} cursor-not-allowed border-[#eef0f5] bg-[#fafbfc] text-[#9aa0b0]`}
                                     >

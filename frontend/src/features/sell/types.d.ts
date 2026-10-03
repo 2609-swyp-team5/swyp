@@ -7,11 +7,16 @@ import type {
     directProductCreateRequestSchema,
     operationStatusSchema,
     productConditionSchema,
+    productPlatformStatusSchema,
     productCreateRequestSchema,
     productStatusSchema,
     productUpdateRequestSchema,
     tradeMethodSchema,
 } from "./schemas/productSchema";
+import type {
+    ProductRegisterStep,
+    ProductRegisterStepStatus,
+} from "./schemas/productRegisterStreamSchema";
 
 export type ProductCondition = z.infer<typeof productConditionSchema>;
 export type ProductStatus = z.infer<typeof productStatusSchema>;
@@ -35,21 +40,8 @@ export interface ProductUpdateInput {
 
 export type AiProductCreateInput = z.infer<typeof aiProductCreateInputSchema>;
 
-export type ProductRegisterStep = "IMAGE_UPLOAD" | "IMAGE_ANALYSIS" | "PRODUCT_SAVE";
-export type ProductRegisterStepStatus = "START" | "DONE" | "SKIP";
 export type ProductRegisterProgressStatus = ProductRegisterStepStatus | "ERROR";
-
-export type ProductPlatformStatus = "POSTING" | "POSTED" | "FAILED" | "REMOVED";
-
-export interface ProductPlatform {
-    platform: string;
-    platformName: string;
-    status: ProductPlatformStatus;
-    externalProductId: string | null;
-    productUrl: string | null;
-    createdAt: string;
-    updatedAt: string;
-}
+export type ProductPlatformStatus = z.infer<typeof productPlatformStatusSchema>;
 
 export interface ProductRegisterProgress {
     step: ProductRegisterStep;
@@ -63,52 +55,12 @@ export type ProductRegisterError = Error & {
     code?: string;
 };
 
-export interface ProductResponse {
-    id: number;
-    memberId: number;
-    nickname: string;
-    category: {
-        id: number;
-        name: string;
-        parentId: number | null;
-        leaf: boolean;
-    };
-    title: string;
-    brand: string | null;
-    description: string | null;
-    price: number;
-    status: ProductStatus;
-    condition: ProductCondition;
-    defectStatus: DefectStatus;
-    purchasedAt: string | null;
-    purchasedMonths: number | null;
-    includedItems: string[];
-    allowPriceSuggestion: boolean;
-    tradeMethod: TradeMethod;
-    deliveryType: DeliveryType | null;
-    preferredTradeRegion: string | null;
-    imageUrls: string[];
-    tags: string[];
-    recommendation: string | null;
-    suggestedPrice: number | null;
-    analysisDescription: string | null;
-    platforms?: ProductPlatform[] | null;
-    createdAt: string;
-    updatedAt: string;
-}
-
-export interface ProductSummaryResponse {
-    id: number;
-    title: string;
-    brand: string | null;
-    price: number;
-    status: ProductStatus;
-    condition: ProductCondition;
-    defectStatus: DefectStatus;
-    purchasedMonths: number | null;
-    categoryName: string;
-    thumbnailUrl: string | null;
-    recommendation: string | null;
-    marketAveragePrice: number | null;
-    createdAt: string;
-}
+export type {
+    ProductPlatform,
+    ProductResponse,
+    ProductSummaryResponse,
+} from "./schemas/productResponseSchema";
+export type {
+    ProductRegisterStep,
+    ProductRegisterStepStatus,
+} from "./schemas/productRegisterStreamSchema";
