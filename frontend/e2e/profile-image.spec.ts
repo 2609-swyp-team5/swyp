@@ -128,3 +128,78 @@ test("rejects invalid files and keeps the previous photo on upload failure", asy
     ).toHaveAttribute("src", photoUrl);
     await expect(page.getByRole("button", { name: "사진 변경" })).toBeEnabled();
 });
+
+test("deletes the photo only on save, preserves avatars on failure and retries", async ({
+    page,
+}) => {
+    let current: Omit<typeof member, "profileImageUrl"> & { profileImageUrl: string | null } = {
+        ...member,
+    };
+    let deletes = 0;
+    let fail = true;
+    let release!: () => void;
+    const ready = new Promise<void>((resolve) => {
+        release = resolve;
+    });
+    await page.route("**/users/me", (route) =>
+        route.fulfill({ status: 200, json: { success: true, data: current, error: null } }),
+    );
+    await page.route("**/users/profile/image", async (route) => {
+        expect(route.request().method()).toBe("DELETE");
+        expect(route.request().headers().authorization).toBe("Bearer image-token");
+        deletes++;
+        if (fail) {
+            return route.fulfill({
+                status: 500,
+                json: { success: false, message: "이미지 삭제 실패", data: null, error: null },
+            });
+        }
+        await ready;
+        current = { ...current, profileImageUrl: null };
+        return route.fulfill({ status: 200, json: { success: true, data: current, error: null } });
+    });
+    await page.goto("/my/settings");
+    await expect(page.locator("main").getByAltText("프로필 사진", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "기본 이미지로 변경" }).click();
+    await expect(page.locator("main [data-slot='avatar-fallback']")).toBeVisible();
+    expect(deletes).toBe(0);
+    await expect(page.getByRole("banner").getByAltText("프로필 사진")).toBeVisible();
+    await page.getByRole("button", { name: "변경 사항 저장" }).click();
+    await expect(page.getByRole("alertdialog")).toContainText("사진은 삭제하지 못했습니다.");
+    await expect(page.locator("aside").getByAltText("프로필 사진", { exact: true })).toBeVisible();
+    await page.getByRole("alertdialog").getByRole("button", { name: "확인", exact: true }).click();
+    fail = false;
+    await page.getByRole("button", { name: "변경 사항 저장" }).click();
+    await expect.poll(() => deletes).toBe(2);
+    await expect(page.getByRole("button", { name: "저장 중..." })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "사진 변경" })).toBeDisabled();
+    release();
+    await expect(page.getByRole("alertdialog")).toContainText("변경 사항이 적용되었습니다.");
+    await page.getByRole("alertdialog").getByRole("button", { name: "확인", exact: true }).click();
+    await expect(page.getByRole("banner").locator('[data-slot="avatar-fallback"]')).toBeVisible();
+    await expect(page.locator("aside [data-slot='avatar-fallback']")).toBeVisible();
+    await expect(page.getByRole("button", { name: "기본 이미지로 변경" })).toHaveCount(0);
+    await page.reload();
+    await expect(page.locator("main [data-slot='avatar-fallback']")).toBeVisible();
+    await expect(page.getByRole("button", { name: "기본 이미지로 변경" })).toHaveCount(0);
+    expect(deletes).toBe(2);
+});
+
+test("selecting a new photo cancels a pending deletion", async ({ page }) => {
+    await page.route("**/users/me", (route) =>
+        route.fulfill({ status: 200, json: { success: true, data: member, error: null } }),
+    );
+    let uploads = 0;
+    await page.route("**/users/profile/image", (route) => {
+        expect(route.request().method()).toBe("POST");
+        uploads++;
+        return route.fulfill({ status: 200, json: { success: true, data: member, error: null } });
+    });
+    await page.goto("/my/settings");
+    await page.getByRole("button", { name: "기본 이미지로 변경" }).click();
+    await page.getByLabel("프로필 사진 선택").setInputFiles(file);
+    await expect(page.getByAltText("프로필 사진 미리보기")).toBeVisible();
+    await page.getByRole("button", { name: "변경 사항 저장" }).click();
+    await expect(page.getByRole("alertdialog")).toContainText("변경 사항이 적용되었습니다.");
+    expect(uploads).toBe(1);
+});

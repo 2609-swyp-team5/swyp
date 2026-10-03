@@ -41,7 +41,7 @@ export function HomeProductCarousel({ title }: { title: string }) {
                                 )}
                             >
                                 <Link
-                                    href={`/search/EXTERNAL/${id}`}
+                                    href={`/search/${id}`}
                                     aria-label={`${platform.name} 아이폰 13 미니 128GB 핑크 상세보기`}
                                     className="absolute inset-0 z-10 rounded-xl focus-visible:outline-2 focus-visible:outline-[#6653fb]"
                                 />

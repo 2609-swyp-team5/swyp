@@ -15,7 +15,7 @@ import { HomeProductCarousel } from "@/features/home/components/HomeProductCarou
 
 const keywords = ["필름카메라", "아이패드 프로", "다이슨 에어랩", "닌텐도 스위치", "소니 헤드폰"];
 const summaries = [
-    { label: "등록한 물건", value: "6개", description: "판매 중 3 · 관심 2 · 완료 1" },
+    { label: "등록한 물건", value: "6개", description: "임시저장 2 · 판매중 3 · 판매완료 1" },
     { label: "AI 추천 알림", value: "2건", description: "오늘 새로 분석된 타이밍" },
     { label: "평균 시세 대비", value: "+4.1%", description: "내 물건들의 현재 시세 평균" },
     { label: "최근 분석일", value: "오늘", description: "2026년 9월 2일 오전 9:12" },

@@ -4,6 +4,19 @@ import { test as base, expect } from "@playwright/test";
 export const test = base.extend({
     context: async ({ context }, runTest) => {
         await context.route(
+            (url) => url.pathname === "/interests",
+            (route) =>
+                route.request().method() === "GET"
+                    ? route.fulfill({
+                          json: {
+                              success: true,
+                              data: { content: [], nextCursor: null, hasNext: false },
+                              error: null,
+                          },
+                      })
+                    : route.fallback(),
+        );
+        await context.route(
             (url) => url.pathname === "/platforms",
             (route) =>
                 route.fulfill({

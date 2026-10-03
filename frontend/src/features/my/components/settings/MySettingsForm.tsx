@@ -24,6 +24,7 @@ type MySettingsFormProps = {
     isPreview: boolean;
     onSubmit: SubmitHandler<MySettingsFormValues>;
     onFileSelect: (file: File | undefined) => void;
+    onPhotoRemove: () => void;
 };
 
 export function MySettingsForm({
@@ -35,6 +36,7 @@ export function MySettingsForm({
     isPreview,
     onSubmit,
     onFileSelect,
+    onPhotoRemove,
 }: MySettingsFormProps) {
     const {
         register,
@@ -49,6 +51,7 @@ export function MySettingsForm({
                 disabled={!member || isBusy}
                 isUploading={isUploading}
                 onFileSelect={onFileSelect}
+                onPhotoRemove={onPhotoRemove}
             />
             <div className="space-y-2">
                 <Label htmlFor="profile-name" className={labelClassName}>

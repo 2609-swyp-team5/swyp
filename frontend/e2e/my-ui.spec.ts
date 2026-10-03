@@ -115,7 +115,7 @@ test("home product summary shows total and all status counts from cursor pages",
     await expect(card.getByRole("status")).toHaveText("상품을 불러오는 중입니다.");
     finishRequest();
     await expect(card).toContainText("5개");
-    await expect(card).toContainText("등록됨 2 · 판매중 2 · 판매완료 1");
+    await expect(card).toContainText("임시저장 2 · 판매중 2 · 판매완료 1");
     expect(requests).toHaveLength(2);
     expect(requests.every((params) => !params.has("status"))).toBe(true);
     expect(requests[1]?.get("cursor")).toBe("18");
@@ -149,7 +149,7 @@ test("home product summary retries errors and displays zero counts", async ({ pa
     await expect(card.getByRole("alert")).toHaveText("상품 조회 실패");
     await card.getByRole("button", { name: "다시 시도", exact: true }).click();
     await expect(card).toContainText("0개");
-    await expect(card).toContainText("등록됨 0 · 판매중 0 · 판매완료 0");
+    await expect(card).toContainText("임시저장 0 · 판매중 0 · 판매완료 0");
     expect(attempts).toBe(2);
 });
 
@@ -235,7 +235,7 @@ test("product filters count all pages and switch locally without requests", asyn
     const group = page.getByRole("group", { name: "상품 분류" });
     await expect(group.getByRole("button")).toHaveCount(4);
     await expect(group.getByRole("button", { name: "전체 4", exact: true })).toBeVisible();
-    await expect(group.getByRole("button", { name: "등록됨 2", exact: true })).toBeVisible();
+    await expect(group.getByRole("button", { name: "임시저장 2", exact: true })).toBeVisible();
     await expect(group.getByRole("button", { name: "판매중 1", exact: true })).toBeVisible();
     await expect(group.getByRole("button", { name: "판매완료 1", exact: true })).toBeVisible();
     const rows = page.locator("tbody tr");
@@ -245,7 +245,7 @@ test("product filters count all pages and switch locally without requests", asyn
     expect(requests[1]?.get("cursor")).toBe("18");
     expect(requests.every((params) => !params.has("status"))).toBe(true);
     for (const [label, status, count] of [
-        ["등록됨", "DRAFT", 2],
+        ["임시저장", "DRAFT", 2],
         ["판매중", "ON_SALE", 1],
         ["판매완료", "SOLD_OUT", 1],
     ] as const) {
@@ -301,7 +301,7 @@ test("my products retry incomplete list loading without displaying partial count
     await page.getByRole("button", { name: "다시 시도", exact: true }).click();
     await expect(page.locator("tbody tr")).toHaveCount(2);
     await expect(page.getByRole("button", { name: "전체 2", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "등록됨 2", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "임시저장 2", exact: true })).toBeVisible();
     expect(nextAttempts).toBe(2);
     await page.getByRole("button", { name: "판매중 0", exact: true }).click();
     await expect(page.locator("tbody").getByRole("status")).toHaveText(

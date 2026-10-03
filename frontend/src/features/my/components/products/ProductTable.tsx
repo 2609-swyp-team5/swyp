@@ -16,7 +16,7 @@ import type { MyProduct, MyProductStatus } from "@/features/my/types";
 
 const cellClassName = "px-5 py-5";
 const statusLabels: Record<MyProductStatus, string> = {
-    DRAFT: "등록됨",
+    DRAFT: "임시저장",
     ON_SALE: "판매중",
     SOLD_OUT: "판매완료",
 };
