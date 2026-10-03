@@ -432,16 +432,17 @@ class ProductServiceTest {
         when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.empty());
         when(productAnalysisService.calculateMarketAveragePrice(product)).thenReturn(Optional.of(430_000L));
+        when(interestRepository.countByItemId(1L)).thenReturn(2L);
 
         ProductResponse response = service().getProduct(1L, 2L);
 
         assertThat(response.recommendation()).isNull();
         assertThat(response.marketAveragePrice()).isEqualTo(430_000L);
         assertThat(response.analysisDescription()).isNull();
-        // 판매자 본인이 아니면 게시 플랫폼·관심 수·조회수는 내려주지 않음
+        // 판매자 본인이 아니어도 관심 수·조회수는 보이고, 게시 플랫폼은 내려주지 않음
         assertThat(response.platforms()).isNull();
-        assertThat(response.interestCount()).isNull();
-        assertThat(response.viewCount()).isNull();
+        assertThat(response.interestCount()).isEqualTo(2L);
+        assertThat(response.viewCount()).isZero();
     }
 
     // 상품 상세 조회 - 판매자 본인이면 게시 플랫폼·관심 수·조회수를 채움
@@ -467,13 +468,26 @@ class ProductServiceTest {
     void recordViewCountsOnlyFirstViewByOtherMember() {
         Product product = newProduct(1L, newMember(1L), newCategory(1L, "전자기기"));
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
-        when(productViewCounter.isFirstView(1L, 2L)).thenReturn(true, false);
+        when(productViewCounter.isFirstView(1L, "2")).thenReturn(true, false);
 
-        service().recordView(1L, 1L); // 본인
-        service().recordView(1L, 2L); // 첫 조회
-        service().recordView(1L, 2L); // 재조회
+        service().recordView(1L, 1L, "10.0.0.1"); // 본인
+        service().recordView(1L, 2L, "10.0.0.2"); // 첫 조회
+        service().recordView(1L, 2L, "10.0.0.2"); // 재조회
 
-        verify(productViewCounter, never()).isFirstView(1L, 1L);
+        verify(productViewCounter, never()).isFirstView(1L, "1");
+        verify(productRepository, times(1)).incrementViewCount(1L);
+    }
+
+    // 조회수 반영 - 비회원은 IP 단위로 첫 조회만 셈
+    @Test
+    void recordViewCountsGuestByIp() {
+        Product product = newProduct(1L, newMember(1L), newCategory(1L, "전자기기"));
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productViewCounter.isFirstView(1L, "ip:10.0.0.9")).thenReturn(true, false);
+
+        service().recordView(1L, null, "10.0.0.9"); // 첫 조회
+        service().recordView(1L, null, "10.0.0.9"); // 같은 IP 재조회
+
         verify(productRepository, times(1)).incrementViewCount(1L);
     }
 

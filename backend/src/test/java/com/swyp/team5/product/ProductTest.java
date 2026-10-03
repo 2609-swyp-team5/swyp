@@ -484,9 +484,9 @@ class ProductTest {
                 .andExpect(jsonPath("$.data.category.name").value(category.getName()));
     }
 
-    // 상품 상세 조회 - 판매자 본인에게만 게시 플랫폼·관심 수·조회수를 내려줌
+    // 상품 상세 조회 - 관심 수·조회수는 모두에게, 게시 플랫폼은 판매자 본인에게만 내려줌
     @Test
-    void getProductIncludesSellerStatsOnlyForOwner() throws Exception {
+    void getProductIncludesPlatformsOnlyForOwner() throws Exception {
         Long productId = createProduct();
         String otherToken = createOtherMemberToken();
 
@@ -498,8 +498,8 @@ class ProductTest {
         mockMvc.perform(get("/products/{id}", productId).header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.platforms").doesNotExist())
-                .andExpect(jsonPath("$.data.interestCount").doesNotExist())
-                .andExpect(jsonPath("$.data.viewCount").doesNotExist());
+                .andExpect(jsonPath("$.data.interestCount").value(0))
+                .andExpect(jsonPath("$.data.viewCount").isNumber());
     }
 
     // 상품 상세 조회 실패 - 존재하지 않는 상품
@@ -588,6 +588,8 @@ class ProductTest {
                 .andExpect(jsonPath("$.data.externalStatus").value("SOLD_OUT"))
                 .andExpect(jsonPath("$.data.platformName").value("번개장터"))
                 .andExpect(jsonPath("$.data.memberId").doesNotExist())
+                .andExpect(jsonPath("$.data.interestCount").value(0)) // 외부 매물도 관심 수는 내려줌
+                .andExpect(jsonPath("$.data.viewCount").doesNotExist()) // 외부 매물은 조회수 없음
                 .andExpect(jsonPath("$.data.category.id").value(category.getId()));
         mockMvc.perform(get("/products/{id}", product.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
@@ -692,21 +694,37 @@ class ProductTest {
                 .andExpect(status().isOk());
     }
 
-    // 비로그인 검색 - 검색 외 조회(상세·내 상품)와 목록 경로의 다른 메서드는 여전히 로그인 필요
+    // 비로그인 - 상세·관심 수·조회수는 조회되지만 게시 플랫폼은 내려주지 않음
+    @Test
+    void guestCanGetProductDetailWithoutSellerStats() throws Exception {
+        Long productId = createProduct();
+
+        mockMvc.perform(get("/products/{id}", productId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(productId))
+                .andExpect(jsonPath("$.data.platforms").doesNotExist())
+                .andExpect(jsonPath("$.data.interestCount").value(0))
+                .andExpect(jsonPath("$.data.viewCount").isNumber());
+        // 잘못된 토큰도 비로그인으로 처리
+        mockMvc.perform(get("/products/{id}", productId).header(HttpHeaders.AUTHORIZATION, "Bearer invalid-token"))
+                .andExpect(status().isOk());
+    }
+
+    // 비로그인 - 검색·상세 외 기능(AI 검색·시세 분석·내 상품)과 목록 경로의 다른 메서드는 여전히 로그인 필요
     @Test
     void guestCannotUseFeaturesOtherThanSearch() throws Exception {
         Long productId = saveProduct(uniqueKeyword(), 100_000L, ProductCondition.A, DefectStatus.NORMAL)
                 .getId();
 
-        mockMvc.perform(get("/products/{id}", productId)).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/products/analysis/search").param("query", "아이폰")).andExpect(status().isUnauthorized());
         mockMvc.perform(get("/products/{id}/analysis", productId)).andExpect(status().isUnauthorized());
         mockMvc.perform(get("/products/me")).andExpect(status().isUnauthorized());
         mockMvc.perform(multipart("/products").file(imagePart())).andExpect(status().isUnauthorized());
     }
 
-    // AI 상품 검색 - 비로그인도 AI가 해석한 조건(키워드·최대 가격·정렬)으로 검색되고, 조건과 해석한 키워드 검색 로그가 남음
+    // AI 상품 검색 - 로그인 회원은 AI가 해석한 조건(키워드·최대 가격·정렬)으로 검색되고, 조건과 해석한 키워드 검색 로그가 남음
     @Test
-    void guestCanSearchProductsWithAi() throws Exception {
+    void memberCanSearchProductsWithAi() throws Exception {
         String keyword = uniqueKeyword();
         String query = keyword + " 50만원 이하 싼 순으로";
         saveProduct(keyword + " 저가", 100_000L, ProductCondition.A, DefectStatus.NORMAL);
@@ -727,7 +745,9 @@ class ProductTest {
                                 null,
                                 ProductSortType.PRICE_LOW)));
 
-        mockMvc.perform(get("/products/analysis/search").param("query", query))
+        mockMvc.perform(get("/products/analysis/search")
+                        .param("query", query)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.aiApplied").value(true))
                 .andExpect(jsonPath("$.data.condition.keyword").value(keyword))
@@ -741,16 +761,21 @@ class ProductTest {
         assertThat(searchLogRepository.findAll())
                 .filteredOn(log -> log.getKeyword().equals(keyword))
                 .singleElement()
-                .satisfies(log -> assertThat(log.getMember()).isNull());
+                .satisfies(log -> assertThat(log.getMember()).isNotNull());
     }
 
     // AI 상품 검색 - 검색 문장이 비었거나 200자를 넘으면 400
     @Test
     void searchProductsWithAiRejectsInvalidQuery() throws Exception {
-        mockMvc.perform(get("/products/analysis/search").param("query", " ")).andExpect(status().isBadRequest());
-        mockMvc.perform(get("/products/analysis/search").param("query", "가".repeat(201)))
+        String auth = "Bearer " + sellerToken;
+        mockMvc.perform(get("/products/analysis/search").param("query", " ").header(HttpHeaders.AUTHORIZATION, auth))
                 .andExpect(status().isBadRequest());
-        mockMvc.perform(get("/products/analysis/search")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/products/analysis/search")
+                        .param("query", "가".repeat(201))
+                        .header(HttpHeaders.AUTHORIZATION, auth))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/products/analysis/search").header(HttpHeaders.AUTHORIZATION, auth))
+                .andExpect(status().isBadRequest());
     }
 
     // 상품 목록 조회(정렬) - 가격순은 우리 상품·외부 매물을 섞어 정렬하고 커서로 다음 페이지를 이어서 조회함

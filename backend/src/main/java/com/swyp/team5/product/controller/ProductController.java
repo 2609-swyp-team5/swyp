@@ -3,6 +3,7 @@ package com.swyp.team5.product.controller;
 import java.util.List;
 import java.util.Set;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -132,18 +133,23 @@ public class ProductController {
 
     /**
      * 상품 상세 정보를 조회한다. 외부 수집 매물도 같은 ID 체계라 목록 응답의 {@code id}를 그대로 넘기면 같은 응답 형태로
-     * 조회된다({@code source}로 구분). 판매자 본인이 조회하면 게시 플랫폼·관심 수·조회수도 포함하고, 다른 회원의 조회는 조회수에 반영한다.
+     * 조회된다({@code source}로 구분). 비로그인도 조회할 수 있다. 판매자 본인이 조회하면 게시 플랫폼·관심 수·조회수도
+     * 포함하고, 그 밖의 조회(다른 회원·비회원)는 조회수에 반영한다(회원은 회원 단위, 비회원은 IP 단위로 24시간에 1회).
      *
-     * @param currentMember 인증된 요청자
+     * @param currentMember 요청자(비로그인이면 null)
      * @param productId 조회할 상품(또는 외부 매물) ID
+     * @param request 비회원 조회수 구분용 요청 IP
      * @return 200 OK + 상품 상세 정보
      */
     @Operation(summary = "상품 상세 조회")
     @GetMapping("/{productId}")
     public ResponseEntity<ApiResponse<ProductResponse>> getProduct(
-            @AuthenticationPrincipal PrincipalMember currentMember, @PathVariable Long productId) {
-        productService.recordView(productId, currentMember.memberId());
-        return ResponseEntity.ok(ApiResponse.success(productService.getProduct(productId, currentMember.memberId())));
+            @AuthenticationPrincipal PrincipalMember currentMember,
+            @PathVariable Long productId,
+            HttpServletRequest request) {
+        Long memberId = currentMember == null ? null : currentMember.memberId();
+        productService.recordView(productId, memberId, request.getRemoteAddr());
+        return ResponseEntity.ok(ApiResponse.success(productService.getProduct(productId, memberId)));
     }
 
     /**
@@ -214,7 +220,7 @@ public class ProductController {
      * {@link #getProducts}와 같은 검색을 실행해 첫 페이지를 돌려주며, 다음 페이지는 응답의 {@code condition}과
      * {@code result.nextCursor}로 {@code GET /products}를 호출한다. AI 해석에 실패하면 문장 전체를 키워드로 검색한다.
      *
-     * @param currentMember 요청자(검색 로그 기록용, 비로그인이면 null — 비로그인도 조회 가능)
+     * @param currentMember 요청자(검색 로그 기록용, 로그인 필요)
      * @param query 검색 문장(필수, 200자 이하)
      * @param size 페이지 크기(기본 20, 1~100)
      * @return 200 OK + 적용한 검색 조건과 첫 페이지 결과
