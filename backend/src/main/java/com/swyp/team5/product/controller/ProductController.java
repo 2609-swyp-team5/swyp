@@ -38,6 +38,7 @@ import com.swyp.team5.common.passport.PrincipalMember;
 import com.swyp.team5.product.dto.ListingTradeStatus;
 import com.swyp.team5.product.dto.ProductAiSearchResponse;
 import com.swyp.team5.product.dto.ProductCreateRequest;
+import com.swyp.team5.product.dto.ProductDetailSummaryResponse;
 import com.swyp.team5.product.dto.ProductListItemResponse;
 import com.swyp.team5.product.dto.ProductResponse;
 import com.swyp.team5.product.dto.ProductSearchCondition;
@@ -150,6 +151,23 @@ public class ProductController {
         Long memberId = currentMember == null ? null : currentMember.memberId();
         productService.recordView(productId, memberId, request.getRemoteAddr());
         return ResponseEntity.ok(ApiResponse.success(productService.getProduct(productId, memberId)));
+    }
+
+    /**
+     * 상품 상세 요약(판매 관리 화면 요약 영역)을 조회한다. 로그인 회원 누구나 모든 필드를 조회할 수 있고, 외부 수집 매물 ID도
+     * 받는다. 상세 조회와 같은 규칙으로 조회수에 반영한다(판매자 본인 제외, 회원 단위 24시간에 1회).
+     *
+     * @param productId 조회할 상품(또는 외부 매물) ID
+     * @return 200 OK + 상품 상세 요약(조회수·관심 수·판매 일수·게시 플랫폼 링크 포함)
+     */
+    @Operation(summary = "상품 상세 요약 조회")
+    @GetMapping("/{productId}/summary")
+    public ResponseEntity<ApiResponse<ProductDetailSummaryResponse>> getProductSummary(
+            @AuthenticationPrincipal PrincipalMember currentMember,
+            @PathVariable Long productId,
+            HttpServletRequest request) {
+        productService.recordView(productId, currentMember.memberId(), request.getRemoteAddr());
+        return ResponseEntity.ok(ApiResponse.success(productService.getProductSummary(productId)));
     }
 
     /**

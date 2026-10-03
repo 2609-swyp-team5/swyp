@@ -3,7 +3,6 @@ package com.swyp.team5.productanalysis.dto;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.Comparator;
 import java.util.List;
 
 import com.swyp.team5.item.entity.Item;
@@ -33,7 +32,9 @@ public record ProductAnalysisResponse(
         String waitPeriod, // 판매자 추천이 HOLD일 때 권장 대기 기간(1M), SELL·외부 매물이면 null
         Long expectedPrice, // 1개월 뒤 예상 가격(HOLD=시세 추세 기반 상승, SELL=감가 예측 1M), 외부 매물이면 null
         BigDecimal expectedPriceChangeRate, // 1개월 예상 변화율(소수 4자리 비율, 0.04 = +4%), 외부 매물이면 null
-        List<PriceForecastResponse> forecasts) { // 감가 예측가(1M/3M/6M 순), 분석 이력이 없거나 예측 도입 전 분석이면 빈 배열
+        List<PriceForecastResponse>
+                forecasts) { // 감가 예측가(1M/3M/6M 순), 분석 이력이 없거나 예측 도입 전 분석이면 빈 배열 — GET /analysis/forecast로 분리됨, 프론트 전환 후
+    // 제거 예정
 
     /** 아직 분석 이력이 없는 상품(분석 배치가 아직 돌지 않았거나, 비교 매물이 부족해 건너뛴 경우)에 사용한다. */
     public static ProductAnalysisResponse empty(Item product) {
@@ -94,10 +95,7 @@ public record ProductAnalysisResponse(
                         : analysis.getWaitPeriod().getCode(),
                 analysis.getExpectedPrice(),
                 analysis.getExpectedPriceChangeRate(),
-                forecasts.stream()
-                        .sorted(Comparator.comparing(PriceForecast::getPeriod))
-                        .map(PriceForecastResponse::from)
-                        .toList());
+                PriceForecastResponse.sorted(forecasts));
     }
 
     /** (등록가 − 평균가) / 평균가 × 100을 소수 첫째 자리로 반올림한다. 평균가가 0이면 null. */

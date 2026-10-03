@@ -1,5 +1,23 @@
 import { expect, test } from "./fixtures";
 
+type ProductStatus = "DRAFT" | "ON_SALE" | "SOLD_OUT";
+
+const productSummary = (id: number, status: ProductStatus, title = "상품") => ({
+    id,
+    title,
+    brand: null,
+    price: 10000,
+    status,
+    condition: "A",
+    defectStatus: "NORMAL",
+    purchasedMonths: null,
+    categoryName: "디지털",
+    thumbnailUrl: null,
+    recommendation: null,
+    marketAveragePrice: null,
+    createdAt: "2026-10-03T00:00:00Z",
+});
+
 test.beforeEach(async ({ page }) => {
     await page.route("**/products/me?*", (route) =>
         route.fulfill({
@@ -89,17 +107,16 @@ test("home product summary shows total and all status counts from cursor pages",
         requests.push(params);
         await responseReady;
         const isNext = params.has("cursor");
-        const statuses = isNext ? ["DRAFT", "SOLD_OUT"] : ["DRAFT", "ON_SALE", "ON_SALE"];
+        const statuses: ProductStatus[] = isNext
+            ? ["DRAFT", "SOLD_OUT"]
+            : ["DRAFT", "ON_SALE", "ON_SALE"];
         return route.fulfill({
             json: {
                 success: true,
                 data: {
-                    content: statuses.map((status, index) => ({
-                        id: (isNext ? 10 : 20) - index,
-                        title: "상품",
-                        price: 10000,
-                        status,
-                    })),
+                    content: statuses.map((status, index) =>
+                        productSummary((isNext ? 10 : 20) - index, status),
+                    ),
                     nextCursor: isNext ? null : "18",
                     hasNext: !isNext,
                 },
@@ -212,17 +229,14 @@ test("product filters count all pages and switch locally without requests", asyn
         const params = new URL(route.request().url()).searchParams;
         requests.push(params);
         const isNext = params.has("cursor");
-        const statuses = isNext ? ["DRAFT"] : ["DRAFT", "ON_SALE", "SOLD_OUT"];
+        const statuses: ProductStatus[] = isNext ? ["DRAFT"] : ["DRAFT", "ON_SALE", "SOLD_OUT"];
         return route.fulfill({
             json: {
                 success: true,
                 data: {
                     content: statuses.map((status, index) => ({
-                        id: (isNext ? 10 : 20) - index,
-                        title: `${status} 상품`,
+                        ...productSummary((isNext ? 10 : 20) - index, status, `${status} 상품`),
                         price: 12000,
-                        platformName: "번개장터",
-                        status,
                     })),
                     nextCursor: isNext ? null : "18",
                     hasNext: !isNext,
@@ -280,12 +294,11 @@ test("my products retry incomplete list loading without displaying partial count
                           success: true,
                           data: {
                               content: [
-                                  {
-                                      id: isNext ? 19 : 20,
-                                      title: isNext ? "다음 상품" : "첫 상품",
-                                      price: 10000,
-                                      status: "DRAFT",
-                                  },
+                                  productSummary(
+                                      isNext ? 19 : 20,
+                                      "DRAFT",
+                                      isNext ? "다음 상품" : "첫 상품",
+                                  ),
                               ],
                               nextCursor: isNext ? null : "20",
                               hasNext: !isNext,
@@ -321,12 +334,13 @@ test("product table keeps headers during status loading and fits narrow screens"
             json: {
                 success: true,
                 data: {
-                    content: ["DRAFT", "ON_SALE"].map((status, index) => ({
-                        id: index + 1,
-                        title: "일본 교토 벚꽃 커플 스냅 사진 촬영 서비스 긴 상품명입니다",
+                    content: (["DRAFT", "ON_SALE"] as const).map((status, index) => ({
+                        ...productSummary(
+                            index + 1,
+                            status,
+                            "일본 교토 벚꽃 커플 스냅 사진 촬영 서비스 긴 상품명입니다",
+                        ),
                         price: 150000,
-                        platformName: "번개장터",
-                        status,
                     })),
                     nextCursor: null,
                     hasNext: false,
@@ -341,7 +355,7 @@ test("product table keeps headers during status loading and fits narrow screens"
     await expect(headers).toHaveCount(5);
     await expect(page.locator("tbody").getByRole("status")).toHaveText("상품을 불러오는 중입니다.");
     finishRequest();
-    await expect(page.locator("tbody")).toContainText("번개장터");
+    await expect(page.locator("tbody")).toContainText("—");
     const headerBox = await page.locator("thead").boundingBox();
     for (const width of [1440, 1024, 768, 390]) {
         await page.setViewportSize({ width, height: 1000 });
@@ -381,7 +395,7 @@ test("product table keeps headers during status loading and fits narrow screens"
     await page.getByRole("button", { name: /^판매중/ }).click();
     await expect(headers).toHaveCount(5);
     expect((await page.locator("thead").boundingBox())?.y).toBe(headerBox?.y);
-    await expect(page.locator("tbody")).toContainText("번개장터");
+    await expect(page.locator("tbody")).toContainText("—");
     await page.getByRole("button", { name: /^판매완료/ }).click();
     await expect(page.locator("tbody").getByRole("status")).toHaveText(
         "해당 상태의 상품이 없습니다.",

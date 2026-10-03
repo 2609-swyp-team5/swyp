@@ -1,17 +1,37 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+
+import { dataSource } from "@/common/lib/api/dataSource";
 import { interestApi } from "@/features/interest/api/interestApi";
-import type { InterestItem } from "@/features/interest/types";
+import { getInterestsMock } from "@/features/interest/api/interestMockApi";
+import { useAuthStore } from "@/features/auth/store/authStore";
+import { useMeQuery } from "@/features/member/hooks/queries/useMeQuery";
+import type { InterestListItem } from "@/features/interest/types";
+
+export const interestsQueryKey = ["interests", dataSource] as const;
 
 export function useInterestsQuery(memberId?: number) {
+    const isInitialized = useAuthStore((state) => state.isInitialized);
+    const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
+    const member = useMeQuery();
+    const currentMemberId = isLoggedIn ? member.data?.memberId : undefined;
     return useQuery({
-        queryKey: ["interests", memberId],
+        queryKey:
+            memberId !== undefined
+                ? ["interests", memberId]
+                : [...interestsQueryKey, currentMemberId],
         queryFn: async ({ signal }) => {
-            const interests: InterestItem[] = [];
+            if (member.error) throw member.error;
+            if (dataSource === "mock") {
+                const response = await getInterestsMock();
+                if (!response.success) throw new Error(response.message);
+                return response.data.content;
+            }
+            const interests: InterestListItem[] = [];
             let cursor: string | undefined;
             do {
-                const { data } = await interestApi.interestList(cursor, signal);
+                const { data } = await interestApi.getInterests({ cursor, size: 100 }, signal);
                 if (!data.success) throw new Error(data.message);
                 interests.push(...data.data.content);
                 if (!data.data.hasNext) return interests;
@@ -21,7 +41,9 @@ export function useInterestsQuery(memberId?: number) {
             } while (cursor);
             return interests;
         },
-        enabled: memberId !== undefined,
+        enabled: isInitialized && isLoggedIn && (currentMemberId !== undefined || member.isError),
+        staleTime: 0,
+        refetchOnWindowFocus: false,
         retry: false,
     });
 }

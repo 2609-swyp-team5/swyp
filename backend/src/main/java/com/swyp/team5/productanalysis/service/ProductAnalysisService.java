@@ -40,6 +40,7 @@ import com.swyp.team5.productanalysis.dto.MarketAnalysisResult;
 import com.swyp.team5.productanalysis.dto.PriceTrendResponse;
 import com.swyp.team5.productanalysis.dto.ProductAnalysisResponse;
 import com.swyp.team5.productanalysis.dto.ProductCompetitionResponse;
+import com.swyp.team5.productanalysis.dto.ProductForecastResponse;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.ForecastPeriod;
 import com.swyp.team5.productanalysis.entity.PriceForecast;
@@ -172,7 +173,7 @@ public class ProductAnalysisService {
     }
 
     /**
-     * 상품(또는 외부 매물)의 가장 최근 시세 분석 스냅샷을 감가 예측(1M/3M/6M)과 함께 조회한다. 외부 매물은 관심 등록된 것만
+     * 상품(또는 외부 매물)의 가장 최근 시세 분석 스냅샷을 감가 예측(1M/3M/6M)과 함께 조회한다(감가 예측만 필요하면 {@link #getForecast} — {@code forecasts}는 프론트 전환 후 제거 예정). 외부 매물은 관심 등록된 것만
      * 구매자 관점으로 분석되므로 그 밖의 매물은 분석 이력이 없다. 분석 이력이 없으면(배치가 아직 안 돌았거나 비교 매물 부족으로
      * 건너뛴 경우) 상품 ID·현재 가격만 채우고 나머지 필드는 null인 응답을 반환한다.
      *
@@ -196,6 +197,22 @@ public class ProductAnalysisService {
                                 : ConfidenceRule.rate(analysis.getListingCount(), properties.confidence()),
                         priceForecastRepository.findByAnalysisId(analysis.getId())))
                 .orElseGet(() -> ProductAnalysisResponse.empty(item));
+    }
+
+    /**
+     * 상품(또는 외부 매물)의 감가 예측(1M/3M/6M)을 조회한다. 가장 최근 시세 분석 때 함께 계산해 둔 값이며, 분석 이력이 없으면
+     * 상품 ID·현재 가격만 채우고 {@code forecasts}는 빈 배열인 응답을 반환한다.
+     *
+     * @throws ProductNotFoundException 존재하지 않는 상품(외부 매물 포함)인 경우
+     */
+    @Transactional(readOnly = true)
+    public ProductForecastResponse getForecast(Long productId) {
+        Item item = getItemOrThrow(productId);
+        return productAnalysisRepository
+                .findFirstByItemIdOrderByAnalyzedAtDesc(productId)
+                .map(analysis -> ProductForecastResponse.from(
+                        item, analysis, priceForecastRepository.findByAnalysisId(analysis.getId())))
+                .orElseGet(() -> ProductForecastResponse.empty(item));
     }
 
     /**

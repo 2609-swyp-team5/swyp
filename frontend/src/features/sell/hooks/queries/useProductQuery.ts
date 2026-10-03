@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { productApi } from "@/features/sell/api/productApi";
+import { productResponseSchema } from "@/features/sell/schemas/productResponseSchema";
 
 export const productQueryKey = (id: number) => ["product", id] as const;
 
@@ -14,7 +15,7 @@ export function useProductQuery(id: number) {
             if (!data.success) {
                 throw new Error(data.message);
             }
-            return data.data;
+            return productResponseSchema.parse(data.data);
         },
         enabled: Number.isInteger(id) && id > 0,
         staleTime: 5 * 60 * 1000,

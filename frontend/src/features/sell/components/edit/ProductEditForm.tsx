@@ -192,7 +192,7 @@ export function ProductEditForm({
 
     const handleConfirmExit = () => {
         setIsExitDialogOpen(false);
-        router.push(`/sell/manage/${product.id}?method=${method}`);
+        router.back();
     };
 
     const handleGoToManage = () => {

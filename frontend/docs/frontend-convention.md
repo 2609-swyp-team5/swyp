@@ -97,13 +97,25 @@ frontend/
 
 현재 `features/auth/types.d.ts`와 `common/lib/api/types.d.ts`는 `export`를 사용하는 일반 타입 모듈이다.
 
-- 도메인 타입과 API 응답 타입은 `types.d.ts`에 둔다.
+- 런타임 검증이 필요한 요청·응답 스키마는 `features/{도메인}/schemas/*.ts`에 둔다. `types.d.ts`에는 스키마에서 추출한 타입과 화면 전용 타입 별칭을 둔다.
 - 반드시 `export`를 사용해 모듈로 유지한다. export가 없는 전역 선언 파일로 사용하지 않는다.
 - 런타임 값이나 함수를 함께 정의해야 하는 파일은 `types.d.ts`가 아니라 일반 `.ts` 파일로 분리한다.
+- Zod 스키마가 있는 요청·응답 타입은 별도 `interface`로 다시 작성하지 않고 `z.infer<typeof schema>`를 사용한다.
 - 인증 요청·응답은 `SignUpRequest`, `SignUpResponse`, `LoginRequest`, `LoginResponse`, `SocialLoginRequest`, `TokenResponse`로 구분한다.
 - 회원가입 요청의 `phone`은 `string | null`이고, 응답 타입은 회원 식별자·이메일·닉네임·이름·전화번호·역할·상태를 포함한다. 로그인·소셜 로그인·재발급 응답의 액세스 토큰은 `accessToken`으로 받는다.
 
 `authApi.ts`를 `auth.api.ts`로 바꿔야 하는 규칙도 없다. 현재 프로젝트에서는 `authApi.ts`와 `types.d.ts`를 사용한다.
+
+### Zod 스키마와 타입의 분리 기준
+
+- Zod 스키마는 실행 중 실제 값을 검사해야 하는 경계에 사용한다. 대상은 API 요청·응답, SSE 이벤트, 폼 입력, localStorage 등 외부에서 들어오는 데이터다.
+- TypeScript 타입은 컴파일 시점에만 필요한 내부 데이터에 사용한다. 컴포넌트 props, 훅의 반환 형태, 화면 전용 상태처럼 이미 검증된 값을 전달하는 경우에는 타입만 정의할 수 있다.
+- 스키마가 타입의 기준(source of truth)이다. `schema.ts`에서 스키마를 정의하고 `types.d.ts`에서는 `z.infer` 타입을 재-export한다. 같은 필드 구조를 스키마와 interface에 중복 작성하지 않는다.
+- 요청과 응답의 목적·필드가 다르면 스키마도 분리한다. 예를 들어 상품 등록·수정 요청은 `productSchema.ts`, 상품 상세·목록 응답은 `productResponseSchema.ts`, 상품 관리 분석 응답은 `productManagementResponseSchema.ts`에 둔다.
+- SSE처럼 API 모듈에서 스트림을 조립·파싱하는 데이터는 `productRegisterStreamSchema.ts`처럼 해당 도메인의 응답 스키마로 검증한다.
+- 도메인 전용 스키마는 해당 `features/{도메인}/schemas/`에 둔다. 둘 이상의 도메인에서 동일한 런타임 규칙을 공유할 때만 `common`으로 올린다.
+- `null`은 응답 필드가 존재하지만 값이 없을 수 있을 때 사용하고, `optional`은 필드 자체가 응답에 없을 수 있을 때 사용한다. 실제 response 계약에 맞춰 구분한다.
+- 화면에서 다른 이름이 필요하면 구조를 다시 작성하지 않고 `types.d.ts`에서 alias만 만든다. 예: `ProductAnalysisResponse as ProductMarketAnalysis`.
 
 ## 4. Import 규칙
 
@@ -123,6 +135,12 @@ frontend/
 - 현재 인증 API는 `src/features/auth/api/authApi.ts`에서 `authApi.authLogin`, `authApi.authSignUp`, `authApi.authSocialLogin`, `authApi.authLogout`, `authApi.authRefresh`로 제공한다.
 - 공통 응답 타입은 `src/common/lib/api/types.d.ts`의 `ApiResponse<T>`를 사용한다.
 - 오류 메시지 변환은 `src/common/lib/api/error.ts`의 `getApiErrorMessage`를 사용한다. Axios의 시간 초과·HTTP·네트워크 오류와 일반 `Error`의 메시지를 처리한다.
+
+### API 응답 검증 위치
+
+- API 모듈은 HTTP 요청과 응답 반환을 담당하고, 조회·변경 훅은 `success` 여부를 확인한 뒤 `data`를 해당 Zod 응답 스키마로 검증한다.
+- API 모듈이 직접 JSON을 파싱하거나 SSE 스트림을 조립하는 경우에는 파싱 직후 해당 이벤트 스키마를 적용한다.
+- Mock 데이터는 같은 응답 타입을 사용하되 이미 코드 내부에서 관리되는 fixture이므로 중복 파싱하지 않는다. 실제 API와 mock을 전환하는 경계는 훅에서 유지한다.
 
 ### 인증 API의 반환값
 
@@ -182,6 +200,12 @@ frontend/
 - 기본 본문은 Inter를 사용하고, 브랜드·푸터 문구에는 `font-brand` 또는 `typography-footer`를 사용한다.
 - 현재 기준 그리드는 데스크톱 8열/20px gutter/112px margin, 태블릿 6열/20px gutter/112px margin, 모바일 2열/5px gutter/40px margin이다.
 - 클래스 조합은 `@/common/lib/utils`의 `cn`을 사용한다.
+- 고정된 컴포넌트 스타일은 Tailwind 유틸리티 클래스를 우선 사용한다.
+- 데이터에 따라 달라지는 크기·위치·CSS 변수만 inline `style` prop으로 지정한다.
+- 컴포넌트 전용 선택자·keyframes·애니메이션은 컴포넌트와 같은 폴더의 `ComponentName.module.css`에 정의한다.
+- Recharts처럼 외부 라이브러리가 생성하는 DOM 클래스를 선택해야 할 때만 CSS Module의 `:global(...)`을 사용한다.
+- `globals.css`에는 디자인 토큰, 공통 레이아웃·타이포그래피, 전역 스타일만 둔다.
+- `cva`는 상태·variant에 따른 클래스 조합을 관리하는 용도로 사용하고, `@keyframes` 같은 CSS 정의 자체를 대체하는 용도로 사용하지 않는다.
 - 공통 버튼 변형은 `Button.tsx`의 CVA 설정에서 관리한다.
 - Prettier 설정을 따른다: 4칸 들여쓰기, 큰따옴표, 세미콜론, trailing comma, LF.
 - Tailwind 클래스 순서는 `prettier-plugin-tailwindcss`에 맡긴다.
@@ -202,7 +226,7 @@ frontend/
 - 필드 검증 규칙은 `zod` 스키마로 정의하고, `@hookform/resolvers/zod`의 `zodResolver`로 React Hook Form과 연결한다.
 - 상품 등록, 회원가입, 어드민 프롬프트 등록처럼 필드가 많거나 단계가 있는 폼에 우선 적용한다.
 - 스키마는 사용하는 도메인의 `features/{도메인}/schemas/`에 둔다. 여러 도메인에서 공유하는 규칙만 `common`으로 올린다.
-- API 요청 데이터와 응답 데이터의 검증이 필요할 때 같은 Zod 스키마를 활용한다. 현재 백엔드와 스키마를 자동으로 공유하는 구조는 아니므로, 공유가 필요해지면 별도 패키지나 생성 방식을 먼저 합의한다.
+- API 요청과 응답은 목적에 맞는 별도 Zod 스키마를 정의하고, 타입은 각 스키마에서 `z.infer`로 추출한다. 요청과 응답 구조가 실제로 같을 때만 스키마를 재사용한다. 현재 백엔드와 스키마를 자동으로 공유하는 구조는 아니므로, 공유가 필요해지면 별도 패키지나 생성 방식을 먼저 합의한다.
 - 실제 폼을 도입할 때 필요한 의존성은 `react-hook-form`, `@hookform/resolvers`, `zod`다. 사용하지 않는 화면에 미리 추가하지 않는다.
 - 로그인·회원가입은 `features/auth/schemas/authSchema.ts`의 스키마와 `zodResolver`를 사용한다. 필드 오류는 입력란 아래에 표시한다.
 - `mutate()` 호출은 요청 완료까지 기다리지 않으므로 네트워크 진행 상태는 Mutation의 `isPending`으로 확인한다. 현재 폼은 `formState.isSubmitting`과 `isPending`을 합쳐 입력·제출 버튼을 비활성화하고, 로그인은 소셜 Mutation의 진행 상태도 포함한다.

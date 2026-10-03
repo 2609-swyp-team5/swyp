@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Constructor;
@@ -32,12 +33,16 @@ import com.swyp.team5.item.entity.ListingSource;
 import com.swyp.team5.item.repository.ItemRepository;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.repository.MemberRepository;
+import com.swyp.team5.platform.entity.MemberPlatform;
 import com.swyp.team5.platform.entity.Platform;
 import com.swyp.team5.platform.entity.PlatformListing;
+import com.swyp.team5.platform.entity.ProductPlatform;
 import com.swyp.team5.platform.repository.PlatformListingRepository;
 import com.swyp.team5.platform.repository.ProductPlatformRepository;
 import com.swyp.team5.product.dto.ProductAiAnalysisResult;
 import com.swyp.team5.product.dto.ProductCreateRequest;
+import com.swyp.team5.product.dto.ProductDetailSummaryResponse;
+import com.swyp.team5.product.dto.ProductDetailSummaryResponse.PlatformLink;
 import com.swyp.team5.product.dto.ProductListItemResponse;
 import com.swyp.team5.product.dto.ProductResponse;
 import com.swyp.team5.product.dto.ProductSearchCondition;
@@ -461,6 +466,73 @@ class ProductServiceTest {
         assertThat(response.platforms()).isEmpty();
         assertThat(response.interestCount()).isEqualTo(3L);
         assertThat(response.viewCount()).isEqualTo(7L);
+    }
+
+    // 상품 상세 요약 - 우리 상품: 게시 완료(POSTED) 게시글 링크만, 판매 일수는 등록 당일을 1일로 셈
+    @Test
+    void getProductSummaryForOurProduct() {
+        Member seller = newMember(1L);
+        Product product = newProduct(1L, seller, newCategory(1L, "전자기기"));
+        setField(product, "viewCount", 7L);
+        setField(product, "createdAt", LocalDate.now().minusDays(2).atTime(23, 0));
+        MemberPlatform memberPlatform = MemberPlatform.connect(seller, newPlatform(1L, "번개장터"), "session");
+        ProductPlatform posted =
+                ProductPlatform.link(memberPlatform, product, "111111", "https://m.bunjang.co.kr/products/111111");
+        ProductPlatform removed =
+                ProductPlatform.link(memberPlatform, product, "222222", "https://m.bunjang.co.kr/products/222222");
+        removed.markRemoved();
+        ProductPlatform posting = ProductPlatform.startPosting(memberPlatform, product);
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(interestRepository.countByItemId(1L)).thenReturn(3L);
+        when(productPlatformRepository.findByProductId(1L)).thenReturn(List.of(posted, removed, posting));
+
+        ProductDetailSummaryResponse response = service().getProductSummary(1L);
+
+        assertThat(response.source()).isEqualTo(ListingSource.OUR);
+        assertThat(response.viewCount()).isEqualTo(7L);
+        assertThat(response.interestCount()).isEqualTo(3L);
+        assertThat(response.daysOnSale()).isEqualTo(3L);
+        assertThat(response.platforms())
+                .containsExactly(new PlatformLink("번개장터", "https://m.bunjang.co.kr/products/111111"));
+        verifyNoInteractions(productAnalysisRepository);
+    }
+
+    // 상품 상세 요약 - 외부 매물: 원본 매물 링크 1건, 조회수 null, 수집 당일이면 판매 일수 1
+    @Test
+    void getProductSummaryForExternalListing() {
+        PlatformListing listing = PlatformListing.create(
+                newPlatform(1L, "번개장터"),
+                newCategory(1L, "전자기기"),
+                "ext-1",
+                "번개장터 아이폰",
+                400_000L,
+                "SELLING",
+                "https://img",
+                "https://m.bunjang.co.kr/products/333333");
+        setField(listing, "id", 100L);
+        setField(listing, "createdAt", LocalDateTime.now());
+        when(itemRepository.findById(100L)).thenReturn(Optional.of(listing));
+        when(interestRepository.countByItemId(100L)).thenReturn(2L);
+
+        ProductDetailSummaryResponse response = service().getProductSummary(100L);
+
+        assertThat(response.source()).isEqualTo(ListingSource.EXTERNAL);
+        assertThat(response.status()).isEqualTo(ProductStatus.ON_SALE);
+        assertThat(response.viewCount()).isNull();
+        assertThat(response.interestCount()).isEqualTo(2L);
+        assertThat(response.daysOnSale()).isEqualTo(1L);
+        assertThat(response.tags()).isEmpty();
+        assertThat(response.platforms())
+                .containsExactly(new PlatformLink("번개장터", "https://m.bunjang.co.kr/products/333333"));
+        verifyNoInteractions(productPlatformRepository);
+    }
+
+    // 상품 상세 요약 실패 - 존재하지 않는 상품
+    @Test
+    void getProductSummaryFailsWhenNotFound() {
+        when(itemRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service().getProductSummary(1L)).isInstanceOf(ProductNotFoundException.class);
     }
 
     // 조회수 반영 - 다른 회원의 첫 조회만 올리고, 판매자 본인·24시간 내 재조회는 세지 않음

@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.swyp.team5.common.common.ApiResponse;
 import com.swyp.team5.productanalysis.dto.PriceTrendResponse;
 import com.swyp.team5.productanalysis.dto.ProductAnalysisResponse;
+import com.swyp.team5.productanalysis.dto.ProductForecastResponse;
 import com.swyp.team5.productanalysis.service.ProductAnalysisService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -39,6 +40,18 @@ public class ProductAnalysisController {
     @GetMapping
     public ResponseEntity<ApiResponse<ProductAnalysisResponse>> getAnalysis(@PathVariable Long productId) {
         return ResponseEntity.ok(ApiResponse.success(productAnalysisService.getLatestAnalysis(productId)));
+    }
+
+    /**
+     * 상품의 감가 예측(1M/3M/6M 예상 가격)을 조회한다. 가장 최근 시세 분석 때 함께 계산한 값이다.
+     *
+     * @param productId 조회할 상품 ID(외부 매물 ID 포함)
+     * @return 200 OK + 감가 예측(분석 이력이 없으면 {@code forecasts}가 빈 배열)
+     */
+    @Operation(summary = "상품 감가 예측 조회")
+    @GetMapping("/forecast")
+    public ResponseEntity<ApiResponse<ProductForecastResponse>> getForecast(@PathVariable Long productId) {
+        return ResponseEntity.ok(ApiResponse.success(productAnalysisService.getForecast(productId)));
     }
 
     /**
