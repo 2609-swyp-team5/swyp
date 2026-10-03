@@ -7,11 +7,11 @@ import { useInterestsQuery } from "@/features/interest/hooks/queries/useInterest
 import { InterestProductDetail } from "@/features/interest/components/InterestProductDetail";
 import { getInterestDisplayStatus } from "@/features/interest/utils/interestStatus";
 
-const statusMetaLabels: Record<string, string> = {
-    DRAFT: "임시저장 상품",
-    ON_SALE: "판매중인 상품",
-};
-const soldOutLabel = "판매종료";
+const displayStatusMetaLabels = {
+    BUY: "구매추천 상품",
+    WAIT: "관찰중인 상품",
+    SOLD_OUT: "판매종료 상품",
+} as const;
 
 const tabs: ProductListTab[] = [
     { key: "all", label: "전체", listTitle: "전체 상품 목록", filter: () => true },
@@ -19,19 +19,21 @@ const tabs: ProductListTab[] = [
         key: "buy",
         label: "구매추천",
         listTitle: "구매추천 목록",
-        filter: (item) => item.badgeLabel === "BUY",
+        filter: (item) =>
+            item.badgeLabel === "BUY" && item.metaLabel !== displayStatusMetaLabels.SOLD_OUT,
     },
     {
         key: "wait",
         label: "관찰중",
         listTitle: "관찰중 목록",
-        filter: (item) => item.badgeLabel === "WAIT",
+        filter: (item) =>
+            item.badgeLabel === "WAIT" && item.metaLabel !== displayStatusMetaLabels.SOLD_OUT,
     },
     {
         key: "sold-out",
         label: "판매종료",
         listTitle: "판매종료 목록",
-        filter: (item) => item.metaLabel === soldOutLabel,
+        filter: (item) => item.metaLabel === displayStatusMetaLabels.SOLD_OUT,
     },
 ];
 
@@ -46,6 +48,7 @@ export default function WishlistPage() {
             tabs={tabs}
             items={interests.map((interest) => {
                 const displayStatus = getInterestDisplayStatus(interest);
+                const recommendationBadge = interest.recommendation === "BUY" ? "BUY" : "WAIT";
 
                 return {
                     id: String(interest.interestId),
@@ -53,14 +56,9 @@ export default function WishlistPage() {
                     price: interest.price,
                     categoryName: interest.categoryName,
                     thumbnailUrl: interest.thumbnailUrl,
-                    badgeLabel: displayStatus === "SOLD_OUT" ? null : displayStatus,
-                    badgeTone: displayStatus === "BUY" ? "primary" : "dark",
-                    metaLabel:
-                        displayStatus === "SOLD_OUT"
-                            ? soldOutLabel
-                            : interest.source === "EXTERNAL"
-                              ? (interest.platformName ?? interest.status)
-                              : (statusMetaLabels[interest.status] ?? interest.status),
+                    badgeLabel: recommendationBadge,
+                    badgeTone: recommendationBadge === "BUY" ? "primary" : "dark",
+                    metaLabel: displayStatusMetaLabels[displayStatus],
                 };
             })}
             isLoading={isPending}
