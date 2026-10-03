@@ -27,6 +27,7 @@ import com.swyp.team5.member.entity.MemberRole;
 import com.swyp.team5.member.repository.MemberRepository;
 import com.swyp.team5.platform.entity.CategoryPlatform;
 import com.swyp.team5.platform.repository.CategoryPlatformRepository;
+import com.swyp.team5.product.service.ProductAiSearchService;
 import com.swyp.team5.product.service.ProductAiService;
 import org.junit.jupiter.api.Test;
 
@@ -59,6 +60,9 @@ class CategoryTest {
 
     @MockitoBean
     private ProductAiService productAiService;
+
+    @MockitoBean
+    private ProductAiSearchService productAiSearchService;
 
     // 번개장터 트리(대 26 / 중 176 / 소 601)가 경로·최하위 여부·번개장터 ID 매핑까지 그대로 들어갔는지 확인
     @Test

@@ -35,6 +35,7 @@ import com.swyp.team5.common.common.ApiResponse;
 import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.common.passport.PrincipalMember;
 import com.swyp.team5.product.dto.ListingTradeStatus;
+import com.swyp.team5.product.dto.ProductAiSearchResponse;
 import com.swyp.team5.product.dto.ProductCreateRequest;
 import com.swyp.team5.product.dto.ProductListItemResponse;
 import com.swyp.team5.product.dto.ProductResponse;
@@ -47,6 +48,7 @@ import com.swyp.team5.product.dto.ProductUpdateRequest;
 import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.ProductStatus;
+import com.swyp.team5.product.service.ProductAiSearchService;
 import com.swyp.team5.product.service.ProductRegisterStreamService;
 import com.swyp.team5.product.service.ProductService;
 import com.swyp.team5.search.service.SearchLogService;
@@ -63,6 +65,7 @@ public class ProductController {
     private final ProductService productService;
     private final ProductRegisterStreamService productRegisterStreamService;
     private final SearchLogService searchLogService;
+    private final ProductAiSearchService productAiSearchService;
 
     /**
      * 상품을 직접 등록하며 진행 상황을 SSE로 보낸다. 상품 사진 파일을 직접 받아 서버가 업로드 → AI 사진 분석 → 저장까지 한 번에
@@ -191,6 +194,29 @@ public class ProductController {
                 sort);
         return ResponseEntity.ok(ApiResponse.success(productService.getProducts(
                 currentMember == null ? null : currentMember.memberId(), searchCondition, cursor, size)));
+    }
+
+    /**
+     * 자연어 문장을 AI로 해석해 상품 목록을 검색한다(예: "아이폰 15 프로 50만원 이하 하자 없는 거"). 해석한 조건으로
+     * {@link #getProducts}와 같은 검색을 실행해 첫 페이지를 돌려주며, 다음 페이지는 응답의 {@code condition}과
+     * {@code result.nextCursor}로 {@code GET /products}를 호출한다. AI 해석에 실패하면 문장 전체를 키워드로 검색한다.
+     *
+     * @param currentMember 요청자(검색 로그 기록용, 비로그인이면 null — 비로그인도 조회 가능)
+     * @param query 검색 문장(필수, 200자 이하)
+     * @param size 페이지 크기(기본 20, 1~100)
+     * @return 200 OK + 적용한 검색 조건과 첫 페이지 결과
+     */
+    @Operation(summary = "AI 상품 검색")
+    @GetMapping("/analysis/search")
+    public ResponseEntity<ApiResponse<ProductAiSearchResponse>> searchProductsWithAi(
+            @AuthenticationPrincipal PrincipalMember currentMember,
+            @RequestParam @NotBlank @Size(max = 200) String query,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        ProductAiSearchService.Interpretation interpretation = productAiSearchService.interpret(query);
+        CursorPageResponse<ProductListItemResponse> result = productService.getProducts(
+                currentMember == null ? null : currentMember.memberId(), interpretation.condition(), null, size);
+        return ResponseEntity.ok(ApiResponse.success(
+                ProductAiSearchResponse.of(interpretation.aiApplied(), interpretation.condition(), result)));
     }
 
     /**

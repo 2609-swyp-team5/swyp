@@ -65,6 +65,8 @@ import com.swyp.team5.platform.repository.PlatformListingRepository;
 import com.swyp.team5.platform.repository.PlatformRepository;
 import com.swyp.team5.product.dto.ProductAiAnalysisResult;
 import com.swyp.team5.product.dto.ProductCreateRequest;
+import com.swyp.team5.product.dto.ProductSearchCondition;
+import com.swyp.team5.product.dto.ProductSortType;
 import com.swyp.team5.product.dto.ProductStatusUpdateRequest;
 import com.swyp.team5.product.dto.ProductUpdateRequest;
 import com.swyp.team5.product.entity.DefectStatus;
@@ -74,6 +76,7 @@ import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.repository.ProductRepository;
+import com.swyp.team5.product.service.ProductAiSearchService;
 import com.swyp.team5.product.service.ProductAiService;
 import com.swyp.team5.product.service.ProductImageLoader;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
@@ -141,6 +144,9 @@ class ProductTest {
 
     @MockitoBean
     private ProductAiService productAiService;
+
+    @MockitoBean
+    private ProductAiSearchService productAiSearchService;
 
     @MockitoBean
     private ProductImageLoader productImageLoader;
@@ -702,6 +708,55 @@ class ProductTest {
         mockMvc.perform(get("/products/{id}/analysis", productId)).andExpect(status().isUnauthorized());
         mockMvc.perform(get("/products/me")).andExpect(status().isUnauthorized());
         mockMvc.perform(multipart("/products").file(imagePart())).andExpect(status().isUnauthorized());
+    }
+
+    // AI 상품 검색 - 비로그인도 AI가 해석한 조건(키워드·최대 가격·정렬)으로 검색되고, 조건과 해석한 키워드 검색 로그가 남음
+    @Test
+    void guestCanSearchProductsWithAi() throws Exception {
+        String keyword = uniqueKeyword();
+        String query = keyword + " 50만원 이하 싼 순으로";
+        saveProduct(keyword + " 저가", 100_000L, ProductCondition.A, DefectStatus.NORMAL);
+        saveProduct(keyword + " 고가", 600_000L, ProductCondition.A, DefectStatus.NORMAL);
+        saveListing(keyword + " 중간", 200_000L, "SELLING");
+        when(productAiSearchService.interpret(query))
+                .thenReturn(new ProductAiSearchService.Interpretation(
+                        true,
+                        new ProductSearchCondition(
+                                keyword,
+                                List.of("깨짐"),
+                                null,
+                                null,
+                                null,
+                                null,
+                                500_000L,
+                                null,
+                                null,
+                                ProductSortType.PRICE_LOW)));
+
+        mockMvc.perform(get("/products/analysis/search").param("query", query))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.aiApplied").value(true))
+                .andExpect(jsonPath("$.data.condition.keyword").value(keyword))
+                .andExpect(jsonPath("$.data.condition.excludeKeyword").value("깨짐"))
+                .andExpect(jsonPath("$.data.condition.maxPrice").value(500_000))
+                .andExpect(jsonPath("$.data.condition.minPrice").doesNotExist())
+                .andExpect(jsonPath("$.data.condition.sort").value("PRICE_LOW"))
+                .andExpect(jsonPath("$.data.result.content[*].price", contains(100_000, 200_000)))
+                .andExpect(jsonPath("$.data.result.hasNext").value(false));
+
+        assertThat(searchLogRepository.findAll())
+                .filteredOn(log -> log.getKeyword().equals(keyword))
+                .singleElement()
+                .satisfies(log -> assertThat(log.getMember()).isNull());
+    }
+
+    // AI 상품 검색 - 검색 문장이 비었거나 200자를 넘으면 400
+    @Test
+    void searchProductsWithAiRejectsInvalidQuery() throws Exception {
+        mockMvc.perform(get("/products/analysis/search").param("query", " ")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/products/analysis/search").param("query", "가".repeat(201)))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/products/analysis/search")).andExpect(status().isBadRequest());
     }
 
     // 상품 목록 조회(정렬) - 가격순은 우리 상품·외부 매물을 섞어 정렬하고 커서로 다음 페이지를 이어서 조회함

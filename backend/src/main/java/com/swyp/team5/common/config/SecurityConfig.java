@@ -51,7 +51,7 @@ public class SecurityConfig {
 
     /** 비로그인 사용자에게도 허용하는 일반 검색용 조회 API(GET만). 상세·분석·관심 등 그 밖의 기능은 로그인이 필요하다. */
     private static final String[] PUBLIC_GET_PATTERNS = {
-        "/products", "/products/keywords/trending", "/products/popular", "/categories"
+        "/products", "/products/analysis/search", "/products/keywords/trending", "/products/popular", "/categories"
     };
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
