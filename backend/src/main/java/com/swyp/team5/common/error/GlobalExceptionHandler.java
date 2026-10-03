@@ -19,6 +19,8 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import com.swyp.team5.admin.error.InvalidMemberStatusException;
+import com.swyp.team5.admin.error.SelfStatusChangeException;
 import com.swyp.team5.auth.error.DuplicateEmailException;
 import com.swyp.team5.auth.error.DuplicatePhoneException;
 import com.swyp.team5.auth.error.InactiveMemberException;
@@ -91,6 +93,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(PasswordChangeNotAllowedException.class)
     public ResponseEntity<ApiResponse<Void>> handlePasswordChangeNotAllowed(PasswordChangeNotAllowedException e) {
         log.warn("비밀번호 변경 불가: {}", ErrorLogs.describe(e));
+        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
+    }
+
+    @ExceptionHandler({InvalidMemberStatusException.class, SelfStatusChangeException.class})
+    public ResponseEntity<ApiResponse<Void>> handleInvalidAdminStatusChange(RuntimeException e) {
+        log.warn("허용되지 않은 관리자 상태 변경: {}", ErrorLogs.describe(e));
         return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
     }
 
