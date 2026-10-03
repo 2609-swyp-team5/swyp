@@ -46,6 +46,7 @@ import com.swyp.team5.productanalysis.dto.PriceForecastResponse;
 import com.swyp.team5.productanalysis.dto.PriceTrendResponse;
 import com.swyp.team5.productanalysis.dto.ProductAnalysisResponse;
 import com.swyp.team5.productanalysis.dto.ProductCompetitionResponse;
+import com.swyp.team5.productanalysis.dto.ProductForecastResponse;
 import com.swyp.team5.productanalysis.entity.AnalysisConfidence;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.ForecastPeriod;
@@ -577,6 +578,67 @@ class ProductAnalysisServiceTest {
         verify(productAnalysisRepository).save(any());
         // 판매가 900원이 평균 시세 2,000원보다 저렴해 BUY
         verify(notificationService).notifyListingRecommendationChanged(target, null, AnalysisRecommendation.BUY);
+    }
+
+    // 감가 예측 조회 - 가장 최근 분석의 예측을 1M/3M/6M 순으로 반환
+    @Test
+    void getForecastReturnsLatestForecastsSorted() {
+        Product product = product(1L, 10L, 800_000L);
+        LocalDateTime analyzedAt = LocalDateTime.of(2026, 9, 19, 10, 0);
+        ProductAnalysis analysis = ProductAnalysis.create(
+                product,
+                1000L,
+                3000L,
+                5000L,
+                BigDecimal.valueOf(0.5),
+                AnalysisRecommendation.SELL,
+                3200L,
+                "설명",
+                analyzedAt);
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.of(analysis));
+        when(priceForecastRepository.findByAnalysisId(analysis.getId()))
+                .thenReturn(List.of(
+                        PriceForecast.of(analysis, ForecastPeriod.SIX_MONTHS, 2_000L),
+                        PriceForecast.of(analysis, ForecastPeriod.ONE_MONTH, 3_000L),
+                        PriceForecast.of(analysis, ForecastPeriod.THREE_MONTHS, 2_500L)));
+
+        ProductForecastResponse response = service().getForecast(1L);
+
+        assertThat(response.productId()).isEqualTo(1L);
+        assertThat(response.currentPrice()).isEqualTo(800_000L);
+        assertThat(response.analyzedAt()).isEqualTo(analyzedAt);
+        assertThat(response.forecasts())
+                .containsExactly(
+                        new PriceForecastResponse("1M", 3_000L),
+                        new PriceForecastResponse("3M", 2_500L),
+                        new PriceForecastResponse("6M", 2_000L));
+    }
+
+    // 감가 예측 조회 - 분석 이력이 없으면 상품 ID·현재 등록가만 채우고 예측은 빈 배열
+    @Test
+    void getForecastReturnsEmptyWhenNoSnapshotExists() {
+        Product product = product(1L, 10L, 800_000L);
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.empty());
+
+        ProductForecastResponse response = service().getForecast(1L);
+
+        assertThat(response.productId()).isEqualTo(1L);
+        assertThat(response.currentPrice()).isEqualTo(800_000L);
+        assertThat(response.analysisId()).isNull();
+        assertThat(response.analyzedAt()).isNull();
+        assertThat(response.forecasts()).isEmpty();
+    }
+
+    // 감가 예측 조회 실패 - 존재하지 않는 상품
+    @Test
+    void getForecastThrowsWhenProductNotFound() {
+        when(itemRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service().getForecast(999L)).isInstanceOf(ProductNotFoundException.class);
     }
 
     // 조회 실패 - 존재하지 않는 상품
