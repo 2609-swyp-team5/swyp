@@ -1,10 +1,13 @@
 package com.swyp.team5.member.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.swyp.team5.auth.error.DuplicatePhoneException;
@@ -22,6 +25,7 @@ import com.swyp.team5.member.error.MemberNotFoundException;
 import com.swyp.team5.member.error.PasswordChangeNotAllowedException;
 import com.swyp.team5.member.repository.MemberRepository;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MemberService {
@@ -82,8 +86,20 @@ public class MemberService {
         }
 
         Member member = findMember(memberId);
+        String previousKey = member.getProfileImageKey();
         FileUploadResponse uploaded = fileStorageService.upload(image, PROFILE_IMAGE_DIRECTORY);
-        member.changeProfileImage(uploaded.url());
+        member.changeProfileImage(uploaded.url(), uploaded.key());
+        deleteStoredFileAfterCommit(previousKey);
+
+        return MemberResponse.from(member);
+    }
+
+    @Transactional
+    public MemberResponse deleteProfileImage(Long memberId) {
+        Member member = findMember(memberId);
+        String previousKey = member.getProfileImageKey();
+        member.changeProfileImage(null, null);
+        deleteStoredFileAfterCommit(previousKey);
 
         return MemberResponse.from(member);
     }
@@ -98,5 +114,21 @@ public class MemberService {
 
     private Member findMember(Long memberId) {
         return memberRepository.findById(memberId).orElseThrow(() -> new MemberNotFoundException(memberId));
+    }
+
+    private void deleteStoredFileAfterCommit(String key) {
+        if (key == null) {
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    fileStorageService.delete(key);
+                } catch (RuntimeException e) {
+                    log.warn("이전 프로필 이미지 파일 삭제 실패: key={}", key, e);
+                }
+            }
+        });
     }
 }
