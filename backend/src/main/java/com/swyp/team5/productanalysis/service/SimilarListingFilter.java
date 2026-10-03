@@ -106,6 +106,20 @@ final class SimilarListingFilter {
                 .toList();
     }
 
+    /** {@link #removeOutliers}와 같은 기준으로 가격 이상치 매물을 뺀다(순서 유지). */
+    static List<PlatformListing> removeOutlierListings(List<PlatformListing> listings) {
+        List<Long> kept =
+                removeOutliers(listings.stream().map(PlatformListing::getPrice).toList());
+        if (kept.isEmpty()) {
+            return List.of();
+        }
+        long min = kept.getFirst();
+        long max = kept.getLast();
+        return listings.stream()
+                .filter(listing -> listing.getPrice() >= min && listing.getPrice() <= max)
+                .toList();
+    }
+
     private static long quartile(List<Long> sorted, double fraction) {
         return sorted.get((int) Math.round(fraction * (sorted.size() - 1)));
     }

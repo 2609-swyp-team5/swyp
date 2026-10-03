@@ -21,6 +21,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.LongStream;
 
 import org.springframework.ai.chat.client.ChatClient;
 
@@ -39,10 +40,12 @@ import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.productanalysis.config.ProductAnalysisProperties;
+import com.swyp.team5.productanalysis.dto.CompetitionLevel;
 import com.swyp.team5.productanalysis.dto.MarketAnalysisResult;
 import com.swyp.team5.productanalysis.dto.PriceForecastResponse;
 import com.swyp.team5.productanalysis.dto.PriceTrendResponse;
 import com.swyp.team5.productanalysis.dto.ProductAnalysisResponse;
+import com.swyp.team5.productanalysis.dto.ProductCompetitionResponse;
 import com.swyp.team5.productanalysis.entity.AnalysisConfidence;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.ForecastPeriod;
@@ -60,7 +63,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class ProductAnalysisServiceTest {
 
-    private static final ProductAnalysisProperties PROPERTIES = new ProductAnalysisProperties(3, 24, 30, 0L, null);
+    private static final ProductAnalysisProperties PROPERTIES =
+            new ProductAnalysisProperties(3, 24, 30, 0L, null, null);
 
     private final ChatClient geminiAiClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
     private final ChatClient openAiClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
@@ -729,6 +733,136 @@ class ProductAnalysisServiceTest {
         ProductAnalysisResponse response = service().getLatestAnalysis(1L);
 
         assertThat(response.marketPriceDiffRate()).isEqualByComparingTo("11.1"); // 등록가가 평균보다 11.1% 비쌈
+    }
+
+    private static final LocalDateTime BASE_TIME = LocalDateTime.of(2026, 10, 1, 0, 0);
+
+    /** 경쟁 매물 — {@code hoursAgo}가 작을수록 최근 수집(등록)된 매물. */
+    private static PlatformListing competitor(Long id, String title, long price, long hoursAgo) {
+        PlatformListing listing = mock(PlatformListing.class, RETURNS_DEEP_STUBS);
+        lenient().when(listing.getId()).thenReturn(id);
+        lenient().when(listing.getTitle()).thenReturn(title);
+        lenient().when(listing.getPrice()).thenReturn(price);
+        lenient().when(listing.getCreatedAt()).thenReturn(BASE_TIME.minusHours(hoursAgo));
+        lenient().when(listing.getPlatform().getName()).thenReturn("번개장터");
+        lenient().when(listing.getImageUrl()).thenReturn("https://image.example.com/" + id + ".jpg");
+        lenient().when(listing.getListingUrl()).thenReturn("https://m.bunjang.co.kr/products/" + id);
+        return listing;
+    }
+
+    private static List<PlatformListing> competitors(int count, long price) {
+        return LongStream.rangeClosed(101, 100 + count)
+                .mapToObj(id -> competitor(id, "아이패드 프로", price, id))
+                .toList();
+    }
+
+    // 경쟁 상품 - 같은 유형만 세고(다른 물건·가격 이상치 제외) 최신 등록 순 3건, 평균 시세는 같은 유형 매물 평균
+    @Test
+    void getCompetitionCountsSameTypeAndListsLatestListings() {
+        Product product = product(1L, 10L, 500_000L);
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
+        List<PlatformListing> sameCategory = List.of(
+                competitor(11L, "아이패드 프로 11", 480_000L, 50),
+                competitor(12L, "아이패드 프로 11", 510_000L, 3),
+                competitor(13L, "아이패드 프로 11", 530_000L, 1),
+                competitor(14L, "아이패드 프로 11", 490_000L, 10),
+                competitor(15L, "아이패드 프로 11", 520_000L, 2),
+                competitor(16L, "아이패드 프로 11", 470_000L, 100),
+                competitor(17L, "갤럭시탭 S9", 300_000L, 0), // 다른 물건
+                competitor(18L, "아이패드 프로 11", 3_000_000L, 0)); // 가격 이상치
+        givenListings(10L, sameCategory);
+
+        ProductCompetitionResponse response = service().getCompetition(1L);
+
+        assertThat(response.productId()).isEqualTo(1L);
+        ProductCompetitionResponse.Competition competition = response.competition();
+        assertThat(competition.count()).isEqualTo(6);
+        assertThat(competition.level()).isEqualTo(CompetitionLevel.MEDIUM);
+        assertThat(competition.levelLabel()).isEqualTo("보통");
+        assertThat(competition.items())
+                .extracting(ProductCompetitionResponse.Item::productId)
+                .containsExactly(13L, 15L, 12L);
+        // 같은 유형 6건 평균 500,000원 기준
+        ProductCompetitionResponse.Item first = competition.items().get(0);
+        assertThat(first.platform()).isEqualTo("BUNJANG");
+        assertThat(first.platformName()).isEqualTo("번개장터");
+        assertThat(first.listingPrice()).isEqualTo(530_000L);
+        assertThat(first.marketAveragePrice()).isEqualTo(500_000L);
+        assertThat(first.priceDiffRate()).isEqualByComparingTo("6.00");
+        assertThat(first.productUrl()).isEqualTo("https://m.bunjang.co.kr/products/13");
+        assertThat(competition.items().get(2).priceDiffRate()).isEqualByComparingTo("2.00");
+        // 저장된 시세 분석은 읽지 않음
+        verify(productAnalysisRepository, never()).findFirstByItemIdOrderByAnalyzedAtDesc(any());
+    }
+
+    // 경쟁 상품 - 같은 유형이 3건 미만이면 평균 시세·차이율은 null
+    @Test
+    void getCompetitionLeavesAverageNullWhenTooFewListings() {
+        Product product = product(1L, 10L, 500_000L);
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
+        List<PlatformListing> two =
+                List.of(competitor(11L, "아이패드 프로", 480_000L, 1), competitor(12L, "아이패드 프로", 520_000L, 2));
+        givenListings(10L, two);
+
+        ProductCompetitionResponse.Competition competition =
+                service().getCompetition(1L).competition();
+
+        assertThat(competition.count()).isEqualTo(2);
+        assertThat(competition.level()).isEqualTo(CompetitionLevel.LOW);
+        assertThat(competition.items()).allSatisfy(item -> {
+            assertThat(item.marketAveragePrice()).isNull();
+            assertThat(item.priceDiffRate()).isNull();
+        });
+    }
+
+    // 경쟁 상품 - 경쟁 정도 경계(4건 LOW, 5·9건 MEDIUM, 10건 HIGH), 목록은 최대 3건
+    @Test
+    void getCompetitionLevelBoundaries() {
+        Product product = product(1L, 10L, 500_000L);
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
+
+        for (Object[] expected : new Object[][] {
+            {4, CompetitionLevel.LOW},
+            {5, CompetitionLevel.MEDIUM},
+            {9, CompetitionLevel.MEDIUM},
+            {10, CompetitionLevel.HIGH}
+        }) {
+            List<PlatformListing> listings = competitors((int) expected[0], 500_000L);
+            givenListings(10L, listings);
+
+            ProductCompetitionResponse.Competition competition =
+                    service().getCompetition(1L).competition();
+
+            assertThat(competition.count()).isEqualTo(expected[0]);
+            assertThat(competition.level()).isEqualTo(expected[1]);
+            assertThat(competition.items()).hasSize(3);
+        }
+    }
+
+    // 경쟁 상품 - 기준이 외부 매물이면 자기 자신은 경쟁 상품에서 뺌
+    @Test
+    void getCompetitionExcludesItselfForExternalListing() {
+        PlatformListing target = listing(100L, 10L, "아이패드 프로", 500_000L);
+        when(itemRepository.findById(100L)).thenReturn(Optional.of(target));
+        List<PlatformListing> sameCategory =
+                List.of(target, competitor(11L, "아이패드 프로", 490_000L, 2), competitor(12L, "아이패드 프로", 520_000L, 1));
+        givenListings(10L, sameCategory);
+
+        ProductCompetitionResponse.Competition competition =
+                service().getCompetition(100L).competition();
+
+        assertThat(competition.count()).isEqualTo(2);
+        assertThat(competition.items())
+                .extracting(ProductCompetitionResponse.Item::productId)
+                .containsExactly(12L, 11L);
+    }
+
+    // 경쟁 상품 실패 - 존재하지 않는 상품
+    @Test
+    void getCompetitionThrowsWhenProductNotFound() {
+        when(itemRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service().getCompetition(999L)).isInstanceOf(ProductNotFoundException.class);
     }
 
     // 가격 추이 조회 실패 - 존재하지 않는 상품

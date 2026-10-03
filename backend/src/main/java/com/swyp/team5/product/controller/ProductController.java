@@ -51,6 +51,7 @@ import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.service.ProductAiSearchService;
 import com.swyp.team5.product.service.ProductRegisterStreamService;
 import com.swyp.team5.product.service.ProductService;
+import com.swyp.team5.productanalysis.dto.ProductCompetitionResponse;
 import com.swyp.team5.search.service.SearchLogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -143,6 +144,18 @@ public class ProductController {
             @AuthenticationPrincipal PrincipalMember currentMember, @PathVariable Long productId) {
         productService.recordView(productId, currentMember.memberId());
         return ResponseEntity.ok(ApiResponse.success(productService.getProduct(productId, currentMember.memberId())));
+    }
+
+    /**
+     * 수집한 외부 매물 중 기준 상품과 같은 유형의 판매 중 매물(경쟁 상품)을 조회한다(AI 호출 없음).
+     *
+     * @param productId 기준 상품 ID(외부 매물 ID 포함)
+     * @return 200 OK + 경쟁 상품 수·경쟁 정도·가격이 가까운 매물 목록(없으면 count 0, 빈 목록)
+     */
+    @Operation(summary = "경쟁 상품 조회")
+    @GetMapping("/{productId}/competition")
+    public ResponseEntity<ApiResponse<ProductCompetitionResponse>> getCompetition(@PathVariable Long productId) {
+        return ResponseEntity.ok(ApiResponse.success(productService.getCompetition(productId)));
     }
 
     /**
