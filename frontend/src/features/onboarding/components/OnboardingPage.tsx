@@ -11,19 +11,17 @@ import { AudienceSection } from "@/features/onboarding/components/AudienceSectio
 import { StartSection } from "@/features/onboarding/components/StartSection";
 
 export function OnboardingPage() {
-    const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
     const isInitialized = useAuthStore((state) => state.isInitialized);
-    const startHref = isLoggedIn ? "/home" : "/login";
     const handleScrollToTop = useSmoothScroll();
     return (
         <MotionConfig reducedMotion="user">
             <LazyMotion features={domAnimation} strict>
                 <main className="bg-white">
-                    <HeroSection startHref={startHref} isInitialized={isInitialized} />
+                    <HeroSection startHref="/home" isInitialized={isInitialized} />
                     <StepsSection />
                     <AnalysisSection />
                     <AudienceSection />
-                    <StartSection startHref={startHref} isInitialized={isInitialized} />
+                    <StartSection startHref="/home" isInitialized={isInitialized} />
                     <ScrollToTopButton onClick={handleScrollToTop} />
                 </main>
             </LazyMotion>

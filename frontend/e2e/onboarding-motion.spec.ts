@@ -12,9 +12,17 @@ test("onboarding reveals sections on scroll while keeping its entry immediately 
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "지금 팔까, 더 갖고 있을까?" })).toBeVisible();
     await expect(page.getByRole("link", { name: "시작하기", exact: true })).toBeVisible();
+    expect(
+        await page
+            .locator("#steps-heading")
+            .evaluate((heading) => heading.getBoundingClientRect().top),
+    ).toBeGreaterThanOrEqual(page.viewportSize()!.height);
     await expect(
         page.getByAltText("돋보기로 물건을 살펴보는 AI 캐릭터").locator("../../../.."),
     ).toHaveCSS("opacity", "1");
+    await expect(
+        page.getByRole("heading", { name: "지금 팔까, 더 갖고 있을까?" }).locator("../../.."),
+    ).toHaveCSS("transform", "none");
     await page.screenshot({ path: testInfo.outputPath("onboarding-hero.png") });
 
     for (const title of [
@@ -31,10 +39,19 @@ test("onboarding reveals sections on scroll while keeping its entry immediately 
     await firstCard.scrollIntoViewIfNeeded();
     await expect(firstCard).toHaveCSS("opacity", "1");
     await expect(firstCard).toHaveCSS("transform", "none");
-    await firstCard.hover();
-    await expect(firstCard).not.toHaveCSS("transform", "none");
+    const firstImage = firstCard.locator("img");
+    const firstDescription = firstCard.locator("p");
     await page.mouse.move(0, 0);
+    await expect(firstDescription).toHaveCSS("opacity", "0");
+    await firstCard.hover();
     await expect(firstCard).toHaveCSS("transform", "none");
+    await expect(firstImage).toHaveCSS("transform", "matrix(1.12, 0, 0, 1.12, 0, 0)");
+    await expect(firstDescription).toHaveCSS("opacity", "1");
+    await expect(firstDescription).toHaveCSS("transform", "matrix(1, 0, 0, 1, 0, 0)");
+    await page.mouse.move(0, 0);
+    await expect(firstDescription).toHaveCSS("opacity", "0");
+    await firstCard.focus();
+    await expect(firstDescription).toHaveCSS("opacity", "1");
     await page.screenshot({ path: testInfo.outputPath("onboarding-cards.png") });
     expect(errors).toEqual([]);
 });
@@ -53,6 +70,7 @@ test("mobile reduced-motion users can read the cards without horizontal overflow
     await card.scrollIntoViewIfNeeded();
     await expect(card).toHaveCSS("opacity", "1");
     await expect(card).toHaveCSS("transform", "none");
+    await expect(card.locator("p")).toHaveCSS("opacity", "1");
     expect(
         await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);
@@ -60,7 +78,7 @@ test("mobile reduced-motion users can read the cards without horizontal overflow
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
     await page.getByRole("link", { name: "지금 시작하기" }).scrollIntoViewIfNeeded();
     await page.getByRole("link", { name: "지금 시작하기" }).click();
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page).toHaveURL(/\/home$/);
 });
 
 test("the character floats and follows the mouse, then returns to its resting tilt", async ({
@@ -96,8 +114,8 @@ test("smooth wheel scrolling is scoped to onboarding and respects reduced motion
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await expect(page.locator("html")).toHaveClass(/lenis/);
 
-    await page.locator('main a[href="/login"]').first().click();
-    await expect(page).toHaveURL(/\/login$/);
+    await page.getByRole("link", { name: "시작하기", exact: true }).click();
+    await expect(page).toHaveURL(/\/home$/);
     await expect(page.locator("html")).not.toHaveClass(/lenis/);
 });
 
@@ -134,7 +152,7 @@ test("onboarding buttons keep their behavior with the Figma scroll-to-top design
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
 
     await start.click();
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page).toHaveURL(/\/home$/);
     await expect(header).toHaveCSS("position", "static");
     await expect(topButton).toHaveCount(0);
 });
@@ -150,5 +168,34 @@ test("the first screen remains readable without JavaScript", async ({ browser })
         await expect(page.getByRole("link", { name: "시작하기", exact: true })).toBeVisible();
     } finally {
         await context.close();
+    }
+});
+
+test("hero and final-section text reveal together, with the next section below the first screen", async ({
+    page,
+}) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/");
+    expect(
+        await page
+            .locator("#steps-heading")
+            .evaluate((heading) => heading.getBoundingClientRect().top),
+    ).toBeGreaterThanOrEqual(900);
+
+    const hero = page.locator("main > section").first();
+    await expect(hero.locator('[style*="clip-path"]')).toHaveCount(0);
+    await expect(hero.locator("h1").locator("../../..")).toHaveCSS("transform", "none");
+    for (const section of [page.locator("main > section").last()]) {
+        await section.scrollIntoViewIfNeeded();
+        const text = section.locator('[style*="clip-path"]');
+        await expect
+            .poll(() => text.first().evaluate((element) => getComputedStyle(element).clipPath))
+            .not.toBe("inset(100% 0px 0px)");
+        const clips = await text.evaluateAll((elements) =>
+            elements.map((element) => getComputedStyle(element).clipPath),
+        );
+        expect(clips.length).toBeGreaterThanOrEqual(3);
+        expect(new Set(clips).size).toBe(1);
+        await expect(text.first()).toHaveCSS("clip-path", "inset(-16px)");
     }
 });

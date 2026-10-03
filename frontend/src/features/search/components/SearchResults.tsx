@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import type { RefObject } from "react";
-import Link from "next/link";
 
 import { Button } from "@/common/components/ui/Button";
 import {
@@ -23,7 +22,6 @@ export function SearchResults({
     liked,
     onLike,
     isLoading,
-    isGuest,
     error,
     onRetry,
     isFetchingNextPage,
@@ -35,7 +33,6 @@ export function SearchResults({
     liked: Record<string, boolean>;
     onLike: (key: string) => void;
     isLoading: boolean;
-    isGuest: boolean;
     error: unknown;
     onRetry: () => void;
     isFetchingNextPage: boolean;
@@ -64,7 +61,7 @@ export function SearchResults({
                         {keyword ? "'" + keyword + "'" : "전체 상품"}
                     </h1>
                     <p className="text-[#6b7395]">
-                        {isGuest || isLoading ? "상품 검색" : `검색결과 ${products.length}개 표시`}
+                        {isLoading ? "상품 검색" : `검색결과 ${products.length}개 표시`}
                     </p>
                 </div>
                 <Select value={sort} onValueChange={setSort}>
@@ -87,13 +84,6 @@ export function SearchResults({
                 <p role="status" className="text-base text-[#83889e]">
                     상품을 불러오는 중입니다.
                 </p>
-            ) : isGuest ? (
-                <div className="flex flex-col items-start gap-4">
-                    <p className="text-base text-[#83889e]">로그인 후 상품을 조회할 수 있습니다.</p>
-                    <Button asChild>
-                        <Link href="/login">로그인</Link>
-                    </Button>
-                </div>
             ) : !error && products.length === 0 ? (
                 <p role="status" className="text-base text-[#83889e]">
                     검색 결과가 없습니다.
@@ -132,7 +122,7 @@ export function SearchResults({
                         ))}
                 </div>
             ) : null}
-            {Boolean(error) && !isGuest && (
+            {Boolean(error) && (
                 <div className="flex flex-col items-start gap-4">
                     <p role="alert" className="text-base text-[#fa503d]">
                         {getApiErrorMessage(error)}

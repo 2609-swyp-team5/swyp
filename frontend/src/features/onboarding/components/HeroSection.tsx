@@ -4,9 +4,10 @@ import Image from "next/image";
 import { useRef, type PointerEvent } from "react";
 import { useInView, useReducedMotion, useSpring } from "motion/react";
 import * as m from "motion/react-m";
-import { textRiseMotion } from "@/features/onboarding/onboardingMotion";
+import { revealMotion } from "@/features/onboarding/onboardingMotion";
 import { OnboardingBackground } from "@/features/onboarding/components/shared/OnboardingBackground";
 import { StartButton } from "@/features/onboarding/components/shared/StartButton";
+import styles from "@/features/onboarding/onboarding.module.css";
 
 export function HeroSection({
     startHref,
@@ -39,29 +40,18 @@ export function HeroSection({
     return (
         <section className="relative isolate overflow-hidden">
             <OnboardingBackground />
-            <div className="layout-container relative grid gap-10 py-16 lg:block lg:min-h-[630px] lg:py-0">
-                <div className="relative z-10 space-y-10 lg:w-[665px] lg:max-w-[60%] lg:pt-[155px]">
-                    <div className="space-y-4">
+            <div className="layout-container relative grid min-h-[calc(100svh-var(--header-height))] gap-10 pt-24 pb-16 lg:block lg:min-h-[max(742px,calc(100svh-var(--header-height)))] lg:py-0">
+                <div className="relative z-10 space-y-10 lg:w-[665px] lg:max-w-[60%] lg:pt-[267px]">
+                    <m.div {...revealMotion} className={`${styles.riseText} space-y-4`}>
                         <div className="space-y-2.5">
-                            <m.p
-                                {...textRiseMotion}
-                                className="typography-body-medium text-base leading-7 font-semibold text-[#6b6c7b] md:text-[20px] md:leading-[30px]"
-                            >
+                            <p className="typography-body-medium text-base leading-7 font-semibold text-[#6b6c7b] md:text-[20px] md:leading-[30px]">
                                 AI와 함께하는 똑똑한 중고거래
-                            </m.p>
-                            <m.h1
-                                {...textRiseMotion}
-                                transition={{ ...textRiseMotion.transition, delay: 0.18 }}
-                                className="typography-heading-01 text-[36px] leading-[1.25] text-[#363636] min-[1400px]:text-[60px] min-[1400px]:leading-[75px] min-[1400px]:whitespace-nowrap md:text-[44px]"
-                            >
+                            </p>
+                            <h1 className="typography-heading-01 text-[36px] leading-[1.25] break-keep text-[#363636] min-[1400px]:whitespace-nowrap md:text-[44px] lg:text-[60px] lg:leading-[75px]">
                                 지금 팔까, 더 갖고 있을까?
-                            </m.h1>
+                            </h1>
                         </div>
-                        <m.p
-                            {...textRiseMotion}
-                            transition={{ ...textRiseMotion.transition, delay: 0.36 }}
-                            className="max-w-[612px] text-[16px] leading-[25px] font-normal tracking-normal text-[#464646]"
-                        >
+                        <p className="max-w-[612px] text-[16px] leading-[25px] font-normal tracking-normal text-[#464646]">
                             <span className="lg:block">
                                 집에 있는 물건과 사고 싶은 물건을 등록해두면,{" "}
                             </span>
@@ -71,11 +61,12 @@ export function HeroSection({
                             <span className="lg:block">
                                 지금이 팔 때인지, 살 때인지 알려드려요.
                             </span>
-                        </m.p>
-                    </div>
+                        </p>
+                    </m.div>
                     <m.div
-                        {...textRiseMotion}
-                        transition={{ ...textRiseMotion.transition, delay: 0.54 }}
+                        {...revealMotion}
+                        transition={{ ...revealMotion.transition, delay: 0.2 }}
+                        className={styles.riseText}
                     >
                         <StartButton href={startHref} isInitialized={isInitialized} />
                     </m.div>
@@ -87,7 +78,7 @@ export function HeroSection({
                     transition={{ type: "spring", stiffness: 140, damping: 16 }}
                     onPointerMove={handleHeroPointerMove}
                     onPointerLeave={resetHeroPointer}
-                    className="relative mx-auto aspect-[563/539] w-full max-w-[563px] [perspective:1000px] lg:absolute lg:top-[72px] lg:-right-10 lg:w-[46.3%]"
+                    className="relative mx-auto aspect-[563/539] w-full max-w-[563px] [perspective:1000px] lg:absolute lg:top-[184px] lg:-right-10 lg:w-[46.3%]"
                 >
                     <m.div
                         className="absolute inset-0"

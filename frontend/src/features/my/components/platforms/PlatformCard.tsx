@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useState, type FormEvent } from "react";
 import { Button } from "@/common/components/ui/Button";
 import { Input } from "@/common/components/ui/Input";
 
@@ -19,8 +20,24 @@ type PlatformCardProps = {
 };
 
 export function PlatformCard({ item, status, onSelect }: PlatformCardProps) {
+    const [connectionValue, setConnectionValue] = useState("");
+    const [hasError, setHasError] = useState(false);
+    const errorId = `${item.id}-connection-error`;
+    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (status !== "connected" && !connectionValue.trim()) {
+            setHasError(true);
+            return;
+        }
+        setHasError(false);
+        onSelect();
+    };
+
     return (
-        <div className="flex min-h-[154px] flex-col rounded-[10px] border border-[#dedee6] bg-white px-5 pt-5 pb-[15px]">
+        <form
+            onSubmit={handleSubmit}
+            className="flex min-h-[154px] flex-col rounded-[10px] border border-[#dedee6] bg-white px-5 pt-5 pb-[15px]"
+        >
             <div className="flex items-center gap-[10px]">
                 <Image
                     src={item.icon}
@@ -61,24 +78,47 @@ export function PlatformCard({ item, status, onSelect }: PlatformCardProps) {
                     </>
                 )}
             </p>
-            {status === "expired" && (
-                <Input
-                    aria-label={`${item.name} 재연결 정보`}
-                    className="mt-[10px] h-[19px] rounded-none border-0 bg-[#d9d9d9] px-1 py-0 text-[10px] focus-visible:ring-1"
-                />
+            {status !== "connected" && (
+                <div className="mt-[10px]">
+                    <Input
+                        aria-label={`${item.name} 연결 정보`}
+                        aria-required="true"
+                        aria-invalid={hasError}
+                        aria-describedby={hasError ? errorId : undefined}
+                        placeholder="연결 정보를 입력해주세요"
+                        value={connectionValue}
+                        onChange={(event) => {
+                            setConnectionValue(event.target.value);
+                            if (event.target.value.trim()) setHasError(false);
+                        }}
+                        className="h-9 border-[#dedee6] bg-white text-[13px] placeholder:text-[#83889e] md:text-[13px]"
+                    />
+                    {hasError && (
+                        <p
+                            id={errorId}
+                            role="alert"
+                            className="text-destructive mt-1 text-xs leading-5"
+                        >
+                            연결 정보를 입력해주세요.
+                        </p>
+                    )}
+                </div>
             )}
             <Button
                 variant="outline"
-                onClick={onSelect}
-                aria-label={item.name + (status === "connected" ? " 연결 해제" : " 연결하기")}
+                type="submit"
+                aria-label={
+                    item.name +
+                    (status === "connected"
+                        ? " 연결 해제"
+                        : status === "expired"
+                          ? " 다시 연결"
+                          : " 연결")
+                }
                 className="mt-[10px] ml-auto h-[19px] rounded-full border-[#6b6c7b] px-[10px] text-[10px] leading-[15px] tracking-[-0.5px] text-[#6b6c7b] hover:border-[#6653fb] hover:bg-[#fafbff] hover:text-[#6653fb] focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30 dark:hover:bg-[#fafbff]"
             >
-                {status === "connected"
-                    ? "연결 해제"
-                    : status === "expired"
-                      ? "다시 연결"
-                      : "연결하기"}
+                {status === "connected" ? "연결 해제" : status === "expired" ? "다시 연결" : "연결"}
             </Button>
-        </div>
+        </form>
     );
 }

@@ -9,30 +9,39 @@ import {
     TableCell,
 } from "@/common/components/ui/Table";
 import { cn } from "@/common/lib/utils";
-import type { MY_PREVIEW_PRODUCTS } from "@/features/my/myPreviewData";
+import type { MyProduct, MyProductStatus } from "@/features/my/types";
 
-const cellClassName = "px-3 py-4";
+const cellClassName = "px-5 py-5";
+const statusLabels: Record<MyProductStatus, string> = {
+    DRAFT: "등록됨",
+    ON_SALE: "판매중",
+    SOLD_OUT: "판매완료",
+};
 
 export function ProductTable({
     products,
+    isLoading,
+    isError,
 }: {
-    products: readonly (typeof MY_PREVIEW_PRODUCTS)[number][];
+    products: readonly MyProduct[];
+    isLoading: boolean;
+    isError: boolean;
 }) {
     return (
-        <Table className="min-w-[760px] table-fixed text-left">
+        <Table className="min-w-[800px] table-fixed text-left text-[14px] leading-[22px]">
             <colgroup>
-                <col className="w-[28%]" />
-                <col className="w-[17%]" />
-                <col className="w-[17%]" />
-                <col className="w-[17%]" />
-                <col className="w-[21%]" />
+                <col className="w-[34%]" />
+                <col className="w-[18%]" />
+                <col className="w-[18%]" />
+                <col className="w-[15%]" />
+                <col className="w-[15%]" />
             </colgroup>
             <TableHeader className="bg-[#fafbff]">
                 <TableRow className="border-[#fafbff] hover:bg-[#fafbff]">
                     {["상품 이름", "가격", "플랫폼", "상품 상태", "시세 변동"].map((label) => (
                         <TableHead
                             key={label}
-                            className="h-[65px] px-3 text-[16px] font-semibold tracking-[0.5px] text-[#83889e] first:pl-[30px] last:pr-[30px]"
+                            className="h-[65px] px-5 text-[16px] font-semibold tracking-[0.5px] text-[#83889e]"
                         >
                             {label}
                         </TableHead>
@@ -40,48 +49,52 @@ export function ProductTable({
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {products.map((item) => (
-                    <TableRow key={item.id} className="border-[#d3d3d3] hover:bg-[#fafbff]/50">
-                        <TableCell className="py-4 pr-3 pl-6 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#363636]">
-                            {item.name}
-                        </TableCell>
-                        <TableCell
-                            className={`${cellClassName} text-[16px] leading-[25px] text-[#83889e] tabular-nums`}
-                        >
-                            {item.price.toLocaleString("ko-KR")}원
-                        </TableCell>
-                        <TableCell className={cellClassName}>
-                            <span className="inline-flex rounded-full bg-[#fafbff] px-[10px] py-1 text-[12px] leading-4 font-semibold text-[#83889e]">
-                                {item.platform}
-                            </span>
-                        </TableCell>
-                        <TableCell className={cellClassName}>
-                            <span
-                                className={cn(
-                                    "inline-flex rounded-full bg-[#fafbff] px-[10px] py-1 text-[12px] leading-[18px] font-semibold",
-                                    item.status === "판매 중" ? "text-[#6653fb]" : "text-[#83889e]",
-                                )}
-                            >
-                                {item.status}
-                            </span>
-                        </TableCell>
-                        <TableCell
-                            className={cn(
-                                cellClassName,
-                                "text-[13px] leading-5 font-semibold tabular-nums last:pr-[30px]",
-                                item.change === null
-                                    ? "text-[#83889e]"
-                                    : item.change > 0
-                                      ? "text-[#6b6c7b]"
-                                      : "text-[#fa503d]",
-                            )}
-                        >
-                            {item.change === null
-                                ? "—"
-                                : (item.change > 0 ? "+" : "") + item.change + "%"}
+                {isLoading ? (
+                    <TableRow>
+                        <TableCell colSpan={5} className={`${cellClassName} text-[#83889e]`}>
+                            <p role="status">상품을 불러오는 중입니다.</p>
                         </TableCell>
                     </TableRow>
-                ))}
+                ) : products.length === 0 && !isError ? (
+                    <TableRow>
+                        <TableCell colSpan={5} className={`${cellClassName} text-[#83889e]`}>
+                            <p role="status">해당 상태의 상품이 없습니다.</p>
+                        </TableCell>
+                    </TableRow>
+                ) : (
+                    products.map((item) => (
+                        <TableRow key={item.id} className="border-[#d3d3d3] hover:bg-[#fafbff]/50">
+                            <TableCell
+                                className={`${cellClassName} font-medium break-all whitespace-normal text-[#363636]`}
+                            >
+                                {item.title}
+                            </TableCell>
+                            <TableCell className={`${cellClassName} text-[#83889e] tabular-nums`}>
+                                {item.price.toLocaleString("ko-KR")}원
+                            </TableCell>
+                            <TableCell className={cellClassName}>
+                                <span className="inline-flex max-w-full rounded-full bg-[#fafbff] px-[10px] py-1 font-medium break-all whitespace-normal text-[#83889e]">
+                                    {item.platformName || "—"}
+                                </span>
+                            </TableCell>
+                            <TableCell className={cellClassName}>
+                                <span
+                                    className={cn(
+                                        "inline-flex rounded-full px-[10px] py-1 font-medium",
+                                        item.status === "ON_SALE"
+                                            ? "bg-[#fff1f0] text-[#fa503d]"
+                                            : "bg-[#fafbff] text-[#83889e]",
+                                    )}
+                                >
+                                    {statusLabels[item.status]}
+                                </span>
+                            </TableCell>
+                            <TableCell className={`${cellClassName} text-[#83889e] tabular-nums`}>
+                                —
+                            </TableCell>
+                        </TableRow>
+                    ))
+                )}
             </TableBody>
         </Table>
     );

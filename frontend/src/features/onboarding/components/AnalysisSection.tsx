@@ -43,7 +43,7 @@ const signals = [
 export function AnalysisSection() {
     return (
         <section
-            className="relative isolate bg-[radial-gradient(ellipse_1162px_644px_at_50%_50%,#b9aefc,transparent)]"
+            className="relative isolate bg-[radial-gradient(ellipse_1162px_644px_at_50%_50%,#b9aefc,transparent)] py-10 md:py-20"
             aria-labelledby="signals-heading"
         >
             <div className="layout-container relative space-y-12 md:space-y-20">

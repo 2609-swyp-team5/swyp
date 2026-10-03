@@ -10,7 +10,6 @@ const pageSize = 20;
 
 export function useSearchQuery(keyword: string, status?: SearchStatus) {
     const isInitialized = useAuthStore((state) => state.isInitialized);
-    const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
 
     return useInfiniteQuery({
         queryKey: ["search", keyword, status],
@@ -30,7 +29,7 @@ export function useSearchQuery(keyword: string, status?: SearchStatus) {
         initialPageParam: null as number | null,
         getNextPageParam: (lastPage) =>
             lastPage.hasNext ? (lastPage.nextCursor ?? undefined) : undefined,
-        enabled: isInitialized && isLoggedIn,
+        enabled: isInitialized,
         retry: false,
     });
 }

@@ -6,10 +6,12 @@ export const revealMotion = {
 };
 
 export const textRiseMotion = {
-    initial: { y: 32 },
-    whileInView: { y: 0 },
-    viewport: { once: true, amount: 0.15 },
-    transition: { duration: 0.7, ease: "easeOut" as const },
+    hidden: { y: 32, clipPath: "inset(100% 0 0 0)" },
+    visible: {
+        y: 0,
+        clipPath: "inset(-16px -16px -16px -16px)",
+        transition: { duration: 1.2, ease: "easeOut" as const },
+    },
 };
 
 export const cardMotion = {

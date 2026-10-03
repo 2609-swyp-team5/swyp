@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import * as m from "motion/react-m";
-import { cardMotion, revealMotion } from "@/features/onboarding/onboardingMotion";
+import { cardMotion } from "@/features/onboarding/onboardingMotion";
 import { SectionHeading } from "@/features/onboarding/components/shared/SectionHeading";
 
 const audiences = [
@@ -44,7 +44,15 @@ export function AudienceSection() {
                     <m.article
                         key={audience.title}
                         {...cardMotion}
-                        transition={{ ...revealMotion.transition, delay: index * 0.1 }}
+                        initial={{
+                            opacity: 0,
+                            x: index === 0 ? "-12%" : "12%",
+                            y: 32,
+                            scale: 0.9,
+                            rotate: index === 0 ? -5 : 5,
+                        }}
+                        whileInView={{ opacity: 1, x: 0, y: 0, scale: 1, rotate: 0 }}
+                        transition={{ type: "spring", duration: 1.1, bounce: 0.25 }}
                         className="hover:border-primary/25 min-w-0 overflow-hidden rounded-[10px] border border-[#d3d3d3] bg-white transition-[border-color,box-shadow] duration-300 hover:shadow-[0_16px_40px_rgba(32,35,50,0.07)] motion-reduce:transition-none"
                     >
                         <div className="flex h-[280px] items-center justify-center bg-[#f0f0f5] p-5 lg:p-10">

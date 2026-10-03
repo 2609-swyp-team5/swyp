@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 import { ScrollToTopButton } from "@/common/components/layout/ScrollToTopButton";
 import { useSmoothScroll } from "@/common/hooks/useSmoothScroll";
@@ -12,14 +13,14 @@ import { useSearchQuery } from "@/features/search/hooks/queries/useSearchQuery";
 import type { SearchPlatform, SearchStatus } from "@/features/search/types";
 
 export function SearchPage() {
-    const [keyword, setKeyword] = useState("");
-    const [submittedKeyword, setSubmittedKeyword] = useState("");
+    const searchParams = useSearchParams();
+    const [keyword, setKeyword] = useState(searchParams.get("keyword") ?? "");
+    const [submittedKeyword, setSubmittedKeyword] = useState(searchParams.get("keyword") ?? "");
     const [status, setStatus] = useState<SearchStatus>();
     const [platform, setPlatform] = useState<SearchPlatform>("ALL");
     const [liked, setLiked] = useState<Record<string, boolean>>({});
     const handleScrollToTop = useSmoothScroll();
     const isInitialized = useAuthStore((state) => state.isInitialized);
-    const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
     const loadMoreRef = useRef<HTMLDivElement>(null);
     const {
         data,
@@ -37,7 +38,7 @@ export function SearchPage() {
 
     useEffect(() => {
         const target = loadMoreRef.current;
-        if (!target || !hasNextPage || isFetching || isError || !isLoggedIn) return;
+        if (!target || !hasNextPage || isFetching || isError) return;
 
         const observer = new IntersectionObserver(
             ([entry]) => {
@@ -47,7 +48,7 @@ export function SearchPage() {
         );
         observer.observe(target);
         return () => observer.disconnect();
-    }, [hasNextPage, isFetching, isError, isLoggedIn, fetchNextPage]);
+    }, [hasNextPage, isFetching, isError, fetchNextPage]);
     return (
         <main className="flex-1 bg-white font-normal tracking-normal">
             <SearchBar
@@ -61,15 +62,13 @@ export function SearchPage() {
                     onPlatformChange={setPlatform}
                     status={status}
                     onStatusChange={setStatus}
-                    disabled={!isLoggedIn}
                 />
                 <SearchResults
                     keyword={submittedKeyword}
                     products={products}
                     liked={liked}
                     onLike={(key) => setLiked((current) => ({ ...current, [key]: !current[key] }))}
-                    isLoading={!isInitialized || (isLoggedIn && isPending)}
-                    isGuest={isInitialized && !isLoggedIn}
+                    isLoading={!isInitialized || isPending}
                     error={isError ? error : null}
                     onRetry={() => void (isFetchNextPageError ? fetchNextPage() : refetch())}
                     isFetchingNextPage={isFetchingNextPage}

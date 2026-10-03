@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { Heart } from "lucide-react";
 
 import { Badge } from "@/common/components/ui/Badge";
@@ -59,7 +60,12 @@ export function SearchResultCard({
                 : "↑ 평균보다 " + difference + "% 높아요";
 
     return (
-        <Card className="gap-0 rounded-xl border border-[#f1f1f1] bg-white py-0 text-[#6b6c7b] ring-0">
+        <Card className="relative gap-0 rounded-xl border border-[#f1f1f1] bg-white py-0 text-[#6b6c7b] ring-0">
+            <Link
+                href={`/search/${product.source}/${product.id}`}
+                className="absolute inset-0 z-10 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6653fb]"
+                aria-label={`${product.title} 상세보기`}
+            />
             <div className="relative h-[180px] shrink-0 bg-[#dfdfdf]">
                 {product.thumbnailUrl && (
                     <Image
@@ -86,7 +92,7 @@ export function SearchResultCard({
                     aria-pressed={liked}
                     onClick={onLike}
                     className={cn(
-                        "absolute top-3 right-3 rounded-full bg-white shadow-sm hover:bg-[#fafbff]",
+                        "absolute top-3 right-3 z-20 rounded-full bg-white shadow-sm hover:bg-[#fafbff]",
                         liked
                             ? "text-[#fa503d] hover:text-[#fa503d]"
                             : "text-[#363636] hover:text-[#363636]",

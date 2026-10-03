@@ -54,7 +54,10 @@ export function MyPlatformsPage() {
             <div className="flex items-center gap-[11px] py-[30px] text-[#545d82]">
                 <div className="flex shrink-0 flex-col items-start gap-[5px]">
                     <Image src="/my/platforms/connection-bell.svg" alt="" width={29} height={29} />
-                    <span className="text-base leading-[25px] text-[#d3d3d3]">1건</span>
+                    <span className="text-base leading-[25px] text-[#d3d3d3]">
+                        {Object.values(statuses).filter((status) => status !== "connected").length}
+                        건
+                    </span>
                 </div>
                 <h2 className="text-[20px] leading-[30px] font-semibold tracking-[0.5px]">
                     연결 알림을

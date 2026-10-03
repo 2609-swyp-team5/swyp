@@ -4,6 +4,7 @@ import Image from "next/image";
 import * as m from "motion/react-m";
 import { cardMotion, revealMotion } from "@/features/onboarding/onboardingMotion";
 import { SectionHeading } from "@/features/onboarding/components/shared/SectionHeading";
+import styles from "@/features/onboarding/onboarding.module.css";
 
 const steps = [
     {
@@ -31,7 +32,7 @@ const steps = [
 export function StepsSection() {
     return (
         <section
-            className="layout-container space-y-12 py-20 md:space-y-20 md:py-[160px]"
+            className="layout-container space-y-12 pt-12 pb-20 md:space-y-20 md:pt-20 md:pb-[160px]"
             aria-labelledby="steps-heading"
         >
             <SectionHeading
@@ -44,11 +45,13 @@ export function StepsSection() {
                     <m.article
                         key={step.title}
                         {...cardMotion}
+                        whileHover={undefined}
                         transition={{ ...revealMotion.transition, delay: index * 0.22 }}
-                        className={`hover:border-primary/25 overflow-hidden border border-[#d3d3d3] bg-white transition-[border-color,box-shadow] duration-300 hover:shadow-[0_16px_40px_rgba(32,35,50,0.07)] motion-reduce:transition-none ${index === 2 ? "rounded-[20px]" : "rounded-[10px]"}`}
+                        tabIndex={0}
+                        className={`${styles.stepCard} hover:border-primary/25 overflow-hidden border border-[#d3d3d3] bg-white transition-[border-color,box-shadow] duration-300 hover:shadow-[0_16px_40px_rgba(32,35,50,0.07)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#6653fb] motion-reduce:transition-none ${index === 2 ? "rounded-[20px]" : "rounded-[10px]"}`}
                     >
                         <div
-                            className="flex h-[244px] items-center justify-center bg-[#f0f0f5] p-5"
+                            className="flex h-[244px] items-center justify-center overflow-hidden bg-[#f0f0f5] p-5"
                             aria-hidden="true"
                         >
                             <Image
@@ -57,7 +60,7 @@ export function StepsSection() {
                                 width={step.width}
                                 height={step.height}
                                 unoptimized
-                                className="h-auto max-w-full"
+                                className={`${styles.stepImage} h-auto max-w-full`}
                                 style={{ width: step.width / 2 }}
                             />
                         </div>
@@ -70,7 +73,9 @@ export function StepsSection() {
                                     {step.title}
                                 </h3>
                             </div>
-                            <p className="typography-body-medium font-medium text-[#363636]">
+                            <p
+                                className={`${styles.stepDescription} typography-body-medium font-medium text-[#363636]`}
+                            >
                                 {step.description}
                             </p>
                         </div>
