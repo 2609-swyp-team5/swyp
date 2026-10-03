@@ -10,6 +10,7 @@ import java.util.LongSummaryStatistics;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -70,9 +71,17 @@ public class ProductAnalysisService {
             [이전 분석 추이]는 지난 분석들에서 같은 물건 매물의 평균가가 어떻게 변해 왔는지야. "하락/상승 추세"는
             반드시 이 기록으로만 판단하고, 기록이 없거나 판단 보류면 추세를 지어내지 말고 현재 가격 수준만으로 판단해.
 
-            등록된 상품은 판매 목적으로 등록된 매물이야. 기본적으로 판매자 관점(SELL/HOLD)에서 판단하되,
-            시세가 뚜렷하게 하락 추세이거나 등록가가 시세보다 눈에 띄게 저렴하면 지금 관심 있는 구매자에게도
-            좋은 타이밍이라는 의미로 BUY를 선택해도 돼. 반대로 시세가 오르는 추세면 구매는 WAIT를 선택해도 돼.
+            등록된 상품은 판매 목적으로 등록된 매물이야. 두 관점을 따로 판단해(기준 시세 = 네가 고른 같은 물건 매물의 평균가,
+            추세 = [이전 분석 추이]의 "추세(월 변화율)").
+            1) recommendation(판매자 관점, SELL/HOLD만):
+               - HOLD: 추세가 월 +3% 이상 오르는 중일 때만. 근거에 "조금 기다리면 더 비싸게 팔 수 있다"는 점을 밝혀.
+               - SELL: 그 밖의 모든 경우(하락·보합·추세 판단 보류). 중고는 시간이 지날수록 값이 떨어지기 때문이야.
+                 등록가가 기준 시세보다 5% 이상 높으면 적정가로 낮춰 파는 걸 권해.
+            2) buyerRecommendation(이 상품을 관심 등록한 구매자 관점, BUY/WAIT만):
+               - 등록가가 기준 시세보다 5% 이상 싸면 BUY, 5% 이상 비싸면 WAIT.
+               - 그 사이면 추세가 월 +3% 이상 오르는 중이면 BUY(오르기 전에 구매), 월 -3% 이하로 내리는 중이면 WAIT
+                 (기다리면 더 싸짐), 뚜렷한 추세가 없으면 적정 가격이라 BUY.
+            description과 buyerDescription에는 각 추천의 근거를 1~2문장으로 써.
             """;
 
     private static final String USER_PROMPT_TEMPLATE =
@@ -103,8 +112,12 @@ public class ProductAnalysisService {
             [이전 분석 추이]는 지난 분석들에서 같은 물건 매물의 평균가가 어떻게 변해 왔는지야. "하락/상승 추세"는
             반드시 이 기록으로만 판단하고, 기록이 없거나 판단 보류면 추세를 지어내지 말고 현재 가격 수준만으로 판단해.
 
-            구매자 관점에서만 판단해. 시세 대비 저렴하거나 시세가 오르는 추세라 지금 사는 게 유리하면 BUY,
-            시세보다 비싸거나 시세가 내려가는 추세라 기다리는 게 유리하면 WAIT를 선택해. SELL/HOLD는 선택하지 마.
+            구매자 관점(BUY/WAIT)에서만 판단해 recommendation에 담아(SELL/HOLD는 선택하지 마). 기준 시세 = 네가 고른 같은
+            물건 매물의 평균가, 추세 = [이전 분석 추이]의 "추세(월 변화율)".
+            - 판매가가 기준 시세보다 5% 이상 싸면 BUY, 5% 이상 비싸면 WAIT.
+            - 그 사이면 추세가 월 +3% 이상 오르는 중이면 BUY(오르기 전에 구매), 월 -3% 이하로 내리는 중이면 WAIT
+              (기다리면 더 싸짐), 뚜렷한 추세가 없으면 적정 가격이라 BUY.
+            buyerRecommendation과 buyerDescription은 비워 둬(null).
             """;
 
     private static final String LISTING_USER_PROMPT_TEMPLATE =
@@ -378,16 +391,31 @@ public class ProductAnalysisService {
         BigDecimal changeRate = previous.map(p -> calculateChangeRate(p.getAveragePrice(), averagePrice))
                 .orElse(null);
 
+        // 추천은 규칙으로 정한다(AI 추천이 규칙과 다르면 근거 문장도 규칙 기반으로 바꿈)
+        LocalDateTime analyzedAt = LocalDateTime.now();
+        OptionalDouble monthlyRate = trend.plus(analyzedAt, averagePrice).monthlyRate();
+        AnalysisRecommendation sellerRecommendation = RecommendationRule.forSeller(monthlyRate);
+        AnalysisRecommendation buyerRecommendation =
+                RecommendationRule.forBuyer(product.getPrice(), averagePrice, monthlyRate);
         ProductAnalysis analysis = ProductAnalysis.create(
                 product,
                 minPrice,
                 averagePrice,
                 maxPrice,
                 changeRate,
-                aiResult.recommendation(),
+                sellerRecommendation,
                 aiResult.suggestedPrice(),
-                aiResult.description(),
-                LocalDateTime.now());
+                aiResult.recommendation() == sellerRecommendation
+                        ? aiResult.description()
+                        : RecommendationRule.sellerReason(
+                                sellerRecommendation, product.getPrice(), averagePrice, monthlyRate),
+                analyzedAt);
+        analysis.assignBuyerView(
+                buyerRecommendation,
+                aiResult.buyerRecommendation() == buyerRecommendation && aiResult.buyerDescription() != null
+                        ? aiResult.buyerDescription()
+                        : RecommendationRule.buyerReason(
+                                buyerRecommendation, product.getPrice(), averagePrice, monthlyRate));
         productAnalysisRepository.save(analysis);
         saveForecasts(
                 analysis,
@@ -399,9 +427,11 @@ public class ProductAnalysisService {
             productRepository.updateSuggestedPrice(product.getId(), aiResult.suggestedPrice());
         }
 
-        // 추천이 직전 스냅샷과 달라졌으면 판매자(SELL)/관심 등록 회원(BUY)에게 알림
+        // 관점별 추천이 직전 스냅샷과 달라졌으면 판매자(SELL/HOLD)·관심 등록 회원(BUY/WAIT)에게 각각 알림
         notificationService.notifyRecommendationChanged(
-                product, previous.map(ProductAnalysis::getRecommendation).orElse(null), aiResult.recommendation());
+                product, previous.map(ProductAnalysis::getRecommendation).orElse(null), sellerRecommendation);
+        notificationService.notifyRecommendationChanged(
+                product, previous.map(ProductAnalysis::getBuyerRecommendation).orElse(null), buyerRecommendation);
     }
 
     /**
@@ -434,11 +464,6 @@ public class ProductAnalysisService {
                 PriceTrend.of(snapshots(productAnalysisRepository.findByItemIdAndAnalyzedAtAfterOrderByAnalyzedAtAsc(
                         listing.getId(), LocalDateTime.now().minusMonths(TREND_MONTHS))));
         MarketAnalysisResult aiResult = requestListingAiAnalysis(listing, candidates, trend);
-        if (aiResult.recommendation() != AnalysisRecommendation.BUY
-                && aiResult.recommendation() != AnalysisRecommendation.WAIT) {
-            log.warn("외부 매물 {}: 구매자 관점이 아닌 추천({})이 와서 저장하지 않습니다.", listing.getId(), aiResult.recommendation());
-            return;
-        }
         List<Long> prices =
                 SimilarListingFilter.removeOutliers(similarPrices(candidates, aiResult.similarListingNumbers()));
         if (prices.size() < properties.minListings()) {
@@ -461,19 +486,26 @@ public class ProductAnalysisService {
         BigDecimal changeRate = previous.map(p -> calculateChangeRate(p.getAveragePrice(), averagePrice))
                 .orElse(null);
 
+        // 추천은 구매자 관점 규칙으로 정한다(AI 추천이 규칙과 다르면 근거 문장도 규칙 기반으로 바꿈)
+        LocalDateTime analyzedAt = LocalDateTime.now();
+        OptionalDouble monthlyRate = trend.plus(analyzedAt, averagePrice).monthlyRate();
+        AnalysisRecommendation recommendation =
+                RecommendationRule.forBuyer(listing.getPrice(), averagePrice, monthlyRate);
         productAnalysisRepository.save(ProductAnalysis.createForListing(
                 listing,
                 minPrice,
                 averagePrice,
                 maxPrice,
                 changeRate,
-                aiResult.recommendation(),
+                recommendation,
                 aiResult.suggestedPrice(),
-                aiResult.description(),
-                LocalDateTime.now()));
+                aiResult.recommendation() == recommendation
+                        ? aiResult.description()
+                        : RecommendationRule.buyerReason(recommendation, listing.getPrice(), averagePrice, monthlyRate),
+                analyzedAt));
 
         notificationService.notifyListingRecommendationChanged(
-                listing, previous.map(ProductAnalysis::getRecommendation).orElse(null), aiResult.recommendation());
+                listing, previous.map(ProductAnalysis::getRecommendation).orElse(null), recommendation);
     }
 
     /** 이번 스냅샷 기준 감가 예측가(1M/3M/6M)를 저장한다({@link DepreciationForecaster}). */
