@@ -182,6 +182,13 @@ analysis:
   sample-size: ${PRICE_ANALYSIS_SAMPLE_SIZE:30} # AI 프롬프트에 포함할 매물 샘플 최대 개수
   ai-call-interval-ms: ${PRICE_ANALYSIS_AI_CALL_INTERVAL_MS:6500} # AI 호출 간 최소 대기 시간(제한 대응)
   analyze-on-register: ${PRICE_ANALYSIS_ON_REGISTER:true} # 상품 등록 직후 시세 분석 1회 실행(배치 on/off와 별개)
+  confidence: # 신뢰도: 비율 = 매물 수 / full-listings, 등급 = 비율 구간·가격 변동계수 구간 중 낮은 쪽
+    full-listings: 20 # 비율 100%가 되는 비교 매물 수
+    high-rate: 70 # HIGH 최소 비율(%)
+    medium-rate: 40 # MEDIUM 최소 비율(%)
+    high-variation: 0.2 # HIGH 최대 변동계수(표준편차/평균)
+    medium-variation: 0.4 # MEDIUM 최대 변동계수
+    stale-hours: 24 # 분석 후 이 시간이 지나면 조회 시 등급 한 단계 하향
 
 # 스웨거 설정
 springdoc:

@@ -7,6 +7,7 @@ import java.util.Comparator;
 import java.util.List;
 
 import com.swyp.team5.item.entity.Item;
+import com.swyp.team5.productanalysis.entity.AnalysisConfidence;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.PriceForecast;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
@@ -26,6 +27,9 @@ public record ProductAnalysisResponse(
         AnalysisRecommendation buyerRecommendation, // 우리 상품을 관심 등록한 구매자 관점(BUY/WAIT), 외부 매물·관점 분리 이전 분석은 null
         String buyerDescription, // buyerRecommendation의 근거
         LocalDateTime analyzedAt,
+        AnalysisConfidence confidence, // 신뢰도 등급(HIGH/MEDIUM/LOW) — 매물 수 비율·가격 변동 중 낮은 쪽, 분석 24시간 경과 시 한 단계 하향
+        Integer confidenceRate, // 신뢰도 비율(0~100, 매물 수 기반 — 비교 매물 20건 이상이면 100)
+        Integer listingCount, // 통계에 쓴 비교 매물 수(위 세 필드는 신뢰도 도입 이전 분석이면 null)
         List<PriceForecastResponse> forecasts) { // 감가 예측가(1M/3M/6M 순), 분석 이력이 없거나 예측 도입 전 분석이면 빈 배열
 
     /** 아직 분석 이력이 없는 상품(분석 배치가 아직 돌지 않았거나, 비교 매물이 부족해 건너뛴 경우)에 사용한다. */
@@ -45,10 +49,22 @@ public record ProductAnalysisResponse(
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
                 List.of());
     }
 
-    public static ProductAnalysisResponse from(Item product, ProductAnalysis analysis, List<PriceForecast> forecasts) {
+    /**
+     * @param confidence 조회 시점 신뢰도 등급(오래된 분석이면 저장값보다 한 단계 낮음)
+     * @param confidenceRate 매물 수 기반 신뢰도 비율
+     */
+    public static ProductAnalysisResponse from(
+            Item product,
+            ProductAnalysis analysis,
+            AnalysisConfidence confidence,
+            Integer confidenceRate,
+            List<PriceForecast> forecasts) {
         return new ProductAnalysisResponse(
                 product.getId(),
                 product.getPrice(),
@@ -64,6 +80,9 @@ public record ProductAnalysisResponse(
                 analysis.getBuyerRecommendation(),
                 analysis.getBuyerDescription(),
                 analysis.getAnalyzedAt(),
+                confidence,
+                confidenceRate,
+                analysis.getListingCount(),
                 forecasts.stream()
                         .sorted(Comparator.comparing(PriceForecast::getPeriod))
                         .map(PriceForecastResponse::from)

@@ -180,7 +180,17 @@ public class ProductAnalysisService {
         return productAnalysisRepository
                 .findFirstByItemIdOrderByAnalyzedAtDesc(productId)
                 .map(analysis -> ProductAnalysisResponse.from(
-                        item, analysis, priceForecastRepository.findByAnalysisId(analysis.getId())))
+                        item,
+                        analysis,
+                        ConfidenceRule.current(
+                                analysis.getConfidence(),
+                                analysis.getAnalyzedAt(),
+                                LocalDateTime.now(),
+                                properties.confidence()),
+                        analysis.getListingCount() == null
+                                ? null
+                                : ConfidenceRule.rate(analysis.getListingCount(), properties.confidence()),
+                        priceForecastRepository.findByAnalysisId(analysis.getId())))
                 .orElseGet(() -> ProductAnalysisResponse.empty(item));
     }
 
@@ -431,6 +441,7 @@ public class ProductAnalysisService {
                         ? aiResult.buyerDescription()
                         : RecommendationRule.buyerReason(
                                 buyerRecommendation, product.getPrice(), averagePrice, monthlyRate));
+        analysis.assignConfidence(prices.size(), ConfidenceRule.grade(prices, properties.confidence()));
         productAnalysisRepository.save(analysis);
         saveForecasts(
                 analysis,
@@ -503,7 +514,7 @@ public class ProductAnalysisService {
         OptionalDouble monthlyRate = trend.plus(analyzedAt, averagePrice).monthlyRate();
         AnalysisRecommendation recommendation =
                 RecommendationRule.forBuyer(listing.getPrice(), averagePrice, monthlyRate);
-        productAnalysisRepository.save(ProductAnalysis.createForListing(
+        ProductAnalysis analysis = ProductAnalysis.createForListing(
                 listing,
                 minPrice,
                 averagePrice,
@@ -514,7 +525,9 @@ public class ProductAnalysisService {
                 aiResult.recommendation() == recommendation
                         ? aiResult.description()
                         : RecommendationRule.buyerReason(recommendation, listing.getPrice(), averagePrice, monthlyRate),
-                analyzedAt));
+                analyzedAt);
+        analysis.assignConfidence(prices.size(), ConfidenceRule.grade(prices, properties.confidence()));
+        productAnalysisRepository.save(analysis);
 
         notificationService.notifyListingRecommendationChanged(
                 listing, previous.map(ProductAnalysis::getRecommendation).orElse(null), recommendation);
