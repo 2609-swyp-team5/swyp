@@ -55,6 +55,9 @@ import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductImageRequiredException;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.error.ProductRegisterBusyException;
+import com.swyp.team5.social.error.LastLoginMethodException;
+import com.swyp.team5.social.error.SocialAccountAlreadyLinkedException;
+import com.swyp.team5.social.error.SocialAccountNotLinkedException;
 
 @Slf4j
 @RestControllerAdvice
@@ -102,6 +105,12 @@ public class GlobalExceptionHandler {
         return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
     }
 
+    @ExceptionHandler({SocialAccountAlreadyLinkedException.class, LastLoginMethodException.class})
+    public ResponseEntity<ApiResponse<Void>> handleSocialAccountConflict(RuntimeException e) {
+        log.warn("소셜 계정 연동·해제 불가: {}", ErrorLogs.describe(e));
+        return errorResponse(HttpStatus.CONFLICT, "CONFLICT", e.getMessage());
+    }
+
     @ExceptionHandler(UnsupportedSocialProviderException.class)
     public ResponseEntity<ApiResponse<Void>> handleUnsupportedSocialProvider(UnsupportedSocialProviderException e) {
         log.warn("지원하지 않는 소셜 로그인 provider: {}", ErrorLogs.describe(e));
@@ -116,7 +125,8 @@ public class GlobalExceptionHandler {
         MemberPlatformNotFoundException.class,
         ProductPlatformNotFoundException.class,
         MemberNotFoundException.class,
-        NotificationNotFoundException.class
+        NotificationNotFoundException.class,
+        SocialAccountNotLinkedException.class
     })
     public ResponseEntity<ApiResponse<Void>> handleNotFound(RuntimeException e) {
         log.warn("리소스를 찾을 수 없음: {}", ErrorLogs.describe(e));
