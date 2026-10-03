@@ -12,6 +12,7 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
@@ -235,7 +236,6 @@ class ProductAnalysisServiceTest {
         service().analyzeProduct(product);
 
         verify(productAnalysisRepository, never()).save(any());
-        verify(productRepository, never()).updateSuggestedPrice(any(), any());
         verify(notificationService, never()).notifyRecommendationChanged(any(), any(), any());
     }
 
@@ -252,7 +252,6 @@ class ProductAnalysisServiceTest {
 
         verify(productAnalysisRepository, never()).save(any());
         verify(productAnalysisRepository, never()).findFirstByItemIdOrderByAnalyzedAtDesc(any());
-        verify(productRepository, never()).updateSuggestedPrice(any(), any());
         verify(notificationService, never()).notifyRecommendationChanged(any(), any(), any());
     }
 
@@ -307,8 +306,9 @@ class ProductAnalysisServiceTest {
         assertThat(saved.getRecommendation()).isEqualTo(AnalysisRecommendation.SELL);
         assertThat(saved.getSuggestedPrice()).isEqualTo(3200L);
         assertThat(saved.getDescription()).isEqualTo("시세가 안정적이라 지금 파는 게 좋습니다.");
-        // 시세 분석이 낸 적정가로 상품의 AI 제안가도 갱신
-        verify(productRepository).updateSuggestedPrice(1L, 3200L);
+        // 시세 분석의 적정가는 스냅샷에만 저장하고 상품의 사진 추정가(products.suggested_price)는 건드리지 않음
+        verifyNoInteractions(productRepository);
+        verify(product, never()).changeSuggestedPrice(any());
         // 직전 추천(HOLD)과 이번 추천(SELL)을 넘겨 전환 알림 판단
         verify(notificationService)
                 .notifyRecommendationChanged(product, AnalysisRecommendation.HOLD, AnalysisRecommendation.SELL);
@@ -336,7 +336,6 @@ class ProductAnalysisServiceTest {
         verify(productAnalysisRepository).save(captor.capture());
         assertThat(captor.getValue().getDescription()).isEqualTo("GPT 판단");
         assertThat(captor.getValue().getSuggestedPrice()).isEqualTo(2100L);
-        verify(productRepository).updateSuggestedPrice(1L, 2100L);
     }
 
     // 분석 성공 - 판매자/구매자 관점을 따로 저장하고, AI 추천이 규칙과 같으면 AI 근거 문장을 그대로 씀
@@ -474,7 +473,6 @@ class ProductAnalysisServiceTest {
         assertThat(saved.getChangeRate()).isEqualByComparingTo(BigDecimal.ONE);
         assertThat(saved.getRecommendation()).isEqualTo(AnalysisRecommendation.BUY);
         // 외부 매물은 우리 상품 제안가 갱신 대상이 아님
-        verify(productRepository, never()).updateSuggestedPrice(any(), any());
         verify(notificationService)
                 .notifyListingRecommendationChanged(target, AnalysisRecommendation.WAIT, AnalysisRecommendation.BUY);
     }
