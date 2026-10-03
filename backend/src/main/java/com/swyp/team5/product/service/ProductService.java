@@ -57,6 +57,7 @@ import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.event.ProductRegisteredEvent;
 import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.product.repository.ProductSearchRepository;
+import com.swyp.team5.productanalysis.dto.ProductCompetitionResponse;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
@@ -305,6 +306,17 @@ public class ProductService {
                 .filter(product -> !product.isRegisteredBy(memberId))
                 .filter(product -> productViewCounter.isFirstView(product.getId(), memberId))
                 .ifPresent(product -> productRepository.incrementViewCount(product.getId()));
+    }
+
+    /**
+     * 수집한 외부 매물 중 기준 상품과 같은 유형의 판매 중 매물(경쟁 상품)을 조회한다. 상품명 키워드로 고르며 AI는 호출하지
+     * 않는다 — 시세 분석과 같은 매물 필터를 쓰므로 계산은 {@link ProductAnalysisService#getCompetition}에 맡긴다.
+     *
+     * @throws ProductNotFoundException 존재하지 않는 상품(외부 매물 포함)인 경우
+     */
+    @Transactional(readOnly = true)
+    public ProductCompetitionResponse getCompetition(Long productId) {
+        return productAnalysisService.getCompetition(productId);
     }
 
     private Long calculateMarketAveragePrice(Product product) {

@@ -189,6 +189,10 @@ analysis:
     high-variation: 0.2 # HIGH 최대 변동계수(표준편차/평균)
     medium-variation: 0.4 # MEDIUM 최대 변동계수
     stale-hours: 24 # 분석 후 이 시간이 지나면 조회 시 등급 한 단계 하향
+  competition: # 경쟁 상품: 같은 유형 판매 중 매물 수로 경쟁 정도를 정함
+    medium-count: 5 # MEDIUM 최소 매물 수(미만이면 LOW)
+    high-count: 10 # HIGH 최소 매물 수
+    item-limit: 3 # 목록 최대 건수
 
 # 스웨거 설정
 springdoc:

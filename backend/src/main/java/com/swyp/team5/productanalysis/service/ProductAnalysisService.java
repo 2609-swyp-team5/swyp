@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.LongSummaryStatistics;
 import java.util.Map;
@@ -34,9 +35,11 @@ import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.productanalysis.config.ProductAnalysisProperties;
+import com.swyp.team5.productanalysis.dto.CompetitionLevel;
 import com.swyp.team5.productanalysis.dto.MarketAnalysisResult;
 import com.swyp.team5.productanalysis.dto.PriceTrendResponse;
 import com.swyp.team5.productanalysis.dto.ProductAnalysisResponse;
+import com.swyp.team5.productanalysis.dto.ProductCompetitionResponse;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.ForecastPeriod;
 import com.swyp.team5.productanalysis.entity.PriceForecast;
@@ -251,6 +254,56 @@ public class ProductAnalysisService {
                                 .orElseThrow()),
                 trendChangeRate(points),
                 points);
+    }
+
+    /**
+     * 수집한 외부 매물 중 기준 상품과 같은 유형의 판매 중 매물(경쟁 상품)을 조회한다. 같은 카테고리·판매 중·최근
+     * {@code freshness-hours} 안에 확인된 매물에서 시세 분석 1단계와 같은 키워드 기준(구매 글·액세서리 제외)으로 고르고 가격
+     * 이상치를 뺀다(AI 호출 없음 — 다른 모델이 조금 섞일 수 있음). 자기 자신은 뺀다.
+     *
+     * <ul>
+     *   <li>경쟁 정도: 같은 유형 매물 수로 {@code analysis.competition.*} 기준에 따라 LOW/MEDIUM/HIGH
+     *   <li>상품군 평균 시세: 이번에 고른 같은 유형 매물의 평균(최소 {@code min-listings}건, 미만이면 null)
+     *   <li>목록: 최신 등록 순(최초 수집 일시)으로 최대 {@code item-limit}건
+     * </ul>
+     *
+     * @throws ProductNotFoundException 존재하지 않는 상품(외부 매물 포함)인 경우
+     */
+    @Transactional(readOnly = true)
+    public ProductCompetitionResponse getCompetition(Long productId) {
+        Item item = getItemOrThrow(productId);
+        List<PlatformListing> others = freshSellingListings(item.getCategory().getId()).stream()
+                .filter(listing -> !listing.getId().equals(item.getId()))
+                .toList();
+        String brand = item instanceof Product product ? product.getBrand() : null;
+        List<PlatformListing> sameType = SimilarListingFilter.removeOutlierListings(
+                SimilarListingFilter.selectCandidates(item.getTitle(), brand, others, Integer.MAX_VALUE));
+
+        Long marketAveragePrice = sameType.size() < properties.minListings()
+                ? null
+                : Math.round(sameType.stream()
+                        .mapToLong(PlatformListing::getPrice)
+                        .average()
+                        .orElseThrow());
+
+        ProductAnalysisProperties.Competition criteria = properties.competition();
+        List<ProductCompetitionResponse.Item> items = sameType.stream()
+                .sorted(Comparator.comparing(PlatformListing::getCreatedAt, Comparator.reverseOrder())
+                        .thenComparing(PlatformListing::getId, Comparator.reverseOrder()))
+                .limit(criteria.itemLimit())
+                .map(listing -> ProductCompetitionResponse.Item.of(listing, marketAveragePrice))
+                .toList();
+        return new ProductCompetitionResponse(
+                item.getId(),
+                ProductCompetitionResponse.Competition.of(
+                        sameType.size(), competitionLevel(sameType.size(), criteria), items));
+    }
+
+    private static CompetitionLevel competitionLevel(int count, ProductAnalysisProperties.Competition criteria) {
+        if (count >= criteria.highCount()) {
+            return CompetitionLevel.HIGH;
+        }
+        return count >= criteria.mediumCount() ? CompetitionLevel.MEDIUM : CompetitionLevel.LOW;
     }
 
     private Item getItemOrThrow(Long productId) {
