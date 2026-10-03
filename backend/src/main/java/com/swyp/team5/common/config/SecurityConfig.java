@@ -50,9 +50,12 @@ public class SecurityConfig {
         "/actuator/**"
     };
 
-    /** 비로그인 사용자에게도 허용하는 일반 검색용 조회 API(GET만). 상세·분석·관심 등 그 밖의 기능은 로그인이 필요하다. */
+    /**
+     * 비로그인 사용자에게도 허용하는 조회 API(GET만) — 상품 검색·상세와 인기 검색어·인기 상품·카테고리. 상세는 숫자 ID 경로만
+     * 열어 {@code /products/me} 같은 하위 경로는 계속 로그인이 필요하다. AI 검색·시세 분석·관심 등 그 밖의 기능은 로그인이 필요하다.
+     */
     private static final String[] PUBLIC_GET_PATTERNS = {
-        "/products", "/products/analysis/search", "/products/keywords/trending", "/products/popular", "/categories"
+        "/products", "/products/{productId:\\d+}", "/products/keywords/trending", "/products/popular", "/categories"
     };
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;

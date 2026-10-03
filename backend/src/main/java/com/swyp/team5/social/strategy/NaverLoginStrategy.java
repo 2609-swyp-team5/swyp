@@ -60,7 +60,7 @@ public class NaverLoginStrategy implements SocialLoginStrategy {
         form.add("grant_type", "authorization_code");
         form.add("client_id", properties.getClientId());
         form.add("client_secret", properties.getClientSecret());
-        form.add("redirect_uri", properties.getRedirectUri());
+        form.add("redirect_uri", RedirectUris.forCurrentRequest(properties.getRedirectUris()));
         form.add("code", authorizationCode);
         form.add("state", properties.getState());
 

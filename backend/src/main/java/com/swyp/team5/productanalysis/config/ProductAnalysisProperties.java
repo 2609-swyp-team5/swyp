@@ -13,11 +13,15 @@ public record ProductAnalysisProperties(
         @NotNull Integer freshnessHours, // 비교 매물로 인정할 최근 수집 기준 시간
         @NotNull Integer sampleSize, // 상품명 키워드로 고른 유사 매물 후보(AI 프롬프트에 포함) 최대 개수
         @NotNull Long aiCallIntervalMs, // AI 호출 간 최소 대기 시간(무료 티어 RPM 제한 대응)
-        Confidence confidence) { // 신뢰도 기준(없으면 기본값)
+        Confidence confidence, // 신뢰도 기준(없으면 기본값)
+        Competition competition) { // 경쟁 상품 기준(없으면 기본값)
 
     public ProductAnalysisProperties {
         if (confidence == null) {
             confidence = Confidence.DEFAULT;
+        }
+        if (competition == null) {
+            competition = Competition.DEFAULT;
         }
     }
 
@@ -34,5 +38,17 @@ public record ProductAnalysisProperties(
             @NotNull Integer staleHours) { // 이 시간이 지난 분석은 등급을 한 단계 낮춤
 
         public static final Confidence DEFAULT = new Confidence(20, 70, 40, 0.2, 0.4, 24);
+    }
+
+    /**
+     * 경쟁 상품 기준. 같은 유형 판매 중 매물 수가 {@code highCount} 이상이면 HIGH, {@code mediumCount} 이상이면 MEDIUM, 그 밖은
+     * LOW이고, 목록에는 최대 {@code itemLimit}건을 담는다.
+     */
+    public record Competition(
+            @NotNull Integer mediumCount, // MEDIUM 최소 매물 수
+            @NotNull Integer highCount, // HIGH 최소 매물 수
+            @NotNull Integer itemLimit) { // 목록 최대 건수
+
+        public static final Competition DEFAULT = new Competition(5, 10, 3);
     }
 }
