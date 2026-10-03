@@ -56,10 +56,11 @@ const getProductValuationForecast = (id: number, analysisId: number) =>
 const getProductCompetition = (id: number) =>
     api.get<ApiResponse<ProductCompetitionResponse>>(`/products/${id}/competition`);
 
-const getMyProducts = (params?: { status?: ProductStatus; size?: number }) =>
+const getMyProducts = (params?: { status?: ProductStatus; cursor?: string; size?: number }) =>
     api.get<ApiResponse<CursorPageResponse<ProductSummaryResponse>>>("/products/me", {
         params: {
             status: params?.status,
+            cursor: params?.cursor,
             size: params?.size ?? 20,
         },
     });

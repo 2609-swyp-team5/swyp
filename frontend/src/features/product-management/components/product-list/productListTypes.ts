@@ -28,6 +28,11 @@ export type ProductListShellProps = {
     items: ProductListItemData[];
     isLoading: boolean;
     errorMessage?: string;
+    hasNextPage?: boolean;
+    isFetchingNextPage?: boolean;
+    isFetchNextPageError?: boolean;
+    onLoadMore?: () => void;
+    onRetryLoadMore?: () => void;
     emptyMessage: string;
     listTitle: string;
     detailRenderer?: (item: ProductListItemData) => ReactNode;
