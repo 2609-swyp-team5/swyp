@@ -57,7 +57,7 @@ test("uploads selected image only on save and updates avatars", async ({ page })
     await expect(page.locator("main [data-slot='avatar-fallback']")).toBeVisible();
     await expect(page.getByRole("banner").locator('[data-slot="avatar"]')).toHaveCSS(
         "width",
-        "36px",
+        "44px",
     );
     await expect(page.locator("aside [data-slot='avatar']")).toHaveCSS("width", "96px");
     await expect(page.locator("main [data-slot='avatar']")).toHaveCSS("width", "88px");
