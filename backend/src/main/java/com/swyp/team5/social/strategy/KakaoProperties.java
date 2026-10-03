@@ -1,5 +1,7 @@
 package com.swyp.team5.social.strategy;
 
+import java.util.List;
+
 import lombok.Getter;
 import lombok.Setter;
 
@@ -22,7 +24,7 @@ public class KakaoProperties {
 
     private String clientSecret;
 
-    private String redirectUri;
+    private List<String> redirectUris;
 
     /** 인가 코드를 액세스 토큰으로 교환하는 주소 */
     private String tokenUri;
