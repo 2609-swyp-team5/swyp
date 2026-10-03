@@ -1,5 +1,7 @@
 "use client";
 
+import { useCallback } from "react";
+
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { ProductListShell } from "@/features/product-management/components/product-list/ProductListShell";
 import type { ProductListTab } from "@/features/product-management/components/product-list/productListTypes";
@@ -43,8 +45,19 @@ const tabs: ProductListTab[] = [
 ];
 
 export default function SellManagePage() {
-    const { data, error, isPending } = useMyProductsQuery();
-    const products = data?.content ?? [];
+    const {
+        data,
+        error,
+        isPending,
+        hasNextPage,
+        isFetchingNextPage,
+        isFetchNextPageError,
+        fetchNextPage,
+    } = useMyProductsQuery();
+    const products = data?.pages.flatMap((page) => page.content) ?? [];
+    const loadMore = useCallback(() => {
+        void fetchNextPage();
+    }, [fetchNextPage]);
 
     return (
         <ProductListShell
@@ -71,6 +84,11 @@ export default function SellManagePage() {
             }))}
             isLoading={isPending}
             errorMessage={error ? getApiErrorMessage(error) : undefined}
+            hasNextPage={hasNextPage}
+            isFetchingNextPage={isFetchingNextPage}
+            isFetchNextPageError={isFetchNextPageError}
+            onLoadMore={loadMore}
+            onRetryLoadMore={loadMore}
             emptyMessage="등록된 상품이 없습니다."
             listTitle="전체 상품 목록"
             detailRenderer={(item) => {
