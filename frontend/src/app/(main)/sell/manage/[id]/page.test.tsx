@@ -62,6 +62,7 @@ const product: ProductResponse = {
     recommendation: "HOLD",
     suggestedPrice: 335000,
     analysisDescription: null,
+    platforms: null,
     createdAt: "2026-09-27T14:32:00",
     updatedAt: "2026-09-27T14:32:00",
 };
@@ -80,7 +81,7 @@ describe("ProductReviewPage", () => {
         searchParamsValue.current = "method=direct";
     });
 
-    it("shows the completed registration view with unconnected action buttons", () => {
+    it("shows the completed registration view with action buttons", () => {
         render(<ProductReviewPage />);
 
         expect(
@@ -96,16 +97,24 @@ describe("ProductReviewPage", () => {
         expect(screen.getByText("판매 보류 추천")).toBeInTheDocument();
         expect(screen.getByText("분석 결과가 없습니다.", { exact: true })).toBeInTheDocument();
 
-        ["가격 분석 자세히 보기", "수정하기", "삭제하기", "판매 상품 관리로 이동"].forEach(
-            (name) => {
-                expect(screen.getByRole("button", { name })).toHaveAttribute("type", "button");
-            },
-        );
+        ["가격 분석 자세히 보기", "수정하기", "삭제하기", "판매 상품 목록 보기"].forEach((name) => {
+            expect(screen.getByRole("button", { name })).toHaveAttribute("type", "button");
+        });
         expect(screen.queryByRole("button", { name: "상품 보기" })).not.toBeInTheDocument();
         expect(screen.getByRole("button", { name: /^다른 플랫폼에 등록하기$/ })).toHaveAttribute(
             "type",
             "button",
         );
+    });
+
+    it("navigates to product management from the completion action", async () => {
+        const user = userEvent.setup();
+
+        render(<ProductReviewPage />);
+
+        await user.click(screen.getByRole("button", { name: "판매 상품 목록 보기" }));
+
+        expect(push).toHaveBeenCalledWith("/sell/manage");
     });
 
     it("shows the edit completion copy after an update", () => {

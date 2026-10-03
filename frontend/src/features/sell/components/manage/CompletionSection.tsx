@@ -1,9 +1,13 @@
+"use client";
+
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/common/components/ui/Button";
 
 export function CompletionSection({ isUpdated = false }: { isUpdated?: boolean }) {
+    const router = useRouter();
     const title = isUpdated ? "상품 수정이 완료되었어요!" : "상품 등록이 완료되었어요!";
     const description = isUpdated
         ? "수정한 판매글이 정상적으로 등록되었습니다."
@@ -28,9 +32,10 @@ export function CompletionSection({ isUpdated = false }: { isUpdated?: boolean }
                 </p>
                 <Button
                     type="button"
+                    onClick={() => router.push("/sell/manage")}
                     className="mt-4 h-auto rounded-full border border-[#6653fb] bg-white px-5 py-2.5 text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#6653fb] hover:bg-[#f5f3ff] hover:text-[#5745e7]"
                 >
-                    판매 상품 관리로 이동
+                    판매 상품 목록 보기
                     <ArrowRight aria-hidden="true" className="size-4" />
                 </Button>
             </div>

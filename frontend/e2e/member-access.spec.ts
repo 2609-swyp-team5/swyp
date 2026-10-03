@@ -3,7 +3,7 @@ import { test, expect } from "./fixtures";
 const memberRoutes = [
     { path: "/sell/manage", title: "판매 상품 관리" },
     { path: "/sell/register", title: "어떻게 등록할까요?" },
-    { path: "/buy/wishlist", title: "구매 관심상품" },
+    { path: "/buy/wishlist", title: "관심 상품" },
     { path: "/notifications", title: "알림" },
 ];
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { productApi } from "@/features/sell/api/productApi";
 import type {
@@ -19,12 +19,17 @@ interface UseCreateDirectProductMutationCallbacks {
 export function useCreateDirectProductMutation(
     callbacks?: UseCreateDirectProductMutationCallbacks,
 ) {
+    const queryClient = useQueryClient();
+
     return useMutation<ProductResponse, ProductRegisterError, DirectProductCreateInput>({
         mutationFn: async (input: DirectProductCreateInput) => {
             return productApi.createDirectProduct(input, callbacks?.onProgress);
         },
         retry: false,
-        onSuccess: (data) => callbacks?.onSuccess?.(data),
+        onSuccess: (data) => {
+            void queryClient.invalidateQueries({ queryKey: ["my-products"] });
+            callbacks?.onSuccess?.(data);
+        },
         onError: (error) => callbacks?.onError?.(error),
     });
 }
