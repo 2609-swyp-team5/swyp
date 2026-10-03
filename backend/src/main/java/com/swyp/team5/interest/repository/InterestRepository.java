@@ -19,6 +19,12 @@ public interface InterestRepository extends JpaRepository<Interest, Long> {
 
     Optional<Interest> findByMemberIdAndItemId(Long memberId, Long itemId);
 
+    long countByMemberId(Long memberId);
+
+    /** 회원의 관심상품 전체(대상 상품·매물 함께 조회 — 상태별 건수 집계용). */
+    @Query("SELECT i FROM Interest i JOIN FETCH i.item WHERE i.member.id = :memberId")
+    List<Interest> findAllWithItemByMemberId(@Param("memberId") Long memberId);
+
     long countByItemId(Long itemId);
 
     Optional<Interest> findByIdAndMemberId(Long interestId, Long memberId);

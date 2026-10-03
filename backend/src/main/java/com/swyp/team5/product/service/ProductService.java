@@ -2,6 +2,7 @@ package com.swyp.team5.product.service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -409,7 +410,10 @@ public class ProductService {
                                         listing, listingAnalyses.get(listing.getId()))))
                 .flatMap(Optional::stream)
                 .toList();
-        return new CursorPageResponse<>(content, nextCursor, hasNext);
+        CursorPageResponse<ProductListItemResponse> page =
+                new CursorPageResponse<>(content, nextCursor, hasNext, null, null);
+        // 전체 건수는 첫 페이지에서만 센다(스크롤마다 COUNT를 돌리지 않음)
+        return cursor == null ? page.withTotalCount(productSearchRepository.count(condition)) : page;
     }
 
     private static List<Long> idsOf(List<ProductSearchHit> hits, ListingSource source) {
@@ -437,20 +441,29 @@ public class ProductService {
      * @param memberId 조회할 본인 회원 ID(호출 측에서 인증된 회원 ID를 그대로 넘길 것)
      * @param categoryId 카테고리 필터(선택, {@code null}이면 전체)
      * @param keyword 제목/설명 키워드 검색(선택, {@code null}이거나 공백이면 미적용)
-     * @param status 상태 필터(선택, {@code null}이면 전체)
+     * @param status 상태 필터(선택, 복수 — 비어 있거나 {@code null}이면 전체)
      * @param cursor 이전 페이지 마지막 상품의 {@code id}(선택, {@code null}이면 첫 페이지)
      * @param size 페이지 크기
      * @return {@code hasNext}/{@code nextCursor}를 포함한 커서 페이지 응답
      */
     @Transactional(readOnly = true)
     public CursorPageResponse<ProductSummaryResponse> getMyProducts(
-            Long memberId, Long categoryId, String keyword, ProductStatus status, Long cursor, int size) {
-        Specification<Product> spec = Specification.where(hasMemberId(memberId))
+            Long memberId, Long categoryId, String keyword, Set<ProductStatus> status, Long cursor, int size) {
+        Specification<Product> filter = Specification.where(hasMemberId(memberId))
                 .and(hasCategoryId(categoryId))
                 .and(hasKeyword(keyword))
-                .and(hasStatus(status))
-                .and(idLessThan(cursor));
-        return findProducts(spec, size);
+                .and(hasStatusIn(status));
+        CursorPageResponse<ProductSummaryResponse> page = findProducts(filter.and(idLessThan(cursor)), size);
+        if (cursor != null) {
+            return page;
+        }
+        // 전체 건수·상태별 건수는 첫 페이지에서만 센다(요청 필터를 모두 적용한 조건)
+        Map<String, Long> statusCounts = new LinkedHashMap<>();
+        for (ProductStatus each : ProductStatus.values()) {
+            statusCounts.put(each.name(), productRepository.count(filter.and(hasStatus(each))));
+        }
+        long total = statusCounts.values().stream().mapToLong(Long::longValue).sum();
+        return page.withTotalCount(total).withStatusCounts(statusCounts);
     }
 
     private static final int POPULAR_WINDOW_DAYS = 7;
@@ -773,6 +786,13 @@ public class ProductService {
 
     private static Specification<Product> hasStatus(ProductStatus status) {
         return (root, query, cb) -> status == null ? null : cb.equal(root.get("status"), status);
+    }
+
+    /** 상태 중 하나에 해당하는 상품만 조회한다(비어 있거나 {@code null}이면 미적용). */
+    private static Specification<Product> hasStatusIn(Set<ProductStatus> statuses) {
+        return (root, query, cb) -> statuses == null || statuses.isEmpty()
+                ? null
+                : root.get("status").in(statuses);
     }
 
     /** 제목/설명에 키워드가 포함된 상품만 조회한다(대소문자 무시). */

@@ -2,6 +2,7 @@ package com.swyp.team5.interest.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -260,6 +261,30 @@ class InterestServiceTest {
         assertThat(item.targetPrice()).isEqualTo(20_000L);
         // 우리 상품 대상이 없으면 상품 분석은 조회하지 않고, 외부 매물 분석만 한 번 조회한다(같은 item 기준 메서드)
         verify(productAnalysisRepository).findLatestByItemIdIn(List.of(100L));
+    }
+
+    // 관심상품 목록 조회 - 첫 페이지에 전체 건수와 대상 상태별 건수(외부 매물은 원본 상태 변환)
+    @Test
+    void getInterestsIncludesStatusCountsOnFirstPage() {
+        Member member = newMember(1L);
+        Product draft = newProduct(5L, newMember(2L));
+        PlatformListing selling = newPlatformListing(100L);
+        PlatformListing reserved = newPlatformListing(101L);
+        setField(reserved, "status", "RESERVED");
+        List<Interest> all = List.of(
+                newProductInterest(10L, member, draft, null),
+                newListingInterest(11L, member, selling, null),
+                newListingInterest(12L, member, reserved, null));
+        when(interestRepository.findByMemberIdAndIdLessThan(eq(1L), eq(Long.MAX_VALUE), any()))
+                .thenReturn(all);
+        when(interestRepository.findAllWithItemByMemberId(1L)).thenReturn(all);
+
+        var page = service().getInterests(1L, null, 10);
+
+        assertThat(page.totalCount()).isEqualTo(3L);
+        assertThat(page.statusCounts())
+                .containsExactly(
+                        entry("DRAFT", 1L), entry("ON_SALE", 1L), entry("RESERVED", 1L), entry("SOLD_OUT", 0L));
     }
 
     // 관심상품 목록 조회 - 외부 매물 대상 건도 관심 매물 시세 분석 스냅샷이 있으면 추천·평균가를 채움

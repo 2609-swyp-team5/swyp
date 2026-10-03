@@ -520,6 +520,37 @@ class ProductTest extends IntegrationTest {
                 .andExpect(jsonPath("$.data.content[0].purchasedMonths").value(3));
     }
 
+    // 내 상품 목록 조회 - 상태 필터 여러 값, 첫 페이지에 전체 건수·상태별 건수(필터 적용)
+    @Test
+    void getMyProductsFiltersByMultipleStatuses() throws Exception {
+        Long draft = createProduct();
+        Long reserved = createProduct();
+        Long soldOut = createProduct();
+        changeStatus(reserved, "RESERVED");
+        changeStatus(soldOut, "SOLD_OUT");
+
+        mockMvc.perform(get("/products/me")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
+                        .param("status", "DRAFT", "RESERVED"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.totalCount").value(2))
+                .andExpect(jsonPath("$.data.statusCounts.DRAFT").value(1))
+                .andExpect(jsonPath("$.data.statusCounts.RESERVED").value(1))
+                .andExpect(jsonPath("$.data.statusCounts.SOLD_OUT").value(0))
+                .andExpect(jsonPath(
+                        "$.data.content[*].id",
+                        org.hamcrest.Matchers.containsInAnyOrder(draft.intValue(), reserved.intValue())));
+    }
+
+    private void changeStatus(Long productId, String status) throws Exception {
+        mockMvc.perform(patch("/products/{id}/status", productId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"" + status + "\"}"))
+                .andExpect(status().isOk());
+    }
+
     // 상품 목록 조회 - 키워드 검색(제목/설명)
     @Test
     void getProductsFiltersByKeyword() throws Exception {
@@ -599,15 +630,32 @@ class ProductTest extends IntegrationTest {
                 .andExpect(jsonPath("$.data.content.length()").value(2))
                 .andExpect(jsonPath("$.data.content[*].title", everyItem(not(containsString("파손")))));
         // 플랫폼 + 거래 상태
-        searchProducts(keyword, "platform", "BUNJANG", "tradeStatus", "SOLD_OUT")
+        searchProducts(keyword, "platform", "BUNJANG", "status", "SOLD_OUT")
                 .andExpect(jsonPath("$.data.content.length()").value(1))
                 .andExpect(jsonPath("$.data.content[0].status").value("SOLD_OUT"));
         searchProducts(keyword, "platform", "OUR", "defectStatus", "ISSUES")
                 .andExpect(jsonPath("$.data.content.length()").value(1))
                 .andExpect(jsonPath("$.data.content[0].defectStatus").value("ISSUES"));
-        // 우리 상품에는 예약중 상태가 없다
-        searchProducts(keyword, "platform", "OUR", "tradeStatus", "RESERVED")
+        // 예약중인 우리 상품은 없음(등록 직후 DRAFT)
+        searchProducts(keyword, "platform", "OUR", "status", "RESERVED")
                 .andExpect(jsonPath("$.data.content.length()").value(0));
+        // 상태 체계 통일 - 외부 매물 원본 SELLING은 응답에서 ON_SALE
+        searchProducts(keyword, "platform", "BUNJANG")
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].status").value("ON_SALE"));
+        // DRAFT와 ON_SALE은 분리 - DRAFT는 우리 상품만, ON_SALE은 외부 판매중(우리 상품은 외부 미게시라 제외)
+        searchProducts(keyword, "status", "DRAFT")
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.content[*].status", everyItem(is("DRAFT"))));
+        searchProducts(keyword, "status", "ON_SALE")
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].source").value("EXTERNAL"));
+        // 상태 필터는 여러 값 - DRAFT + ON_SALE이면 우리 상품 DRAFT와 외부 판매중
+        searchProducts(keyword, "status", "DRAFT,ON_SALE")
+                .andExpect(jsonPath("$.data.content.length()").value(3));
+        // 이전 파라미터 tradeStatus는 더 이상 쓰지 않음(무시 — 필터 미적용과 같음)
+        searchProducts(keyword, "tradeStatus", "SOLD_OUT")
+                .andExpect(jsonPath("$.data.content.length()").value(3));
     }
 
     // 상품 목록 조회 - 우리 상품은 거래 지역·택배 가능 여부(거래 방식이 택배면 true)를 내려주고, 외부 매물은 지역 null·택배 가능 true 고정
@@ -713,7 +761,6 @@ class ProductTest extends IntegrationTest {
                         new ProductSearchCondition(
                                 keyword,
                                 List.of("깨짐"),
-                                null,
                                 null,
                                 null,
                                 null,

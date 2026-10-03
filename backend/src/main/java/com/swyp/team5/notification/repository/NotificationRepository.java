@@ -18,4 +18,6 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     Optional<Notification> findByIdAndMemberId(Long notificationId, Long memberId);
 
     long countByMemberIdAndReadFalse(Long memberId);
+
+    long countByMemberId(Long memberId);
 }

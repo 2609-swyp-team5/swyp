@@ -24,8 +24,12 @@ import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.item.entity.ListingSource;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.repository.MemberRepository;
+import com.swyp.team5.platform.entity.PlatformListing;
+import com.swyp.team5.product.entity.Product;
+import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
+import org.hibernate.Hibernate;
 
 @Service
 @RequiredArgsConstructor
@@ -118,7 +122,24 @@ public class InterestService {
                             analysis == null ? null : analysis.getAveragePrice());
                 })
                 .toList();
-        return CursorPageResponse.of(items, size, InterestListItemResponse::interestId);
+        CursorPageResponse<InterestListItemResponse> page =
+                CursorPageResponse.of(items, size, InterestListItemResponse::interestId);
+        if (cursor != null) {
+            return page;
+        }
+        // 전체 건수·상태별 건수는 첫 페이지에서만 센다(관심 대상 상품·매물의 현재 상태 기준)
+        List<Interest> all = interestRepository.findAllWithItemByMemberId(memberId);
+        return page.withTotalCount(all.size())
+                .withStatusCounts(ProductStatus.countByStatus(all.stream().map(InterestService::targetStatus)));
+    }
+
+    /** 관심 대상의 상품 상태(외부 매물은 원본 상태를 같은 체계로 변환). */
+    private static ProductStatus targetStatus(Interest interest) {
+        Object item = Hibernate.unproxy(interest.getItem());
+        if (item instanceof Product product) {
+            return product.getStatus();
+        }
+        return ProductStatus.fromExternal(((PlatformListing) item).getStatus());
     }
 
     /**

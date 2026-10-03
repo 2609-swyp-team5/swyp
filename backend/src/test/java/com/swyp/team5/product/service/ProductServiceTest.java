@@ -3,6 +3,7 @@ package com.swyp.team5.product.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -585,14 +586,29 @@ class ProductServiceTest {
         ProductSearchCondition condition = ProductSearchCondition.ofKeyword(null);
 
         when(productSearchRepository.search(condition, null, 3)).thenReturn(hits);
+        when(productSearchRepository.count(condition)).thenReturn(3L);
         when(productRepository.findAllById(List.of(3L, 2L))).thenReturn(List.of(products.get(1), products.get(0)));
 
         CursorPageResponse<ProductListItemResponse> response = service().getProducts(1L, condition, null, 2);
 
         assertThat(response.content()).extracting(ProductListItemResponse::id).containsExactly(3L, 2L);
         assertThat(response.hasNext()).isTrue();
+        assertThat(response.totalCount()).isEqualTo(3L); // 첫 페이지에만 전체 건수
         assertThat(ProductSearchCursor.decode(response.nextCursor(), ProductSortType.LATEST))
                 .isEqualTo(new ProductSearchCursor(null, products.get(1).getCreatedAt(), 2L));
+    }
+
+    // 상품 목록 조회 - 다음 페이지(cursor 있음)는 전체 건수를 세지 않음(null)
+    @Test
+    void getProductsSkipsTotalCountOnNextPage() {
+        ProductSearchCondition condition = ProductSearchCondition.ofKeyword(null);
+        String cursor = new ProductSearchCursor(null, java.time.LocalDateTime.of(2026, 1, 1, 0, 0), 5L).encode();
+        when(productSearchRepository.search(any(), any(), anyInt())).thenReturn(List.of());
+
+        CursorPageResponse<ProductListItemResponse> response = service().getProducts(1L, condition, cursor, 2);
+
+        assertThat(response.totalCount()).isNull();
+        verify(productSearchRepository, never()).count(any());
     }
 
     // 상품 목록 조회 - 마지막 페이지(size만큼만 조회되어 hasNext=false, nextCursor=null)
@@ -669,8 +685,8 @@ class ProductServiceTest {
     // 상품 목록 조회 - 다른 정렬의 커서나 해석할 수 없는 커서는 400 대상 예외
     @Test
     void getProductsRejectsInvalidCursor() {
-        ProductSearchCondition priceSort = new ProductSearchCondition(
-                null, null, null, null, null, null, null, null, null, ProductSortType.PRICE_LOW);
+        ProductSearchCondition priceSort =
+                new ProductSearchCondition(null, null, null, null, null, null, null, null, ProductSortType.PRICE_LOW);
         String latestCursor = new ProductSearchCursor(null, LocalDateTime.now(), 1L).encode();
 
         assertThatThrownBy(() -> service().getProducts(1L, priceSort, latestCursor, 20))
@@ -921,6 +937,33 @@ class ProductServiceTest {
 
         assertThatThrownBy(() -> service().saveUpdate(1L, 1L, request, List.of(), null))
                 .isInstanceOf(ProductImageRequiredException.class);
+    }
+
+    // 내 상품 목록 - 첫 페이지에 전체 건수와 상태별 건수(요청 필터 적용), 다음 페이지는 null
+    @Test
+    @SuppressWarnings("unchecked")
+    void getMyProductsIncludesStatusCountsOnFirstPage() {
+        Product product = newProduct(1L, newMember(1L), newCategory(1L, "전자기기"));
+        when(productRepository.findAll(
+                        any(org.springframework.data.jpa.domain.Specification.class),
+                        any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(product)));
+        when(productRepository.count(any(org.springframework.data.jpa.domain.Specification.class)))
+                .thenReturn(1L, 2L, 0L, 3L);
+
+        var first = service().getMyProducts(1L, null, null, null, null, 20);
+
+        assertThat(first.totalCount()).isEqualTo(6L);
+        assertThat(first.statusCounts())
+                .containsExactly(
+                        org.assertj.core.api.Assertions.entry("DRAFT", 1L),
+                        org.assertj.core.api.Assertions.entry("ON_SALE", 2L),
+                        org.assertj.core.api.Assertions.entry("RESERVED", 0L),
+                        org.assertj.core.api.Assertions.entry("SOLD_OUT", 3L));
+
+        var next = service().getMyProducts(1L, null, null, null, 1L, 20);
+        assertThat(next.totalCount()).isNull();
+        assertThat(next.statusCounts()).isNull();
     }
 
     // 상품 상태 변경 성공 - 소유자 본인

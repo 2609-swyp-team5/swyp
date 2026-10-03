@@ -17,8 +17,8 @@ import com.swyp.team5.product.error.InvalidProductSearchException;
  *
  * @param keyword 제목/설명(외부 매물은 제목만) 포함 키워드
  * @param excludeKeywords 하나라도 제목/설명에 포함되면 제외할 단어(소문자)
- * @param status 우리 상품 상태 필터(지정 시 외부 매물 제외 — 기존 동작 유지)
- * @param tradeStatuses 거래 상태 필터(미지정 시 외부 매물은 판매중만)
+ * @param statuses 상품 상태 필터 DRAFT/ON_SALE/RESERVED/SOLD_OUT 복수(우리 상품·외부 매물 모두 적용 — 외부 매물은 원본 상태를 같은
+ *     체계로 비교, DRAFT는 우리 상품만). 미지정 시 우리 상품은 전체, 외부 매물은 판매중만
  * @param platforms 플랫폼 필터
  * @param minPrice 최소 가격(포함)
  * @param maxPrice 최대 가격(포함)
@@ -29,8 +29,7 @@ import com.swyp.team5.product.error.InvalidProductSearchException;
 public record ProductSearchCondition(
         String keyword,
         List<String> excludeKeywords,
-        ProductStatus status,
-        Set<ListingTradeStatus> tradeStatuses,
+        Set<ProductStatus> statuses,
         Set<ProductSearchPlatform> platforms,
         Long minPrice,
         Long maxPrice,
@@ -41,7 +40,7 @@ public record ProductSearchCondition(
     public ProductSearchCondition {
         keyword = keyword == null || keyword.isBlank() ? null : keyword.trim();
         excludeKeywords = excludeKeywords == null ? List.of() : List.copyOf(excludeKeywords);
-        tradeStatuses = copy(tradeStatuses, ListingTradeStatus.class);
+        statuses = copy(statuses, ProductStatus.class);
         platforms = copy(platforms, ProductSearchPlatform.class);
         conditions = copy(conditions, ProductCondition.class);
         defectStatuses = copy(defectStatuses, DefectStatus.class);
@@ -53,8 +52,7 @@ public record ProductSearchCondition(
 
     /** 키워드만으로 최신순 조회하는 기본 조건. */
     public static ProductSearchCondition ofKeyword(String keyword) {
-        return new ProductSearchCondition(
-                keyword, null, null, null, null, null, null, null, null, ProductSortType.LATEST);
+        return new ProductSearchCondition(keyword, null, null, null, null, null, null, null, ProductSortType.LATEST);
     }
 
     /** 공백으로 구분된 제외 키워드 문자열을 소문자 단어 목록으로 나눈다({@code null}·공백이면 빈 목록). */
@@ -69,24 +67,30 @@ public record ProductSearchCondition(
                 .toList();
     }
 
-    /** 우리 상품을 결과에 포함하는지(플랫폼 필터에 OUR가 있고, 거래 상태 필터에 대응하는 상태가 있을 때). */
+    /** 우리 상품을 결과에 포함하는지(플랫폼 필터에 OUR가 있을 때 — 상태 필터는 모든 값이 우리 상품에 대응). */
     public boolean includesOurProducts() {
-        boolean platformMatches = platforms.isEmpty() || platforms.contains(ProductSearchPlatform.OUR);
-        return platformMatches && (tradeStatuses.isEmpty() || !ourStatuses().isEmpty());
+        return platforms.isEmpty() || platforms.contains(ProductSearchPlatform.OUR);
     }
 
-    /** 외부 매물을 결과에 포함하는지(우리 상품 고유 필터 — 상태·등급·하자 — 가 없고, 외부 플랫폼이 선택됐을 때). */
+    /**
+     * 외부 매물을 결과에 포함하는지(우리 상품 고유 필터 — 등급·하자 — 가 없고, 외부 플랫폼이 선택됐고, 상태 필터에 대응하는 외부
+     * 상태가 있을 때 — 예: DRAFT만 고르면 외부 매물 제외).
+     */
     public boolean includesExternalListings() {
         boolean platformMatches =
                 platforms.isEmpty() || !externalPlatformNames().isEmpty();
-        return platformMatches && status == null && conditions.isEmpty() && defectStatuses.isEmpty();
+        return platformMatches
+                && conditions.isEmpty()
+                && defectStatuses.isEmpty()
+                && (statuses.isEmpty() || !externalStatuses().isEmpty());
     }
 
-    /** 거래 상태 필터에 대응하는 우리 상품 상태(필터 미지정이면 빈 집합 = 미적용). */
-    public Set<ProductStatus> ourStatuses() {
-        return tradeStatuses.stream()
-                .flatMap(tradeStatus -> tradeStatus.ourStatuses().stream())
-                .collect(Collectors.toCollection(() -> EnumSet.noneOf(ProductStatus.class)));
+    /** 상태 필터에 대응하는 외부 매물 원본 상태(필터 미지정이면 빈 집합 — 이때 외부 매물은 판매중만 보여 준다). */
+    public Set<String> externalStatuses() {
+        return statuses.stream()
+                .map(ProductStatus::externalValue)
+                .filter(value -> value != null)
+                .collect(Collectors.toSet());
     }
 
     /** 플랫폼 필터 중 외부 플랫폼의 {@code platforms.name} 값(필터 미지정이면 빈 집합 = 미적용). */
