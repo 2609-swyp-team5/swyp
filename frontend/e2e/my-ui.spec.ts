@@ -1,6 +1,15 @@
 import { expect, test } from "./fixtures";
 
 test.beforeEach(async ({ page }) => {
+    await page.route("**/products/me?*", (route) =>
+        route.fulfill({
+            json: {
+                success: true,
+                data: { content: [], nextCursor: null, hasNext: false },
+                error: null,
+            },
+        }),
+    );
     await page.route("**/auth/refresh", (route) =>
         route.fulfill({
             status: 200,
@@ -62,10 +71,86 @@ test("home greets the member returned by the API", async ({ page }) => {
     await expect(
         page.getByRole("heading", { name: "안녕하세요, 다른 닉네임님", exact: true }),
     ).toBeVisible();
-    await expect(page.locator('main img[src*="mascot.png"]')).toBeVisible();
     await expect(page.getByRole("heading", { name: "등록한 물건" })).toBeVisible();
-    await expect(page.locator("main").getByRole("link", { name: /다시 연결/ })).toHaveCount(3);
     await expect(page.locator("aside").getByText("다른 닉네임", { exact: true })).toBeVisible();
+});
+
+test("home product summary shows total and all status counts from cursor pages", async ({
+    page,
+}, testInfo) => {
+    let finishRequest!: () => void;
+    const responseReady = new Promise<void>((resolve) => {
+        finishRequest = resolve;
+    });
+    const requests: URLSearchParams[] = [];
+    await page.route("**/products/me?*", async (route) => {
+        expect(route.request().headers().authorization).toBe("Bearer my-ui-preview");
+        const params = new URL(route.request().url()).searchParams;
+        requests.push(params);
+        await responseReady;
+        const isNext = params.has("cursor");
+        const statuses = isNext ? ["DRAFT", "SOLD_OUT"] : ["DRAFT", "ON_SALE", "ON_SALE"];
+        return route.fulfill({
+            json: {
+                success: true,
+                data: {
+                    content: statuses.map((status, index) => ({
+                        id: (isNext ? 10 : 20) - index,
+                        title: "상품",
+                        price: 10000,
+                        status,
+                    })),
+                    nextCursor: isNext ? null : "18",
+                    hasNext: !isNext,
+                },
+                error: null,
+            },
+        });
+    });
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto("/my");
+    const card = page
+        .locator("article")
+        .filter({ has: page.getByRole("heading", { name: "등록한 물건", exact: true }) });
+    await expect(card.getByRole("status")).toHaveText("상품을 불러오는 중입니다.");
+    finishRequest();
+    await expect(card).toContainText("5개");
+    await expect(card).toContainText("등록됨 2 · 판매중 2 · 판매완료 1");
+    expect(requests).toHaveLength(2);
+    expect(requests.every((params) => !params.has("status"))).toBe(true);
+    expect(requests[1]?.get("cursor")).toBe("18");
+    for (const width of [1440, 390]) {
+        await page.setViewportSize({ width, height: 1000 });
+        expect(await card.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+            true,
+        );
+        await card.screenshot({ path: testInfo.outputPath(`home-summary-${width}.png`) });
+    }
+});
+
+test("home product summary retries errors and displays zero counts", async ({ page }) => {
+    let attempts = 0;
+    await page.route("**/products/me?*", (route) =>
+        route.fulfill({
+            json:
+                ++attempts === 1
+                    ? { success: false, message: "상품 조회 실패", data: null, error: null }
+                    : {
+                          success: true,
+                          data: { content: [], nextCursor: null, hasNext: false },
+                          error: null,
+                      },
+        }),
+    );
+    await page.goto("/my");
+    const card = page
+        .locator("article")
+        .filter({ has: page.getByRole("heading", { name: "등록한 물건", exact: true }) });
+    await expect(card.getByRole("alert")).toHaveText("상품 조회 실패");
+    await card.getByRole("button", { name: "다시 시도", exact: true }).click();
+    await expect(card).toContainText("0개");
+    await expect(card).toContainText("등록됨 0 · 판매중 0 · 판매완료 0");
+    expect(attempts).toBe(2);
 });
 
 test("profile saves member fields and updates shared nickname", async ({ page }) => {
@@ -120,31 +205,236 @@ test("notification switches respond to keyboard input", async ({ page }) => {
     await expect(toggle).toBeChecked();
 });
 
-test("product filters show matching rows", async ({ page }) => {
+test("product filters count all pages and switch locally without requests", async ({ page }) => {
+    const requests: URLSearchParams[] = [];
+    await page.route("**/products/me?*", (route) => {
+        expect(route.request().headers().authorization).toBe("Bearer my-ui-preview");
+        const params = new URL(route.request().url()).searchParams;
+        requests.push(params);
+        const isNext = params.has("cursor");
+        const statuses = isNext ? ["DRAFT"] : ["DRAFT", "ON_SALE", "SOLD_OUT"];
+        return route.fulfill({
+            json: {
+                success: true,
+                data: {
+                    content: statuses.map((status, index) => ({
+                        id: (isNext ? 10 : 20) - index,
+                        title: `${status} 상품`,
+                        price: 12000,
+                        platformName: "번개장터",
+                        status,
+                    })),
+                    nextCursor: isNext ? null : "18",
+                    hasNext: !isNext,
+                },
+                error: null,
+            },
+        });
+    });
     await page.goto("/my/products");
+    const group = page.getByRole("group", { name: "상품 분류" });
+    await expect(group.getByRole("button")).toHaveCount(4);
+    await expect(group.getByRole("button", { name: "전체 4", exact: true })).toBeVisible();
+    await expect(group.getByRole("button", { name: "등록됨 2", exact: true })).toBeVisible();
+    await expect(group.getByRole("button", { name: "판매중 1", exact: true })).toBeVisible();
+    await expect(group.getByRole("button", { name: "판매완료 1", exact: true })).toBeVisible();
     const rows = page.locator("tbody tr");
-    await expect(rows).toHaveCount(6);
-    await page.getByRole("button", { name: "판매 상품 3", exact: true }).click();
-    await expect(rows).toHaveCount(3);
-    await page.getByRole("button", { name: "관심 상품 2", exact: true }).click();
-    await expect(rows).toHaveCount(2);
-    await page.getByRole("button", { name: "전체 6", exact: true }).click();
-    await expect(rows).toHaveCount(6);
+    await expect(rows).toHaveCount(4);
+    expect(requests[0]?.get("size")).toBe("100");
+    expect(requests[0]?.has("cursor")).toBe(false);
+    expect(requests[1]?.get("cursor")).toBe("18");
+    expect(requests.every((params) => !params.has("status"))).toBe(true);
+    for (const [label, status, count] of [
+        ["등록됨", "DRAFT", 2],
+        ["판매중", "ON_SALE", 1],
+        ["판매완료", "SOLD_OUT", 1],
+    ] as const) {
+        await group.getByRole("button", { name: `${label} ${count}`, exact: true }).click();
+        await expect(rows).toHaveCount(count);
+        await expect(rows.first()).toContainText(`${status} 상품`);
+        await expect(
+            group.getByRole("button", { name: `${label} ${count}`, exact: true }),
+        ).toHaveAttribute("aria-pressed", "true");
+        await expect(rows.first().locator("td").nth(3).locator("span")).toHaveCSS(
+            "color",
+            status === "ON_SALE" ? "rgb(250, 80, 61)" : "rgb(131, 136, 158)",
+        );
+    }
+    await group.getByRole("button", { name: "전체 4", exact: true }).click();
+    await expect(rows).toHaveCount(4);
+    expect(requests).toHaveLength(2);
 });
 
-test("platform connection preview supports confirm and cancel", async ({ page }) => {
+test("my products retry incomplete list loading without displaying partial counts", async ({
+    page,
+}) => {
+    let nextAttempts = 0;
+    await page.route("**/products/me?*", (route) => {
+        const isNext = new URL(route.request().url()).searchParams.has("cursor");
+        if (isNext) nextAttempts += 1;
+        return route.fulfill({
+            json:
+                isNext && nextAttempts === 1
+                    ? { success: false, message: "상품 조회 실패", data: null, error: null }
+                    : {
+                          success: true,
+                          data: {
+                              content: [
+                                  {
+                                      id: isNext ? 19 : 20,
+                                      title: isNext ? "다음 상품" : "첫 상품",
+                                      price: 10000,
+                                      status: "DRAFT",
+                                  },
+                              ],
+                              nextCursor: isNext ? null : "20",
+                              hasNext: !isNext,
+                          },
+                          error: null,
+                      },
+        });
+    });
+    await page.goto("/my/products");
+    await expect(page.locator("main").getByRole("alert")).toHaveText("상품 조회 실패");
+    await expect(page.getByRole("button", { name: "전체 —", exact: true })).toBeVisible();
+    await expect(page.getByRole("columnheader")).toHaveCount(5);
+    await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+    await expect(page.locator("tbody tr")).toHaveCount(2);
+    await expect(page.getByRole("button", { name: "전체 2", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "등록됨 2", exact: true })).toBeVisible();
+    expect(nextAttempts).toBe(2);
+    await page.getByRole("button", { name: "판매중 0", exact: true }).click();
+    await expect(page.locator("tbody").getByRole("status")).toHaveText(
+        "해당 상태의 상품이 없습니다.",
+    );
+});
+test("product table keeps headers during status loading and fits narrow screens", async ({
+    page,
+}, testInfo) => {
+    let finishRequest!: () => void;
+    const responseReady = new Promise<void>((resolve) => {
+        finishRequest = resolve;
+    });
+    await page.route("**/products/me?*", async (route) => {
+        await responseReady;
+        return route.fulfill({
+            json: {
+                success: true,
+                data: {
+                    content: ["DRAFT", "ON_SALE"].map((status, index) => ({
+                        id: index + 1,
+                        title: "일본 교토 벚꽃 커플 스냅 사진 촬영 서비스 긴 상품명입니다",
+                        price: 150000,
+                        platformName: "번개장터",
+                        status,
+                    })),
+                    nextCursor: null,
+                    hasNext: false,
+                },
+                error: null,
+            },
+        });
+    });
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto("/my/products");
+    const headers = page.getByRole("columnheader");
+    await expect(headers).toHaveCount(5);
+    await expect(page.locator("tbody").getByRole("status")).toHaveText("상품을 불러오는 중입니다.");
+    finishRequest();
+    await expect(page.locator("tbody")).toContainText("번개장터");
+    const headerBox = await page.locator("thead").boundingBox();
+    for (const width of [1440, 1024, 768, 390]) {
+        await page.setViewportSize({ width, height: 1000 });
+        await expect(headers).toHaveCount(5);
+        if (width === 1440) {
+            expect(
+                await page
+                    .locator('[data-slot="table-container"]')
+                    .evaluate((element) => element.scrollWidth <= element.clientWidth),
+            ).toBe(true);
+        }
+        expect(
+            await page
+                .locator("main")
+                .evaluate((element) => element.scrollWidth <= element.clientWidth),
+        ).toBe(true);
+        const cells = page.locator("tbody td");
+        expect(
+            await cells.evaluateAll((elements) =>
+                elements.every((element) => element.scrollWidth <= element.clientWidth + 1),
+            ),
+        ).toBe(true);
+        expect(
+            await cells.evaluateAll((elements) =>
+                elements.map(
+                    (element) => getComputedStyle(element.firstElementChild ?? element).fontSize,
+                ),
+            ),
+        ).toEqual(Array(10).fill("14px"));
+        if (width === 1440 || width === 390)
+            await page.screenshot({
+                path: testInfo.outputPath(`products-${width}.png`),
+                fullPage: true,
+            });
+    }
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.getByRole("button", { name: /^판매중/ }).click();
+    await expect(headers).toHaveCount(5);
+    expect((await page.locator("thead").boundingBox())?.y).toBe(headerBox?.y);
+    await expect(page.locator("tbody")).toContainText("번개장터");
+    await page.getByRole("button", { name: /^판매완료/ }).click();
+    await expect(page.locator("tbody").getByRole("status")).toHaveText(
+        "해당 상태의 상품이 없습니다.",
+    );
+    await expect(headers).toHaveCount(5);
+    expect((await page.locator("thead").boundingBox())?.y).toBe(headerBox?.y);
+});
+
+test("platform connection validates input and updates status counts without an API write", async ({
+    page,
+}) => {
+    const writes: string[] = [];
+    page.on("request", (request) => {
+        if (
+            ["POST", "PUT", "PATCH", "DELETE"].includes(request.method()) &&
+            !request.url().includes("/auth/refresh")
+        )
+            writes.push(request.url());
+    });
     await page.goto("/my/platforms");
-    await page.getByRole("button", { name: "번개장터 연결하기", exact: true }).click();
+    const summary = (label: string) =>
+        page.getByText(label, { exact: true }).locator("..").locator("p").first();
+    await expect(summary("연결됨")).toHaveText("0");
+    await expect(summary("만료됨")).toHaveText("1");
+    const input = page.getByRole("textbox", { name: "번개장터 연결 정보" });
+    const connect = page.getByRole("button", { name: "번개장터 다시 연결", exact: true });
+    await connect.click();
+    await expect(
+        page.getByRole("alert").filter({ hasText: "연결 정보를 입력해주세요." }),
+    ).toBeVisible();
+    await expect(input).toHaveAttribute("aria-invalid", "true");
+    await input.fill("   ");
+    await connect.click();
+    await expect(page.getByRole("alertdialog")).toHaveCount(0);
+    await input.fill("preview-connection-value");
+    await expect(input).toHaveAttribute("aria-invalid", "false");
+    await connect.click();
     const dialog = page.getByRole("alertdialog");
     await dialog.getByRole("button", { name: "취소", exact: true }).click();
-    await expect(
-        page.getByRole("button", { name: "번개장터 연결하기", exact: true }),
-    ).toBeVisible();
-    await page.getByRole("button", { name: "번개장터 연결하기", exact: true }).click();
+    await expect(connect).toBeVisible();
+    await connect.click();
     await dialog.getByRole("button", { name: "연결하기", exact: true }).click();
     await expect(
         page.getByRole("button", { name: "번개장터 연결 해제", exact: true }),
     ).toBeVisible();
+    await expect(summary("연결됨")).toHaveText("1");
+    await expect(summary("만료됨")).toHaveText("0");
+    await page.getByRole("button", { name: "번개장터 연결 해제", exact: true }).click();
+    await dialog.getByRole("button", { name: "연결 해제", exact: true }).click();
+    await expect(summary("연결됨")).toHaveText("0");
+    await expect(summary("미연결")).toHaveText("1");
+    await expect(page.getByRole("button", { name: "번개장터 연결", exact: true })).toBeVisible();
+    expect(writes).toEqual([]);
 });
 
 test("withdrawal requires consent and cancellation sends no request", async ({ page }) => {

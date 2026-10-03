@@ -1,0 +1,35 @@
+"use client";
+
+import { useInfiniteQuery } from "@tanstack/react-query";
+
+import { useAuthStore } from "@/features/auth/store/authStore";
+import { searchApi } from "@/features/search/api/searchApi";
+import type { SearchStatus } from "@/features/search/types";
+
+const pageSize = 20;
+
+export function useSearchQuery(keyword: string, status?: SearchStatus) {
+    const isInitialized = useAuthStore((state) => state.isInitialized);
+
+    return useInfiniteQuery({
+        queryKey: ["search", keyword, status],
+        queryFn: async ({ pageParam, signal }) => {
+            const { data } = await searchApi.searchList(
+                {
+                    keyword: keyword || undefined,
+                    status,
+                    cursor: pageParam ?? undefined,
+                    size: pageSize,
+                },
+                signal,
+            );
+            if (!data.success) throw new Error(data.message);
+            return data.data;
+        },
+        initialPageParam: null as number | null,
+        getNextPageParam: (lastPage) =>
+            lastPage.hasNext ? (lastPage.nextCursor ?? undefined) : undefined,
+        enabled: isInitialized,
+        retry: false,
+    });
+}

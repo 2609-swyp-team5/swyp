@@ -1,0 +1,43 @@
+.stepImage {
+    transition: transform 0.6s ease;
+}
+
+.stepDescription {
+    transition:
+        opacity 0.4s ease,
+        transform 0.4s ease;
+}
+
+@media (min-width: 768px) and (hover: hover) and (pointer: fine) and (scripting: enabled) {
+    .stepDescription {
+        opacity: 0;
+        transform: translateY(24px);
+    }
+
+    .stepCard:hover .stepImage,
+    .stepCard:focus-visible .stepImage {
+        transform: scale(1.12);
+    }
+
+    .stepCard:hover .stepDescription,
+    .stepCard:focus-visible .stepDescription {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (scripting: none), (prefers-reduced-motion: reduce) {
+    .riseText {
+        opacity: 1 !important;
+        clip-path: none !important;
+        transform: none !important;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .stepImage,
+    .stepDescription {
+        transition: none;
+        transform: none !important;
+    }
+}

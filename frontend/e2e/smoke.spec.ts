@@ -7,6 +7,9 @@ test("onboarding connects to the authentication flow", async ({ page }) => {
     await expect(page.getByRole("heading", { name: "지금 팔까, 더 갖고 있을까?" })).toBeVisible();
 
     await page.getByRole("link", { name: "시작하기", exact: true }).click();
+    await expect(page).toHaveURL(/\/home$/);
+    await expect(page.getByRole("heading", { name: "상품 일반 검색" })).toBeVisible();
+    await page.getByRole("banner").getByRole("button", { name: "로그인", exact: true }).click();
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.getByRole("heading", { name: "로그인" })).toBeVisible();
 
@@ -59,11 +62,11 @@ test("authenticated members can navigate the profile menu", async ({ page }) => 
     );
 });
 
-test("home displays its page description", async ({ page }) => {
+test("guest home displays search and popular products", async ({ page }) => {
     await page.goto("/home");
 
-    await expect(page.getByRole("heading", { name: "서비스 홈" })).toBeVisible();
-    await expect(page.getByText("서비스 홈 화면입니다.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "상품 일반 검색" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "인기 상품 모음", exact: true })).toBeVisible();
     await expect(page.getByRole("banner").getByRole("link", { name: "홈" })).toHaveAttribute(
         "aria-current",
         "page",

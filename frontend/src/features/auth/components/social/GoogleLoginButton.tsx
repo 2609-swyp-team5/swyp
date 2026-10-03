@@ -30,7 +30,7 @@ export function GoogleLoginButton({
                 disabled={isDisabled}
                 aria-label={ariaLabel}
                 title={ariaLabel}
-                className={`size-[45.27px] rounded-[10px] border-[#e5e7eb] bg-white p-0 hover:bg-[#f8faff] ${isDisabled ? "opacity-50" : ""}`}
+                className={`size-[45.27px] rounded-[10px] border-[#e5e7eb] bg-white p-0 hover:bg-[#f8faff] focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30 ${isDisabled ? "opacity-50" : ""}`}
             >
                 <Image
                     src="/auth/google.svg"

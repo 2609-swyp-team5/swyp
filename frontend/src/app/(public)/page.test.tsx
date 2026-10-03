@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useAuthStore } from "@/features/auth/store/authStore";
 import AuthInitializer from "@/features/auth/components/AuthInitializer";
@@ -9,6 +9,26 @@ import AuthInitializer from "@/features/auth/components/AuthInitializer";
 import OnboardingPage from "./page";
 
 const mocks = vi.hoisted(() => ({ replace: vi.fn(), pathname: "/" }));
+
+beforeAll(() => {
+    vi.stubGlobal("matchMedia", () => ({
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+    }));
+    vi.stubGlobal(
+        "IntersectionObserver",
+        class {
+            observe() {}
+            unobserve() {}
+            disconnect() {}
+        },
+    );
+});
+
+afterAll(() => vi.unstubAllGlobals());
 
 vi.mock("next/navigation", () => ({
     usePathname: () => mocks.pathname,
@@ -43,16 +63,16 @@ describe("Onboarding page", () => {
         });
     });
 
-    it("provides an entry link to authentication", () => {
+    it("provides entry links to home for guests", () => {
         renderOnboarding();
 
         expect(
             screen.getByRole("heading", { name: "지금 팔까, 더 갖고 있을까?" }),
         ).toBeInTheDocument();
-        expect(screen.getByRole("link", { name: "시작하기" })).toHaveAttribute("href", "/login");
+        expect(screen.getByRole("link", { name: "시작하기" })).toHaveAttribute("href", "/home");
         expect(screen.getByRole("link", { name: "지금 시작하기" })).toHaveAttribute(
             "href",
-            "/login",
+            "/home",
         );
         expect(mocks.replace).not.toHaveBeenCalled();
     });
