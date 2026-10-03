@@ -6,7 +6,7 @@ export type SearchPlatform = "ALL" | "BUNJANG" | "OUR";
 export interface SearchParams {
     keyword?: string;
     status?: SearchStatus;
-    cursor?: number;
+    cursor?: string;
     size: number;
 }
 
@@ -33,6 +33,6 @@ export interface SearchResultItem {
 // 커서 기반 상품 목록 조회 결과
 export interface SearchResponse {
     content: SearchResultItem[];
-    nextCursor: number | null;
+    nextCursor: string | null;
     hasNext: boolean;
 }

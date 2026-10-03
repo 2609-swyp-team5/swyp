@@ -26,7 +26,7 @@ export function useSearchQuery(keyword: string, status?: SearchStatus) {
             if (!data.success) throw new Error(data.message);
             return data.data;
         },
-        initialPageParam: null as number | null,
+        initialPageParam: null as string | null,
         getNextPageParam: (lastPage) =>
             lastPage.hasNext ? (lastPage.nextCursor ?? undefined) : undefined,
         enabled: isInitialized,
