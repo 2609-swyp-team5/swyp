@@ -9,12 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import jakarta.servlet.http.Cookie;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultMatcher;
 
@@ -23,13 +19,12 @@ import com.swyp.team5.auth.dto.LoginRequest;
 import com.swyp.team5.auth.dto.SignUpRequest;
 import com.swyp.team5.auth.dto.SocialLoginRequest;
 import com.swyp.team5.auth.dto.SocialUserInfo;
-import com.swyp.team5.auth.service.RefreshTokenService;
 import com.swyp.team5.common.passport.JwtTokenProvider;
 import com.swyp.team5.member.entity.MemberRole;
 import com.swyp.team5.member.repository.MemberRepository;
 import com.swyp.team5.social.entity.SocialProvider;
 import com.swyp.team5.social.repository.SocialRepository;
-import com.swyp.team5.social.strategy.SocialLoginStrategy;
+import com.swyp.team5.support.IntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -39,9 +34,7 @@ import org.mockito.Mockito;
  * 컨트롤러~서비스~레포지토리 전체 흐름을 검증한다.
  * 외부 인프라(Redis, 구글 ID 토큰 검증)는 MockitoBean으로 대체한다.
  */
-@SpringBootTest
-@AutoConfigureMockMvc
-class AuthTest {
+class AuthTest extends IntegrationTest {
 
     private static final String DEFAULT_EMAIL = "test@example.com";
     private static final String DEFAULT_PASSWORD = "password1234";
@@ -60,14 +53,9 @@ class AuthTest {
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
-    @MockitoBean
-    private RefreshTokenService refreshTokenService;
-
     // AuthService가 생성 시점(싱글톤 초기화)에 provider()를 한 번 호출해 맵을 구성하므로,
     // @BeforeEach에서 provider()를 스텁하는 MockitoBean 방식으로는 그 시점을 맞출 수 없다.
     // 실제 provider()(GOOGLE 고정값)는 그대로 두고 verify()만 스텁하도록 스파이를 사용한다.
-    @MockitoSpyBean
-    private SocialLoginStrategy googleLoginStrategy;
 
     @BeforeEach
     void setUp() {
