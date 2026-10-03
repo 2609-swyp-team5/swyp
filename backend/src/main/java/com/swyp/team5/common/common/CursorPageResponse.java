@@ -8,10 +8,9 @@ import java.util.function.Function;
  * 커서 기반 페이지 응답. {@code nextCursor}는 모든 목록에서 문자열이다 — ID 기준 목록은 마지막 항목 ID를 그대로 문자열로,
  * 검색처럼 정렬값이 여러 개인 목록은 인코딩한 값을 담는다. 호출 측은 해석하지 않고 다음 요청의 {@code cursor}로 돌려주기만 한다.
  *
- * <p>{@code totalCount}는 조건에 맞는 전체 건수로, 첫 페이지({@code cursor} 없이 호출)에서만 채우고 다음 페이지는 {@code null}이다
- * (스크롤마다 COUNT 쿼리를 돌리지 않도록 — 화면은 첫 응답 값을 유지한다). 건수를 제공하지 않는 목록도 {@code null}.
- * {@code statusCounts}는 같은 조건의 상품 상태별 건수(DRAFT/ON_SALE/RESERVED/SOLD_OUT, 없는 상태는 0)로, 상태 탭이 있는 목록(내 상품·
- * 관심상품)의 첫 페이지에서만 채운다.
+ * <p>{@code totalCount}는 조건에 맞는 전체 건수, {@code statusCounts}는 같은 조건의 상품 상태별 건수(DRAFT/ON_SALE/RESERVED/SOLD_OUT,
+ * 없는 상태는 0)다. 검색·알림은 {@code totalCount}를 첫 페이지({@code cursor} 없이 호출)에서만 채우고(스크롤마다 COUNT 쿼리를 돌리지
+ * 않도록), 회원 본인 목록인 내 상품·관심상품은 두 값 모두 매 페이지 채운다. 제공하지 않는 목록·페이지는 {@code null}.
  */
 public record CursorPageResponse<T>(
         List<T> content, String nextCursor, boolean hasNext, Long totalCount, Map<String, Long> statusCounts) {

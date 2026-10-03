@@ -454,10 +454,7 @@ public class ProductService {
                 .and(hasKeyword(keyword))
                 .and(hasStatusIn(status));
         CursorPageResponse<ProductSummaryResponse> page = findProducts(filter.and(idLessThan(cursor)), size);
-        if (cursor != null) {
-            return page;
-        }
-        // 전체 건수·상태별 건수는 첫 페이지에서만 센다(요청 필터를 모두 적용한 조건)
+        // 전체 건수·상태별 건수는 매 페이지 센다(회원 본인 상품이라 부담이 작음, 요청 필터를 모두 적용한 조건)
         Map<String, Long> statusCounts = new LinkedHashMap<>();
         for (ProductStatus each : ProductStatus.values()) {
             statusCounts.put(each.name(), productRepository.count(filter.and(hasStatus(each))));
