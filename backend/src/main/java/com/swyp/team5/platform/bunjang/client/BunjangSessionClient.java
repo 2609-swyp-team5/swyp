@@ -1,5 +1,7 @@
 package com.swyp.team5.platform.bunjang.client;
 
+import java.util.Optional;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -33,12 +35,7 @@ public class BunjangSessionClient {
 
     public SessionState check(String sessionToken) {
         try {
-            SessionResponse response = bunjangSessionRestClient
-                    .get()
-                    .uri(SESSION_PATH)
-                    .header(HttpHeaders.COOKIE, "bun_session=" + sessionToken)
-                    .retrieve()
-                    .body(SessionResponse.class);
+            SessionResponse response = fetchSession(sessionToken);
             if (response == null || response.data() == null || response.data().login() == null) {
                 log.warn("번개장터 세션 조회 응답 형식이 예상과 다릅니다. response={}", response);
                 return SessionState.UNKNOWN;
@@ -50,14 +47,42 @@ public class BunjangSessionClient {
         }
     }
 
+    /**
+     * 세션으로 번개장터 인증 토큰({@code X-BUN-AUTH-TOKEN} 헤더 값)을 받아온다. 세션이 무효이거나 확인할 수
+     * 없으면 비어 있다.
+     */
+    public Optional<String> fetchAuthToken(String sessionToken) {
+        try {
+            SessionResponse response = fetchSession(sessionToken);
+            if (response == null
+                    || response.data() == null
+                    || !Boolean.TRUE.equals(response.data().login())) {
+                return Optional.empty();
+            }
+            return Optional.ofNullable(response.data().token()).filter(token -> !token.isBlank());
+        } catch (Exception e) {
+            log.warn("번개장터 인증 토큰 조회 실패. reason={}", e.getMessage());
+            return Optional.empty();
+        }
+    }
+
     /** 세션이 유효하다고 확인된 경우에만 true(확인 불가도 false). */
     public boolean verify(String sessionToken) {
         return check(sessionToken) == SessionState.VALID;
+    }
+
+    private SessionResponse fetchSession(String sessionToken) {
+        return bunjangSessionRestClient
+                .get()
+                .uri(SESSION_PATH)
+                .header(HttpHeaders.COOKIE, "bun_session=" + sessionToken)
+                .retrieve()
+                .body(SessionResponse.class);
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record SessionResponse(SessionData data) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record SessionData(Boolean login) {}
+    record SessionData(Boolean login, String token) {}
 }

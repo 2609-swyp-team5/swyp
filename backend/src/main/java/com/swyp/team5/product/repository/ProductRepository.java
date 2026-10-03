@@ -1,5 +1,6 @@
 package com.swyp.team5.product.repository;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 
@@ -24,4 +25,8 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     @Modifying
     @Query("update Product p set p.viewCount = p.viewCount + 1 where p.id = :productId")
     int incrementViewCount(@Param("productId") Long productId);
+
+    long countByCreatedAtGreaterThanEqual(LocalDateTime from);
+
+    long countByMemberId(Long memberId);
 }

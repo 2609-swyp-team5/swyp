@@ -14,6 +14,7 @@ import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.crawl.client.BunjangProductClient;
 import com.swyp.team5.crawl.dto.BunjangProductDetail;
 import com.swyp.team5.member.entity.Member;
+import com.swyp.team5.platform.bunjang.client.BunjangSessionClient;
 import com.swyp.team5.platform.bunjang.dto.ProductPlatformResponse;
 import com.swyp.team5.platform.entity.MemberPlatform;
 import com.swyp.team5.platform.entity.Platform;
@@ -61,13 +62,17 @@ class BunjangProductLinkServiceTest {
     @Mock
     private BunjangProductClient bunjangProductClient;
 
+    @Mock
+    private BunjangSessionClient bunjangSessionClient;
+
     private BunjangProductLinkService service() {
         return new BunjangProductLinkService(
                 platformRepository,
                 memberPlatformRepository,
                 productPlatformRepository,
                 productRepository,
-                bunjangProductClient);
+                bunjangProductClient,
+                bunjangSessionClient);
     }
 
     // 연동 성공 - 신규 ProductPlatform 생성
@@ -79,7 +84,7 @@ class BunjangProductLinkServiceTest {
         Product product = newProduct(5L, newMember(2L));
         givenConnectedMemberPlatform(platform, memberPlatform);
         when(productRepository.findById(5L)).thenReturn(Optional.of(product));
-        when(bunjangProductClient.fetchDetail("123456789"))
+        when(bunjangProductClient.fetchDetail("123456789", null))
                 .thenReturn(new BunjangProductDetail(123456789L, "SELLING", 10_000L, "title", null));
         when(productPlatformRepository.findByProductIdAndMemberPlatformId(5L, 10L))
                 .thenReturn(Optional.empty());
@@ -103,7 +108,7 @@ class BunjangProductLinkServiceTest {
         product.changeStatus(ProductStatus.SOLD_OUT);
         givenConnectedMemberPlatform(platform, memberPlatform);
         when(productRepository.findById(5L)).thenReturn(Optional.of(product));
-        when(bunjangProductClient.fetchDetail("123456789"))
+        when(bunjangProductClient.fetchDetail("123456789", null))
                 .thenReturn(new BunjangProductDetail(123456789L, "SELLING", 10_000L, "title", null));
         when(productPlatformRepository.findByProductIdAndMemberPlatformId(5L, 10L))
                 .thenReturn(Optional.empty());
@@ -182,7 +187,7 @@ class BunjangProductLinkServiceTest {
         givenConnectedMemberPlatform(platform, memberPlatform);
         Product product = newProduct(5L, newMember(2L));
         when(productRepository.findById(5L)).thenReturn(Optional.of(product));
-        when(bunjangProductClient.fetchDetail("123456789"))
+        when(bunjangProductClient.fetchDetail("123456789", null))
                 .thenReturn(new BunjangProductDetail(123456789L, null, null, null, "ERR_DELETED_PRODUCT"));
 
         assertThatThrownBy(() -> service().link(2L, 5L, PRODUCT_URL)).isInstanceOf(InvalidProductUrlException.class);
@@ -197,7 +202,7 @@ class BunjangProductLinkServiceTest {
         Product product = newProduct(5L, newMember(2L));
         givenConnectedMemberPlatform(platform, memberPlatform);
         when(productRepository.findById(5L)).thenReturn(Optional.of(product));
-        when(bunjangProductClient.fetchDetail("123456789"))
+        when(bunjangProductClient.fetchDetail("123456789", null))
                 .thenReturn(new BunjangProductDetail(123456789L, "SELLING", 10_000L, "title", null));
         ProductPlatform existing = ProductPlatform.link(memberPlatform, product, "123456789", PRODUCT_URL);
         when(productPlatformRepository.findByProductIdAndMemberPlatformId(5L, 10L))
@@ -219,7 +224,7 @@ class BunjangProductLinkServiceTest {
         ProductPlatform productPlatform = ProductPlatform.link(memberPlatform, product, "123456789", PRODUCT_URL);
         when(productPlatformRepository.findByProductIdAndMemberPlatformId(5L, 10L))
                 .thenReturn(Optional.of(productPlatform));
-        when(bunjangProductClient.fetchDetail("123456789"))
+        when(bunjangProductClient.fetchDetail("123456789", null))
                 .thenReturn(new BunjangProductDetail(123456789L, "SELLING", 10_000L, "title", null));
 
         ProductPlatformResponse response = service().syncStatus(2L, 5L);
@@ -239,12 +244,56 @@ class BunjangProductLinkServiceTest {
         ProductPlatform productPlatform = ProductPlatform.link(memberPlatform, product, "123456789", PRODUCT_URL);
         when(productPlatformRepository.findByProductIdAndMemberPlatformId(5L, 10L))
                 .thenReturn(Optional.of(productPlatform));
-        when(bunjangProductClient.fetchDetail("123456789"))
+        when(bunjangProductClient.fetchDetail("123456789", null))
                 .thenReturn(new BunjangProductDetail(123456789L, null, null, null, "ERR_DELETED_PRODUCT"));
 
         ProductPlatformResponse response = service().syncStatus(2L, 5L);
 
         assertThat(response.status()).isEqualTo(ProductPlatformStatus.REMOVED);
+    }
+
+    // 본인이 숨긴 매물 - 세션의 인증 토큰으로 조회해 연동 성공
+    @Test
+    void linkSucceedsForHiddenListingWithAuthToken() {
+        Platform platform = newPlatform(1L);
+        MemberPlatform memberPlatform = MemberPlatform.connect(newMember(2L), platform, "abc123");
+        setField(memberPlatform, "id", 10L);
+        Product product = newProduct(5L, newMember(2L));
+        givenConnectedMemberPlatform(platform, memberPlatform);
+        when(productRepository.findById(5L)).thenReturn(Optional.of(product));
+        when(bunjangSessionClient.fetchAuthToken("abc123")).thenReturn(Optional.of("auth-token"));
+        when(bunjangProductClient.fetchDetail("123456789", "auth-token"))
+                .thenReturn(new BunjangProductDetail(123456789L, "SELLING", 10_000L, "title", null));
+        when(productPlatformRepository.findByProductIdAndMemberPlatformId(5L, 10L))
+                .thenReturn(Optional.empty());
+        when(productPlatformRepository.save(any(ProductPlatform.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        ProductPlatformResponse response = service().link(2L, 5L, PRODUCT_URL);
+
+        assertThat(response.externalProductId()).isEqualTo("123456789");
+        assertThat(response.status()).isEqualTo(ProductPlatformStatus.POSTED);
+    }
+
+    // 상태 동기화 - 인증 토큰으로 조회해 숨긴 매물을 REMOVED로 오판하지 않음
+    @Test
+    void syncStatusUsesAuthTokenForHiddenListing() {
+        Platform platform = newPlatform(1L);
+        MemberPlatform memberPlatform = MemberPlatform.connect(newMember(2L), platform, "abc123");
+        setField(memberPlatform, "id", 10L);
+        Product product = newProduct(5L, newMember(2L));
+        givenConnectedMemberPlatform(platform, memberPlatform);
+        when(productRepository.findById(5L)).thenReturn(Optional.of(product));
+        ProductPlatform productPlatform = ProductPlatform.link(memberPlatform, product, "123456789", PRODUCT_URL);
+        when(productPlatformRepository.findByProductIdAndMemberPlatformId(5L, 10L))
+                .thenReturn(Optional.of(productPlatform));
+        when(bunjangSessionClient.fetchAuthToken("abc123")).thenReturn(Optional.of("auth-token"));
+        when(bunjangProductClient.fetchDetail("123456789", "auth-token"))
+                .thenReturn(new BunjangProductDetail(123456789L, "SELLING", 10_000L, "title", null));
+
+        ProductPlatformResponse response = service().syncStatus(2L, 5L);
+
+        assertThat(response.status()).isEqualTo(ProductPlatformStatus.POSTED);
     }
 
     // 연동된 매물이 없으면 실패

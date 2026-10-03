@@ -6,24 +6,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.swyp.team5.auth.dto.SignUpRequest;
-import com.swyp.team5.auth.service.RefreshTokenService;
 import com.swyp.team5.member.repository.MemberRepository;
 import com.swyp.team5.social.repository.SocialRepository;
+import com.swyp.team5.support.IntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /** 계정 확인/찾기 API 통합 테스트. */
-@SpringBootTest
-@AutoConfigureMockMvc
-class AccountTest {
+class AccountTest extends IntegrationTest {
 
     private static final String CHECK_URL = "/auth/email/check";
     private static final String TAKEN_EMAIL = "taken@example.com";
@@ -38,9 +33,6 @@ class AccountTest {
 
     @Autowired
     private SocialRepository socialRepository;
-
-    @MockitoBean
-    private RefreshTokenService refreshTokenService;
 
     @BeforeEach
     void setUp() {

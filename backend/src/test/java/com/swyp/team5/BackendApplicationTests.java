@@ -1,11 +1,9 @@
 package com.swyp.team5;
 
-import org.springframework.boot.test.context.SpringBootTest;
-
+import com.swyp.team5.support.IntegrationTest;
 import org.junit.jupiter.api.Test;
 
-@SpringBootTest
-class BackendApplicationTests {
+class BackendApplicationTests extends IntegrationTest {
 
     @Test
     void contextLoads() {}

@@ -13,18 +13,13 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.swyp.team5.auth.service.RefreshTokenService;
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.passport.JwtTokenProvider;
-import com.swyp.team5.file.service.FileStorageService;
 import com.swyp.team5.interest.entity.Interest;
 import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.interest.service.TargetPriceAlertService;
@@ -40,17 +35,14 @@ import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.repository.ProductRepository;
-import com.swyp.team5.product.service.ProductAiSearchService;
-import com.swyp.team5.product.service.ProductAiService;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
+import com.swyp.team5.support.IntegrationTest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 // 알림 API + 추천 전환 알림 생성 통합 테스트. 다른 테스트가 회원/상품을 deleteAll 하므로 만든 데이터는 직접 정리한다.
-@SpringBootTest
-@AutoConfigureMockMvc
-class NotificationTest {
+class NotificationTest extends IntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -80,17 +72,6 @@ class NotificationTest {
     private JwtTokenProvider jwtTokenProvider;
 
     // ProductTest와 같은 목 구성을 써서 스프링 컨텍스트를 재사용한다
-    @MockitoBean
-    private RefreshTokenService refreshTokenService;
-
-    @MockitoBean
-    private FileStorageService fileStorageService;
-
-    @MockitoBean
-    private ProductAiService productAiService;
-
-    @MockitoBean
-    private ProductAiSearchService productAiSearchService;
 
     private Member owner;
     private Member other;

@@ -28,7 +28,15 @@ variables:
 backend-test:
   stage: test
   image: eclipse-temurin:21-jdk
-  resource_group: swyp-test-db
+  # 테스트 DB는 잡마다 러너 안에 띄우는 PostgreSQL 17(Neon과 같은 메이저 버전) — 원격 Neon 왕복이 없어 마이그레이션·컨텍스트
+  # 기동이 빨라지고, 잡끼리·로컬과 DB를 공유하지 않아 동시 실행해도 서로의 clean에 깨지지 않는다(그래서 resource_group 제거)
+  services:
+    - name: postgres:17
+      alias: testdb
+  variables:
+    POSTGRES_DB: swyp_test
+    POSTGRES_USER: swyp
+    POSTGRES_PASSWORD: swyp
   cache:
     key:
       files:
@@ -39,6 +47,11 @@ backend-test:
       - backend/.gradle/wrapper/
 
   script:
+    # 프로젝트 CI 변수(TEST_DB_*, Neon)가 .gitlab-ci.yml variables보다 우선하므로 스크립트에서 덮어쓴다
+    - export TEST_DB_DRIVER_CLASS_NAME=org.postgresql.Driver
+    - export TEST_DB_URL=jdbc:postgresql://testdb:5432/swyp_test
+    - export TEST_DB_USERNAME=swyp
+    - export TEST_DB_PASSWORD=swyp
     - cd backend
     - chmod +x gradlew
     - ./gradlew spotlessCheck test

@@ -48,6 +48,9 @@ public class Member {
     @Column(name = "profile_image_url")
     private String profileImageUrl;
 
+    @Column(name = "profile_image_key")
+    private String profileImageKey;
+
     @Column(nullable = false, length = 30)
     private String nickname;
 
@@ -60,6 +63,9 @@ public class Member {
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(columnDefinition = "user_status")
     private MemberStatus status;
+
+    @Column(name = "suspended_reason", length = 500)
+    private String suspendedReason;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -111,8 +117,19 @@ public class Member {
         this.status = MemberStatus.DELETED;
     }
 
-    public void changeProfileImage(String profileImageUrl) {
+    public void changeProfileImage(String profileImageUrl, String profileImageKey) {
         this.profileImageUrl = profileImageUrl;
+        this.profileImageKey = profileImageKey;
+    }
+
+    public void suspend(String reason) {
+        this.status = MemberStatus.SUSPENDED;
+        this.suspendedReason = reason;
+    }
+
+    public void activate() {
+        this.status = MemberStatus.ACTIVE;
+        this.suspendedReason = null;
     }
 
     public void updateProfile(String nickname, String phone) {

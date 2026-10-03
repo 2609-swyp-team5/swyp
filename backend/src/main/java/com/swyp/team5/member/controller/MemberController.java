@@ -65,6 +65,13 @@ public class MemberController {
                 ApiResponse.success(memberService.updateProfileImage(currentMember.memberId(), image)));
     }
 
+    @Operation(summary = "프로필 이미지 삭제")
+    @DeleteMapping("/profile/image")
+    public ResponseEntity<ApiResponse<MemberResponse>> deleteProfileImage(
+            @AuthenticationPrincipal PrincipalMember currentMember) {
+        return ResponseEntity.ok(ApiResponse.success(memberService.deleteProfileImage(currentMember.memberId())));
+    }
+
     @Operation(summary = "비밀번호 변경")
     @PatchMapping("/password")
     public ResponseEntity<ApiResponse<Void>> changePassword(

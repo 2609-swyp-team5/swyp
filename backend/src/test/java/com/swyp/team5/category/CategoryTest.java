@@ -10,31 +10,23 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.swyp.team5.auth.service.RefreshTokenService;
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.passport.JwtTokenProvider;
-import com.swyp.team5.file.service.FileStorageService;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.entity.MemberRole;
 import com.swyp.team5.member.repository.MemberRepository;
 import com.swyp.team5.platform.entity.CategoryPlatform;
 import com.swyp.team5.platform.repository.CategoryPlatformRepository;
-import com.swyp.team5.product.service.ProductAiSearchService;
-import com.swyp.team5.product.service.ProductAiService;
+import com.swyp.team5.support.IntegrationTest;
 import org.junit.jupiter.api.Test;
 
 // V13(번개장터 카테고리 트리) 시드와 카테고리 조회 통합 테스트.
-@SpringBootTest
-@AutoConfigureMockMvc
-class CategoryTest {
+class CategoryTest extends IntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -52,17 +44,6 @@ class CategoryTest {
     private JwtTokenProvider jwtTokenProvider;
 
     // ProductTest와 같은 목 구성을 써서 스프링 컨텍스트를 재사용한다
-    @MockitoBean
-    private RefreshTokenService refreshTokenService;
-
-    @MockitoBean
-    private FileStorageService fileStorageService;
-
-    @MockitoBean
-    private ProductAiService productAiService;
-
-    @MockitoBean
-    private ProductAiSearchService productAiSearchService;
 
     // 번개장터 트리(대 26 / 중 176 / 소 601)가 경로·최하위 여부·번개장터 ID 매핑까지 그대로 들어갔는지 확인
     @Test
