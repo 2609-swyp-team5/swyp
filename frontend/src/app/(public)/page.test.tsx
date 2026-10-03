@@ -63,16 +63,16 @@ describe("Onboarding page", () => {
         });
     });
 
-    it("provides an entry link to authentication", () => {
+    it("provides entry links to home for guests", () => {
         renderOnboarding();
 
         expect(
             screen.getByRole("heading", { name: "지금 팔까, 더 갖고 있을까?" }),
         ).toBeInTheDocument();
-        expect(screen.getByRole("link", { name: "시작하기" })).toHaveAttribute("href", "/login");
+        expect(screen.getByRole("link", { name: "시작하기" })).toHaveAttribute("href", "/home");
         expect(screen.getByRole("link", { name: "지금 시작하기" })).toHaveAttribute(
             "href",
-            "/login",
+            "/home",
         );
         expect(mocks.replace).not.toHaveBeenCalled();
     });
