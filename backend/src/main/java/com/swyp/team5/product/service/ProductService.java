@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -53,6 +54,7 @@ import com.swyp.team5.product.error.InvalidProductSearchException;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductImageRequiredException;
 import com.swyp.team5.product.error.ProductNotFoundException;
+import com.swyp.team5.product.event.ProductRegisteredEvent;
 import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.product.repository.ProductSearchRepository;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
@@ -85,6 +87,7 @@ public class ProductService {
     private final TargetPriceAlertService targetPriceAlertService;
     private final ProductPlatformRepository productPlatformRepository;
     private final ProductViewCounter productViewCounter;
+    private final ApplicationEventPublisher eventPublisher;
 
     public ProductService(
             ProductRepository productRepository,
@@ -101,7 +104,8 @@ public class ProductService {
             ProductAnalysisService productAnalysisService,
             TargetPriceAlertService targetPriceAlertService,
             ProductPlatformRepository productPlatformRepository,
-            ProductViewCounter productViewCounter) {
+            ProductViewCounter productViewCounter,
+            ApplicationEventPublisher eventPublisher) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
         this.memberRepository = memberRepository;
@@ -117,6 +121,7 @@ public class ProductService {
         this.targetPriceAlertService = targetPriceAlertService;
         this.productPlatformRepository = productPlatformRepository;
         this.productViewCounter = productViewCounter;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -156,6 +161,8 @@ public class ProductService {
         product.changeSuggestedPrice(analysis.suggestedPrice());
         product.changeAnalysisDescription(analysis.analysisDescription());
         Product saved = productRepository.save(product);
+        // 커밋 후 시세 분석 1회(ProductRegisteredAnalysisListener) — 정기 배치를 기다리지 않고 바로 추천을 보여주기 위함
+        eventPublisher.publishEvent(new ProductRegisteredEvent(saved.getId()));
         return ProductResponse.from(saved, null, calculateMarketAveragePrice(saved));
     }
 
@@ -188,6 +195,8 @@ public class ProductService {
         Product product =
                 newAiProduct(member, category, analysis, imageUrls, purchasedMonths, defectStatus, includedItems);
         Product saved = productRepository.save(product);
+        // 커밋 후 시세 분석 1회(ProductRegisteredAnalysisListener) — 정기 배치를 기다리지 않고 바로 추천을 보여주기 위함
+        eventPublisher.publishEvent(new ProductRegisteredEvent(saved.getId()));
         return ProductResponse.from(saved, null, calculateMarketAveragePrice(saved));
     }
 

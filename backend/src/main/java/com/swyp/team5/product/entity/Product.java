@@ -61,7 +61,7 @@ public class Product extends Item {
     private String description; // 상품 설명
 
     @Column(name = "suggested_price")
-    private Long suggestedPrice; // AI 제안가(등록 시 AI 사진 분석 추정가, 이후 시세 분석이 적정가를 내면 갱신)
+    private Long suggestedPrice; // AI 제안가(AI 사진 분석 추정가 — 시세 분석 적정가는 product_analysis에 따로 저장)
 
     @Column(name = "analysis_description", columnDefinition = "TEXT")
     private String analysisDescription; // 등록 시 AI 사진 분석의 상태 등급/제안가 판단 근거(시세 분석으로는 바뀌지 않음)

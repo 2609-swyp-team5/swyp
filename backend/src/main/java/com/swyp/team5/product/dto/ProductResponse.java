@@ -47,7 +47,7 @@ public record ProductResponse(
         List<String> includedItems, // 구성품 이름 목록
         AnalysisRecommendation recommendation, // 가장 최근 시세 분석 판단(지금 팔기/기다리기 등), 분석 이력 없으면 null
         Long marketAveragePrice, // 비교 매물(수집 데이터) 평균가 — AI 제안가와 별개. 등록/상세 응답에만 포함, 비교 매물 부족 시 null
-        Long suggestedPrice, // AI 제안가(등록 시 AI 추정가, 이후 시세 분석이 적정가를 내면 그 값으로 갱신, 없으면 null)
+        Long suggestedPrice, // AI 제안가(AI 사진 분석 추정가, 시세 분석으로는 바뀌지 않음 — 시세 기반 추천 가격은 /analysis의 suggestedPrice, 없으면 null)
         String analysisDescription, // 등록 시 AI 사진 분석의 상태 등급/제안가 판단 근거(저장값, AI 분석 실패 시 null)
         String platformName, // 우리 상품은 null, 외부 매물은 수집 플랫폼명(예: "번개장터")
         String externalUrl, // 우리 상품은 null, 외부 매물은 원본 매물 링크

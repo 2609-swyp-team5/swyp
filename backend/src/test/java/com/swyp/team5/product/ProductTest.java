@@ -232,10 +232,10 @@ class ProductTest {
         assertThat(productRepository.count()).isEqualTo(1);
     }
 
-    // AI 제안가/판단 근거 - 등록 시 AI 추정가와 판단 근거가 저장돼 상세 조회에도 포함되고, 시세 분석 갱신값이 반영됨.
+    // AI 제안가/판단 근거 - 등록 시 AI 사진 추정가와 판단 근거가 저장돼 상세 조회에도 포함되고, 사용자 수정으로는 바뀌지 않음.
     // 비교 매물 평균가는 수집 매물이 없어 null
     @Test
-    void suggestedPriceIsStoredAndRefreshedByAnalysis() throws Exception {
+    void suggestedPriceIsStoredAndKeptOnUpdate() throws Exception {
         when(productAiService.analyze(anyList()))
                 .thenReturn(new ProductAiAnalysisResult(
                         category.getId(),
@@ -259,12 +259,6 @@ class ProductTest {
                 .file(requestPart(updateRequest(category.getId(), ProductStatus.ON_SALE)))
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken));
         assertThat(updated.at("/data/suggestedPrice").asLong()).isEqualTo(470_000L); // 사용자 수정으로는 바뀌지 않음
-
-        productRepository.updateSuggestedPrice(productId, 430_000L); // 시세 분석의 갱신 경로
-
-        mockMvc.perform(get("/products/{id}", productId).header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.suggestedPrice").value(430_000));
     }
 
     // 상품 등록 실패 - 인증 없음

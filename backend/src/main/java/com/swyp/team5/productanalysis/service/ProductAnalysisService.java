@@ -331,6 +331,21 @@ public class ProductAnalysisService {
         }
     }
 
+    /**
+     * 상품 1건을 정기 배치와 같은 방식으로 분석한다(등록 직후 분석 진입점). 이미 삭제됐거나 분석 대상 상태가 아니면
+     * 건너뛰고, 실패해도 예외를 던지지 않는다(로그만 남김).
+     *
+     * @param productId 분석할 상품 ID
+     */
+    public void analyzeProductById(Long productId) {
+        productRepository
+                .findById(productId)
+                .filter(product -> ProductStatus.ANALYSIS_TARGETS.contains(product.getStatus()))
+                .ifPresentOrElse(
+                        this::analyzeProductSafely,
+                        () -> log.info("상품 {}: 없거나 분석 대상 상태가 아니라 등록 직후 분석을 건너뜁니다.", productId));
+    }
+
     private void analyzeListingSafely(PlatformListing listing) {
         try {
             analyzeListing(listing);
@@ -433,10 +448,7 @@ public class ProductAnalysisService {
                 trend.plus(analysis.getAnalyzedAt(), averagePrice),
                 product.getCategory().getId());
 
-        // 시세 분석이 적정가를 냈으면 상품의 AI 제안가도 최신 값으로 갱신(상세/수정 응답의 suggestedPrice)
-        if (aiResult.suggestedPrice() != null) {
-            productRepository.updateSuggestedPrice(product.getId(), aiResult.suggestedPrice());
-        }
+        // 시세 분석의 적정가는 스냅샷에만 저장한다 — 상품의 AI 제안가(products.suggested_price)는 사진 추정가로 고정
 
         // 관점별 추천이 직전 스냅샷과 달라졌으면 판매자(SELL/HOLD)·관심 등록 회원(BUY/WAIT)에게 각각 알림
         notificationService.notifyRecommendationChanged(

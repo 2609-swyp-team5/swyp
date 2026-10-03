@@ -11,7 +11,9 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
@@ -158,6 +160,27 @@ class ProductAnalysisServiceTest {
         assertThat(service().calculateMarketAveragePrice(product)).isEmpty();
     }
 
+    // 등록 직후 분석 - 분석 대상 상태(DRAFT/ON_SALE)인 상품만 배치와 같은 방식으로 분석(후보 부족이면 AI 호출 없이 건너뜀)
+    @Test
+    void analyzeProductByIdAnalyzesOnlyAnalysisTargets() {
+        Product draft = product(1L, 10L, 800_000L);
+        when(draft.getStatus()).thenReturn(ProductStatus.DRAFT);
+        Product soldOut = product(2L, 10L, 800_000L);
+        when(soldOut.getStatus()).thenReturn(ProductStatus.SOLD_OUT);
+        when(productRepository.findById(1L)).thenReturn(Optional.of(draft));
+        when(productRepository.findById(2L)).thenReturn(Optional.of(soldOut));
+        when(productRepository.findById(3L)).thenReturn(Optional.empty());
+        givenListings(10L, List.of(listing("갤럭시 탭 S9", 9000L)));
+
+        service().analyzeProductById(1L);
+        service().analyzeProductById(2L); // 판매 완료 — 건너뜀
+        service().analyzeProductById(3L); // 삭제됨 — 건너뜀
+
+        verify(platformListingRepository, times(1))
+                .findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(eq(10L), anyString(), any());
+        verify(geminiAiClient, never()).prompt();
+    }
+
     // 분석 건너뜀 - 같은 카테고리 매물은 충분해도 상품명이 겹치는 후보가 3건 미만이면 AI 호출 없이 건너뜀
     @Test
     void analyzeProductSkipsWithoutAiCallWhenCandidatesBelowThreshold() {
@@ -236,7 +259,6 @@ class ProductAnalysisServiceTest {
         service().analyzeProduct(product);
 
         verify(productAnalysisRepository, never()).save(any());
-        verify(productRepository, never()).updateSuggestedPrice(any(), any());
         verify(notificationService, never()).notifyRecommendationChanged(any(), any(), any());
     }
 
@@ -253,7 +275,6 @@ class ProductAnalysisServiceTest {
 
         verify(productAnalysisRepository, never()).save(any());
         verify(productAnalysisRepository, never()).findFirstByItemIdOrderByAnalyzedAtDesc(any());
-        verify(productRepository, never()).updateSuggestedPrice(any(), any());
         verify(notificationService, never()).notifyRecommendationChanged(any(), any(), any());
     }
 
@@ -311,8 +332,9 @@ class ProductAnalysisServiceTest {
         // 신뢰도 - 통계에 쓴 매물 5건(비율 25%)이라 LOW
         assertThat(saved.getListingCount()).isEqualTo(5);
         assertThat(saved.getConfidence()).isEqualTo(AnalysisConfidence.LOW);
-        // 시세 분석이 낸 적정가로 상품의 AI 제안가도 갱신
-        verify(productRepository).updateSuggestedPrice(1L, 3200L);
+        // 시세 분석의 적정가는 스냅샷에만 저장하고 상품의 사진 추정가(products.suggested_price)는 건드리지 않음
+        verifyNoInteractions(productRepository);
+        verify(product, never()).changeSuggestedPrice(any());
         // 직전 추천(HOLD)과 이번 추천(SELL)을 넘겨 전환 알림 판단
         verify(notificationService)
                 .notifyRecommendationChanged(product, AnalysisRecommendation.HOLD, AnalysisRecommendation.SELL);
@@ -340,7 +362,6 @@ class ProductAnalysisServiceTest {
         verify(productAnalysisRepository).save(captor.capture());
         assertThat(captor.getValue().getDescription()).isEqualTo("GPT 판단");
         assertThat(captor.getValue().getSuggestedPrice()).isEqualTo(2100L);
-        verify(productRepository).updateSuggestedPrice(1L, 2100L);
     }
 
     // 분석 성공 - 판매자/구매자 관점을 따로 저장하고, AI 추천이 규칙과 같으면 AI 근거 문장을 그대로 씀
@@ -480,7 +501,6 @@ class ProductAnalysisServiceTest {
         assertThat(saved.getListingCount()).isEqualTo(3); // 자신을 뺀 비교 매물 3건
         assertThat(saved.getConfidence()).isEqualTo(AnalysisConfidence.LOW);
         // 외부 매물은 우리 상품 제안가 갱신 대상이 아님
-        verify(productRepository, never()).updateSuggestedPrice(any(), any());
         verify(notificationService)
                 .notifyListingRecommendationChanged(target, AnalysisRecommendation.WAIT, AnalysisRecommendation.BUY);
     }
