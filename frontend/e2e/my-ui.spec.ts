@@ -390,10 +390,41 @@ test("product table keeps headers during status loading and fits narrow screens"
     expect((await page.locator("thead").boundingBox())?.y).toBe(headerBox?.y);
 });
 
-test("platform connection validates input and updates status counts without an API write", async ({
+test("platform connection validates input and updates API-backed status counts", async ({
     page,
 }) => {
     const writes: string[] = [];
+    let status = "EXPIRED";
+    await page.route(
+        (url) => url.pathname === "/platforms",
+        (route) =>
+            route.fulfill({
+                json: {
+                    success: true,
+                    data: [
+                        { platform: "BUNJANG", platformName: "번개장터", status, updatedAt: null },
+                    ],
+                    error: null,
+                },
+            }),
+    );
+    await page.route("**/platforms/BUNJANG/connect", (route) => {
+        expect(route.request().method()).toBe("POST");
+        expect(route.request().postDataJSON()).toEqual({ cookie: "preview-connection-value" });
+        status = "CONNECTED";
+        return route.fulfill({
+            json: {
+                success: true,
+                data: { status, updatedAt: "2026-10-03T10:00:00" },
+                error: null,
+            },
+        });
+    });
+    await page.route("**/platforms/BUNJANG", (route) => {
+        expect(route.request().method()).toBe("DELETE");
+        status = "DISCONNECTED";
+        return route.fulfill({ json: { success: true, data: null, error: null } });
+    });
     page.on("request", (request) => {
         if (
             ["POST", "PUT", "PATCH", "DELETE"].includes(request.method()) &&
@@ -406,7 +437,7 @@ test("platform connection validates input and updates status counts without an A
         page.getByText(label, { exact: true }).locator("..").locator("p").first();
     await expect(summary("연결됨")).toHaveText("0");
     await expect(summary("만료됨")).toHaveText("1");
-    const input = page.getByRole("textbox", { name: "번개장터 연결 정보" });
+    const input = page.getByLabel("번개장터 연결 정보", { exact: true });
     const connect = page.getByRole("button", { name: "번개장터 다시 연결", exact: true });
     await connect.click();
     await expect(
@@ -416,11 +447,13 @@ test("platform connection validates input and updates status counts without an A
     await input.fill("   ");
     await connect.click();
     await expect(page.getByRole("alertdialog")).toHaveCount(0);
+    expect(writes).toEqual([]);
     await input.fill("preview-connection-value");
     await expect(input).toHaveAttribute("aria-invalid", "false");
     await connect.click();
     const dialog = page.getByRole("alertdialog");
     await dialog.getByRole("button", { name: "취소", exact: true }).click();
+    expect(writes).toEqual([]);
     await expect(connect).toBeVisible();
     await connect.click();
     await dialog.getByRole("button", { name: "연결하기", exact: true }).click();
@@ -434,7 +467,10 @@ test("platform connection validates input and updates status counts without an A
     await expect(summary("연결됨")).toHaveText("0");
     await expect(summary("미연결")).toHaveText("1");
     await expect(page.getByRole("button", { name: "번개장터 연결", exact: true })).toBeVisible();
-    expect(writes).toEqual([]);
+    expect(writes.map((url) => new URL(url).pathname)).toEqual([
+        "/platforms/BUNJANG/connect",
+        "/platforms/BUNJANG",
+    ]);
 });
 
 test("withdrawal requires consent and cancellation sends no request", async ({ page }) => {

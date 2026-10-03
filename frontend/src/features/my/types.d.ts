@@ -28,3 +28,20 @@ export interface MyProductsResponse {
     nextCursor: string | null;
     hasNext: boolean;
 }
+
+export type MyPlatformType = "BUNJANG";
+export type MyPlatformStatus = "CONNECTED" | "EXPIRED" | "DISCONNECTED";
+
+export interface MyPlatformConnectionState {
+    status: MyPlatformStatus;
+    updatedAt: string | null;
+}
+
+export interface MyPlatformConnection extends MyPlatformConnectionState {
+    platform: MyPlatformType;
+    platformName: string;
+}
+
+export type MyPlatformConnectionAction =
+    | { platform: MyPlatformType; action: "connect"; cookie: string }
+    | { platform: MyPlatformType; action: "disconnect" };

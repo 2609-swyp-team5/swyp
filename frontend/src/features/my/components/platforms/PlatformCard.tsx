@@ -4,10 +4,11 @@ import Image from "next/image";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/common/components/ui/Button";
 import { Input } from "@/common/components/ui/Input";
+import type { MyPlatformType } from "@/features/my/types";
 
 export type ConnectionStatus = "connected" | "expired" | "disconnected";
 export type PlatformConnection = {
-    id: string;
+    id: MyPlatformType;
     name: string;
     icon: string;
     description: string;
@@ -16,21 +17,23 @@ export type PlatformConnection = {
 type PlatformCardProps = {
     item: PlatformConnection;
     status: ConnectionStatus;
-    onSelect: () => void;
+    onSelect: (cookie: string) => void;
+    isPending: boolean;
 };
 
-export function PlatformCard({ item, status, onSelect }: PlatformCardProps) {
+export function PlatformCard({ item, status, onSelect, isPending }: PlatformCardProps) {
     const [connectionValue, setConnectionValue] = useState("");
     const [hasError, setHasError] = useState(false);
     const errorId = `${item.id}-connection-error`;
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+        if (isPending) return;
         if (status !== "connected" && !connectionValue.trim()) {
             setHasError(true);
             return;
         }
         setHasError(false);
-        onSelect();
+        onSelect(connectionValue.trim());
     };
 
     return (
@@ -81,11 +84,14 @@ export function PlatformCard({ item, status, onSelect }: PlatformCardProps) {
             {status !== "connected" && (
                 <div className="mt-[10px]">
                     <Input
+                        type="password"
+                        autoComplete="new-password"
+                        disabled={isPending}
                         aria-label={`${item.name} 연결 정보`}
                         aria-required="true"
                         aria-invalid={hasError}
                         aria-describedby={hasError ? errorId : undefined}
-                        placeholder="연결 정보를 입력해주세요"
+                        placeholder="번개장터 토큰을 입력해주세요"
                         value={connectionValue}
                         onChange={(event) => {
                             setConnectionValue(event.target.value);
@@ -107,6 +113,7 @@ export function PlatformCard({ item, status, onSelect }: PlatformCardProps) {
             <Button
                 variant="outline"
                 type="submit"
+                disabled={isPending}
                 aria-label={
                     item.name +
                     (status === "connected"

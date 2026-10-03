@@ -16,7 +16,7 @@ import {
 import type { SearchResultItem } from "@/features/search/types";
 
 const statusLabels: Record<string, string> = {
-    DRAFT: "등록됨",
+    DRAFT: "임시저장",
     ON_SALE: "판매중",
     SOLD_OUT: "판매완료",
     SELLING: "판매중",

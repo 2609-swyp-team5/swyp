@@ -6,7 +6,7 @@ import type { MyProductFilter } from "@/features/my/types";
 
 const filters = [
     { id: "ALL", label: "전체" },
-    { id: "DRAFT", label: "등록됨" },
+    { id: "DRAFT", label: "임시저장" },
     { id: "ON_SALE", label: "판매중" },
     { id: "SOLD_OUT", label: "판매완료" },
 ] as const;

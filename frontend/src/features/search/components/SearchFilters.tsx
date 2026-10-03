@@ -6,7 +6,7 @@ import { RadioGroup, RadioGroupItem } from "@/common/components/ui/RadioGroup";
 import type { SearchPlatform, SearchStatus } from "@/features/search/types";
 
 const statusOptions = [
-    { label: "등록됨", value: "DRAFT" },
+    { label: "임시저장", value: "DRAFT" },
     { label: "판매중", value: "ON_SALE" },
     { label: "판매완료", value: "SOLD_OUT" },
 ] as const;

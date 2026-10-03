@@ -13,7 +13,7 @@ export function MySummaryCards() {
             description: isError
                 ? getApiErrorMessage(error)
                 : products
-                  ? `등록됨 ${products.filter((product) => product.status === "DRAFT").length} · 판매중 ${products.filter((product) => product.status === "ON_SALE").length} · 판매완료 ${products.filter((product) => product.status === "SOLD_OUT").length}`
+                  ? `임시저장 ${products.filter((product) => product.status === "DRAFT").length} · 판매중 ${products.filter((product) => product.status === "ON_SALE").length} · 판매완료 ${products.filter((product) => product.status === "SOLD_OUT").length}`
                   : "상품을 불러오는 중입니다.",
         },
         { title: "AI 추천 알림", value: "2건", description: "오늘 새로 분석한 타이밍" },

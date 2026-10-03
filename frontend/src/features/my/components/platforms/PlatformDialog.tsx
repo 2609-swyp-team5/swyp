@@ -20,6 +20,8 @@ type PlatformDialogProps = {
     disconnecting: boolean;
     onOpenChange: (open: boolean) => void;
     onConfirm: () => void;
+    isPending: boolean;
+    errorMessage: string | null;
 };
 
 export function PlatformDialog({
@@ -27,6 +29,8 @@ export function PlatformDialog({
     disconnecting,
     onOpenChange,
     onConfirm,
+    isPending,
+    errorMessage,
 }: PlatformDialogProps) {
     return (
         <AlertDialog open={selected !== null} onOpenChange={onOpenChange}>
@@ -41,17 +45,27 @@ export function PlatformDialog({
                             : "이 플랫폼과 연결하고 판매 상태를 동기화할까요?"}
                     </AlertDialogDescription>
                 </AlertDialogHeader>
+                {errorMessage && (
+                    <p role="alert" className="text-destructive text-sm">
+                        {errorMessage}
+                    </p>
+                )}
                 <AlertDialogFooter>
                     <AlertDialogCancel
+                        disabled={isPending}
                         className={`hover:!border-[#6653fb] hover:!bg-[#fafbff] hover:!text-[#6653fb] dark:hover:!bg-[#fafbff] ${buttonFocusClassName}`}
                     >
                         취소
                     </AlertDialogCancel>
                     <AlertDialogAction
-                        onClick={onConfirm}
+                        disabled={isPending}
+                        onClick={(event) => {
+                            event.preventDefault();
+                            onConfirm();
+                        }}
                         className={`hover:!bg-[#5745e7] dark:hover:!bg-[#5745e7] ${buttonFocusClassName}`}
                     >
-                        {disconnecting ? "연결 해제" : "연결하기"}
+                        {isPending ? "처리 중..." : disconnecting ? "연결 해제" : "연결하기"}
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
