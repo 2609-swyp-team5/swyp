@@ -29,11 +29,6 @@ public interface InterestRepository extends JpaRepository<Interest, Long> {
 
     Optional<Interest> findByIdAndMemberId(Long interestId, Long memberId);
 
-    /** 커서({@code id}) 미만의 본인 관심상품을 대상 상품/매물과 함께 조회한다(정렬·개수는 {@code pageable}). */
-    @Query("SELECT i FROM Interest i JOIN FETCH i.item " + "WHERE i.member.id = :memberId AND i.id < :cursor")
-    List<Interest> findByMemberIdAndIdLessThan(
-            @Param("memberId") Long memberId, @Param("cursor") Long cursor, Pageable pageable);
-
     /** 목표가가 설정된 관심상품 전체(대상 상품/매물과 함께) — 목표가 도달 알림 배치용. */
     @Query("SELECT i FROM Interest i JOIN FETCH i.item WHERE i.targetPrice IS NOT NULL")
     List<Interest> findAllWithTargetPrice();
