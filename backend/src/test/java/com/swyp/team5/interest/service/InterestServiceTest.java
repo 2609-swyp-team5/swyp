@@ -19,6 +19,7 @@ import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.interest.dto.InterestCreateResponse;
 import com.swyp.team5.interest.dto.InterestListItemResponse;
+import com.swyp.team5.interest.dto.InterestToggleResponse;
 import com.swyp.team5.interest.dto.TargetPriceResponse;
 import com.swyp.team5.interest.entity.Interest;
 import com.swyp.team5.interest.error.InterestAlreadyExistsException;
@@ -91,6 +92,47 @@ class InterestServiceTest {
         InterestCreateResponse response = service().register(2L, ListingSource.OUR, 1L);
 
         assertThat(response.interestId()).isEqualTo(10L);
+    }
+
+    // 관심상품 토글 - 등록돼 있지 않으면 등록
+    @Test
+    void toggleRegistersWhenNotInterested() {
+        Product product = newProduct(1L, newMember(1L));
+        when(interestRepository.findByMemberIdAndItemId(2L, 1L)).thenReturn(Optional.empty());
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(interestRepository.existsByMemberIdAndItemId(2L, 1L)).thenReturn(false);
+        when(memberRepository.getReferenceById(2L)).thenReturn(newMember(2L));
+        when(interestRepository.save(any())).thenReturn(newProductInterest(10L, newMember(2L), product, null));
+
+        InterestToggleResponse response = service().toggle(2L, ListingSource.OUR, 1L);
+
+        assertThat(response.interested()).isTrue();
+        assertThat(response.interestId()).isEqualTo(10L);
+    }
+
+    // 관심상품 토글 - 이미 등록돼 있으면 해제
+    @Test
+    void toggleRemovesWhenAlreadyInterested() {
+        Interest interest = newProductInterest(10L, newMember(2L), newProduct(1L, newMember(1L)), null);
+        when(interestRepository.findByMemberIdAndItemId(2L, 1L)).thenReturn(Optional.of(interest));
+
+        InterestToggleResponse response = service().toggle(2L, ListingSource.OUR, 1L);
+
+        assertThat(response.interested()).isFalse();
+        assertThat(response.interestId()).isNull();
+        verify(interestRepository).delete(interest);
+    }
+
+    // 관심상품 토글 - 외부 매물도 같은 방식으로 해제
+    @Test
+    void toggleRemovesListingInterest() {
+        Interest interest = newListingInterest(11L, newMember(2L), newPlatformListing(100L), null);
+        when(interestRepository.findByMemberIdAndItemId(2L, 100L)).thenReturn(Optional.of(interest));
+
+        InterestToggleResponse response = service().toggle(2L, ListingSource.EXTERNAL, 100L);
+
+        assertThat(response.interested()).isFalse();
+        verify(interestRepository).delete(interest);
     }
 
     // 존재하지 않는 상품에 관심상품 등록 시도 시 실패

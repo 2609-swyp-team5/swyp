@@ -23,6 +23,7 @@ import com.swyp.team5.common.passport.PrincipalMember;
 import com.swyp.team5.interest.dto.InterestCreateResponse;
 import com.swyp.team5.interest.dto.InterestListItemResponse;
 import com.swyp.team5.interest.dto.InterestRegisterRequest;
+import com.swyp.team5.interest.dto.InterestToggleResponse;
 import com.swyp.team5.interest.dto.TargetPriceRequest;
 import com.swyp.team5.interest.dto.TargetPriceResponse;
 import com.swyp.team5.interest.service.InterestService;
@@ -55,6 +56,23 @@ public class InterestController {
         InterestCreateResponse response =
                 interestService.register(currentMember.memberId(), request.source(), request.targetId());
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
+    }
+
+    /**
+     * 관심상품 등록 상태를 토글한다. 이미 등록돼 있으면 해제하고, 아니면 등록한다(하트 버튼용 — 기존 등록·삭제 API도 그대로 사용
+     * 가능).
+     *
+     * @param currentMember 인증된 요청자
+     * @param request 대상(source/targetId)
+     * @return 200 OK + 호출 후 등록 상태({@code interested})와 관심상품 ID(해제됐으면 null)
+     */
+    @Operation(summary = "관심상품 등록 토글")
+    @PostMapping("/toggle")
+    public ResponseEntity<ApiResponse<InterestToggleResponse>> toggle(
+            @AuthenticationPrincipal PrincipalMember currentMember,
+            @Valid @RequestBody InterestRegisterRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                interestService.toggle(currentMember.memberId(), request.source(), request.targetId())));
     }
 
     /**

@@ -2,6 +2,7 @@ package com.swyp.team5.interest.service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.interest.dto.InterestCreateResponse;
 import com.swyp.team5.interest.dto.InterestListItemResponse;
+import com.swyp.team5.interest.dto.InterestToggleResponse;
 import com.swyp.team5.interest.dto.TargetPriceResponse;
 import com.swyp.team5.interest.entity.Interest;
 import com.swyp.team5.interest.error.InterestNotFoundException;
@@ -50,6 +52,27 @@ public class InterestService {
         Member member = memberRepository.getReferenceById(memberId);
         Interest interest = registrarFor(source).register(member, memberId, targetId);
         return new InterestCreateResponse(interestRepository.save(interest).getId());
+    }
+
+    /**
+     * 관심상품 등록 상태를 뒤집는다. 이미 등록돼 있으면 해제하고, 아니면 {@link #register}와 같은 검증을 거쳐 등록한다(기존 등록·해제
+     * API와 별개로 하트 버튼처럼 한 번에 쓰기 위한 용도).
+     *
+     * @param memberId 요청자 회원 ID
+     * @param source 대상 종류(OUR/EXTERNAL)
+     * @param targetId {@code source}가 {@code OUR}이면 productId, {@code EXTERNAL}이면 listingId
+     * @return 호출 후 등록 상태와 관심상품 ID(해제됐으면 null)
+     */
+    public InterestToggleResponse toggle(Long memberId, ListingSource source, Long targetId) {
+        Optional<Interest> existing = interestRepository
+                .findByMemberIdAndItemId(memberId, targetId)
+                .filter(interest -> interest.getItem().getSource() == source);
+        if (existing.isPresent()) {
+            interestRepository.delete(existing.get());
+            return InterestToggleResponse.removed();
+        }
+        return InterestToggleResponse.registered(
+                register(memberId, source, targetId).interestId());
     }
 
     private InterestRegistrar registrarFor(ListingSource source) {
