@@ -30,13 +30,10 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.RequestBuilder;
@@ -46,12 +43,10 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.swyp.team5.auth.service.RefreshTokenService;
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.passport.JwtTokenProvider;
 import com.swyp.team5.file.dto.FileUploadResponse;
-import com.swyp.team5.file.service.FileStorageService;
 import com.swyp.team5.interest.entity.Interest;
 import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.member.entity.Member;
@@ -77,21 +72,18 @@ import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.product.service.ProductAiSearchService;
-import com.swyp.team5.product.service.ProductAiService;
-import com.swyp.team5.product.service.ProductImageLoader;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
 import com.swyp.team5.search.repository.SearchLogRepository;
+import com.swyp.team5.support.IntegrationTest;
 import com.swyp.team5.tag.repository.TagRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 // 상품 관련 통합 테스트.
-@SpringBootTest
-@AutoConfigureMockMvc
-class ProductTest {
+class ProductTest extends IntegrationTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
@@ -135,21 +127,6 @@ class ProductTest {
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
-
-    @MockitoBean
-    private RefreshTokenService refreshTokenService;
-
-    @MockitoBean
-    private FileStorageService fileStorageService;
-
-    @MockitoBean
-    private ProductAiService productAiService;
-
-    @MockitoBean
-    private ProductAiSearchService productAiSearchService;
-
-    @MockitoBean
-    private ProductImageLoader productImageLoader;
 
     private Long sellerId;
     private String sellerToken;

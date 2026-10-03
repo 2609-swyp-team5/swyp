@@ -11,17 +11,12 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.swyp.team5.auth.service.RefreshTokenService;
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.passport.JwtTokenProvider;
-import com.swyp.team5.file.service.FileStorageService;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.entity.MemberRole;
 import com.swyp.team5.member.repository.MemberRepository;
@@ -30,23 +25,19 @@ import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.repository.ProductRepository;
-import com.swyp.team5.product.service.ProductAiSearchService;
-import com.swyp.team5.product.service.ProductAiService;
-import com.swyp.team5.product.service.ProductImageLoader;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.ForecastPeriod;
 import com.swyp.team5.productanalysis.entity.PriceForecast;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 import com.swyp.team5.productanalysis.repository.PriceForecastRepository;
 import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
+import com.swyp.team5.support.IntegrationTest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 // 감가 예측 저장(forecast_period enum 매핑)·최상위 카테고리 조회·분석/가격 추이 조회 응답 통합 테스트. 만든 데이터는 직접 정리한다.
-@SpringBootTest
-@AutoConfigureMockMvc
-class PriceForecastTest {
+class PriceForecastTest extends IntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -71,20 +62,6 @@ class PriceForecastTest {
 
     // ProductTest와 같은 목 구성을 써서 스프링 컨텍스트를 재사용한다. 다른 구성(NotificationTest)을 쓰면 그 사이 새 컨텍스트의
     // Flyway clean으로 enum 타입이 다시 만들어져 오래된 컨텍스트의 커넥션이 "cache lookup failed for type"으로 실패한다.
-    @MockitoBean
-    private RefreshTokenService refreshTokenService;
-
-    @MockitoBean
-    private FileStorageService fileStorageService;
-
-    @MockitoBean
-    private ProductAiService productAiService;
-
-    @MockitoBean
-    private ProductAiSearchService productAiSearchService;
-
-    @MockitoBean
-    private ProductImageLoader productImageLoader;
 
     private Member member;
     private Product product;
