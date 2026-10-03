@@ -185,7 +185,7 @@ analysis:
 # 스웨거 설정
 springdoc:
   swagger-ui:
-    path: /swagger
+    path: /api-docs
     groups-order: desc
     operations-sorter: method
     disable-swagger-default-url: true
