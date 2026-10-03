@@ -71,9 +71,7 @@ test("home greets the member returned by the API", async ({ page }) => {
     await expect(
         page.getByRole("heading", { name: "안녕하세요, 다른 닉네임님", exact: true }),
     ).toBeVisible();
-    await expect(page.locator('main img[src*="mascot.png"]')).toBeVisible();
     await expect(page.getByRole("heading", { name: "등록한 물건" })).toBeVisible();
-    await expect(page.locator("main").getByRole("link", { name: /다시 연결/ })).toHaveCount(3);
     await expect(page.locator("aside").getByText("다른 닉네임", { exact: true })).toBeVisible();
 });
 

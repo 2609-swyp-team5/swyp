@@ -127,6 +127,8 @@ test("onboarding buttons keep their behavior with the Figma scroll-to-top design
     await page.goto("/");
     const header = page.locator("header");
     const start = page.getByRole("link", { name: "시작하기", exact: true });
+    await start.scrollIntoViewIfNeeded();
+    await expect(start.locator("..")).toHaveCSS("transform", "none");
     await start.hover();
     await expect(start).toHaveCSS("translate", "0px -4px");
     await expect(start).not.toHaveCSS("box-shadow", "none");

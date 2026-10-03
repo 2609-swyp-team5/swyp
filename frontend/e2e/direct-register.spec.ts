@@ -3,6 +3,11 @@ import { expect, test } from "./fixtures";
 test("direct registration keeps the product information while moving to status and price", async ({
     page,
 }) => {
+    await page.route("**/auth/refresh", (route) =>
+        route.fulfill({
+            json: { success: true, data: { accessToken: "direct-register-preview" }, error: null },
+        }),
+    );
     await page.route("**/products", (route) => {
         if (route.request().method() !== "POST") {
             return route.continue();
