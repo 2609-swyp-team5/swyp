@@ -48,6 +48,9 @@ public class Member {
     @Column(name = "profile_image_url")
     private String profileImageUrl;
 
+    @Column(name = "profile_image_key")
+    private String profileImageKey;
+
     @Column(nullable = false, length = 30)
     private String nickname;
 
@@ -111,8 +114,9 @@ public class Member {
         this.status = MemberStatus.DELETED;
     }
 
-    public void changeProfileImage(String profileImageUrl) {
+    public void changeProfileImage(String profileImageUrl, String profileImageKey) {
         this.profileImageUrl = profileImageUrl;
+        this.profileImageKey = profileImageKey;
     }
 
     public void updateProfile(String nickname, String phone) {
