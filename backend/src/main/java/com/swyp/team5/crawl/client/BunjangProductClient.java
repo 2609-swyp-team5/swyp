@@ -13,21 +13,38 @@ import tools.jackson.databind.ObjectMapper;
 /**
  * 번개장터 개별 상품 상세 조회. page-limit 캡에 밀려 카테고리 목록에서 더 이상 관측되지 않는 매물의
  * 실제 판매 상태를 개별적으로 재확인하는 용도로 쓴다({@code GET /api/pms/v1/products/{pid}/detail/web},
- * 인증 불필요, 삭제/존재하지 않는 매물은 400 + {@code errorCode}로 응답).
+ * 인증 불필요, 삭제/존재하지 않는 매물은 400 + {@code errorCode}로 응답). 숨긴 매물은 비인증 조회 시
+ * {@code ERR_NOT_HIDDEN_PRODUCT_OWNER}로 막히므로, 매물 주인의 인증 토큰이 있으면
+ * {@link #fetchDetail(String, String)}로 조회한다.
  */
 @Component
 @RequiredArgsConstructor
 public class BunjangProductClient {
 
     private static final String PATH = "/api/pms/v1/products/{pid}/detail/web";
+    private static final String AUTH_TOKEN_HEADER = "X-BUN-AUTH-TOKEN";
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private final RestClient bunjangRestClient;
 
     public BunjangProductDetail fetchDetail(String pid) {
+        return fetchDetail(pid, null);
+    }
+
+    /** {@code authToken}이 있으면 매물 주인으로 인증해 조회한다(본인이 숨긴 매물도 조회 가능). */
+    public BunjangProductDetail fetchDetail(String pid, String authToken) {
         try {
-            JsonNode root = bunjangRestClient.get().uri(PATH, pid).retrieve().body(JsonNode.class);
+            JsonNode root = bunjangRestClient
+                    .get()
+                    .uri(PATH, pid)
+                    .headers(headers -> {
+                        if (authToken != null) {
+                            headers.set(AUTH_TOKEN_HEADER, authToken);
+                        }
+                    })
+                    .retrieve()
+                    .body(JsonNode.class);
             return parseSuccess(pid, root);
         } catch (RestClientResponseException e) {
             return parseError(pid, e);

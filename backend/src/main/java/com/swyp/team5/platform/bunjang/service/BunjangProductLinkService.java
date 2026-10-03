@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.swyp.team5.crawl.client.BunjangProductClient;
 import com.swyp.team5.crawl.dto.BunjangProductDetail;
+import com.swyp.team5.platform.bunjang.client.BunjangSessionClient;
 import com.swyp.team5.platform.bunjang.dto.ProductPlatformResponse;
 import com.swyp.team5.platform.entity.MemberPlatform;
 import com.swyp.team5.platform.entity.MemberPlatformStatus;
@@ -46,6 +47,7 @@ public class BunjangProductLinkService {
     private final ProductPlatformRepository productPlatformRepository;
     private final ProductRepository productRepository;
     private final BunjangProductClient bunjangProductClient;
+    private final BunjangSessionClient bunjangSessionClient;
 
     /**
      * @throws MemberPlatformNotFoundException 번개장터 세션이 연동되어 있지 않은 경우
@@ -61,7 +63,7 @@ public class BunjangProductLinkService {
         validateRegisteredBy(product, memberId);
 
         String externalProductId = extractProductId(productUrl);
-        BunjangProductDetail detail = bunjangProductClient.fetchDetail(externalProductId);
+        BunjangProductDetail detail = fetchDetail(memberPlatform, externalProductId);
         if (detail.errorCode() != null) {
             throw new InvalidProductUrlException("존재하지 않거나 삭제된 번개장터 매물이에요.", "errorCode=" + detail.errorCode());
         }
@@ -94,13 +96,24 @@ public class BunjangProductLinkService {
                 .findByProductIdAndMemberPlatformId(productId, memberPlatform.getId())
                 .orElseThrow(() -> new ProductPlatformNotFoundException(productId, PLATFORM_NAME));
 
-        BunjangProductDetail detail = bunjangProductClient.fetchDetail(productPlatform.getExternalProductId());
+        BunjangProductDetail detail = fetchDetail(memberPlatform, productPlatform.getExternalProductId());
         if (detail.errorCode() != null || !detail.isSelling()) {
             productPlatform.markRemoved();
         } else {
             productPlatform.markPosted();
         }
         return ProductPlatformResponse.from(productPlatform);
+    }
+
+    /**
+     * 회원 세션의 인증 토큰으로 조회해 본인이 숨긴 매물도 확인한다. 토큰을 받지 못하면(세션 만료·네트워크
+     * 오류) 비인증으로 조회한다.
+     */
+    private BunjangProductDetail fetchDetail(MemberPlatform memberPlatform, String externalProductId) {
+        String authToken = bunjangSessionClient
+                .fetchAuthToken(memberPlatform.getSessionToken())
+                .orElse(null);
+        return bunjangProductClient.fetchDetail(externalProductId, authToken);
     }
 
     private MemberPlatform getConnectedMemberPlatform(Long memberId) {
