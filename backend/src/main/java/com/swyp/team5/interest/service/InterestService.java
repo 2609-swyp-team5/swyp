@@ -124,10 +124,7 @@ public class InterestService {
                 .toList();
         CursorPageResponse<InterestListItemResponse> page =
                 CursorPageResponse.of(items, size, InterestListItemResponse::interestId);
-        if (cursor != null) {
-            return page;
-        }
-        // 전체 건수·상태별 건수는 첫 페이지에서만 센다(관심 대상 상품·매물의 현재 상태 기준)
+        // 전체 건수·상태별 건수는 매 페이지 센다(회원 본인 관심상품이라 부담이 작음, 관심 대상의 현재 상태 기준)
         List<Interest> all = interestRepository.findAllWithItemByMemberId(memberId);
         return page.withTotalCount(all.size())
                 .withStatusCounts(ProductStatus.countByStatus(all.stream().map(InterestService::targetStatus)));

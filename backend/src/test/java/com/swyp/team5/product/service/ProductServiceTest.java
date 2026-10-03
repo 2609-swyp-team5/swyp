@@ -939,17 +939,17 @@ class ProductServiceTest {
                 .isInstanceOf(ProductImageRequiredException.class);
     }
 
-    // 내 상품 목록 - 첫 페이지에 전체 건수와 상태별 건수(요청 필터 적용), 다음 페이지는 null
+    // 내 상품 목록 - 매 페이지 전체 건수와 상태별 건수(요청 필터 적용, 커서와 무관)
     @Test
     @SuppressWarnings("unchecked")
-    void getMyProductsIncludesStatusCountsOnFirstPage() {
+    void getMyProductsIncludesStatusCountsOnEveryPage() {
         Product product = newProduct(1L, newMember(1L), newCategory(1L, "전자기기"));
         when(productRepository.findAll(
                         any(org.springframework.data.jpa.domain.Specification.class),
                         any(org.springframework.data.domain.Pageable.class)))
                 .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(product)));
         when(productRepository.count(any(org.springframework.data.jpa.domain.Specification.class)))
-                .thenReturn(1L, 2L, 0L, 3L);
+                .thenReturn(1L, 2L, 0L, 3L, 1L, 2L, 0L, 3L);
 
         var first = service().getMyProducts(1L, null, null, null, null, 20);
 
@@ -962,8 +962,8 @@ class ProductServiceTest {
                         org.assertj.core.api.Assertions.entry("SOLD_OUT", 3L));
 
         var next = service().getMyProducts(1L, null, null, null, 1L, 20);
-        assertThat(next.totalCount()).isNull();
-        assertThat(next.statusCounts()).isNull();
+        assertThat(next.totalCount()).isEqualTo(6L);
+        assertThat(next.statusCounts()).isEqualTo(first.statusCounts());
     }
 
     // 상품 상태 변경 성공 - 소유자 본인

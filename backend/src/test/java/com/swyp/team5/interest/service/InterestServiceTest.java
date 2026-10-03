@@ -263,9 +263,9 @@ class InterestServiceTest {
         verify(productAnalysisRepository).findLatestByItemIdIn(List.of(100L));
     }
 
-    // 관심상품 목록 조회 - 첫 페이지에 전체 건수와 대상 상태별 건수(외부 매물은 원본 상태 변환)
+    // 관심상품 목록 조회 - 매 페이지 전체 건수와 대상 상태별 건수(외부 매물은 원본 상태 변환)
     @Test
-    void getInterestsIncludesStatusCountsOnFirstPage() {
+    void getInterestsIncludesStatusCountsOnEveryPage() {
         Member member = newMember(1L);
         Product draft = newProduct(5L, newMember(2L));
         PlatformListing selling = newPlatformListing(100L);
