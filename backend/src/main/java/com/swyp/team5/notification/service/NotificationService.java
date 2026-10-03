@@ -54,7 +54,10 @@ public class NotificationService {
                         .stream()
                         .map(NotificationResponse::from)
                         .toList();
-        return CursorPageResponse.of(items, size, NotificationResponse::notificationId);
+        CursorPageResponse<NotificationResponse> page =
+                CursorPageResponse.of(items, size, NotificationResponse::notificationId);
+        // 전체 건수는 첫 페이지에서만 센다
+        return cursor == null ? page.withTotalCount(notificationRepository.countByMemberId(memberId)) : page;
     }
 
     /** 본인의 안 읽은 알림 수를 센다. */

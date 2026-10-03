@@ -7,6 +7,7 @@ import com.swyp.team5.item.entity.ListingSource;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
+import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 
 /**
@@ -19,7 +20,8 @@ public record InterestListItemResponse(
         Long targetId, // source 내에서만 유일 — 우리 상품이면 productId, 외부 매물이면 listingId
         String title,
         Long price,
-        String status, // 우리 상품은 ProductStatus 이름 그대로, 외부 매물은 원본 status 문자열
+        String status, // 상품 상태 DRAFT/ON_SALE/RESERVED/SOLD_OUT — 외부 매물은 원본 상태를 변환(SELLING→ON_SALE, RESERVED→RESERVED,
+        // 그 외→SOLD_OUT)
         ProductCondition condition, // 외부 매물은 상태 등급 개념이 없어 null
         String categoryName, // 카테고리명
         String thumbnailUrl, // 대표 이미지 URL
@@ -72,7 +74,7 @@ public record InterestListItemResponse(
                 listing.getId(),
                 listing.getTitle(),
                 listing.getPrice(),
-                listing.getStatus(),
+                ProductStatus.fromExternal(listing.getStatus()).name(),
                 null,
                 listing.getCategory().getName(),
                 listing.getImageUrl(),

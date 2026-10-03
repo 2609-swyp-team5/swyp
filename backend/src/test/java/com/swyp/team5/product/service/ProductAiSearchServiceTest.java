@@ -11,13 +11,13 @@ import java.util.List;
 import org.springframework.ai.chat.client.ChatClient;
 
 import com.swyp.team5.common.ai.AiChatExecutor;
-import com.swyp.team5.product.dto.ListingTradeStatus;
 import com.swyp.team5.product.dto.ProductAiSearchCondition;
 import com.swyp.team5.product.dto.ProductSearchCondition;
 import com.swyp.team5.product.dto.ProductSearchPlatform;
 import com.swyp.team5.product.dto.ProductSortType;
 import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.ProductCondition;
+import com.swyp.team5.product.entity.ProductStatus;
 import org.junit.jupiter.api.Test;
 
 // 자연어 검색 문장 AI 해석 단위 테스트.
@@ -38,7 +38,7 @@ class ProductAiSearchServiceTest {
                 List.of("Case 필름"),
                 100_000L,
                 500_000L,
-                List.of(ListingTradeStatus.SELLING),
+                List.of(ProductStatus.ON_SALE),
                 List.of(ProductSearchPlatform.BUNJANG),
                 List.of(ProductCondition.S, ProductCondition.A),
                 List.of(DefectStatus.NORMAL),
@@ -52,12 +52,11 @@ class ProductAiSearchServiceTest {
         assertThat(condition.excludeKeywords()).containsExactly("case", "필름");
         assertThat(condition.minPrice()).isEqualTo(100_000L);
         assertThat(condition.maxPrice()).isEqualTo(500_000L);
-        assertThat(condition.tradeStatuses()).containsExactly(ListingTradeStatus.SELLING);
+        assertThat(condition.statuses()).containsExactly(ProductStatus.ON_SALE);
         assertThat(condition.platforms()).containsExactly(ProductSearchPlatform.BUNJANG);
         assertThat(condition.conditions()).containsExactlyInAnyOrder(ProductCondition.S, ProductCondition.A);
         assertThat(condition.defectStatuses()).containsExactly(DefectStatus.NORMAL);
         assertThat(condition.sort()).isEqualTo(ProductSortType.PRICE_LOW);
-        assertThat(condition.status()).isNull();
     }
 
     // 해석 성공 - 음수 가격은 버리고, 최소·최대가 뒤바뀌면 맞바꾸며, 빈 값은 미적용(정렬 기본 최신순)

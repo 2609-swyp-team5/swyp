@@ -13,7 +13,6 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.swyp.team5.item.entity.ListingSource;
-import com.swyp.team5.product.dto.ListingTradeStatus;
 import com.swyp.team5.product.dto.ProductSearchCondition;
 import com.swyp.team5.product.dto.ProductSearchCursor;
 import com.swyp.team5.product.dto.ProductSearchHit;
@@ -37,6 +36,9 @@ public class ProductSearchRepository {
             rs.getTimestamp("created_at").toLocalDateTime(),
             rs.getObject("sort_key", Long.class));
 
+    /** 거래 상태 필터가 없을 때 외부 매물은 판매중(원본 SELLING)만 보여 준다. */
+    private static final String DEFAULT_EXTERNAL_STATUS = "SELLING";
+
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
     /**
@@ -48,24 +50,14 @@ public class ProductSearchRepository {
      * @return 정렬된 결과(우리 상품·외부 매물 모두 제외되는 조건이면 빈 목록)
      */
     public List<ProductSearchHit> search(ProductSearchCondition condition, ProductSearchCursor cursor, int limit) {
-        List<String> sources = new ArrayList<>();
-        if (condition.includesOurProducts()) {
-            sources.add(ListingSource.OUR.name());
-        }
-        if (condition.includesExternalListings()) {
-            sources.add(ListingSource.EXTERNAL.name());
-        }
+        List<String> sources = sources(condition);
         if (sources.isEmpty()) {
             return List.of();
         }
 
         MapSqlParameterSource params =
                 new MapSqlParameterSource().addValue("limit", limit).addValue("sources", sources);
-        StringBuilder where = new StringBuilder("i.source IN (:sources)");
-        appendKeywordConditions(where, condition, params);
-        appendOurProductConditions(where, condition, params);
-        appendExternalListingConditions(where, condition, params);
-        appendPriceRange(where, condition, params);
+        String where = whereClause(condition, params);
 
         // 정렬값은 별칭이라 WHERE에서 바로 쓸 수 없어 한 번 감싼 뒤 커서 조건을 건다.
         String inner = "SELECT i.source AS source, i.item_id AS id, i.created_at AS created_at, "
@@ -81,6 +73,45 @@ public class ProductSearchRepository {
                 + " LIMIT :limit";
         addCursorParams(cursor, params);
         return jdbcTemplate.query(sql, params, HIT_MAPPER);
+    }
+
+    /**
+     * 조건에 맞는 전체 건수를 센다({@link #search}와 같은 조건, 정렬·커서 무관).
+     *
+     * @return 전체 건수(우리 상품·외부 매물 모두 제외되는 조건이면 0)
+     */
+    public long count(ProductSearchCondition condition) {
+        List<String> sources = sources(condition);
+        if (sources.isEmpty()) {
+            return 0;
+        }
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("sources", sources);
+        String sql = "SELECT COUNT(*) FROM items i"
+                + " LEFT JOIN products p ON p.product_id = i.item_id"
+                + " LEFT JOIN platform_listings l ON l.listing_id = i.item_id"
+                + " WHERE " + whereClause(condition, params);
+        Long count = jdbcTemplate.queryForObject(sql, params, Long.class);
+        return count == null ? 0 : count;
+    }
+
+    private static List<String> sources(ProductSearchCondition condition) {
+        List<String> sources = new ArrayList<>();
+        if (condition.includesOurProducts()) {
+            sources.add(ListingSource.OUR.name());
+        }
+        if (condition.includesExternalListings()) {
+            sources.add(ListingSource.EXTERNAL.name());
+        }
+        return sources;
+    }
+
+    private static String whereClause(ProductSearchCondition condition, MapSqlParameterSource params) {
+        StringBuilder where = new StringBuilder("i.source IN (:sources)");
+        appendKeywordConditions(where, condition, params);
+        appendOurProductConditions(where, condition, params);
+        appendExternalListingConditions(where, condition, params);
+        appendPriceRange(where, condition, params);
+        return where.toString();
     }
 
     /** 키워드는 제목·설명(외부 매물은 설명이 없어 제목만), 제외 키워드는 하나라도 포함되면 제외. */
@@ -109,10 +140,6 @@ public class ProductSearchRepository {
      */
     private static void appendOurProductConditions(
             StringBuilder where, ProductSearchCondition condition, MapSqlParameterSource params) {
-        if (condition.status() != null) {
-            where.append(" AND CAST(p.status AS VARCHAR) = :status");
-            params.addValue("status", condition.status().name());
-        }
         if (!condition.conditions().isEmpty()) {
             where.append(" AND CAST(p.\"condition\" AS VARCHAR) IN (:conditions)");
             params.addValue("conditions", names(condition.conditions()));
@@ -121,21 +148,23 @@ public class ProductSearchRepository {
             where.append(" AND CAST(p.defect_status AS VARCHAR) IN (:defectStatuses)");
             params.addValue("defectStatuses", names(condition.defectStatuses()));
         }
-        if (!condition.tradeStatuses().isEmpty() && !condition.ourStatuses().isEmpty()) {
+        if (!condition.statuses().isEmpty()) {
             where.append(" AND (i.source <> 'OUR' OR CAST(p.status AS VARCHAR) IN (:ourStatuses))");
-            params.addValue("ourStatuses", names(condition.ourStatuses()));
+            params.addValue("ourStatuses", names(condition.statuses()));
         }
     }
 
     /** 외부 매물 고유 필터(원본 거래 상태 — 미지정이면 판매중만, 플랫폼). */
     private static void appendExternalListingConditions(
             StringBuilder where, ProductSearchCondition condition, MapSqlParameterSource params) {
-        where.append(" AND (i.source <> 'EXTERNAL' OR l.status IN (:listingStatuses))");
-        params.addValue(
-                "listingStatuses",
-                condition.tradeStatuses().isEmpty()
-                        ? List.of(ListingTradeStatus.SELLING.name())
-                        : names(condition.tradeStatuses()));
+        List<String> listingStatuses = condition.statuses().isEmpty()
+                ? List.of(DEFAULT_EXTERNAL_STATUS)
+                : List.copyOf(condition.externalStatuses());
+        // 대응하는 외부 상태가 없으면(예: DRAFT만) 외부 매물은 이미 source에서 빠지므로 조건을 붙이지 않는다(빈 IN 방지)
+        if (!listingStatuses.isEmpty()) {
+            where.append(" AND (i.source <> 'EXTERNAL' OR l.status IN (:listingStatuses))");
+            params.addValue("listingStatuses", listingStatuses);
+        }
         if (!condition.externalPlatformNames().isEmpty()) {
             where.append(" AND (i.source <> 'EXTERNAL'"
                     + " OR l.platform_id IN (SELECT platform_id FROM platforms WHERE name IN (:platformNames)))");

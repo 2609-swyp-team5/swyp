@@ -5,6 +5,7 @@ import java.util.Set;
 import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.ProductCondition;
+import com.swyp.team5.product.entity.ProductStatus;
 
 /**
  * AI 상품 검색 응답. {@code condition}은 {@code GET /products}의 쿼리 파라미터와 이름·형식이 같아, 다음 페이지는 이
@@ -27,7 +28,7 @@ public record ProductAiSearchResponse(
      *
      * @param keyword 검색어
      * @param excludeKeyword 제외 키워드(공백 구분, 없으면 null)
-     * @param tradeStatus 거래 상태
+     * @param status 상품 상태
      * @param platform 플랫폼
      * @param minPrice 최소 가격
      * @param maxPrice 최대 가격
@@ -38,7 +39,7 @@ public record ProductAiSearchResponse(
     public record Condition(
             String keyword,
             String excludeKeyword,
-            Set<ListingTradeStatus> tradeStatus,
+            Set<ProductStatus> status,
             Set<ProductSearchPlatform> platform,
             Long minPrice,
             Long maxPrice,
@@ -50,7 +51,7 @@ public record ProductAiSearchResponse(
             return new Condition(
                     condition.keyword(),
                     condition.excludeKeywords().isEmpty() ? null : String.join(" ", condition.excludeKeywords()),
-                    condition.tradeStatuses(),
+                    condition.statuses(),
                     condition.platforms(),
                     condition.minPrice(),
                     condition.maxPrice(),

@@ -7,6 +7,7 @@ import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
+import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
@@ -18,7 +19,8 @@ public record ProductListItemResponse(
         String title,
         String brand, // 외부 매물은 null
         Long price,
-        String status, // 우리 상품은 ProductStatus 이름 그대로, 외부 매물은 원본 status 문자열
+        String status, // 상품 상태 DRAFT/ON_SALE/RESERVED/SOLD_OUT — 외부 매물은 원본 상태를 변환(SELLING→ON_SALE, RESERVED→RESERVED,
+        // 그 외→SOLD_OUT)
         ProductCondition condition, // 외부 매물은 상태 등급 개념이 없어 null
         DefectStatus defectStatus, // 외부 매물은 null
         Integer purchasedMonths, // 구매 후 경과 개월 수, 구매 일시가 없거나 외부 매물이면 null
@@ -64,7 +66,7 @@ public record ProductListItemResponse(
                 listing.getTitle(),
                 null,
                 listing.getPrice(),
-                listing.getStatus(),
+                ProductStatus.fromExternal(listing.getStatus()).name(),
                 null,
                 null,
                 null,

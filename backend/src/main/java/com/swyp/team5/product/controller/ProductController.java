@@ -35,7 +35,6 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import com.swyp.team5.common.common.ApiResponse;
 import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.common.passport.PrincipalMember;
-import com.swyp.team5.product.dto.ListingTradeStatus;
 import com.swyp.team5.product.dto.ProductAiSearchResponse;
 import com.swyp.team5.product.dto.ProductCreateRequest;
 import com.swyp.team5.product.dto.ProductDetailSummaryResponse;
@@ -190,8 +189,8 @@ public class ProductController {
      * @param currentMember 요청자(키워드 검색 로그 기록용, 비로그인이면 null — 비로그인도 조회 가능)
      * @param keyword 제목/설명(외부 매물은 제목만) 키워드 검색(선택)
      * @param excludeKeyword 제외 키워드(선택, 공백·쉼표로 구분한 단어 중 하나라도 제목/설명에 있으면 제외)
-     * @param status 우리 상품 상태 필터(선택, 지정 시 외부 매물 제외)
-     * @param tradeStatus 거래 상태 필터(선택, SELLING/RESERVED/SOLD_OUT 복수, 미지정 시 외부 매물은 판매중만)
+     * @param status 상품 상태 필터(선택, DRAFT/ON_SALE/RESERVED/SOLD_OUT 복수 — 우리 상품·외부 매물 모두 적용, DRAFT는 우리 상품만,
+     *     미지정 시 외부 매물은 판매중만)
      * @param platform 플랫폼 필터(선택, OUR/BUNJANG 복수)
      * @param minPrice 최소 가격(선택, 포함)
      * @param maxPrice 최대 가격(선택, 포함)
@@ -208,8 +207,7 @@ public class ProductController {
             @AuthenticationPrincipal PrincipalMember currentMember,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String excludeKeyword,
-            @RequestParam(required = false) ProductStatus status,
-            @RequestParam(required = false) Set<ListingTradeStatus> tradeStatus,
+            @RequestParam(required = false) Set<ProductStatus> status,
             @RequestParam(required = false) Set<ProductSearchPlatform> platform,
             @RequestParam(required = false) @PositiveOrZero Long minPrice,
             @RequestParam(required = false) @PositiveOrZero Long maxPrice,
@@ -222,7 +220,6 @@ public class ProductController {
                 keyword,
                 ProductSearchCondition.splitExcludeKeywords(excludeKeyword),
                 status,
-                tradeStatus,
                 platform,
                 minPrice,
                 maxPrice,
@@ -285,7 +282,7 @@ public class ProductController {
      * @param currentMember 인증된 요청자
      * @param categoryId 카테고리 필터(선택)
      * @param keyword 제목/설명 키워드 검색(선택)
-     * @param status 상태 필터(선택)
+     * @param status 상태 필터(선택, DRAFT/ON_SALE/RESERVED/SOLD_OUT 복수)
      * @param cursor 이전 페이지 마지막 상품의 {@code id}(선택, 첫 페이지는 생략)
      * @param size 페이지 크기(기본 20)
      * @return 200 OK + 커서 페이지 응답
@@ -296,7 +293,7 @@ public class ProductController {
             @AuthenticationPrincipal PrincipalMember currentMember,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) ProductStatus status,
+            @RequestParam(required = false) Set<ProductStatus> status,
             @RequestParam(required = false) Long cursor,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.success(
