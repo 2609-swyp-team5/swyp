@@ -73,6 +73,14 @@ public class ProductAnalysis {
     @Column(name = "buyer_description", columnDefinition = "TEXT")
     private String buyerDescription;
 
+    @Column(name = "listing_count")
+    private Integer listingCount; // 통계에 쓴 비교 매물 수(AI 선별·이상치 제거 후), 신뢰도 도입 이전 스냅샷은 null
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(columnDefinition = "analysis_confidence")
+    private AnalysisConfidence confidence; // 분석 시점 신뢰도 등급, 신뢰도 도입 이전 스냅샷은 null
+
     @Column(name = "max_price", nullable = false)
     private Long maxPrice;
 
@@ -120,6 +128,12 @@ public class ProductAnalysis {
     public void assignBuyerView(AnalysisRecommendation buyerRecommendation, String buyerDescription) {
         this.buyerRecommendation = buyerRecommendation;
         this.buyerDescription = buyerDescription;
+    }
+
+    /** 통계에 쓴 비교 매물 수와 분석 시점 신뢰도 등급을 붙인다. */
+    public void assignConfidence(int listingCount, AnalysisConfidence confidence) {
+        this.listingCount = listingCount;
+        this.confidence = confidence;
     }
 
     /**

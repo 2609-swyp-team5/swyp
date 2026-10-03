@@ -41,6 +41,7 @@ import com.swyp.team5.productanalysis.dto.MarketAnalysisResult;
 import com.swyp.team5.productanalysis.dto.PriceForecastResponse;
 import com.swyp.team5.productanalysis.dto.PriceTrendResponse;
 import com.swyp.team5.productanalysis.dto.ProductAnalysisResponse;
+import com.swyp.team5.productanalysis.entity.AnalysisConfidence;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.ForecastPeriod;
 import com.swyp.team5.productanalysis.entity.PriceForecast;
@@ -57,7 +58,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class ProductAnalysisServiceTest {
 
-    private static final ProductAnalysisProperties PROPERTIES = new ProductAnalysisProperties(3, 24, 30, 0L);
+    private static final ProductAnalysisProperties PROPERTIES = new ProductAnalysisProperties(3, 24, 30, 0L, null);
 
     private final ChatClient geminiAiClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
     private final ChatClient openAiClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
@@ -307,6 +308,9 @@ class ProductAnalysisServiceTest {
         assertThat(saved.getRecommendation()).isEqualTo(AnalysisRecommendation.SELL);
         assertThat(saved.getSuggestedPrice()).isEqualTo(3200L);
         assertThat(saved.getDescription()).isEqualTo("시세가 안정적이라 지금 파는 게 좋습니다.");
+        // 신뢰도 - 통계에 쓴 매물 5건(비율 25%)이라 LOW
+        assertThat(saved.getListingCount()).isEqualTo(5);
+        assertThat(saved.getConfidence()).isEqualTo(AnalysisConfidence.LOW);
         // 시세 분석이 낸 적정가로 상품의 AI 제안가도 갱신
         verify(productRepository).updateSuggestedPrice(1L, 3200L);
         // 직전 추천(HOLD)과 이번 추천(SELL)을 넘겨 전환 알림 판단
@@ -473,6 +477,8 @@ class ProductAnalysisServiceTest {
         assertThat(saved.getMaxPrice()).isEqualTo(3000L);
         assertThat(saved.getChangeRate()).isEqualByComparingTo(BigDecimal.ONE);
         assertThat(saved.getRecommendation()).isEqualTo(AnalysisRecommendation.BUY);
+        assertThat(saved.getListingCount()).isEqualTo(3); // 자신을 뺀 비교 매물 3건
+        assertThat(saved.getConfidence()).isEqualTo(AnalysisConfidence.LOW);
         // 외부 매물은 우리 상품 제안가 갱신 대상이 아님
         verify(productRepository, never()).updateSuggestedPrice(any(), any());
         verify(notificationService)
@@ -607,6 +613,44 @@ class ProductAnalysisServiceTest {
         assertThat(response.averagePrice()).isEqualTo(3000L);
         assertThat(response.currentPrice()).isEqualTo(800_000L);
         assertThat(response.description()).isEqualTo("설명");
+        // 신뢰도 도입 이전 분석(매물 수·등급 없음)은 신뢰도 필드가 null
+        assertThat(response.confidence()).isNull();
+        assertThat(response.confidenceRate()).isNull();
+        assertThat(response.listingCount()).isNull();
+    }
+
+    // 조회 성공 - 신뢰도 비율은 매물 수로 계산하고, 분석 후 24시간이 지났으면 등급을 한 단계 낮춤
+    @Test
+    void getLatestAnalysisReturnsConfidence() {
+        Product product = product(1L, 10L, 800_000L);
+        ProductAnalysis fresh = ProductAnalysis.create(
+                product, 1000L, 3000L, 5000L, null, AnalysisRecommendation.SELL, 3200L, "설명", LocalDateTime.now());
+        fresh.assignConfidence(14, AnalysisConfidence.HIGH);
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.of(fresh));
+
+        ProductAnalysisResponse response = service().getLatestAnalysis(1L);
+
+        assertThat(response.confidence()).isEqualTo(AnalysisConfidence.HIGH);
+        assertThat(response.confidenceRate()).isEqualTo(70);
+        assertThat(response.listingCount()).isEqualTo(14);
+
+        ProductAnalysis stale = ProductAnalysis.create(
+                product,
+                1000L,
+                3000L,
+                5000L,
+                null,
+                AnalysisRecommendation.SELL,
+                3200L,
+                "설명",
+                LocalDateTime.now().minusHours(25));
+        stale.assignConfidence(14, AnalysisConfidence.HIGH);
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.of(stale));
+
+        assertThat(service().getLatestAnalysis(1L).confidence()).isEqualTo(AnalysisConfidence.MEDIUM);
     }
 
     // 조회 성공 - 시세 대비 %는 (등록가-평균가)/평균가×100, 소수 첫째 자리 반올림
