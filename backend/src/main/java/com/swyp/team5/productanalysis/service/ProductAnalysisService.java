@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.LongSummaryStatistics;
 import java.util.Map;
@@ -21,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.ai.AiChatExecutor;
 import com.swyp.team5.interest.repository.InterestRepository;
+import com.swyp.team5.item.entity.Item;
+import com.swyp.team5.item.repository.ItemRepository;
 import com.swyp.team5.notification.service.NotificationService;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.platform.repository.PlatformListingRepository;
@@ -126,6 +129,7 @@ public class ProductAnalysisService {
     private final InterestRepository interestRepository;
     private final PriceForecastRepository priceForecastRepository;
     private final CategoryRepository categoryRepository;
+    private final ItemRepository itemRepository;
 
     public ProductAnalysisService(
             AiChatExecutor aiChatExecutor,
@@ -136,7 +140,8 @@ public class ProductAnalysisService {
             NotificationService notificationService,
             InterestRepository interestRepository,
             PriceForecastRepository priceForecastRepository,
-            CategoryRepository categoryRepository) {
+            CategoryRepository categoryRepository,
+            ItemRepository itemRepository) {
         this.aiChatExecutor = aiChatExecutor;
         this.productRepository = productRepository;
         this.platformListingRepository = platformListingRepository;
@@ -146,36 +151,37 @@ public class ProductAnalysisService {
         this.interestRepository = interestRepository;
         this.priceForecastRepository = priceForecastRepository;
         this.categoryRepository = categoryRepository;
+        this.itemRepository = itemRepository;
     }
 
     /**
-     * 상품의 가장 최근 시세 분석 스냅샷을 감가 예측(1M/3M/6M)과 함께 조회한다. 분석 이력이 없으면(배치가 아직 안 돌았거나 비교
-     * 매물 부족으로 건너뛴 경우) 상품 ID·현재 등록가만 채우고 나머지 필드는 null인 응답을 반환한다.
+     * 상품(또는 외부 매물)의 가장 최근 시세 분석 스냅샷을 감가 예측(1M/3M/6M)과 함께 조회한다. 외부 매물은 관심 등록된 것만
+     * 구매자 관점으로 분석되므로 그 밖의 매물은 분석 이력이 없다. 분석 이력이 없으면(배치가 아직 안 돌았거나 비교 매물 부족으로
+     * 건너뛴 경우) 상품 ID·현재 가격만 채우고 나머지 필드는 null인 응답을 반환한다.
      *
-     * @throws ProductNotFoundException 존재하지 않는 상품인 경우
+     * @throws ProductNotFoundException 존재하지 않는 상품(외부 매물 포함)인 경우
      */
     @Transactional(readOnly = true)
     public ProductAnalysisResponse getLatestAnalysis(Long productId) {
-        Product product =
-                productRepository.findById(productId).orElseThrow(() -> new ProductNotFoundException(productId));
+        Item item = getItemOrThrow(productId);
         return productAnalysisRepository
                 .findFirstByItemIdOrderByAnalyzedAtDesc(productId)
                 .map(analysis -> ProductAnalysisResponse.from(
-                        product, analysis, priceForecastRepository.findByAnalysisId(analysis.getId())))
-                .orElseGet(() -> ProductAnalysisResponse.empty(product));
+                        item, analysis, priceForecastRepository.findByAnalysisId(analysis.getId())))
+                .orElseGet(() -> ProductAnalysisResponse.empty(item));
     }
 
     /**
      * 상품의 최근 {@code days}일(오늘 포함) 시세 분석 스냅샷을 날짜별로 묶어 가격 추이를 조회한다. 같은 날 여러 번 분석됐으면
      * 평균가는 그 평균, 최저/최고가는 그날 중 최저/최고이고, 기간 평균가는 일별 평균가의 평균이다(분석이 몰린 날이 과대 반영되지
-     * 않도록 {@link PriceTrend}와 같은 기준). 분석 이력이 없으면 {@code points}가 빈 배열이다.
+     * 않도록 {@link PriceTrend}와 같은 기준). 각 점에는 직전 기록일 대비 변화가 붙는다(첫 점은 null). 외부 매물(관심 등록된
+     * 매물의 구매자 관점 분석)도 같은 방식으로 조회한다. 분석 이력이 없으면 {@code points}가 빈 배열이다.
      *
-     * @throws ProductNotFoundException 존재하지 않는 상품인 경우
+     * @throws ProductNotFoundException 존재하지 않는 상품(외부 매물 포함)인 경우
      */
     @Transactional(readOnly = true)
     public PriceTrendResponse getPriceTrend(Long productId, int days) {
-        Product product =
-                productRepository.findById(productId).orElseThrow(() -> new ProductNotFoundException(productId));
+        Item item = getItemOrThrow(productId);
         LocalDate to = LocalDate.now();
         LocalDate from = to.minusDays(days - 1L);
         Map<LocalDate, List<ProductAnalysis>> byDate =
@@ -184,26 +190,32 @@ public class ProductAnalysisService {
                         .stream()
                         .collect(Collectors.groupingBy(
                                 analysis -> analysis.getAnalyzedAt().toLocalDate(), TreeMap::new, Collectors.toList()));
-        List<PriceTrendResponse.Point> points = byDate.entrySet().stream()
-                .map(entry -> new PriceTrendResponse.Point(
-                        entry.getKey(),
-                        Math.round(entry.getValue().stream()
-                                .mapToLong(ProductAnalysis::getAveragePrice)
-                                .average()
-                                .orElseThrow()),
-                        entry.getValue().stream()
-                                .mapToLong(ProductAnalysis::getMinPrice)
-                                .min()
-                                .orElseThrow(),
-                        entry.getValue().stream()
-                                .mapToLong(ProductAnalysis::getMaxPrice)
-                                .max()
-                                .orElseThrow(),
-                        entry.getValue().size()))
-                .toList();
+        List<PriceTrendResponse.Point> points = new ArrayList<>();
+        PriceTrendResponse.Point previous = null;
+        for (Map.Entry<LocalDate, List<ProductAnalysis>> entry : byDate.entrySet()) {
+            long averagePrice = Math.round(entry.getValue().stream()
+                    .mapToLong(ProductAnalysis::getAveragePrice)
+                    .average()
+                    .orElseThrow());
+            PriceTrendResponse.Point point = new PriceTrendResponse.Point(
+                    entry.getKey(),
+                    averagePrice,
+                    entry.getValue().stream()
+                            .mapToLong(ProductAnalysis::getMinPrice)
+                            .min()
+                            .orElseThrow(),
+                    entry.getValue().stream()
+                            .mapToLong(ProductAnalysis::getMaxPrice)
+                            .max()
+                            .orElseThrow(),
+                    entry.getValue().size(),
+                    PriceTrendResponse.Change.between(previous, averagePrice));
+            points.add(point);
+            previous = point;
+        }
         return new PriceTrendResponse(
-                product.getId(),
-                product.getPrice(),
+                item.getId(),
+                item.getPrice(),
                 days,
                 from,
                 to,
@@ -215,6 +227,10 @@ public class ProductAnalysisService {
                                 .orElseThrow()),
                 trendChangeRate(points),
                 points);
+    }
+
+    private Item getItemOrThrow(Long productId) {
+        return itemRepository.findById(productId).orElseThrow(() -> new ProductNotFoundException(productId));
     }
 
     /** 첫 기록일 대비 마지막 기록일 평균가 변동률(소수 4자리). 기록일이 2일 미만이거나 첫 평균가가 0이면 null. */

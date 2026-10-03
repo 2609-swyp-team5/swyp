@@ -128,15 +128,18 @@ public class ProductController {
 
     /**
      * 상품 상세 정보를 조회한다. 외부 수집 매물도 같은 ID 체계라 목록 응답의 {@code id}를 그대로 넘기면 같은 응답 형태로
-     * 조회된다({@code source}로 구분).
+     * 조회된다({@code source}로 구분). 판매자 본인이 조회하면 게시 플랫폼·관심 수·조회수도 포함하고, 다른 회원의 조회는 조회수에 반영한다.
      *
+     * @param currentMember 인증된 요청자
      * @param productId 조회할 상품(또는 외부 매물) ID
      * @return 200 OK + 상품 상세 정보
      */
     @Operation(summary = "상품 상세 조회")
     @GetMapping("/{productId}")
-    public ResponseEntity<ApiResponse<ProductResponse>> getProduct(@PathVariable Long productId) {
-        return ResponseEntity.ok(ApiResponse.success(productService.getProduct(productId)));
+    public ResponseEntity<ApiResponse<ProductResponse>> getProduct(
+            @AuthenticationPrincipal PrincipalMember currentMember, @PathVariable Long productId) {
+        productService.recordView(productId, currentMember.memberId());
+        return ResponseEntity.ok(ApiResponse.success(productService.getProduct(productId, currentMember.memberId())));
     }
 
     /**

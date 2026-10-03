@@ -32,4 +32,12 @@ public enum PlatformType {
                 .findFirst()
                 .orElseThrow(() -> new UnsupportedPlatformException(value));
     }
+
+    /** {@code platforms.name}(예: "번개장터")에 해당하는 종류. 연동을 지원하지 않는 플랫폼이면 null. */
+    public static PlatformType fromPlatformName(String platformName) {
+        return Arrays.stream(values())
+                .filter(type -> type.platformName.equals(platformName))
+                .findFirst()
+                .orElse(null);
+    }
 }

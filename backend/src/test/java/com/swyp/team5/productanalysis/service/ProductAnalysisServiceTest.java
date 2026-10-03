@@ -26,6 +26,7 @@ import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.ai.AiChatExecutor;
 import com.swyp.team5.interest.repository.InterestRepository;
+import com.swyp.team5.item.repository.ItemRepository;
 import com.swyp.team5.notification.service.NotificationService;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.platform.repository.PlatformListingRepository;
@@ -82,6 +83,9 @@ class ProductAnalysisServiceTest {
     @Mock
     private CategoryRepository categoryRepository;
 
+    @Mock
+    private ItemRepository itemRepository;
+
     private ProductAnalysisService service() {
         return new ProductAnalysisService(
                 new AiChatExecutor(geminiAiClient, openAiClient),
@@ -92,7 +96,8 @@ class ProductAnalysisServiceTest {
                 notificationService,
                 interestRepository,
                 priceForecastRepository,
-                categoryRepository);
+                categoryRepository,
+                itemRepository);
     }
 
     private static Product product(Long productId, Long categoryId, Long price) {
@@ -507,7 +512,7 @@ class ProductAnalysisServiceTest {
     // 조회 실패 - 존재하지 않는 상품
     @Test
     void getLatestAnalysisThrowsWhenProductNotFound() {
-        when(productRepository.findById(999L)).thenReturn(Optional.empty());
+        when(itemRepository.findById(999L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service().getLatestAnalysis(999L)).isInstanceOf(ProductNotFoundException.class);
     }
@@ -516,7 +521,7 @@ class ProductAnalysisServiceTest {
     @Test
     void getLatestAnalysisReturnsEmptyResponseWhenNoSnapshotExists() {
         Product product = product(1L, 10L, 800_000L);
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
         when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.empty());
 
@@ -545,7 +550,7 @@ class ProductAnalysisServiceTest {
                 3200L,
                 "설명",
                 LocalDateTime.of(2026, 9, 19, 10, 0));
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
         when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.of(analysis));
         when(priceForecastRepository.findByAnalysisId(analysis.getId()))
@@ -584,7 +589,7 @@ class ProductAnalysisServiceTest {
                 470_000L,
                 "설명",
                 LocalDateTime.of(2026, 9, 30, 10, 0));
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
         when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.of(analysis));
 
@@ -596,7 +601,7 @@ class ProductAnalysisServiceTest {
     // 가격 추이 조회 실패 - 존재하지 않는 상품
     @Test
     void getPriceTrendThrowsWhenProductNotFound() {
-        when(productRepository.findById(999L)).thenReturn(Optional.empty());
+        when(itemRepository.findById(999L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service().getPriceTrend(999L, 30)).isInstanceOf(ProductNotFoundException.class);
     }
@@ -605,7 +610,7 @@ class ProductAnalysisServiceTest {
     @Test
     void getPriceTrendReturnsEmptyPointsWhenNoSnapshotExists() {
         Product product = product(1L, 10L, 800_000L);
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
         LocalDate today = LocalDate.now();
         when(productAnalysisRepository.findByItemIdAndAnalyzedAtGreaterThanEqualOrderByAnalyzedAtAsc(
                         1L, today.minusDays(29).atStartOfDay()))
@@ -627,7 +632,7 @@ class ProductAnalysisServiceTest {
     @Test
     void getPriceTrendGroupsSnapshotsByDate() {
         Product product = product(1L, 10L, 800_000L);
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
         LocalDate day1 = LocalDate.now().minusDays(2);
         LocalDate day2 = LocalDate.now();
         when(productAnalysisRepository.findByItemIdAndAnalyzedAtGreaterThanEqualOrderByAnalyzedAtAsc(eq(1L), any()))
@@ -641,10 +646,79 @@ class ProductAnalysisServiceTest {
 
         assertThat(response.points())
                 .containsExactly(
-                        new PriceTrendResponse.Point(day1, 1_033L, 800L, 1_300L, 3),
-                        new PriceTrendResponse.Point(day2, 950L, 700L, 1_000L, 1));
+                        new PriceTrendResponse.Point(day1, 1_033L, 800L, 1_300L, 3, null),
+                        new PriceTrendResponse.Point(
+                                day2,
+                                950L,
+                                700L,
+                                1_000L,
+                                1,
+                                new PriceTrendResponse.Change(day1, -83L, new BigDecimal("-8.03"))));
         assertThat(response.averagePrice()).isEqualTo(992L); // (1033 + 950) / 2 = 991.5 → 992
         assertThat(response.changeRate()).isEqualByComparingTo("-0.0803"); // (950 - 1033) / 1033
+    }
+
+    // 조회 성공 - 관심 등록된 외부 매물도 같은 ID로 최근 분석·현재 판매가를 조회
+    @Test
+    void getLatestAnalysisSupportsExternalListing() {
+        PlatformListing listing = listing(2L, 10L, "외부 매물", 300_000L);
+        ProductAnalysis analysis = ProductAnalysis.createForListing(
+                listing,
+                250_000L,
+                280_000L,
+                320_000L,
+                null,
+                AnalysisRecommendation.BUY,
+                270_000L,
+                "설명",
+                LocalDateTime.of(2026, 10, 1, 6, 0));
+        when(itemRepository.findById(2L)).thenReturn(Optional.of(listing));
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(2L))
+                .thenReturn(Optional.of(analysis));
+
+        ProductAnalysisResponse response = service().getLatestAnalysis(2L);
+
+        assertThat(response.productId()).isEqualTo(2L);
+        assertThat(response.currentPrice()).isEqualTo(300_000L);
+        assertThat(response.recommendation()).isEqualTo(AnalysisRecommendation.BUY);
+    }
+
+    // 가격 추이 조회 - 외부 매물도 조회되고, 직전 기록일과 평균가가 같으면 변화는 0
+    @Test
+    void getPriceTrendSupportsExternalListing() {
+        PlatformListing listing = listing(2L, 10L, "외부 매물", 300_000L);
+        when(itemRepository.findById(2L)).thenReturn(Optional.of(listing));
+        LocalDate day1 = LocalDate.now().minusDays(1);
+        LocalDate day2 = LocalDate.now();
+        when(productAnalysisRepository.findByItemIdAndAnalyzedAtGreaterThanEqualOrderByAnalyzedAtAsc(eq(2L), any()))
+                .thenReturn(List.of(
+                        ProductAnalysis.createForListing(
+                                listing,
+                                900L,
+                                1_000L,
+                                1_100L,
+                                null,
+                                AnalysisRecommendation.WAIT,
+                                null,
+                                null,
+                                day1.atTime(6, 0)),
+                        ProductAnalysis.createForListing(
+                                listing,
+                                900L,
+                                1_000L,
+                                1_100L,
+                                null,
+                                AnalysisRecommendation.WAIT,
+                                null,
+                                null,
+                                day2.atTime(6, 0))));
+
+        PriceTrendResponse response = service().getPriceTrend(2L, 30);
+
+        assertThat(response.productId()).isEqualTo(2L);
+        assertThat(response.currentPrice()).isEqualTo(300_000L);
+        assertThat(response.points().get(1).change())
+                .isEqualTo(new PriceTrendResponse.Change(day1, 0L, new BigDecimal("0.00")));
     }
 
     private static ProductAnalysis snapshot(

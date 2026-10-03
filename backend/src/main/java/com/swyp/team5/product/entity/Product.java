@@ -66,6 +66,9 @@ public class Product extends Item {
     @Column(name = "analysis_description", columnDefinition = "TEXT")
     private String analysisDescription; // 등록 시 AI 사진 분석의 상태 등급/제안가 판단 근거(시세 분석으로는 바뀌지 않음)
 
+    @Column(name = "view_count", nullable = false)
+    private long viewCount; // 조회수(판매자 본인 제외, 회원당 24시간 1회 — 증가는 ProductRepository.incrementViewCount)
+
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "product_status")

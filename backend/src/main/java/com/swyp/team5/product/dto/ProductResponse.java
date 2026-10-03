@@ -53,7 +53,10 @@ public record ProductResponse(
         String externalUrl, // 우리 상품은 null, 외부 매물은 원본 매물 링크
         String externalStatus, // 우리 상품은 null, 외부 매물은 원본 상태 문자열(SELLING/RESERVED/SOLD_OUT 또는 재확인 에러 코드)
         LocalDateTime createdAt, // 등록 일시(외부 매물은 최초 수집 일시)
-        LocalDateTime updatedAt) { // 수정 일시(외부 매물은 마지막으로 판매 상태를 확인한 일시)
+        LocalDateTime updatedAt, // 수정 일시(외부 매물은 마지막으로 판매 상태를 확인한 일시)
+        List<ProductPlatformSummaryResponse> platforms, // 외부 플랫폼 게시 상태(연동 기록만, 없으면 []) — 판매자 본인 상세 조회만, 그 외 null
+        Long interestCount, // 관심 등록 수 — 판매자 본인 상세 조회만, 그 외 null
+        Long viewCount) { // 조회수(본인 제외, 회원당 24시간 1회) — 판매자 본인 상세 조회만, 그 외 null
 
     private static final Set<String> EXTERNAL_ON_SALE_STATUSES = Set.of("SELLING", "RESERVED");
 
@@ -100,7 +103,10 @@ public record ProductResponse(
                 null,
                 null,
                 product.getCreatedAt(),
-                product.getUpdatedAt());
+                product.getUpdatedAt(),
+                null,
+                null,
+                null);
     }
 
     /**
@@ -143,6 +149,48 @@ public record ProductResponse(
                 listing.getListingUrl(),
                 listing.getStatus(),
                 listing.getCreatedAt(),
-                listing.getLastSeenAt());
+                listing.getLastSeenAt(),
+                null,
+                null,
+                null);
+    }
+
+    /** 판매자 본인 상세 조회용으로 게시 플랫폼·관심 수·조회수를 채운 복사본을 만든다. */
+    public ProductResponse withSellerStats(
+            List<ProductPlatformSummaryResponse> platforms, long interestCount, long viewCount) {
+        return new ProductResponse(
+                source,
+                id,
+                memberId,
+                nickname,
+                category,
+                title,
+                brand,
+                description,
+                price,
+                status,
+                condition,
+                defectStatus,
+                purchasedAt,
+                purchasedMonths,
+                allowPriceSuggestion,
+                tradeMethod,
+                deliveryType,
+                preferredTradeRegion,
+                imageUrls,
+                tags,
+                includedItems,
+                recommendation,
+                marketAveragePrice,
+                suggestedPrice,
+                analysisDescription,
+                platformName,
+                externalUrl,
+                externalStatus,
+                createdAt,
+                updatedAt,
+                platforms,
+                interestCount,
+                viewCount);
     }
 }

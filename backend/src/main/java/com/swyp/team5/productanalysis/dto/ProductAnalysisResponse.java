@@ -6,14 +6,14 @@ import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 
-import com.swyp.team5.product.entity.Product;
+import com.swyp.team5.item.entity.Item;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.PriceForecast;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 
 public record ProductAnalysisResponse(
         Long productId,
-        Long currentPrice, // 상품의 현재 등록가(판매 희망가) — 분석 이력이 없어도 채워짐
+        Long currentPrice, // 상품의 현재 등록가(판매 희망가, 외부 매물은 판매가) — 분석 이력이 없어도 채워짐
         Long analysisId, // 분석 이력이 없으면 null(아래 필드도 전부 null)
         Long minPrice,
         Long averagePrice,
@@ -27,7 +27,7 @@ public record ProductAnalysisResponse(
         List<PriceForecastResponse> forecasts) { // 감가 예측가(1M/3M/6M 순), 분석 이력이 없거나 예측 도입 전 분석이면 빈 배열
 
     /** 아직 분석 이력이 없는 상품(분석 배치가 아직 돌지 않았거나, 비교 매물이 부족해 건너뛴 경우)에 사용한다. */
-    public static ProductAnalysisResponse empty(Product product) {
+    public static ProductAnalysisResponse empty(Item product) {
         return new ProductAnalysisResponse(
                 product.getId(),
                 product.getPrice(),
@@ -44,8 +44,7 @@ public record ProductAnalysisResponse(
                 List.of());
     }
 
-    public static ProductAnalysisResponse from(
-            Product product, ProductAnalysis analysis, List<PriceForecast> forecasts) {
+    public static ProductAnalysisResponse from(Item product, ProductAnalysis analysis, List<PriceForecast> forecasts) {
         return new ProductAnalysisResponse(
                 product.getId(),
                 product.getPrice(),

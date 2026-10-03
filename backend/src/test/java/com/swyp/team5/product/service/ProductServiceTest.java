@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -33,6 +34,7 @@ import com.swyp.team5.member.repository.MemberRepository;
 import com.swyp.team5.platform.entity.Platform;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.platform.repository.PlatformListingRepository;
+import com.swyp.team5.platform.repository.ProductPlatformRepository;
 import com.swyp.team5.product.dto.ProductAiAnalysisResult;
 import com.swyp.team5.product.dto.ProductCreateRequest;
 import com.swyp.team5.product.dto.ProductListItemResponse;
@@ -111,6 +113,12 @@ class ProductServiceTest {
     @Mock
     private TargetPriceAlertService targetPriceAlertService;
 
+    @Mock
+    private ProductPlatformRepository productPlatformRepository;
+
+    @Mock
+    private ProductViewCounter productViewCounter;
+
     private ProductService service() {
         return new ProductService(
                 productRepository,
@@ -125,7 +133,9 @@ class ProductServiceTest {
                 interestRepository,
                 searchLogService,
                 productAnalysisService,
-                targetPriceAlertService);
+                targetPriceAlertService,
+                productPlatformRepository,
+                productViewCounter);
     }
 
     // 상품 등록 성공
@@ -398,7 +408,7 @@ class ProductServiceTest {
         when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.of(analysis));
 
-        ProductResponse response = service().getProduct(1L);
+        ProductResponse response = service().getProduct(1L, 2L);
 
         assertThat(response.recommendation()).isEqualTo(AnalysisRecommendation.SELL);
         assertThat(response.marketAveragePrice()).isEqualTo(450_000L);
@@ -415,11 +425,48 @@ class ProductServiceTest {
                 .thenReturn(Optional.empty());
         when(productAnalysisService.calculateMarketAveragePrice(product)).thenReturn(Optional.of(430_000L));
 
-        ProductResponse response = service().getProduct(1L);
+        ProductResponse response = service().getProduct(1L, 2L);
 
         assertThat(response.recommendation()).isNull();
         assertThat(response.marketAveragePrice()).isEqualTo(430_000L);
         assertThat(response.analysisDescription()).isNull();
+        // 판매자 본인이 아니면 게시 플랫폼·관심 수·조회수는 내려주지 않음
+        assertThat(response.platforms()).isNull();
+        assertThat(response.interestCount()).isNull();
+        assertThat(response.viewCount()).isNull();
+    }
+
+    // 상품 상세 조회 - 판매자 본인이면 게시 플랫폼·관심 수·조회수를 채움
+    @Test
+    void getProductIncludesSellerStatsForOwner() {
+        Product product = newProduct(1L, newMember(1L), newCategory(1L, "전자기기"));
+        setField(product, "viewCount", 7L);
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.empty());
+        when(productPlatformRepository.findByProductId(1L)).thenReturn(List.of());
+        when(interestRepository.countByItemId(1L)).thenReturn(3L);
+
+        ProductResponse response = service().getProduct(1L, 1L);
+
+        assertThat(response.platforms()).isEmpty();
+        assertThat(response.interestCount()).isEqualTo(3L);
+        assertThat(response.viewCount()).isEqualTo(7L);
+    }
+
+    // 조회수 반영 - 다른 회원의 첫 조회만 올리고, 판매자 본인·24시간 내 재조회는 세지 않음
+    @Test
+    void recordViewCountsOnlyFirstViewByOtherMember() {
+        Product product = newProduct(1L, newMember(1L), newCategory(1L, "전자기기"));
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productViewCounter.isFirstView(1L, 2L)).thenReturn(true, false);
+
+        service().recordView(1L, 1L); // 본인
+        service().recordView(1L, 2L); // 첫 조회
+        service().recordView(1L, 2L); // 재조회
+
+        verify(productViewCounter, never()).isFirstView(1L, 1L);
+        verify(productRepository, times(1)).incrementViewCount(1L);
     }
 
     // 상품 상세 조회 실패 - 존재하지 않는 상품
@@ -427,7 +474,7 @@ class ProductServiceTest {
     void getProductFailsWhenNotFound() {
         when(itemRepository.findById(1L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service().getProduct(1L)).isInstanceOf(ProductNotFoundException.class);
+        assertThatThrownBy(() -> service().getProduct(1L, 2L)).isInstanceOf(ProductNotFoundException.class);
     }
 
     // 상품 목록 조회 - 다음 페이지 존재(size보다 1개 더 조회되어 hasNext=true, nextCursor=마지막 항목의
