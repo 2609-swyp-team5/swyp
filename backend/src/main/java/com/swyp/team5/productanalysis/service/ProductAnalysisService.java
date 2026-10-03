@@ -321,6 +321,21 @@ public class ProductAnalysisService {
         }
     }
 
+    /**
+     * 상품 1건을 정기 배치와 같은 방식으로 분석한다(등록 직후 분석 진입점). 이미 삭제됐거나 분석 대상 상태가 아니면
+     * 건너뛰고, 실패해도 예외를 던지지 않는다(로그만 남김).
+     *
+     * @param productId 분석할 상품 ID
+     */
+    public void analyzeProductById(Long productId) {
+        productRepository
+                .findById(productId)
+                .filter(product -> ProductStatus.ANALYSIS_TARGETS.contains(product.getStatus()))
+                .ifPresentOrElse(
+                        this::analyzeProductSafely,
+                        () -> log.info("상품 {}: 없거나 분석 대상 상태가 아니라 등록 직후 분석을 건너뜁니다.", productId));
+    }
+
     private void analyzeListingSafely(PlatformListing listing) {
         try {
             analyzeListing(listing);
