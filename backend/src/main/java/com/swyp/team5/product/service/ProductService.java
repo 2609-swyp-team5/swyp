@@ -33,10 +33,13 @@ import com.swyp.team5.item.repository.ItemRepository;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.repository.MemberRepository;
 import com.swyp.team5.platform.entity.PlatformListing;
+import com.swyp.team5.platform.entity.ProductPlatformStatus;
 import com.swyp.team5.platform.repository.PlatformListingRepository;
 import com.swyp.team5.platform.repository.ProductPlatformRepository;
 import com.swyp.team5.product.dto.ProductAiAnalysisResult;
 import com.swyp.team5.product.dto.ProductCreateRequest;
+import com.swyp.team5.product.dto.ProductDetailSummaryResponse;
+import com.swyp.team5.product.dto.ProductDetailSummaryResponse.PlatformLink;
 import com.swyp.team5.product.dto.ProductListItemResponse;
 import com.swyp.team5.product.dto.ProductPlatformSummaryResponse;
 import com.swyp.team5.product.dto.ProductResponse;
@@ -289,6 +292,38 @@ public class ProductService {
                 : null;
         return ProductResponse.from(product, recommendation, averagePrice)
                 .withStats(platforms, interestRepository.countByItemId(product.getId()), product.getViewCount());
+    }
+
+    /**
+     * 상품 상세 요약(판매 관리 화면 요약 영역)을 조회한다. 로그인 회원 누구에게나 모든 필드를 공개한다 — 게시 플랫폼은 우리
+     * 상품이면 게시 완료(POSTED)된 외부 게시글 링크, 외부 매물이면 원본 매물 링크 1건. 시세 정보는 포함하지 않는다.
+     *
+     * @param itemId 조회할 상품(또는 외부 매물) ID
+     * @return 상품 상세 요약
+     * @throws ProductNotFoundException 존재하지 않는 ID인 경우
+     */
+    @Transactional(readOnly = true)
+    public ProductDetailSummaryResponse getProductSummary(Long itemId) {
+        Item item = itemRepository.findById(itemId).orElseThrow(() -> new ProductNotFoundException(itemId));
+        long interestCount = interestRepository.countByItemId(itemId);
+        LocalDate today = LocalDate.now();
+        if (Hibernate.unproxy(item) instanceof PlatformListing listing) {
+            List<PlatformLink> platforms = listing.getListingUrl() == null
+                    ? List.of()
+                    : List.of(new PlatformLink(listing.getPlatform().getName(), listing.getListingUrl()));
+            ProductResponse detail =
+                    ProductResponse.fromListing(listing, null, null).withStats(null, interestCount, null);
+            return ProductDetailSummaryResponse.of(detail, platforms, today);
+        }
+        Product product = (Product) Hibernate.unproxy(item);
+        List<PlatformLink> platforms = productPlatformRepository.findByProductId(product.getId()).stream()
+                .filter(productPlatform -> productPlatform.getStatus() == ProductPlatformStatus.POSTED)
+                .filter(productPlatform -> productPlatform.getProductUrl() != null)
+                .map(productPlatform -> new PlatformLink(
+                        productPlatform.getMemberPlatform().getPlatform().getName(), productPlatform.getProductUrl()))
+                .toList();
+        ProductResponse detail = ProductResponse.from(product).withStats(null, interestCount, product.getViewCount());
+        return ProductDetailSummaryResponse.of(detail, platforms, today);
     }
 
     /**
