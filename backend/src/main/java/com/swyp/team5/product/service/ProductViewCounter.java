@@ -22,14 +22,23 @@ public class ProductViewCounter {
 
     private final StringRedisTemplate redisTemplate;
 
-    /** 이번 조회를 조회수로 셀지 판단한다(기간 안 첫 조회면 true). */
-    public boolean isFirstView(Long productId, Long memberId) {
+    /**
+     * 이번 조회를 조회수로 셀지 판단한다(기간 안 첫 조회면 true).
+     *
+     * @param viewerKey 조회자 구분 값 — 회원은 회원 ID, 비회원은 {@code ip:{IP}}({@link #viewerKey})
+     */
+    public boolean isFirstView(Long productId, String viewerKey) {
         try {
             return Boolean.TRUE.equals(
-                    redisTemplate.opsForValue().setIfAbsent(KEY_PREFIX + productId + ":" + memberId, "1", WINDOW));
+                    redisTemplate.opsForValue().setIfAbsent(KEY_PREFIX + productId + ":" + viewerKey, "1", WINDOW));
         } catch (RuntimeException e) {
-            log.warn("조회수 중복 판별 실패 — 이번 조회는 세지 않음 [productId={}, memberId={}]", productId, memberId, e);
+            log.warn("조회수 중복 판별 실패 — 이번 조회는 세지 않음 [productId={}, viewer={}]", productId, viewerKey, e);
             return false;
         }
+    }
+
+    /** 조회자 구분 값. 회원은 회원 ID(기존 키 형식 유지), 비회원은 IP로 구분한다. */
+    public static String viewerKey(Long memberId, String clientIp) {
+        return memberId != null ? String.valueOf(memberId) : "ip:" + clientIp;
     }
 }

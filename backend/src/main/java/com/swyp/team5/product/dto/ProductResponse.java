@@ -55,8 +55,8 @@ public record ProductResponse(
         LocalDateTime createdAt, // 등록 일시(외부 매물은 최초 수집 일시)
         LocalDateTime updatedAt, // 수정 일시(외부 매물은 마지막으로 판매 상태를 확인한 일시)
         List<ProductPlatformSummaryResponse> platforms, // 외부 플랫폼 게시 상태(연동 기록만, 없으면 []) — 판매자 본인 상세 조회만, 그 외 null
-        Long interestCount, // 관심 등록 수 — 판매자 본인 상세 조회만, 그 외 null
-        Long viewCount) { // 조회수(본인 제외, 회원당 24시간 1회) — 판매자 본인 상세 조회만, 그 외 null
+        Long interestCount, // 관심 등록한 회원 수 — 모든 조회자(우리 상품·외부 매물)
+        Long viewCount) { // 조회수(본인 제외, 회원·비회원 IP당 24시간 1회) — 모든 조회자, 외부 매물은 null
 
     private static final Set<String> EXTERNAL_ON_SALE_STATUSES = Set.of("SELLING", "RESERVED");
 
@@ -155,9 +155,14 @@ public record ProductResponse(
                 null);
     }
 
-    /** 판매자 본인 상세 조회용으로 게시 플랫폼·관심 수·조회수를 채운 복사본을 만든다. */
-    public ProductResponse withSellerStats(
-            List<ProductPlatformSummaryResponse> platforms, long interestCount, long viewCount) {
+    /**
+     * 게시 플랫폼·관심 수·조회수를 채운 복사본을 만든다.
+     *
+     * @param platforms 판매자 본인 조회일 때만 채우고, 그 외(외부 매물 포함)는 null
+     * @param viewCount 외부 매물은 null
+     */
+    public ProductResponse withStats(
+            List<ProductPlatformSummaryResponse> platforms, Long interestCount, Long viewCount) {
         return new ProductResponse(
                 source,
                 id,
