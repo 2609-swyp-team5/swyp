@@ -72,6 +72,10 @@ export function DirectRegisterInfoStep({
     const [tagError, setTagError] = useState("");
 
     const parentCategories = categories.filter((category) => category.parentId === null);
+    const selectedParentCategory = categories.find(
+        (category) => category.id === Number(value.parentCategoryId),
+    );
+    const isParentLeaf = selectedParentCategory?.leaf ?? false;
     const childCategories = categories.filter(
         (category) => category.parentId === Number(value.parentCategoryId),
     );
@@ -130,9 +134,10 @@ export function DirectRegisterInfoStep({
             images: value.images.length > 0 ? "" : "상품 사진을 1장 이상 업로드해주세요.",
             title: value.title.trim() ? "" : "상품명을 입력해 주세요.",
             parentCategory: value.parentCategoryId ? "" : "대분류를 선택해 주세요.",
-            childCategory: value.childCategoryId ? "" : "중분류를 선택해 주세요.",
+            childCategory: value.childCategoryId || isParentLeaf ? "" : "중분류를 선택해 주세요.",
             subCategory:
-                !value.childCategoryId || (hasSubCategories && !value.subCategoryId)
+                !isParentLeaf &&
+                (!value.childCategoryId || (hasSubCategories && !value.subCategoryId))
                     ? "소분류를 선택해 주세요."
                     : "",
             description: value.description.trim() ? "" : "상품 설명을 입력해 주세요.",
@@ -210,6 +215,9 @@ export function DirectRegisterInfoStep({
                                 onChange("parentCategoryId", nextValue);
                                 onChange("childCategoryId", "");
                                 onChange("subCategoryId", "");
+                                const nextParentCategory = categories.find(
+                                    (category) => category.id === Number(nextValue),
+                                );
                                 setFieldErrors((current) => {
                                     const hasCategoryError = Boolean(
                                         current.parentCategory ||
@@ -220,9 +228,10 @@ export function DirectRegisterInfoStep({
                                     return {
                                         ...current,
                                         parentCategory: "",
-                                        childCategory: hasCategoryError
-                                            ? "중분류를 선택해 주세요."
-                                            : "",
+                                        childCategory:
+                                            hasCategoryError && !nextParentCategory?.leaf
+                                                ? "중분류를 선택해 주세요."
+                                                : "",
                                         subCategory: "",
                                     };
                                 });
@@ -281,14 +290,18 @@ export function DirectRegisterInfoStep({
                                             : "",
                                 }));
                             }}
-                            disabled={!value.parentCategoryId}
+                            disabled={!value.parentCategoryId || isParentLeaf}
                         >
                             <SelectTrigger
                                 className={selectClassName}
                                 aria-label="중분류"
                                 aria-invalid={Boolean(fieldErrors.childCategory)}
                             >
-                                <SelectValue placeholder="중분류 선택" />
+                                <SelectValue
+                                    placeholder={
+                                        isParentLeaf ? "하위 카테고리 없음" : "중분류 선택"
+                                    }
+                                />
                             </SelectTrigger>
                             <SelectContent
                                 position="popper"
@@ -297,7 +310,9 @@ export function DirectRegisterInfoStep({
                                 align="start"
                                 className="!max-h-60 !w-[var(--radix-select-trigger-width)] !overflow-y-auto !bg-white !text-[#6b6c7b]"
                             >
-                                {childCategories.length > 0 ? (
+                                {isParentLeaf ? (
+                                    <EmptySelectItem message="하위 카테고리가 없는 카테고리입니다." />
+                                ) : childCategories.length > 0 ? (
                                     childCategories.map((category) => (
                                         <SelectItem key={category.id} value={String(category.id)}>
                                             {category.name}
@@ -330,7 +345,7 @@ export function DirectRegisterInfoStep({
                             >
                                 <SelectValue
                                     placeholder={
-                                        value.childCategoryId && !hasSubCategories
+                                        (isParentLeaf || value.childCategoryId) && !hasSubCategories
                                             ? "소분류 없음"
                                             : "소분류 선택"
                                     }

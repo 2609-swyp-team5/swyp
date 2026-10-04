@@ -89,6 +89,12 @@ export function ProductSummaryCard({ product, interest }: ProductSummaryCardProp
                                 />
                                 관심
                             </button>
+                        ) : product.status === "ON_SALE" && product.platforms.length > 0 ? (
+                            <PlatformShortcutDialog
+                                product={product}
+                                label="판매글 바로가기"
+                                compact
+                            />
                         ) : null}
                     </div>
                     <h2
@@ -134,16 +140,13 @@ export function ProductSummaryCard({ product, interest }: ProductSummaryCardProp
                                 <PlatformShortcutDialog product={product} />
                             ) : null
                         ) : (
-                            <>
-                                {product.status === "ON_SALE" ? (
-                                    <PlatformShortcutDialog product={product} />
-                                ) : null}
-                                <ProductSummaryActions
-                                    product={product}
-                                    editHref={`/sell/manage/${product.id}/edit`}
-                                    canMarkAsSold={product.status === "ON_SALE"}
-                                />
-                            </>
+                            <ProductSummaryActions
+                                product={product}
+                                actionHref={`/sell/manage/${product.id}`}
+                                actionLabel="자세히보기"
+                                actionIconSrc="/sell/detail.svg"
+                                canMarkAsSold={product.status === "ON_SALE"}
+                            />
                         )}
                     </div>
                 </div>

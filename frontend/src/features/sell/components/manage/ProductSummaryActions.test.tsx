@@ -45,7 +45,7 @@ describe("ProductSummaryActions", () => {
         render(
             <ProductSummaryActions
                 product={{ id: 42 }}
-                editHref="/sell/manage/42/edit"
+                actionHref="/sell/manage/42/edit"
                 canMarkAsSold
             />,
         );
@@ -66,8 +66,25 @@ describe("ProductSummaryActions", () => {
     });
 
     it("판매완료 상태 변경이 불가능한 상품에는 버튼을 표시하지 않는다", () => {
-        render(<ProductSummaryActions product={{ id: 42 }} editHref="/sell/manage/42/edit" />);
+        render(<ProductSummaryActions product={{ id: 42 }} actionHref="/sell/manage/42/edit" />);
 
         expect(screen.queryByRole("button", { name: "판매완료" })).not.toBeInTheDocument();
+    });
+
+    it("상세보기 라벨을 사용하면 상품 확인 화면으로 이동한다", async () => {
+        const user = userEvent.setup();
+
+        render(
+            <ProductSummaryActions
+                product={{ id: 42 }}
+                actionHref="/sell/manage/42"
+                actionLabel="자세히보기"
+                actionIconSrc="/sell/detail.svg"
+            />,
+        );
+
+        await user.click(screen.getByRole("button", { name: "자세히보기" }));
+
+        expect(push).toHaveBeenCalledWith("/sell/manage/42");
     });
 });

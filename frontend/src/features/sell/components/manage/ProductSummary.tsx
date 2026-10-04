@@ -51,7 +51,7 @@ export function ProductSummary({ product, registrationMethod }: ProductSummaryPr
                     <div className="mt-auto">
                         <ProductSummaryActions
                             product={product}
-                            editHref={`/sell/manage/${product.id}/edit?method=${registrationMethod}`}
+                            actionHref={`/sell/manage/${product.id}/edit?method=${registrationMethod}`}
                         />
                     </div>
                 </div>

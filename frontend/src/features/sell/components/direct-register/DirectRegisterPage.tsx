@@ -195,7 +195,9 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
         createDirectProductMutation.mutate({
             images: info.images.flatMap((image) => (image.file ? [image.file] : [])),
             request: {
-                categoryId: Number(info.subCategoryId || info.childCategoryId),
+                categoryId: Number(
+                    info.subCategoryId || info.childCategoryId || info.parentCategoryId,
+                ),
                 title: info.title.trim(),
                 brand: info.brand.trim() || null,
                 description: info.description.trim(),

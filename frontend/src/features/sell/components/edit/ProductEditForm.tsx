@@ -90,11 +90,13 @@ function getInitialInfo(product: ProductResponse, categories: Category[]): Direc
             ? String(grandparentCategory.id)
             : parentCategory
               ? String(parentCategory.id)
-              : "",
+              : String(product.category.id),
         childCategoryId:
             grandparentCategory && parentCategory
                 ? String(parentCategory.id)
-                : String(product.category.id),
+                : parentCategory
+                  ? String(product.category.id)
+                  : "",
         subCategoryId: grandparentCategory ? String(product.category.id) : "",
         title: product.title,
         brand: product.brand ?? "",
@@ -228,7 +230,9 @@ export function ProductEditForm({
                 id: product.id,
                 files: newFiles,
                 request: {
-                    categoryId: Number(info.subCategoryId || info.childCategoryId),
+                    categoryId: Number(
+                        info.subCategoryId || info.childCategoryId || info.parentCategoryId,
+                    ),
                     title: info.title.trim(),
                     brand: info.brand.trim() || null,
                     description: info.description.trim(),

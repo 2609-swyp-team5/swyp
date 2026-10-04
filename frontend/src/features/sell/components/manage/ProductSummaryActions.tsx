@@ -13,14 +13,18 @@ import type { ProductResponse } from "@/features/sell/types";
 
 type ProductSummaryActionsProps = {
     product: Pick<ProductResponse, "id">;
-    editHref: string;
+    actionHref: string;
+    actionLabel?: string;
+    actionIconSrc?: string;
     onDeleted?: () => void;
     canMarkAsSold?: boolean;
 };
 
 export function ProductSummaryActions({
     product,
-    editHref,
+    actionHref,
+    actionLabel = "수정하기",
+    actionIconSrc = "/sell/pencil.svg",
     onDeleted,
     canMarkAsSold = false,
 }: ProductSummaryActionsProps) {
@@ -71,21 +75,21 @@ export function ProductSummaryActions({
                 <Button
                     type="button"
                     variant="ghost"
+                    onClick={() => router.push(actionHref)}
+                    className="h-auto flex-col gap-2 rounded-xl p-2.5 text-[#83889e] hover:bg-[#f5f3ff] hover:text-[#6653fb]"
+                >
+                    <Image src={actionIconSrc} alt="" width={40} height={40} />
+                    <span className="text-[16px] leading-[25px] font-normal">{actionLabel}</span>
+                </Button>
+                <Button
+                    type="button"
+                    variant="ghost"
                     className="h-auto flex-col gap-2 rounded-xl p-2.5 text-[#83889e] hover:bg-[#f5f3ff] hover:text-[#6653fb]"
                     onClick={() => setIsDeleteDialogOpen(true)}
                     disabled={deleteProductMutation.isPending}
                 >
                     <Image src="/sell/trash.svg" alt="" width={40} height={40} />
                     <span className="text-[16px] leading-[25px] font-normal">삭제하기</span>
-                </Button>
-                <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => router.push(editHref)}
-                    className="h-auto flex-col gap-2 rounded-xl p-2.5 text-[#83889e] hover:bg-[#f5f3ff] hover:text-[#6653fb]"
-                >
-                    <Image src="/sell/pencil.svg" alt="" width={40} height={40} />
-                    <span className="text-[16px] leading-[25px] font-normal">수정하기</span>
                 </Button>
             </div>
 

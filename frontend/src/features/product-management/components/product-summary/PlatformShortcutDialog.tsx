@@ -6,6 +6,7 @@ import Image from "next/image";
 import { ArrowUpRight, ExternalLink, Globe2, X } from "lucide-react";
 
 import { Button } from "@/common/components/ui/Button";
+import { cn } from "@/common/lib/utils";
 import {
     Dialog,
     DialogClose,
@@ -39,8 +40,14 @@ const platformIconPaths: Record<string, string> = {
 
 export function PlatformShortcutDialog({
     product,
+    className,
+    label = "바로가기",
+    compact = false,
 }: {
     product: { platforms: ProductPlatformShortcut[] };
+    className?: string;
+    label?: string;
+    compact?: boolean;
 }) {
     const [isOpen, setIsOpen] = useState(false);
     const platforms = product.platforms;
@@ -51,12 +58,35 @@ export function PlatformShortcutDialog({
                 <Button
                     type="button"
                     variant="ghost"
-                    className="h-auto flex-col gap-2 rounded-xl p-2.5 text-[#83889e] hover:bg-[#f5f3ff] hover:text-[#6653fb]"
+                    className={cn(
+                        compact
+                            ? "h-auto gap-1.5 rounded-[10px] border border-[#d3d3d3] bg-white text-[13px] text-[#6653fb] hover:border-[#6653fb] hover:bg-[#fafbff]"
+                            : "h-auto flex-col gap-2 rounded-xl p-2.5 text-[#83889e] hover:bg-[#f5f3ff] hover:text-[#6653fb]",
+                        className,
+                    )}
                 >
-                    <span className="flex size-10 items-center justify-center rounded-full bg-[#eaeafd]">
-                        <ExternalLink aria-hidden="true" className="size-[22px] text-[#6653fb]" />
+                    <span
+                        className={cn(
+                            "flex items-center justify-center",
+                            compact ? "size-5" : "size-10 rounded-full bg-[#eaeafd]",
+                        )}
+                    >
+                        <ExternalLink
+                            aria-hidden="true"
+                            className={cn(
+                                "text-[#6653fb]",
+                                compact ? "size-[18px]" : "size-[22px]",
+                            )}
+                        />
                     </span>
-                    <span className="text-[16px] leading-[25px] font-normal">바로가기</span>
+                    <span
+                        className={cn(
+                            "leading-[25px] font-normal",
+                            compact ? "text-[13px]" : "text-[16px]",
+                        )}
+                    >
+                        {label}
+                    </span>
                 </Button>
             </DialogTrigger>
             <DialogContent className="max-w-sm gap-5 rounded-[16px] border-[#dee5ed] p-6">
