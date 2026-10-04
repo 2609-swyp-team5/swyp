@@ -44,10 +44,13 @@ export function ProductListShell({
     );
     const activeListTitle = activeTab?.listTitle ?? listTitle;
     const selectedItem = filteredItems.find((item) => item.id === selectedItemId) ?? null;
+    const serverTotalCount = statusCounts
+        ? Object.values(statusCounts).reduce((sum, count) => sum + count, 0)
+        : totalCount;
     const getTabCount = (tab: (typeof tabs)[number]) => {
         const serverCount =
             tab.countKey === "total"
-                ? totalCount
+                ? serverTotalCount
                 : tab.countKey
                   ? (statusCounts?.[tab.countKey] ?? null)
                   : null;
