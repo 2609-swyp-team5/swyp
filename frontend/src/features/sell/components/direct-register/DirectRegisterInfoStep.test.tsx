@@ -17,6 +17,8 @@ const categoriesWithoutSubcategory = [
     { id: 5, name: "가구", parentId: 4, leaf: true },
 ];
 
+const categoriesWithLeafParent = [{ id: 6, name: "기타", parentId: null, leaf: true }];
+
 const initialValue: DirectRegisterInfoState = {
     images: [],
     parentCategoryId: "",
@@ -128,6 +130,29 @@ describe("DirectRegisterInfoStep", () => {
 
         expect(onNext).toHaveBeenCalledOnce();
         expect(screen.getByRole("combobox", { name: "소분류" })).toBeDisabled();
+        expect(screen.getByText("소분류 없음")).toBeInTheDocument();
+    });
+
+    it("allows a top-level leaf category to proceed without a child category", () => {
+        const onNext = vi.fn();
+
+        render(
+            <DirectRegisterInfoStepHarness
+                onNext={onNext}
+                categoryOptions={categoriesWithLeafParent}
+                initial={{
+                    ...initialValue,
+                    images: [{ file: null, url: "https://example.com/image.jpg" }],
+                    parentCategoryId: "6",
+                }}
+            />,
+        );
+
+        fireEvent.submit(document.getElementById("direct-register-form") as HTMLFormElement);
+
+        expect(onNext).toHaveBeenCalledOnce();
+        expect(screen.getByRole("combobox", { name: "중분류" })).toBeDisabled();
+        expect(screen.getByText("하위 카테고리 없음")).toBeInTheDocument();
         expect(screen.getByText("소분류 없음")).toBeInTheDocument();
     });
 });
