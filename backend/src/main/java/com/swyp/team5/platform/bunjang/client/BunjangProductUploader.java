@@ -14,6 +14,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -60,6 +61,8 @@ public class BunjangProductUploader {
     private static final Duration IMAGE_DOWNLOAD_TIMEOUT = Duration.ofSeconds(15);
     private static final double CREATE_RESPONSE_TIMEOUT_MS = 15_000;
     private static final int PRODUCT_URL_CONFIRM_ATTEMPTS = 15;
+    private static final int MY_SHOP_CONFIRM_ATTEMPTS = 3;
+    private static final String API_BASE_URL = "https://api.bunjang.co.kr";
 
     // 기본값이면 첫 실행 시 Firefox/WebKit까지 전부 내려받으므로 자동 다운로드를 끄고 Chromium만 별도 설치한다
     // (./gradlew installPlaywrightChromium)
@@ -105,19 +108,24 @@ public class BunjangProductUploader {
                     Browser browser = launchBrowser(playwright);
                     BrowserContext context = newContext(browser, sessionToken)) {
                 Page page = context.newPage();
-                openProductForm(page);
-                uploadImages(page, images);
-                fillTitle(page, form.title());
-                selectCategory(page, form.categoryPath());
-                fillTags(page, form.tags());
-                selectCondition(page, form.conditionLabel());
-                fillPrice(page, form.price());
-                fillDescription(page, form.description());
-                fillTradeOptions(page, form);
+                try {
+                    openProductForm(page);
+                    uploadImages(page, images);
+                    fillTitle(page, form.title());
+                    selectCategory(page, form.categoryPath());
+                    fillTags(page, form.tags());
+                    selectCondition(page, form.conditionLabel());
+                    fillPrice(page, form.price());
+                    fillDescription(page, form.description());
+                    fillTradeOptions(page, form);
 
-                String externalProductId = submitAndFindProductId(page, form);
-                log.info("번개장터 매물 등록 완료. pid={}", externalProductId);
-                return new BunjangUploadResult(externalProductId, PRODUCT_URL_PREFIX + externalProductId);
+                    String externalProductId = submitAndFindProductId(page, form);
+                    log.info("번개장터 매물 등록 완료. pid={}", externalProductId);
+                    return new BunjangUploadResult(externalProductId, PRODUCT_URL_PREFIX + externalProductId);
+                } catch (PlatformPublishFailedException | PlaywrightException e) {
+                    captureFailureScreen(page);
+                    throw e;
+                }
             }
         } catch (InvalidPlatformSessionException | PlatformPublishFailedException e) {
             throw e;
@@ -125,6 +133,33 @@ public class BunjangProductUploader {
             throw new PlatformPublishFailedException("번개장터 매물 등록 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요.", e.getMessage(), e);
         } finally {
             deleteQuietly(imageDir);
+        }
+    }
+
+    /**
+     * 등록 실패 시 화면을 남긴다(폼 검증 안내·팝업 등 원인 확인용). 임시 폴더에 전체 화면 스크린샷을 저장하고 경로와 화면에 보이는
+     * 안내 문구 일부를 로그로 남긴다. 캡처 자체가 실패해도 원래 오류를 가리지 않도록 무시한다.
+     */
+    private void captureFailureScreen(Page page) {
+        try {
+            Path screenshot = Files.createTempFile("bunjang-upload-failed-", ".png");
+            page.screenshot(new Page.ScreenshotOptions().setPath(screenshot).setFullPage(true));
+            String alerts = String.join(
+                    " | ",
+                    page
+                            .locator(
+                                    "[role='alert'], [role='dialog'], [class*='error' i], [class*='warning' i], [class*='toast' i]")
+                            .allInnerTexts()
+                            .stream()
+                            .map(String::strip)
+                            .filter(text -> !text.isEmpty())
+                            .distinct()
+                            .limit(10)
+                            .toList());
+            log.warn(
+                    "번개장터 등록 실패 화면을 저장했습니다. screenshot={}, url={}, 화면 안내={}", screenshot, page.url(), truncate(alerts));
+        } catch (IOException | PlaywrightException e) {
+            log.warn("번개장터 등록 실패 화면 저장 실패. reason={}", e.getMessage());
         }
     }
 
@@ -282,6 +317,84 @@ public class BunjangProductUploader {
         return false;
     }
 
+    /**
+     * 직거래 "가능"을 누르고 지역 선택 팝업에서 상품 지역을 검색해 고른다. 팝업은 읍/면/동 이름을 입력하고 Enter를 눌러야 검색되므로
+     * 전체 지역 문자열 → 마지막 단어 순으로 검색하고, 결과 중 상품 지역 단어가 가장 많이 겹치는 항목을 고른다. 고른 뒤 선택 사항인
+     * "거래 희망 장소"에도 지역을 채운다.
+     *
+     * @return 지역을 골랐으면 true(지역이 없거나 검색 결과가 없으면 false — 팝업은 닫음)
+     */
+    private boolean selectTradeRegion(Page page, String region) {
+        if (region == null || region.isBlank()) {
+            return false;
+        }
+        Locator directTrade = page.locator("label:has-text('가능')").first();
+        if (!exists(directTrade)) {
+            return false;
+        }
+        directTrade.click();
+        page.waitForTimeout(300);
+        Locator trigger =
+                page.locator("#scroll-location button[aria-haspopup='dialog']").first();
+        if (!exists(trigger)) {
+            return false;
+        }
+        trigger.click();
+        Locator dialog = page.locator("[role='dialog']").last();
+        Locator search = dialog.locator("input").first();
+        try {
+            search.waitFor(new Locator.WaitForOptions().setTimeout(5_000));
+        } catch (PlaywrightException e) {
+            return false;
+        }
+
+        List<String> words = List.of(region.strip().split("\\s+"));
+        for (String query : regionQueries(region)) {
+            search.fill("");
+            search.pressSequentially(query, new Locator.PressSequentiallyOptions().setDelay(50));
+            page.keyboard().press("Enter");
+            Locator results = dialog.locator("li");
+            try {
+                results.first().waitFor(new Locator.WaitForOptions().setTimeout(3_000));
+            } catch (PlaywrightException e) {
+                continue;
+            }
+            Locator best = null;
+            long bestScore = -1;
+            for (int i = 0; i < results.count(); i++) {
+                Locator item = results.nth(i);
+                String text = item.innerText();
+                long score = words.stream().filter(text::contains).count();
+                if (score > bestScore) {
+                    best = item;
+                    bestScore = score;
+                }
+            }
+            if (best != null) {
+                String chosen = best.innerText().strip();
+                best.click();
+                page.waitForTimeout(500);
+                log.info("번개장터 직거래 지역 선택. region={}, 선택={}", region, chosen);
+                Locator place = page.locator("input[placeholder*='출구'], #scroll-detailedAddress input")
+                        .first();
+                if (exists(place)) {
+                    place.fill(region.strip());
+                }
+                return true;
+            }
+        }
+        page.keyboard().press("Escape");
+        page.waitForTimeout(300);
+        return false;
+    }
+
+    /** 지역 팝업 검색어 — 전체 지역 문자열, 그다음 마지막 단어(예: "서울 강남구 역삼동" → "역삼동"). */
+    static List<String> regionQueries(String region) {
+        String trimmed = region.strip().replaceAll("\\s+", " ");
+        String last = trimmed.substring(trimmed.lastIndexOf(' ') + 1);
+        return last.equals(trimmed) ? List.of(trimmed) : List.of(trimmed, last);
+    }
+
     private void fillTags(Page page, List<String> tags) {
         Locator input = page.locator("input[placeholder*='태그']").first();
         if (tags.isEmpty() || !exists(input)) {
@@ -330,17 +443,16 @@ public class BunjangProductUploader {
 
     /** 직거래 가능 여부/희망 장소와 배송비 포함 여부를 입력한다. 화면에 해당 항목이 없으면 번개장터 기본값을 따른다. */
     private void fillTradeOptions(Page page, BunjangListingForm form) {
-        Locator directTrade = form.directTrade()
-                ? page.locator("label:has-text('가능')").first()
-                : page.locator("label:has-text('불가')").first();
-        if (exists(directTrade)) {
-            directTrade.click();
-            page.waitForTimeout(300);
-        }
-        if (form.directTrade() && form.directTradeLocation() != null) {
-            Locator location = page.locator("#scroll-detailedAddress input").first();
-            if (exists(location)) {
-                location.fill(form.directTradeLocation());
+        // 직거래는 지역(필수)을 고를 수 있을 때만 "가능"으로 둔다 — 지역이 없거나 검색되지 않으면 등록이 막히므로 "불가"로 등록
+        boolean directTrade = form.directTrade() && selectTradeRegion(page, form.directTradeLocation());
+        if (!directTrade) {
+            if (form.directTrade()) {
+                log.info("직거래 지역을 고르지 못해 직거래 불가로 등록합니다. region={}", form.directTradeLocation());
+            }
+            Locator noDirectTrade = page.locator("label:has-text('불가')").first();
+            if (exists(noDirectTrade)) {
+                noDirectTrade.click();
+                page.waitForTimeout(300);
             }
         }
 
@@ -360,7 +472,10 @@ public class BunjangProductUploader {
             }
         }
         if (!form.shippingFeeIncluded()) {
-            Locator fee = page.locator("input[placeholder*='배송비']").first();
+            // 일반택배 배송비 입력칸은 placeholder가 "100~30,000 원"이라 '배송비'로는 못 찾는다(2026-10-05 화면 확인)
+            Locator fee = page.locator(
+                            "input[placeholder*='배송비'], input[placeholder*='30,000'], input[placeholder*='30000']")
+                    .first();
             if (exists(fee)) {
                 fee.fill(String.valueOf(DEFAULT_SHIPPING_FEE));
                 page.keyboard().press("Tab"); // Enter는 폼이 조기 제출될 수 있어 사용하지 않는다
@@ -379,6 +494,16 @@ public class BunjangProductUploader {
             throw new PlatformPublishFailedException("번개장터 등록 버튼이 활성화되지 않았어요. 상품 정보에 빠진 항목이 없는지 확인해 주세요.");
         }
 
+        // 생성 응답을 못 잡았을 때 원인을 볼 수 있도록 제출 중 번개장터 POST 응답을 모아 둔다
+        List<String> postResponses = new ArrayList<>();
+        Consumer<Response> recordPost = response -> {
+            if ("POST".equalsIgnoreCase(response.request().method())
+                    && response.url().contains("bunjang.co.kr")) {
+                postResponses.add(response.status() + " " + response.url());
+            }
+        };
+        page.onResponse(recordPost);
+
         String pid = null;
         try {
             Response response = page.waitForResponse(
@@ -395,7 +520,12 @@ public class BunjangProductUploader {
             }
             pid = findProductId(response.text());
         } catch (PlaywrightException e) {
-            log.warn("번개장터 상품 생성 API 응답을 확인하지 못해 화면/목록 기준으로 확인합니다. reason={}", e.getMessage());
+            log.warn(
+                    "번개장터 상품 생성 API 응답을 확인하지 못해 화면/목록 기준으로 확인합니다. reason={}, 제출 중 POST 응답={}",
+                    e.getMessage(),
+                    postResponses);
+        } finally {
+            page.offResponse(recordPost);
         }
 
         for (int i = 0; pid == null && i < PRODUCT_URL_CONFIRM_ATTEMPTS; i++) {
@@ -434,23 +564,37 @@ public class BunjangProductUploader {
         }
     }
 
+    /**
+     * 내 상점 최근 상품 목록에서 상품명·가격이 같은 매물을 찾는다(등록 직후 목록 반영이 늦을 수 있어 몇 번 다시 조회). API는 웹 페이지
+     * 주소(m.bunjang.co.kr)가 아니라 API 서버에 있고 인증 토큰이 필요해, 브라우저 세션 쿠키로 세션 API에서 토큰을 받아 호출한다.
+     */
     private String findLatestMyShopProductId(Page page, BunjangListingForm form) {
-        try {
-            Object result = page.evaluate(
-                    """
-                    async ({ name }) => {
-                      const params = new URLSearchParams({ page: '0', size: '10', sort: 'createdAt,desc', name });
-                      const res = await fetch('/api/pms/v2/my-shop/products?' + params, {
-                        credentials: 'include', headers: { accept: 'application/json' } });
-                      return res.ok ? await res.json() : null;
-                    }
-                    """,
-                    Map.of("name", form.title()));
-            return findMatchingProductId(result, form);
-        } catch (PlaywrightException e) {
-            log.warn("번개장터 내 상점 상품 목록 조회 실패. reason={}", e.getMessage());
-            return null;
+        for (int attempt = 0; attempt < MY_SHOP_CONFIRM_ATTEMPTS; attempt++) {
+            try {
+                Object result = page.evaluate(
+                        """
+                        async ({ apiBase }) => {
+                          const session = await fetch(apiBase + '/api/session/v1/session', { credentials: 'include' });
+                          const token = session.ok ? (await session.json())?.data?.token : null;
+                          if (!token) return null;
+                          const params = new URLSearchParams({ page: '0', size: '10', sort: 'createdAt,desc' });
+                          const res = await fetch(apiBase + '/api/pms/v2/my-shop/products?' + params, {
+                            headers: { accept: 'application/json', 'x-bun-auth-token': token } });
+                          return res.ok ? await res.json() : null;
+                        }
+                        """,
+                        Map.of("apiBase", API_BASE_URL));
+                String pid = findMatchingProductId(result, form);
+                if (pid != null) {
+                    return pid;
+                }
+            } catch (PlaywrightException e) {
+                log.warn("번개장터 내 상점 상품 목록 조회 실패. reason={}", e.getMessage());
+                return null;
+            }
+            page.waitForTimeout(2_000);
         }
+        return null;
     }
 
     /** 내 상점 상품 목록 응답(구조 비공개)을 재귀 탐색해 상품명과 가격이 같은 매물의 ID를 찾는다. */
