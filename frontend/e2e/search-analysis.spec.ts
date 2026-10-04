@@ -28,18 +28,23 @@ test("detail loads buyer analysis only on click and retries failed analysis", as
             json: { success: true, data: { ...detailProduct, id: productId }, error: null },
         });
     });
-    await page.route(`**/products/${productId}/analysis`, async (route) => {
-        requests++;
-        expect(route.request().method()).toBe("GET");
-        if (fail) {
-            await ready;
-            return route.fulfill({
-                status: 500,
-                json: { success: false, message: "분석 조회 실패", data: null, error: null },
-            });
-        }
-        return route.fulfill({ json: { success: true, data: result, error: null } });
-    });
+    // 분석 조회는 ?perspective=BUY 쿼리가 붙어 경로만 비교한다
+    await page.route(
+        (url) => url.pathname === `/products/${productId}/analysis`,
+        async (route) => {
+            requests++;
+            expect(route.request().method()).toBe("GET");
+            expect(new URL(route.request().url()).searchParams.get("perspective")).toBe("BUY");
+            if (fail) {
+                await ready;
+                return route.fulfill({
+                    status: 500,
+                    json: { success: false, message: "분석 조회 실패", data: null, error: null },
+                });
+            }
+            return route.fulfill({ json: { success: true, data: result, error: null } });
+        },
+    );
     await page.route(`**/products/${productId}/analysis/trend`, (route) => {
         requests++;
         return route.fulfill({

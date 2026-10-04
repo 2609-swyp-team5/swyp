@@ -44,8 +44,10 @@ const getProduct = (id: number) => api.get<ApiResponse<ProductResponse>>(`/produ
 const getProductManagementSummary = (id: number) =>
     api.get<ApiResponse<ProductDetailSummaryResponse>>(`/products/${id}/summary`);
 
-const getProductAnalysis = (id: number) =>
-    api.get<ApiResponse<ProductAnalysisResponse>>(`/products/${id}/analysis`);
+const getProductAnalysis = (id: number, perspective?: "SELL" | "BUY") =>
+    api.get<ApiResponse<ProductAnalysisResponse>>(`/products/${id}/analysis`, {
+        params: perspective ? { perspective } : undefined,
+    });
 
 const getProductPriceTrend = (id: number) =>
     api.get<ApiResponse<ProductPriceTrendResponse>>(`/products/${id}/analysis/trend`);

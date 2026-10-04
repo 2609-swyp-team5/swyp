@@ -13,6 +13,7 @@ import type { ProductStatus } from "@/features/sell/types";
 const statusMetaLabels: Record<ProductStatus, string> = {
     DRAFT: "임시저장 상품",
     ON_SALE: "판매 중인 상품",
+    RESERVED: "예약 중인 상품",
     SOLD_OUT: "판매 완료 상품",
 };
 

@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.swyp.team5.common.common.ApiResponse;
+import com.swyp.team5.productanalysis.dto.AnalysisPerspective;
 import com.swyp.team5.productanalysis.dto.PriceTrendResponse;
 import com.swyp.team5.productanalysis.dto.ProductAnalysisResponse;
 import com.swyp.team5.productanalysis.dto.ProductForecastResponse;
@@ -34,12 +35,14 @@ public class ProductAnalysisController {
      * 상품의 가장 최근 시세 분석 결과를 조회한다.
      *
      * @param productId 조회할 상품 ID
+     * @param perspective 조회 관점(SELL 기본 — 판매자 추천, BUY — 구매자 추천)
      * @return 200 OK + 시세 분석 결과(분석 이력이 없으면 필드가 전부 null)
      */
     @Operation(summary = "상품 시세 분석 조회")
     @GetMapping
-    public ResponseEntity<ApiResponse<ProductAnalysisResponse>> getAnalysis(@PathVariable Long productId) {
-        return ResponseEntity.ok(ApiResponse.success(productAnalysisService.getLatestAnalysis(productId)));
+    public ResponseEntity<ApiResponse<ProductAnalysisResponse>> getAnalysis(
+            @PathVariable Long productId, @RequestParam(defaultValue = "SELL") AnalysisPerspective perspective) {
+        return ResponseEntity.ok(ApiResponse.success(productAnalysisService.getLatestAnalysis(productId, perspective)));
     }
 
     /**
