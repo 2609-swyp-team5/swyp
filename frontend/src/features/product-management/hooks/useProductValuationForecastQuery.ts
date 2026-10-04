@@ -27,15 +27,7 @@ export function useProductValuationForecastQuery(
                 return getProductValuationForecastMock(productId);
             }
 
-            const { data: analysisResponse } = await productApi.getProductAnalysis(productId);
-            if (!analysisResponse.success) {
-                throw new Error(analysisResponse.message);
-            }
-
-            const { data: response } = await productApi.getProductValuationForecast(
-                productId,
-                analysisResponse.data.analysisId,
-            );
+            const { data: response } = await productApi.getProductValuationForecast(productId);
             if (!response.success) {
                 throw new Error(response.message);
             }

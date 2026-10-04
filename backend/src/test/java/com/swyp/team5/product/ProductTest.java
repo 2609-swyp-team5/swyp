@@ -886,12 +886,40 @@ class ProductTest extends IntegrationTest {
                 .andExpect(jsonPath("$.data[0]").value("아이폰"));
     }
 
-    // 인기 상품 조회 - 관심상품 등록 이력이 없으면 빈 목록 반환(경로가 {productId}와 충돌하지 않음도 함께 확인)
+    // 인기 상품 조회 - 관심 등록이 없어도 판매중 상품으로 채우고 임시저장·판매완료는 제외(경로가 {productId}와 충돌하지 않음도 함께 확인)
     @Test
-    void getPopularProductsReturnsEmptyWhenNoInterests() throws Exception {
-        mockMvc.perform(get("/products/popular").header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+    void getPopularProductsFillsWithOnSaleProductsOnly() throws Exception {
+        Long onSaleProductId = createProduct();
+        Long soldOutProductId = createProduct();
+        Long draftProductId = createProduct();
+        for (Object[] change :
+                new Object[][] {{onSaleProductId, ProductStatus.ON_SALE}, {soldOutProductId, ProductStatus.SOLD_OUT}}) {
+            mockMvc.perform(patch("/products/{productId}/status", change[0])
+                            .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(
+                                    new ProductStatusUpdateRequest((ProductStatus) change[1]))))
+                    .andExpect(status().isOk());
+        }
+        mockMvc.perform(patch("/products/{productId}/status", draftProductId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ProductStatusUpdateRequest(ProductStatus.DRAFT))))
+                .andExpect(status().isOk());
+
+        String body = mockMvc.perform(
+                        get("/products/popular").header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(0));
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        List<Long> ids = new ArrayList<>();
+        objectMapper
+                .readTree(body)
+                .at("/data")
+                .forEach(item -> ids.add(item.get("id").asLong()));
+
+        assertThat(ids).contains(onSaleProductId).doesNotContain(soldOutProductId, draftProductId);
     }
 
     // 내 상품 목록 조회 - 본인 것만(품절 포함), 다른 회원 상품은 제외

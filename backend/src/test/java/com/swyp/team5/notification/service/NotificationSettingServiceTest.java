@@ -35,7 +35,7 @@ class NotificationSettingServiceTest {
 
         NotificationSettingResponse response = service().getSetting(1L);
 
-        assertThat(response).isEqualTo(new NotificationSettingResponse(true, true, true, false));
+        assertThat(response).isEqualTo(new NotificationSettingResponse(true, true, true, true, false));
         verify(notificationSettingRepository, never()).save(any());
     }
 
@@ -46,22 +46,22 @@ class NotificationSettingServiceTest {
         when(notificationSettingRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         NotificationSettingResponse response =
-                service().updateSetting(1L, new NotificationSettingUpdateRequest(null, false, null, true));
+                service().updateSetting(1L, new NotificationSettingUpdateRequest(null, null, false, null, true));
 
-        assertThat(response).isEqualTo(new NotificationSettingResponse(true, false, true, true));
+        assertThat(response).isEqualTo(new NotificationSettingResponse(true, true, false, true, true));
     }
 
     // 이미 있으면 보낸 항목만 바꾸고 생략·null 항목은 유지
     @Test
     void updatesOnlyGivenFields() {
         NotificationSetting setting = NotificationSetting.defaults(1L);
-        setting.update(false, null, null, true);
+        setting.update(false, null, null, null, true);
         when(notificationSettingRepository.findById(1L)).thenReturn(Optional.of(setting));
 
         NotificationSettingResponse response =
-                service().updateSetting(1L, new NotificationSettingUpdateRequest(null, null, false, null));
+                service().updateSetting(1L, new NotificationSettingUpdateRequest(null, false, null, false, null));
 
-        assertThat(response).isEqualTo(new NotificationSettingResponse(false, true, false, true));
+        assertThat(response).isEqualTo(new NotificationSettingResponse(false, false, true, false, true));
         verify(notificationSettingRepository, never()).save(any());
     }
 }

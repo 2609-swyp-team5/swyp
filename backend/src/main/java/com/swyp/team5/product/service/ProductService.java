@@ -2,6 +2,7 @@ package com.swyp.team5.product.service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -471,19 +472,28 @@ public class ProductService {
 
     private static final int POPULAR_WINDOW_DAYS = 7;
     private static final int POPULAR_LIMIT = 10;
+    private static final List<ProductStatus> POPULAR_STATUSES = List.of(ProductStatus.ON_SALE, ProductStatus.RESERVED);
 
     /**
-     * 최근 {@value #POPULAR_WINDOW_DAYS}일간 관심상품(찜) 등록 수 상위 {@value #POPULAR_LIMIT}개
-     * 우리 상품을 등록 수 내림차순으로 조회한다(외부 플랫폼 매물은 대상에서 제외). 각 상품의 가장
-     * 최근 시세 분석 스냅샷도 함께 포함한다.
+     * 판매중·예약중인 우리 상품 중 최근 {@value #POPULAR_WINDOW_DAYS}일간 관심상품(찜) 등록 수 상위 {@value #POPULAR_LIMIT}개를
+     * 조회한다(외부 플랫폼 매물·임시저장·판매완료는 제외). {@value #POPULAR_LIMIT}개가 안 되면 나머지를 누적 관심 등록 수 → 조회수 →
+     * 최신 순으로 채운다. 각 상품의 가장 최근 시세 분석 스냅샷도 함께 포함한다.
      *
-     * @return 인기 상품 목록(관심상품 등록 수 내림차순). 등록 이력 자체가 없으면 빈 목록
+     * @return 인기 상품 목록(최근 관심 등록 순, 이어서 보충분). 판매중·예약중 상품이 없으면 빈 목록
      */
     @Transactional(readOnly = true)
     public List<ProductSummaryResponse> getPopularProducts() {
         LocalDateTime since = LocalDateTime.now().minusDays(POPULAR_WINDOW_DAYS);
-        List<Long> popularProductIds =
-                interestRepository.findPopularProductIds(since, PageRequest.of(0, POPULAR_LIMIT));
+        List<Long> popularProductIds = new ArrayList<>(
+                interestRepository.findPopularProductIds(since, POPULAR_STATUSES, PageRequest.of(0, POPULAR_LIMIT)));
+        if (popularProductIds.size() < POPULAR_LIMIT) {
+            interestRepository
+                    .findProductIdsByInterestAndViews(POPULAR_STATUSES, PageRequest.of(0, POPULAR_LIMIT))
+                    .stream()
+                    .filter(id -> !popularProductIds.contains(id))
+                    .limit(POPULAR_LIMIT - popularProductIds.size())
+                    .forEach(popularProductIds::add);
+        }
         if (popularProductIds.isEmpty()) {
             return List.of();
         }

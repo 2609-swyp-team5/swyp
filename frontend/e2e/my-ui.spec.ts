@@ -207,6 +207,22 @@ test("profile saves member fields and updates shared nickname", async ({ page })
 });
 
 test("notification switches respond to keyboard input", async ({ page }) => {
+    let settings = {
+        recommendationEnabled: true,
+        priceChangeEnabled: true,
+        targetPriceEnabled: true,
+        platformExpiryEnabled: true,
+        marketingEnabled: false,
+    };
+    await page.route(
+        (url) => url.pathname === "/notifications/settings",
+        async (route) => {
+            if (route.request().method() === "PATCH") {
+                settings = { ...settings, ...route.request().postDataJSON() };
+            }
+            await route.fulfill({ json: { success: true, data: settings, error: null } });
+        },
+    );
     await page.goto("/my/notifications");
     const toggle = page.getByRole("switch", { name: "AI 추천 타이밍 알림", exact: true });
     await expect(toggle).toBeChecked();

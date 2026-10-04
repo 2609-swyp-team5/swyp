@@ -8,9 +8,15 @@ type NotificationGroupProps = {
     group: { title: string; items: { id: string; title: string; description: string }[] };
     enabled: Record<string, boolean>;
     onCheckedChange: (id: string, enabled: boolean) => void;
+    disabled?: boolean;
 };
 
-export function NotificationGroup({ group, enabled, onCheckedChange }: NotificationGroupProps) {
+export function NotificationGroup({
+    group,
+    enabled,
+    onCheckedChange,
+    disabled = false,
+}: NotificationGroupProps) {
     return (
         <MyPanel className="p-0">
             <h2 className="bg-muted/50 text-muted-foreground border-b px-6 py-4 text-[13px] leading-5 font-semibold">
@@ -38,7 +44,8 @@ export function NotificationGroup({ group, enabled, onCheckedChange }: Notificat
                         </div>
                         <Switch
                             id={item.id}
-                            checked={enabled[item.id]}
+                            checked={enabled[item.id] ?? false}
+                            disabled={disabled}
                             onCheckedChange={(value) => onCheckedChange(item.id, value)}
                             aria-describedby={item.id + "-description"}
                             className="data-[size=default]:h-6 data-[size=default]:w-11 [&_[data-slot=switch-thumb]]:size-5 [&_[data-slot=switch-thumb][data-state=checked]]:translate-x-[22px]"

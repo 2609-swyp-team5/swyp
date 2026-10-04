@@ -50,10 +50,8 @@ const getProductAnalysis = (id: number) =>
 const getProductPriceTrend = (id: number) =>
     api.get<ApiResponse<ProductPriceTrendResponse>>(`/products/${id}/analysis/trend`);
 
-const getProductValuationForecast = (id: number, analysisId: number) =>
-    api.get<ApiResponse<ProductValuationForecastResponse>>(
-        `/products/${id}/analysis/${analysisId}/forecast`,
-    );
+const getProductValuationForecast = (id: number) =>
+    api.get<ApiResponse<ProductValuationForecastResponse>>(`/products/${id}/analysis/forecast`);
 
 const getProductCompetition = (id: number) =>
     api.get<ApiResponse<ProductCompetitionResponse>>(`/products/${id}/competition`);

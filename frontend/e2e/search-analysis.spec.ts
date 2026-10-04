@@ -50,7 +50,7 @@ test("detail loads buyer analysis only on click and retries failed analysis", as
             },
         });
     });
-    await page.route(`**/products/${productId}/analysis/${result.analysisId}/forecast`, (route) => {
+    await page.route(`**/products/${productId}/analysis/forecast`, (route) => {
         requests++;
         return route.fulfill({
             json: {

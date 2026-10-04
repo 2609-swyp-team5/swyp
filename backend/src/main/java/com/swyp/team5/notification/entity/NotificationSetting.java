@@ -32,6 +32,9 @@ public class NotificationSetting {
     @Column(name = "recommendation_enabled", nullable = false)
     private boolean recommendationEnabled; // AI 추천 타이밍 알림(SELL/HOLD/BUY/WAIT)
 
+    @Column(name = "price_change_enabled", nullable = false)
+    private boolean priceChangeEnabled; // 시세 변동 알림
+
     @Column(name = "target_price_enabled", nullable = false)
     private boolean targetPriceEnabled; // 목표가 도달 알림(TARGET_PRICE)
 
@@ -52,12 +55,13 @@ public class NotificationSetting {
     private NotificationSetting(Long memberId) {
         this.memberId = memberId;
         this.recommendationEnabled = true;
+        this.priceChangeEnabled = true;
         this.targetPriceEnabled = true;
         this.platformExpiryEnabled = true;
         this.marketingEnabled = false;
     }
 
-    /** 기본 설정(V30 컬럼 기본값과 같음). */
+    /** 기본 설정(V30·V31 컬럼 기본값과 같음). */
     public static NotificationSetting defaults(Long memberId) {
         return new NotificationSetting(memberId);
     }
@@ -65,11 +69,15 @@ public class NotificationSetting {
     /** {@code null}이 아닌 항목만 바꾼다. */
     public void update(
             Boolean recommendationEnabled,
+            Boolean priceChangeEnabled,
             Boolean targetPriceEnabled,
             Boolean platformExpiryEnabled,
             Boolean marketingEnabled) {
         if (recommendationEnabled != null) {
             this.recommendationEnabled = recommendationEnabled;
+        }
+        if (priceChangeEnabled != null) {
+            this.priceChangeEnabled = priceChangeEnabled;
         }
         if (targetPriceEnabled != null) {
             this.targetPriceEnabled = targetPriceEnabled;

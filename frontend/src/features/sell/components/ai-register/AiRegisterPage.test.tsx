@@ -109,7 +109,7 @@ describe("AiRegisterPage", () => {
             images: [expect.any(File)],
             purchasedMonths: null,
             operationStatus: "issues",
-            includedItems: ["본체", "충전 케이블", "박스"],
+            includedItems: ["박스"], // 구성품은 기본 선택 없이 사용자가 고른 것만
         });
         expect(
             screen.queryByRole("heading", { name: "판매 글을 만들었어요" }),
