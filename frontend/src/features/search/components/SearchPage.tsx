@@ -9,6 +9,7 @@ import { useSmoothScroll } from "@/common/hooks/useSmoothScroll";
 import { SearchBar } from "@/features/search/components/SearchBar";
 import { SearchFilters } from "@/features/search/components/SearchFilters";
 import { SearchResults } from "@/features/search/components/SearchResults";
+import { AiSearchSummary } from "@/features/search/components/AiSearchSummary";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { useSearchQuery } from "@/features/search/hooks/queries/useSearchQuery";
 import type { SearchParams, SearchSort } from "@/features/search/types";
@@ -78,7 +79,7 @@ export function SearchPage() {
                 return;
             }
             aiSearch.mutate(query, {
-                onSuccess: async ({ condition, result, aiApplied }) => {
+                onSuccess: async ({ condition, result }) => {
                     const nextFilters: SearchParams = {
                         excludeKeyword: condition.excludeKeyword ?? undefined,
                         status: condition.status,
@@ -105,9 +106,6 @@ export function SearchPage() {
                     setHasAiResult(true);
                     setSort(condition.sort);
                     setSubmittedKeyword(nextKeyword);
-                    setSearchMessage(
-                        aiApplied ? "" : "AI 해석이 어려워 입력한 문장으로 검색했습니다.",
-                    );
                 },
             });
         },
@@ -160,16 +158,20 @@ export function SearchPage() {
                     onKeywordSubmit={() => submitSearch("general")}
                 />
                 <div className="flex min-w-0 flex-1 flex-col gap-4">
-                    {(searchMessage || aiSearch.isError || aiSearch.isPending) && (
+                    {(aiSearch.isPending || aiSearch.isSuccess) && (
+                        <AiSearchSummary
+                            query={aiSearch.variables ?? ""}
+                            isLoading={aiSearch.isPending}
+                            aiApplied={aiSearch.data?.aiApplied}
+                            params={{ ...filters, keyword: submittedKeyword || undefined, sort }}
+                        />
+                    )}
+                    {(searchMessage || aiSearch.isError) && (
                         <p
                             role={aiSearch.isError ? "alert" : "status"}
                             className="text-sm text-[#6b7395]"
                         >
-                            {aiSearch.isPending
-                                ? "AI가 검색 조건을 분석하고 있습니다."
-                                : aiSearch.isError
-                                  ? getApiErrorMessage(aiSearch.error)
-                                  : searchMessage}
+                            {aiSearch.isError ? getApiErrorMessage(aiSearch.error) : searchMessage}
                         </p>
                     )}
                     {interests.errorMessage && (

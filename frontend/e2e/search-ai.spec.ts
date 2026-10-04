@@ -37,7 +37,7 @@ const result = { content: [], nextCursor: null, hasNext: false, totalCount: 0 };
 
 test("home AI search forwards the sentence and runs the same API once on search", async ({
     page,
-}) => {
+}, testInfo) => {
     await page.route("**/auth/refresh", (route) =>
         route.fulfill({
             json: {
@@ -84,12 +84,24 @@ test("home AI search forwards the sentence and runs the same API once on search"
     await input.fill("아이폰 50만원 이하 싼 순으로");
     await input.press("Enter");
     await expect(page).toHaveURL(/\/search\?keyword=.*&mode=ai$/);
+    const summary = page.getByRole("region", { name: "AI 검색 안내" });
+    await expect(summary).toContainText("아이폰 50만원 이하 싼 순으로");
+    await expect(summary.getByRole("list", { name: "적용된 검색 조건" })).toContainText(
+        "500,000원 이하",
+    );
     await expect(page.getByText(product.title, { exact: true })).toBeVisible();
     await expect(
         page.getByRole("search").getByRole("button", { name: "AI 검색", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
     expect(aiCalls).toBe(1);
     expect(generalRequests).toHaveLength(0);
+    for (const width of [1440, 390]) {
+        await page.setViewportSize({ width, height: 1000 });
+        expect(
+            await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+        ).toBe(true);
+        await summary.screenshot({ path: testInfo.outputPath(`ai-summary-${width}.png`) });
+    }
 });
 
 test("guest home AI search uses the login notice without navigation or an API request", async ({
@@ -169,8 +181,17 @@ test("AI search uses the returned first page and conditions for pagination and s
     const input = form.getByRole("textbox", { name: "상품 검색" });
     await input.fill("아이폰 50만원 이하 하자 없는 거 싼 순으로");
     await input.press("Enter");
-    await expect(page.getByText("AI가 검색 조건을 분석하고 있습니다.")).toBeVisible();
+    await expect(page.getByText("질문을 이해하고 상품을 찾고 있어요.")).toBeVisible();
     await expect(page.getByText(product.title, { exact: true })).toBeVisible();
+    const summary = page.getByRole("region", { name: "AI 검색 안내" });
+    await expect(summary.getByRole("heading")).toHaveText("AI가 해석한 검색 조건");
+    await expect(summary).toContainText("아이폰 50만원 이하 하자 없는 거 싼 순으로");
+    const conditions = summary.getByRole("list", { name: "적용된 검색 조건" });
+    await expect(conditions).toContainText("포함: 아이폰");
+    await expect(conditions).toContainText("제외: 깨짐");
+    await expect(conditions).toContainText("500,000원 이하");
+    await expect(conditions).toContainText("하자 없음");
+    await expect(summary.getByRole("button", { name: "조건 수정" })).toHaveCount(0);
     await expect(page.getByText("검색결과 2개 표시", { exact: true })).toBeVisible();
     await expect(page.getByRole("spinbutton", { name: "최대 가격" })).toHaveValue("500000");
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
@@ -202,6 +223,8 @@ test("AI search uses the returned first page and conditions for pagination and s
     ).toHaveLength(0);
     await page.getByRole("combobox", { name: "정렬 기준" }).click();
     await page.getByRole("option", { name: "최신순", exact: true }).click();
+    await expect(conditions).not.toContainText("최신순");
+    await expect(conditions).not.toContainText("낮은 가격순");
     await expect
         .poll(() =>
             requests.some(
@@ -222,6 +245,12 @@ test("AI search uses the returned first page and conditions for pagination and s
             ),
         )
         .toBe(true);
+    await expect(conditions).toContainText("임시저장");
+    await expect(conditions).not.toContainText("판매중");
+    await form.getByRole("button", { name: "일반 검색", exact: true }).click();
+    await input.fill("아이폰");
+    await input.press("Enter");
+    await expect(summary).toHaveCount(0);
 });
 
 test("AI search validates input, shows errors and allows retry with backend fallback", async ({
@@ -263,7 +292,9 @@ test("AI search validates input, shows errors and allows retry with backend fall
     await ai.click();
     await expect(page.getByRole("alert").filter({ hasText: "분석 서버 오류" })).toBeVisible();
     await ai.click();
-    await expect(page.getByText("AI 해석이 어려워 입력한 문장으로 검색했습니다.")).toBeVisible();
+    await expect(
+        page.getByText("AI 해석을 적용하지 못해 일반검색 결과를 보여드려요."),
+    ).toBeVisible();
     expect(calls).toBe(2);
 });
 
