@@ -29,8 +29,8 @@ const platformStatusLabels: Record<ProductPlatform["status"], string> = {
 };
 
 const platformIconPaths: Record<string, string> = {
-    BUNJANG: "/my/home/bunjang.svg",
-    번개장터: "/my/home/bunjang.svg",
+    BUNJANG: "/my/platforms/bunjang.png",
+    번개장터: "/my/platforms/bunjang.png",
     DAANGN: "/my/home/daangn.svg",
     당근마켓: "/my/home/daangn.svg",
     JOONGGONARA: "/my/home/joonggonara.png",

@@ -26,8 +26,10 @@ import type {
     ProductRegisterProgress,
     ProductRegisterError,
     ProductRegisterStep,
+    ProductPlatformPublishResponse,
     ProductUpdateInput,
 } from "../types";
+import type { MyPlatformType } from "@/features/my/types";
 
 type ProductRegisterProgressHandler = (progress: ProductRegisterProgress) => void;
 
@@ -66,6 +68,11 @@ const getMyProducts = (params?: { status?: ProductStatus; cursor?: string; size?
     });
 
 const deleteProduct = (id: number) => api.delete<ApiResponse<null>>(`/products/${id}`);
+
+const publishProduct = (productId: number, platform: MyPlatformType) =>
+    api.post<ApiResponse<ProductPlatformPublishResponse>>(
+        `/products/${productId}/platforms/${platform}/publish`,
+    );
 
 const getSseUrl = (path: string) => `${(api.defaults.baseURL ?? "").replace(/\/$/, "")}${path}`;
 
@@ -311,6 +318,7 @@ export const productApi = {
     getProductCompetition,
     getMyProducts,
     deleteProduct,
+    publishProduct,
     createDirectProduct,
     createAiProduct,
     updateProduct,

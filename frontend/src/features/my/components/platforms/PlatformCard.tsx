@@ -91,7 +91,7 @@ export function PlatformCard({ item, status, onSelect, isPending }: PlatformCard
                         aria-required="true"
                         aria-invalid={hasError}
                         aria-describedby={hasError ? errorId : undefined}
-                        placeholder="번개장터 토큰을 입력해주세요"
+                        placeholder={`${item.name} 토큰을 입력해주세요`}
                         value={connectionValue}
                         onChange={(event) => {
                             setConnectionValue(event.target.value);

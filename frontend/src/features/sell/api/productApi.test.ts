@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { del, fetchMock, get } = vi.hoisted(() => ({
+const { del, fetchMock, get, post } = vi.hoisted(() => ({
     del: vi.fn(),
     fetchMock: vi.fn(),
     get: vi.fn(),
+    post: vi.fn(),
 }));
 
 vi.mock("@/common/lib/api/client", () => ({
-    api: { delete: del, get, defaults: { baseURL: "https://api.test" } },
+    api: { delete: del, get, post, defaults: { baseURL: "https://api.test" } },
 }));
 
 import { productApi } from "./productApi";
@@ -104,6 +105,21 @@ describe("productApi", () => {
                 error: null,
             },
         });
+        post.mockResolvedValue({
+            data: {
+                success: true,
+                message: "",
+                data: {
+                    productPlatformId: 7,
+                    productId: 42,
+                    externalProductId: "bunjang-123",
+                    productUrl: "https://bunjang.co.kr/products/bunjang-123",
+                    status: "POSTED",
+                    updatedAt: "2026-10-03T00:00:00Z",
+                },
+                error: null,
+            },
+        });
     });
 
     it("gets a product by id", async () => {
@@ -128,6 +144,13 @@ describe("productApi", () => {
             },
         });
         expect(del).toHaveBeenCalledWith("/products/42");
+    });
+
+    it("returns the publish response envelope without handling success in the api adapter", async () => {
+        await expect(productApi.publishProduct(42, "BUNJANG")).resolves.toMatchObject({
+            data: { success: true },
+        });
+        expect(post).toHaveBeenCalledWith("/products/42/platforms/BUNJANG/publish");
     });
 
     it("sends direct-registration images and data JSON as multipart fields", async () => {

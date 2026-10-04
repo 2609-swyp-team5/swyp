@@ -23,6 +23,15 @@ export const productPlatformSchema = z
     })
     .passthrough();
 
+export const productPlatformPublishResponseSchema = z.object({
+    productPlatformId: z.number(),
+    productId: z.number(),
+    externalProductId: z.string().nullable(),
+    productUrl: z.string().nullable(),
+    status: productPlatformStatusSchema,
+    updatedAt: z.string(),
+});
+
 export const productResponseSchema = z.object({
     id: z.number(),
     memberId: z.number(),
@@ -82,5 +91,6 @@ export const productSummaryPageResponseSchema = z.object({
 });
 
 export type ProductPlatform = z.infer<typeof productPlatformSchema>;
+export type ProductPlatformPublishResponse = z.infer<typeof productPlatformPublishResponseSchema>;
 export type ProductResponse = z.infer<typeof productResponseSchema>;
 export type ProductSummaryResponse = z.infer<typeof productSummaryResponseSchema>;

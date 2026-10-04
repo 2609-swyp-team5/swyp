@@ -21,7 +21,7 @@ if (!baseURL?.trim()) {
 
 export const api = axios.create({
     baseURL,
-    timeout: 10_000,
+    timeout: 900_000, // 임시로 지정
     withCredentials: true,
 });
 
