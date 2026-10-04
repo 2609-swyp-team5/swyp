@@ -66,7 +66,10 @@ public class TargetPriceAlertService {
         if (interest.getNotifiedAt() != null) {
             return false;
         }
-        notificationService.notifyTargetPriceReached(interest, currentPrice);
+        // 회원이 목표가 알림을 꺼 둬서 안 보냈으면 보낸 것으로 기록하지 않는다(다시 켜면 아직 목표가 이하일 때 다음 확인에서 보냄)
+        if (!notificationService.notifyTargetPriceReached(interest, currentPrice)) {
+            return false;
+        }
         interest.markTargetPriceNotified(LocalDateTime.now());
         return true;
     }

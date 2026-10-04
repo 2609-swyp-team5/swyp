@@ -65,6 +65,8 @@ class TargetPriceAlertServiceTest {
         Interest interest = interest(
                 Interest.ofProduct(mock(Member.class), product(300_000L, ProductStatus.ON_SALE)), 300_000L, null);
 
+        when(notificationService.notifyTargetPriceReached(interest, 300_000L)).thenReturn(true);
+
         assertThat(service().check(interest)).isTrue();
 
         verify(notificationService).notifyTargetPriceReached(interest, 300_000L);
@@ -115,6 +117,7 @@ class TargetPriceAlertServiceTest {
         Interest selling = interest(Interest.ofListing(mock(Member.class), listing(15_000L, "SELLING")), 20_000L, null);
         Interest soldOut =
                 interest(Interest.ofListing(mock(Member.class), listing(15_000L, "SOLD_OUT")), 20_000L, null);
+        when(notificationService.notifyTargetPriceReached(selling, 15_000L)).thenReturn(true);
 
         assertThat(service().check(selling)).isTrue();
         assertThat(service().check(soldOut)).isFalse();
@@ -131,8 +134,21 @@ class TargetPriceAlertServiceTest {
         Interest notReached = interest(
                 Interest.ofProduct(mock(Member.class), product(320_000L, ProductStatus.ON_SALE)), 300_000L, null);
         when(interestRepository.findAllWithTargetPrice()).thenReturn(List.of(reached, notReached));
+        when(notificationService.notifyTargetPriceReached(reached, 280_000L)).thenReturn(true);
 
         assertThat(service().checkAll()).isEqualTo(1);
+    }
+
+    // 회원이 목표가 알림을 꺼서 알림이 만들어지지 않으면 보낸 것으로 기록하지 않음(다시 켜면 다음 확인에서 보냄)
+    @Test
+    void doesNotMarkNotifiedWhenMemberDisabledTargetPriceAlerts() {
+        Interest interest = interest(
+                Interest.ofProduct(mock(Member.class), product(300_000L, ProductStatus.ON_SALE)), 300_000L, null);
+        when(notificationService.notifyTargetPriceReached(interest, 300_000L)).thenReturn(false);
+
+        assertThat(service().check(interest)).isFalse();
+
+        assertThat(interest.getNotifiedAt()).isNull();
     }
 
     private static void setField(Object target, String fieldName, Object value) {

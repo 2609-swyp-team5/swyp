@@ -2,6 +2,7 @@ package com.swyp.team5.notification.service;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +23,7 @@ import com.swyp.team5.notification.entity.Notification;
 import com.swyp.team5.notification.entity.NotificationType;
 import com.swyp.team5.notification.error.NotificationNotFoundException;
 import com.swyp.team5.notification.repository.NotificationRepository;
+import com.swyp.team5.notification.repository.NotificationSettingRepository;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
@@ -38,6 +40,7 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final InterestRepository interestRepository;
+    private final NotificationSettingRepository notificationSettingRepository;
 
     /**
      * 본인 알림 목록을 커서 기반으로 조회한다({@code id} 내림차순 = 최신순).
@@ -89,7 +92,8 @@ public class NotificationService {
      *   <li>SELL/HOLD(판매자 관점): 상품을 등록한 판매자에게만
      *   <li>BUY/WAIT(구매자 관점): 이 상품을 관심 등록한 회원 전원에게
      * </ul>
-     * 시세 분석은 관점별로 이 메서드를 따로 호출한다(판매자 추천 전환, 구매자 추천 전환).
+     * 시세 분석은 관점별로 이 메서드를 따로 호출한다(판매자 추천 전환, 구매자 추천 전환). 알림 설정에서 AI 추천 타이밍 알림을 끈
+     * 회원은 받지 않는다.
      *
      * @return 만든 알림 수
      */
@@ -123,6 +127,7 @@ public class NotificationService {
                                     "관심 상품은 조금 더 기다려 보세요",
                                     "관심 상품 '%s'의 AI 시세 분석 결과, 지금은 구매를 보류하길 추천해요.".formatted(title)));
                 };
+        notifications = withoutRecommendationDisabled(notifications);
         notificationRepository.saveAll(notifications);
         if (!notifications.isEmpty()) {
             log.info("상품 {} 추천 {}→{} 알림 {}건 생성", product.getId(), previous, current, notifications.size());
@@ -132,7 +137,7 @@ public class NotificationService {
 
     /**
      * 관심 등록된 외부 매물의 시세 분석 추천이 직전 스냅샷과 달라졌을 때 그 매물을 관심 등록한 회원 전원에게 알림을
-     * 만든다(판매자가 우리 회원이 아니므로 구매자 관점 BUY/WAIT만). 전환 판단 규칙은 우리 상품과 같다.
+     * 만든다(판매자가 우리 회원이 아니므로 구매자 관점 BUY/WAIT만). 전환 판단 규칙과 알림 설정 반영은 우리 상품과 같다.
      *
      * @return 만든 알림 수
      */
@@ -154,9 +159,11 @@ public class NotificationService {
             return 0;
         }
         NotificationType type = current == AnalysisRecommendation.BUY ? NotificationType.BUY : NotificationType.WAIT;
-        List<Notification> notifications = interestRepository.findMembersByItemId(listing.getId()).stream()
-                .map(member -> Notification.createForListing(member, listing, type, content.title(), content.message()))
-                .toList();
+        List<Notification> notifications =
+                withoutRecommendationDisabled(interestRepository.findMembersByItemId(listing.getId()).stream()
+                        .map(member -> Notification.createForListing(
+                                member, listing, type, content.title(), content.message()))
+                        .toList());
         notificationRepository.saveAll(notifications);
         if (!notifications.isEmpty()) {
             log.info("외부 매물 {} 추천 {}→{} 알림 {}건 생성", listing.getId(), previous, current, notifications.size());
@@ -166,9 +173,17 @@ public class NotificationService {
 
     /**
      * 관심상품 가격이 목표가 이하가 됐다고 관심 등록한 회원에게 알림을 만든다. 재알림 방지는 호출 측
-     * ({@code TargetPriceAlertService})이 {@code interests.notified_at}으로 한다.
+     * ({@code TargetPriceAlertService})이 {@code interests.notified_at}으로 한다. 알림 설정에서 목표가 도달 알림을 끈 회원이면
+     * 만들지 않는다.
+     *
+     * @return 알림을 만들었으면 {@code true}(알림을 끈 회원이면 {@code false})
      */
-    public Notification notifyTargetPriceReached(Interest interest, long currentPrice) {
+    public boolean notifyTargetPriceReached(Interest interest, long currentPrice) {
+        if (notificationSettingRepository.existsByMemberIdAndTargetPriceEnabledFalse(
+                interest.getMember().getId())) {
+            log.info("관심상품 {} 목표가 도달 — 회원이 목표가 알림을 꺼서 알림을 만들지 않음", interest.getId());
+            return false;
+        }
         String title = "관심 상품이 목표가에 도달했어요";
         String message;
         Notification notification;
@@ -182,11 +197,29 @@ public class NotificationService {
                     interest.getMember(), interest.getListing(), NotificationType.TARGET_PRICE, title, message);
         }
         log.info("관심상품 {} 목표가 도달 알림 생성(현재가 {}, 목표가 {})", interest.getId(), currentPrice, interest.getTargetPrice());
-        return notificationRepository.save(notification);
+        notificationRepository.save(notification);
+        return true;
     }
 
     private static String targetPriceMessage(String itemTitle, long currentPrice, long targetPrice) {
         return "관심 상품 '%s'의 가격이 %,d원으로 설정하신 목표가 %,d원 이하가 됐어요.".formatted(itemTitle, currentPrice, targetPrice);
+    }
+
+    /** 알림 설정에서 AI 추천 타이밍 알림을 끈 회원의 알림을 뺀다. */
+    private List<Notification> withoutRecommendationDisabled(List<Notification> notifications) {
+        if (notifications.isEmpty()) {
+            return notifications;
+        }
+        Set<Long> disabled = notificationSettingRepository.findRecommendationDisabledMemberIds(notifications.stream()
+                .map(notification -> notification.getMember().getId())
+                .toList());
+        if (disabled.isEmpty()) {
+            return notifications;
+        }
+        return notifications.stream()
+                .filter(notification ->
+                        !disabled.contains(notification.getMember().getId()))
+                .toList();
     }
 
     /** 알림 제목/본문. */
