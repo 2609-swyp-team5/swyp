@@ -17,6 +17,9 @@ import {
 } from "@/features/home/components/HomeProductCarousel";
 import { HomePopularProducts } from "@/features/home/components/HomePopularProducts";
 import { LoginRequiredDialog } from "@/features/auth/components/LoginRequiredDialog";
+import { getApiErrorMessage } from "@/common/lib/api/error";
+import { useHomeSummaryQuery } from "../hooks/queries/useHomeSummaryQuery";
+import { getHomeSummaryCards } from "../utils/homeSummaryCards";
 
 const keywords = ["필름카메라", "아이패드 프로", "다이슨 에어랩", "닌텐도 스위치", "소니 헤드폰"];
 const recommendedPreviewProducts: CarouselProduct[] = Array.from({ length: 12 }, (_, index) => ({
@@ -28,18 +31,14 @@ const recommendedPreviewProducts: CarouselProduct[] = Array.from({ length: 12 },
     marketAveragePrice: 350000,
     platformName: ["당근마켓", "중고나라", "번개장터"][index % 3],
 }));
-const summaries = [
-    { label: "등록한 물건", value: "6개", description: "임시저장 2 · 판매중 3 · 판매완료 1" },
-    { label: "AI 추천 알림", value: "2건", description: "오늘 새로 분석된 타이밍" },
-    { label: "평균 시세 대비", value: "+4.1%", description: "내 물건들의 현재 시세 평균" },
-    { label: "최근 분석일", value: "오늘", description: "2026년 9월 2일 오전 9:12" },
-];
 
 export function HomePage() {
     const router = useRouter();
     const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
     const isInitialized = useAuthStore((state) => state.isInitialized);
     const { data: member, isPending } = useMeQuery();
+    const summary = useHomeSummaryQuery();
+    const summaries = getHomeSummaryCards(summary.data);
     const [keyword, setKeyword] = useState("");
     const [searchMode, setSearchMode] = useState<"general" | "ai">("general");
     const [loginNoticeOpen, setLoginNoticeOpen] = useState(false);
@@ -98,11 +97,11 @@ export function HomePage() {
                         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:gap-[30px]">
                             {summaries.map((item, index) => (
                                 <Card
-                                    key={item.label}
+                                    key={item.title}
                                     className="gap-2 rounded-[10px] border border-[#d3d3d3] bg-[#fafbff] px-6 py-5 ring-0"
                                 >
                                     <h2 className="text-[14px] leading-[21px] text-[#464646]">
-                                        {item.label}
+                                        {item.title}
                                     </h2>
                                     <p
                                         className={cn(
@@ -114,9 +113,33 @@ export function HomePage() {
                                     >
                                         {item.value}
                                     </p>
-                                    <p className="text-[13px] leading-[19.5px] font-medium text-[#464646]">
-                                        {item.description}
+                                    <p
+                                        role={
+                                            index === 0
+                                                ? summary.isError
+                                                    ? "alert"
+                                                    : summary.isPending
+                                                      ? "status"
+                                                      : undefined
+                                                : undefined
+                                        }
+                                        className="text-[13px] leading-[19.5px] font-medium text-[#464646]"
+                                    >
+                                        {summary.isError
+                                            ? index === 0
+                                                ? getApiErrorMessage(summary.error)
+                                                : "요약 정보를 불러오지 못했습니다."
+                                            : item.description}
                                     </p>
+                                    {index === 0 && summary.isError && (
+                                        <Button
+                                            variant="outline"
+                                            disabled={summary.isFetching}
+                                            onClick={() => void summary.refetch()}
+                                        >
+                                            다시 시도
+                                        </Button>
+                                    )}
                                 </Card>
                             ))}
                         </div>

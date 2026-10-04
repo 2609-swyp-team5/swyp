@@ -193,6 +193,7 @@ export function SearchPage() {
                         }}
                         keyword={submittedKeyword}
                         products={products}
+                        totalCount={data?.pages[0]?.totalCount ?? null}
                         liked={liked}
                         onLike={(product) =>
                             interests.toggle({ source: product.source, targetId: product.id })

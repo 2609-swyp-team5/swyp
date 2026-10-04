@@ -21,6 +21,7 @@ export function SearchResults({
     onSortChange,
     keyword,
     products,
+    totalCount,
     liked,
     onLike,
     likeDisabled,
@@ -35,6 +36,7 @@ export function SearchResults({
     onSortChange: (sort: SearchSort) => void;
     keyword: string;
     products: SearchResultItem[];
+    totalCount: number | null;
     liked: Record<string, boolean>;
     onLike: (product: SearchResultItem) => void;
     likeDisabled: boolean;
@@ -66,7 +68,11 @@ export function SearchResults({
                         {keyword ? "'" + keyword + "'" : "전체 상품"}
                     </h1>
                     <p className="text-[#6b7395]">
-                        {isLoading ? "상품 검색" : `검색결과 ${products.length}개 표시`}
+                        {isLoading
+                            ? "상품 검색"
+                            : totalCount === null
+                              ? "검색결과"
+                              : `검색결과 ${totalCount}개 표시`}
                     </p>
                 </div>
                 <Select value={sort} onValueChange={(value) => onSortChange(value as SearchSort)}>

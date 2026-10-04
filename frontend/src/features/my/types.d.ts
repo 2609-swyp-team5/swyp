@@ -1,6 +1,5 @@
 import type { z } from "zod";
 
-import type { productSummaryPageResponseSchema } from "@/features/sell/schemas/productResponseSchema";
 import type { ProductStatus } from "@/features/sell/types";
 import type {
     myPlatformConnectionSchema,
@@ -13,14 +12,7 @@ import type {
 export type MyProductStatus = ProductStatus;
 export type MyProductFilter = "ALL" | MyProductStatus;
 
-export interface MyProductsParams {
-    cursor?: string;
-    size: number;
-}
-
 export type MyProduct = z.infer<typeof myProductSchema>;
-
-export type MyProductsResponse = z.infer<typeof productSummaryPageResponseSchema>;
 
 export type MyPlatformType = z.infer<typeof myPlatformTypeSchema>;
 export type MyPlatformStatus = z.infer<typeof myPlatformStatusSchema>;

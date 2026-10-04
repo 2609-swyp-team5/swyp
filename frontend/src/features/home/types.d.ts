@@ -11,6 +11,10 @@ export type InterestListResponse = z.infer<typeof interestListResponseSchema>;
 export type InterestTarget = z.infer<typeof interestTargetSchema>;
 export type InterestCreateResponse = z.infer<typeof interestCreateResponseSchema>;
 
-import type { popularProductsResponseSchema } from "./schemas/homeResponseSchema";
+import type {
+    popularProductsResponseSchema,
+    homeSummaryResponseSchema,
+} from "./schemas/homeResponseSchema";
 
 export type PopularProductsResponse = z.infer<typeof popularProductsResponseSchema>;
+export type HomeSummaryResponse = z.infer<typeof homeSummaryResponseSchema>;

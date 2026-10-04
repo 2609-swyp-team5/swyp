@@ -1,8 +1,12 @@
 import { test as base, expect } from "@playwright/test";
+import { emptyHomeSummary } from "./home-summary-fixture";
 
 // 인증 복원을 실제 백엔드에 의존하지 않도록 기본 상태를 비회원으로 설정합니다.
 export const test = base.extend({
     context: async ({ context }, runTest) => {
+        await context.route("**/home/summary", (route) =>
+            route.fulfill({ json: { success: true, data: emptyHomeSummary, error: null } }),
+        );
         await context.route(
             (url) => url.pathname === "/interests",
             (route) =>

@@ -2,6 +2,7 @@ import { api } from "@/common/lib/api/client";
 import type { ApiResponse } from "@/common/lib/api/types";
 import type {
     PopularProductsResponse,
+    HomeSummaryResponse,
     InterestListResponse,
     InterestTarget,
     InterestCreateResponse,
@@ -19,4 +20,7 @@ const interestRegister = (target: InterestTarget) =>
 const interestDelete = (interestId: number) =>
     api.delete<ApiResponse<null>>(`/interests/${interestId}`);
 
-export const homeApi = { popularProducts, interestList, interestRegister, interestDelete };
+const summary = (signal?: AbortSignal) =>
+    api.get<ApiResponse<HomeSummaryResponse>>("/home/summary", { signal });
+
+export const homeApi = { popularProducts, interestList, interestRegister, interestDelete, summary };

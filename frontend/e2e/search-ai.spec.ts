@@ -33,7 +33,7 @@ const condition = {
     defectStatus: ["NORMAL"],
     sort: "PRICE_LOW",
 };
-const result = { content: [], nextCursor: null, hasNext: false };
+const result = { content: [], nextCursor: null, hasNext: false, totalCount: 0 };
 
 test("home AI search forwards the sentence and runs the same API once on search", async ({
     page,
@@ -151,7 +151,12 @@ test("AI search uses the returned first page and conditions for pagination and s
                 data: {
                     aiApplied: true,
                     condition,
-                    result: { content: [product], nextCursor: "ai-cursor", hasNext: true },
+                    result: {
+                        content: [product],
+                        nextCursor: "ai-cursor",
+                        hasNext: true,
+                        totalCount: 2,
+                    },
                 },
                 error: null,
             },
@@ -166,12 +171,14 @@ test("AI search uses the returned first page and conditions for pagination and s
     await input.press("Enter");
     await expect(page.getByText("AI가 검색 조건을 분석하고 있습니다.")).toBeVisible();
     await expect(page.getByText(product.title, { exact: true })).toBeVisible();
+    await expect(page.getByText("검색결과 2개 표시", { exact: true })).toBeVisible();
     await expect(page.getByRole("spinbutton", { name: "최대 가격" })).toHaveValue("500000");
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await expect
         .poll(() => requests.some((url) => url.searchParams.get("cursor") === "ai-cursor"))
         .toBe(true);
     await expect(page.getByText("AI 검색 아이폰 다음 상품", { exact: true })).toBeVisible();
+    await expect(page.getByText("검색결과 2개 표시", { exact: true })).toBeVisible();
     expect(aiRequests).toHaveLength(1);
     expect(aiRequests[0].searchParams.get("query")).toBe(
         "아이폰 50만원 이하 하자 없는 거 싼 순으로",

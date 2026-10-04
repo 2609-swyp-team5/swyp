@@ -1,16 +1,7 @@
 import { api } from "@/common/lib/api/client";
 import type { ApiResponse } from "@/common/lib/api/types";
 
-import type {
-    MyProductsParams,
-    MyProductsResponse,
-    MyPlatformType,
-    MyPlatformConnection,
-    MyPlatformConnectionState,
-} from "../types";
-
-const myProducts = (params: MyProductsParams, signal?: AbortSignal) =>
-    api.get<ApiResponse<MyProductsResponse>>("/products/me", { params, signal });
+import type { MyPlatformType, MyPlatformConnection, MyPlatformConnectionState } from "../types";
 
 const myPlatforms = (signal?: AbortSignal) =>
     api.get<ApiResponse<MyPlatformConnection[]>>("/platforms", { signal });
@@ -22,7 +13,6 @@ const disconnectPlatform = (platform: MyPlatformType) =>
     api.delete<ApiResponse<null>>(`/platforms/${platform}`);
 
 export const myApi = {
-    myProducts,
     myPlatforms,
     connectPlatform,
     disconnectPlatform,

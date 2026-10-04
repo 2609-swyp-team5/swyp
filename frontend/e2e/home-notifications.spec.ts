@@ -34,8 +34,11 @@ test("guest home publishes the shared design and forwards search keywords", asyn
         exact: true,
     });
     await favorite.click();
-    await expect(favorite).toHaveAttribute("aria-pressed", "true");
-    await expect(favorite.locator("svg")).toHaveAttribute("fill", "currentColor");
+    await expect(page.getByRole("alertdialog")).toContainText("로그인 후 사용해 주세요.");
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("alertdialog")).toHaveCount(0);
+    await expect(favorite).toHaveAttribute("aria-pressed", "false");
+    await expect(favorite.locator("svg")).toHaveAttribute("fill", "none");
     await carousel.getByRole("button", { name: "인기 상품 모음 다음", exact: true }).click();
     await expect(carousel.getByRole("button", { name: "인기 상품 모음 2페이지" })).toHaveAttribute(
         "aria-current",

@@ -106,7 +106,7 @@ export function NotificationsPage() {
                                     aria-pressed={filter === item.value}
                                     onClick={() => setFilter(item.value)}
                                     className={cn(
-                                        "h-full shrink-0 gap-2 rounded-none border-b-2 px-0 pt-0 pb-2 text-base leading-[25px] font-normal hover:bg-transparent",
+                                        "h-full shrink-0 gap-2 rounded-none border-x-0 border-t-0 border-b-2 px-0 pt-0 pb-2 text-base leading-[25px] font-normal hover:bg-transparent",
                                         filter === item.value
                                             ? "border-[#363636] text-[#363636]"
                                             : "border-transparent text-[#6b6c7b]",

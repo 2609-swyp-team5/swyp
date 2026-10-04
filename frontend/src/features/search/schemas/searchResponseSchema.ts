@@ -33,6 +33,7 @@ export const searchResponseSchema = z.object({
     content: z.array(searchResultItemSchema),
     nextCursor: z.string().nullable(),
     hasNext: z.boolean(),
+    totalCount: z.number().nullable(),
 });
 
 export const aiSearchResponseSchema = z.object({

@@ -87,6 +87,7 @@ for (const loggedIn of [true, false]) {
                         content,
                         nextCursor: isNextPage ? null : "1789843458645",
                         hasNext: !isNextPage,
+                        totalCount: isNextPage ? null : 21,
                     },
                     error: null,
                 },
@@ -95,6 +96,7 @@ for (const loggedIn of [true, false]) {
 
         await page.goto("/search");
         await expect(page.locator("main [data-slot=card]")).toHaveCount(20);
+        await expect(page.getByText("검색결과 21개 표시", { exact: true })).toBeVisible();
         await expect(page.getByAltText(product.title)).toBeVisible();
         await expect(page.locator("main")).toContainText("미개봉 · 하자 없음");
         const ownCard = page.locator("main [data-slot=card]").filter({
@@ -120,6 +122,7 @@ for (const loggedIn of [true, false]) {
 
         await page.locator("main").evaluate((element) => element.scrollIntoView({ block: "end" }));
         await expect(page.locator("main [data-slot=card]")).toHaveCount(21);
+        await expect(page.getByText("검색결과 21개 표시", { exact: true })).toBeVisible();
         expect(requests[1]?.get("cursor")).toBe("1789843458645");
         expect(requests).toHaveLength(2);
         await expect(page.getByRole("heading", { name: "다음 페이지 상품" })).toBeVisible();
