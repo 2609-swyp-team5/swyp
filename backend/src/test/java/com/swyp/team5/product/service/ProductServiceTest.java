@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -731,8 +732,13 @@ class ProductServiceTest {
         Product popular = newProduct(1L, member, category);
         Product lessPopular = newProduct(2L, member, category);
 
-        when(interestRepository.findPopularProductIds(any(LocalDateTime.class), any(Pageable.class)))
+        when(interestRepository.findPopularProductIds(
+                        any(LocalDateTime.class),
+                        eq(List.of(ProductStatus.ON_SALE, ProductStatus.RESERVED)),
+                        any(Pageable.class)))
                 .thenReturn(List.of(1L, 2L));
+        when(interestRepository.findProductIdsByInterestAndViews(any(), any(Pageable.class)))
+                .thenReturn(List.of());
         when(productRepository.findAllById(List.of(1L, 2L))).thenReturn(List.of(lessPopular, popular));
 
         List<ProductSummaryResponse> response = service().getPopularProducts();
@@ -740,10 +746,31 @@ class ProductServiceTest {
         assertThat(response).extracting(ProductSummaryResponse::id).containsExactly(1L, 2L);
     }
 
-    // 인기 상품 조회 - 관심상품 등록 이력이 없으면 빈 목록 반환
+    // 인기 상품 조회 - 최근 관심 등록 상위가 10개 미만이면 누적 관심·조회수 순 상품으로 중복 없이 채움
+    @Test
+    void getPopularProductsFillsWithAllTimeRanking() {
+        Category category = newCategory(1L, "전자기기");
+        Member member = newMember(1L);
+        Product recent = newProduct(1L, member, category);
+        Product filler = newProduct(3L, member, category);
+
+        when(interestRepository.findPopularProductIds(any(LocalDateTime.class), any(), any(Pageable.class)))
+                .thenReturn(List.of(1L));
+        when(interestRepository.findProductIdsByInterestAndViews(any(), any(Pageable.class)))
+                .thenReturn(List.of(1L, 3L));
+        when(productRepository.findAllById(List.of(1L, 3L))).thenReturn(List.of(filler, recent));
+
+        assertThat(service().getPopularProducts())
+                .extracting(ProductSummaryResponse::id)
+                .containsExactly(1L, 3L);
+    }
+
+    // 인기 상품 조회 - 판매중·예약중 상품이 없으면 빈 목록 반환
     @Test
     void getPopularProductsReturnsEmptyWhenNoInterests() {
-        when(interestRepository.findPopularProductIds(any(LocalDateTime.class), any(Pageable.class)))
+        when(interestRepository.findPopularProductIds(any(LocalDateTime.class), any(), any(Pageable.class)))
+                .thenReturn(List.of());
+        when(interestRepository.findProductIdsByInterestAndViews(any(), any(Pageable.class)))
                 .thenReturn(List.of());
 
         assertThat(service().getPopularProducts()).isEmpty();

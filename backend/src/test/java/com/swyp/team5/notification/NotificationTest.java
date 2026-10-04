@@ -284,15 +284,19 @@ class NotificationTest extends IntegrationTest {
         mockMvc.perform(get("/notifications/settings").header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.recommendationEnabled").value(true))
+                .andExpect(jsonPath("$.data.priceChangeEnabled").value(true))
                 .andExpect(jsonPath("$.data.targetPriceEnabled").value(true))
                 .andExpect(jsonPath("$.data.platformExpiryEnabled").value(true))
                 .andExpect(jsonPath("$.data.marketingEnabled").value(false));
 
-        mockMvc.perform(patch("/notifications/settings")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"recommendationEnabled\":false,\"marketingEnabled\":true}"))
+        mockMvc.perform(
+                        patch("/notifications/settings")
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        "{\"recommendationEnabled\":false,\"priceChangeEnabled\":false,\"marketingEnabled\":true}"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.priceChangeEnabled").value(false))
                 .andExpect(jsonPath("$.data.recommendationEnabled").value(false))
                 .andExpect(jsonPath("$.data.marketingEnabled").value(true))
                 .andExpect(jsonPath("$.data.targetPriceEnabled").value(true));
@@ -300,6 +304,7 @@ class NotificationTest extends IntegrationTest {
         mockMvc.perform(get("/notifications/settings").header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.recommendationEnabled").value(false))
+                .andExpect(jsonPath("$.data.priceChangeEnabled").value(false))
                 .andExpect(jsonPath("$.data.marketingEnabled").value(true));
         mockMvc.perform(get("/notifications/settings").header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
                 .andExpect(status().isOk())
@@ -311,7 +316,7 @@ class NotificationTest extends IntegrationTest {
     @Test
     void recommendationAlertSkippedWhenDisabled() {
         NotificationSetting setting = NotificationSetting.defaults(owner.getId());
-        setting.update(false, null, null, null);
+        setting.update(false, null, null, null, null);
         notificationSettingRepository.save(setting);
         Product product = productRepository.save(newProduct(owner));
 

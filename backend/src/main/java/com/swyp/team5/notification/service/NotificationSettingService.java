@@ -32,6 +32,7 @@ public class NotificationSettingService {
                 .orElseGet(() -> notificationSettingRepository.save(NotificationSetting.defaults(memberId)));
         setting.update(
                 request.recommendationEnabled(),
+                request.priceChangeEnabled(),
                 request.targetPriceEnabled(),
                 request.platformExpiryEnabled(),
                 request.marketingEnabled());

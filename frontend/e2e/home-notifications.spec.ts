@@ -104,10 +104,60 @@ test("signed-in home adds the greeting and summary while hiding recommendations"
 test("notifications filter their preview list and keep navigation working", async ({
     page,
 }, testInfo) => {
+    const now = new Date().toISOString();
+    const notification = (
+        notificationId: number,
+        type: string,
+        title: string,
+        productId: number | null,
+        listingId: number | null = null,
+        createdAt = now,
+    ) => ({
+        notificationId,
+        type,
+        title,
+        message: `${title} 설명`,
+        productId,
+        listingId,
+        isRead: false,
+        createdAt,
+    });
     await page.route("**/auth/refresh", (route) =>
         route.fulfill({
             json: { success: true, data: { accessToken: "notifications-preview" }, error: null },
         }),
+    );
+    // 화면 경로와 API 경로가 같아 페이지 이동 요청은 그대로 통과시킨다
+    await page.route(
+        (url) => url.pathname === "/notifications",
+        (route) =>
+            route.request().isNavigationRequest()
+                ? route.fallback()
+                : route.fulfill({
+                      json: {
+                          success: true,
+                          data: {
+                              content: [
+                                  notification(5, "SELL", "아이폰 13 지금 판매 추천", 10),
+                                  notification(4, "BUY", "다이슨 에어랩 시세 하락 중", null, 20),
+                                  notification(3, "TARGET_PRICE", "갤럭시 버즈 목표가 도달", 30),
+                                  notification(2, "HOLD", "맥북 에어 판매 대기 추천", 40),
+                                  notification(
+                                      1,
+                                      "NOTICE",
+                                      "서비스 점검 안내",
+                                      null,
+                                      null,
+                                      "2026-09-01T09:00:00",
+                                  ),
+                              ],
+                              nextCursor: null,
+                              hasNext: false,
+                              totalCount: 5,
+                          },
+                          error: null,
+                      },
+                  }),
     );
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/notifications");
@@ -130,10 +180,12 @@ test("notifications filter their preview list and keep navigation working", asyn
         path: testInfo.outputPath("notifications-mobile.png"),
         fullPage: true,
     });
-    await main.getByRole("button", { name: "연동 1", exact: true }).click();
+    await main.getByRole("button", { name: "판매추천 2", exact: true }).click();
+    await expect(main.locator('[data-slot="card"]')).toHaveCount(2);
+    await expect(
+        main.getByRole("link", { name: "판매 분석 보기", exact: true }).first(),
+    ).toHaveAttribute("href", "/sell/manage?selected=10");
+    await main.getByRole("button", { name: "공지 1", exact: true }).click();
     await expect(main.locator('[data-slot="card"]')).toHaveCount(1);
-    await expect(main.getByRole("link", { name: "다시 연결", exact: true })).toHaveAttribute(
-        "href",
-        "/my/platforms",
-    );
+    await expect(main.getByRole("heading", { name: "서비스 점검 안내" })).toBeVisible();
 });

@@ -13,6 +13,7 @@ import org.springframework.data.repository.query.Param;
 import com.swyp.team5.interest.entity.Interest;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.platform.entity.PlatformListing;
+import com.swyp.team5.product.entity.ProductStatus;
 
 public interface InterestRepository extends JpaRepository<Interest, Long> {
 
@@ -47,7 +48,17 @@ public interface InterestRepository extends JpaRepository<Interest, Long> {
             "SELECT l FROM PlatformListing l WHERE l.status IN :statuses AND EXISTS (SELECT 1 FROM Interest i WHERE i.item.id = l.id)")
     List<PlatformListing> findInterestedListingsByStatusIn(@Param("statuses") Collection<String> statuses);
 
+    /** {@code since} 이후 관심 등록 수가 많은 지정 상태 상품 ID(동률이면 최신 상품 먼저). */
     @Query("SELECT p.id FROM Interest i, Product p WHERE i.item.id = p.id AND i.createdAt >= :since "
-            + "GROUP BY p.id ORDER BY COUNT(i) DESC")
-    List<Long> findPopularProductIds(@Param("since") LocalDateTime since, Pageable pageable);
+            + "AND p.status IN :statuses GROUP BY p.id ORDER BY COUNT(i) DESC, p.id DESC")
+    List<Long> findPopularProductIds(
+            @Param("since") LocalDateTime since,
+            @Param("statuses") Collection<ProductStatus> statuses,
+            Pageable pageable);
+
+    /** 지정 상태 상품 ID를 누적 관심 등록 수 → 조회수 → 최신 순으로(관심 등록이 없는 상품 포함). 인기 상품 보충용. */
+    @Query("SELECT p.id FROM Product p LEFT JOIN Interest i ON i.item.id = p.id WHERE p.status IN :statuses "
+            + "GROUP BY p.id, p.viewCount ORDER BY COUNT(i) DESC, p.viewCount DESC, p.id DESC")
+    List<Long> findProductIdsByInterestAndViews(
+            @Param("statuses") Collection<ProductStatus> statuses, Pageable pageable);
 }
