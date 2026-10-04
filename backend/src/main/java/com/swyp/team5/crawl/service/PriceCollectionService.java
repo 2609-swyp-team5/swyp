@@ -7,16 +7,13 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.stereotype.Service;
 
-import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.crawl.client.BunjangCategoryClient;
 import com.swyp.team5.crawl.config.BunjangCrawlProperties;
 import com.swyp.team5.crawl.dto.BunjangCategoryPage;
 import com.swyp.team5.crawl.dto.BunjangProductItem;
 import com.swyp.team5.platform.entity.CategoryPlatform;
-import com.swyp.team5.platform.entity.Platform;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.platform.repository.CategoryPlatformRepository;
-import com.swyp.team5.platform.repository.PlatformListingRepository;
 import com.swyp.team5.product.entity.ProductStatus;
 
 /**
@@ -28,13 +25,12 @@ import com.swyp.team5.product.entity.ProductStatus;
 public class PriceCollectionService {
 
     private static final String PLATFORM_NAME = "번개장터"; // 현재는 번개장터만 수집하므로 상수로 고정
-    private static final String LISTING_URL_TEMPLATE = "https://m.bunjang.co.kr/products/%d";
 
     private static final String SELLING_STATUS = "SELLING";
 
     private final BunjangCategoryClient bunjangCategoryClient;
     private final CategoryPlatformRepository categoryPlatformRepository;
-    private final PlatformListingRepository platformListingRepository;
+    private final PlatformListingUpserter platformListingUpserter;
     private final BunjangCrawlProperties properties;
 
     /** 시세 분석 대상(등록됨·판매중) 우리 상품이 있는 카테고리만 순회하며 수집한다. 대상이 없으면 아무 것도 하지 않는다. */
@@ -99,31 +95,14 @@ public class PriceCollectionService {
         }
     }
 
-    /**
-     * 매물을 {@code (platform, externalItemId)} 기준으로 upsert한다. 이미 있으면 관측값만 갱신한다.
-     *
-     * <p>{@code findByPlatformAndExternalItemId}/{@code save}가 각자 별도 트랜잭션으로 실행돼 조회 결과가
-     * 영속성 컨텍스트 밖(detached)이므로, 갱신 시에도 dirty checking에 기대지 않고 명시적으로 {@code save}
-     * 를 호출한다(detached 엔티티의 {@code save}는 merge로 동작).
-     */
     private void upsertListing(CategoryPlatform mapping, BunjangProductItem item) {
-        Platform platform = mapping.getPlatform();
-        Category category = mapping.getCategory();
-        String externalItemId = String.valueOf(item.pid());
-        String listingUrl = LISTING_URL_TEMPLATE.formatted(item.pid());
-
-        PlatformListing listing = platformListingRepository
-                .findByPlatformAndExternalItemId(platform, externalItemId)
-                .orElseGet(() -> PlatformListing.create(
-                        platform,
-                        category,
-                        externalItemId,
-                        item.name(),
-                        item.price(),
-                        item.status(),
-                        item.productImage(),
-                        listingUrl));
-        listing.observe(category, item.name(), item.price(), item.status(), item.productImage(), listingUrl);
-        platformListingRepository.save(listing);
+        platformListingUpserter.upsert(
+                mapping.getPlatform(),
+                mapping.getCategory(),
+                item.pid(),
+                item.name(),
+                item.price(),
+                item.status(),
+                item.productImage());
     }
 }

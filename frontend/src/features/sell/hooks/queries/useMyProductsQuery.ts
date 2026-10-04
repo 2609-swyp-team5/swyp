@@ -1,6 +1,6 @@
 "use client";
 
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 
 import { dataSource } from "@/common/lib/api/dataSource";
 import { productApi } from "@/features/sell/api/productApi";
@@ -17,6 +17,7 @@ export function useMyProductsQuery(status?: ProductStatus) {
     return useInfiniteQuery({
         queryKey: myProductsQueryKey(status),
         initialPageParam: undefined as string | undefined,
+        placeholderData: keepPreviousData,
         queryFn: async ({ pageParam }) => {
             if (dataSource === "mock") {
                 return getMyProductsMock(status);

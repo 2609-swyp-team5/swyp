@@ -15,7 +15,8 @@ public record ProductAnalysisProperties(
         @NotNull Long aiCallIntervalMs, // AI 호출 간 최소 대기 시간(무료 티어 RPM 제한 대응)
         Integer interestSkipHours, // 관심 등록 직후 분석을 건너뛸 최근 분석 기준 시간(없으면 6, 0이면 항상 분석)
         Confidence confidence, // 신뢰도 기준(없으면 기본값)
-        Competition competition) { // 경쟁 상품 기준(없으면 기본값)
+        Competition competition, // 경쟁 상품 기준(없으면 기본값)
+        SearchFallback searchFallback) { // 비교 매물 부족 시 상품명 검색 설정(없으면 기본값)
 
     /** 관심 등록 직후 분석을 건너뛸 최근 분석 기준 기본값(시간). 정기 배치 주기(6시간)와 같다. */
     public static final int DEFAULT_INTEREST_SKIP_HOURS = 6;
@@ -29,6 +30,9 @@ public record ProductAnalysisProperties(
         }
         if (competition == null) {
             competition = Competition.DEFAULT;
+        }
+        if (searchFallback == null) {
+            searchFallback = SearchFallback.DEFAULT;
         }
     }
 
@@ -57,5 +61,16 @@ public record ProductAnalysisProperties(
             @NotNull Integer itemLimit) { // 목록 최대 건수
 
         public static final Competition DEFAULT = new Competition(5, 10, 3);
+    }
+
+    /**
+     * 비교 매물 부족 시 상품명 검색 설정. 카테고리 수집 매물만으로 키워드 후보나 AI가 확인한 같은 물건이 {@code min-listings}보다
+     * 적으면, 상품명으로 번개장터를 검색해 판매중 매물 최대 {@code size}건을 저장하고 비교 매물에 보탠다.
+     */
+    public record SearchFallback(
+            boolean enabled, // 검색 사용 여부
+            @NotNull Integer size) { // 한 번에 검색해 올 건수
+
+        public static final SearchFallback DEFAULT = new SearchFallback(true, 100);
     }
 }

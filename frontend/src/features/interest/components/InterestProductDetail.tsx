@@ -16,6 +16,7 @@ import type { InterestListItem } from "../types";
 const statusLabels: Record<string, string> = {
     DRAFT: "임시저장",
     ON_SALE: "판매중",
+    RESERVED: "예약중",
     SOLD_OUT: "판매종료",
 };
 

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
@@ -28,6 +29,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.ai.AiChatExecutor;
+import com.swyp.team5.crawl.service.ListingSearchService;
 import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.item.repository.ItemRepository;
 import com.swyp.team5.notification.service.NotificationService;
@@ -65,7 +67,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class ProductAnalysisServiceTest {
 
     private static final ProductAnalysisProperties PROPERTIES =
-            new ProductAnalysisProperties(3, 24, 30, 0L, null, null, null);
+            new ProductAnalysisProperties(3, 24, 30, 0L, null, null, null, null);
 
     private final ChatClient geminiAiClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
     private final ChatClient openAiClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
@@ -94,6 +96,9 @@ class ProductAnalysisServiceTest {
     @Mock
     private ItemRepository itemRepository;
 
+    @Mock
+    private ListingSearchService listingSearchService;
+
     private final AnalysisProgressTracker progressTracker = new AnalysisProgressTracker();
 
     private ProductAnalysisService service() {
@@ -112,7 +117,8 @@ class ProductAnalysisServiceTest {
                 priceForecastRepository,
                 categoryRepository,
                 itemRepository,
-                progressTracker);
+                progressTracker,
+                listingSearchService);
     }
 
     private static Product product(Long productId, Long categoryId, Long price) {
@@ -269,7 +275,8 @@ class ProductAnalysisServiceTest {
                 .thenReturn(Optional.of(recent));
         givenListings(10L, List.of(listing("갤럭시 탭 S9", 9000L)));
 
-        service(new ProductAnalysisProperties(3, 24, 30, 0L, 0, null, null)).analyzeInterestedItemById(1L);
+        service(new ProductAnalysisProperties(3, 24, 30, 0L, 0, null, null, null))
+                .analyzeInterestedItemById(1L);
 
         verify(platformListingRepository)
                 .findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(eq(10L), anyString(), any());
@@ -354,6 +361,110 @@ class ProductAnalysisServiceTest {
 
         verify(productAnalysisRepository, never()).save(any());
         verify(notificationService, never()).notifyRecommendationChanged(any(), any(), any());
+    }
+
+    // 검색 보탬 - 키워드 후보가 3건 미만이면 AI 호출 전에 상품명으로 검색해 보탠 매물까지 후보로 써서 분석
+    @Test
+    void analyzeProductSearchesBeforeAiCallWhenCandidatesBelowThreshold() {
+        Product product = product(1L, 10L, 800_000L);
+        givenListings(10L, List.of(listing("아이패드 프로 매물1", 1000L), listing("갤럭시 탭 S9", 9000L)));
+        List<PlatformListing> searched = List.of(
+                listing(11L, 99L, "아이패드 프로 검색1", 2000L),
+                listing(12L, 99L, "아이패드 프로 검색2", 3000L),
+                listing(13L, 99L, "아이패드 프로 검색3", 4000L));
+        when(listingSearchService.searchAndSave("아이패드 프로", null, 100)).thenReturn(searched);
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.empty());
+        givenAiResult(new MarketAnalysisResult(List.of(1, 2, 3, 4), AnalysisRecommendation.HOLD, 2500L, "설명"));
+
+        service().analyzeProduct(product);
+
+        ArgumentCaptor<ProductAnalysis> captor = ArgumentCaptor.forClass(ProductAnalysis.class);
+        verify(productAnalysisRepository).save(captor.capture());
+        assertThat(captor.getValue().getMinPrice()).isEqualTo(1000L);
+        assertThat(captor.getValue().getAveragePrice()).isEqualTo(2500L);
+        assertThat(captor.getValue().getMaxPrice()).isEqualTo(4000L);
+        assertThat(captor.getValue().getListingCount()).isEqualTo(4);
+        verify(listingSearchService, times(1)).searchAndSave(anyString(), any(), anyInt());
+    }
+
+    // 검색 보탬 - AI가 고른 같은 물건이 3건 미만이면 검색 결과에서만 새 후보를 골라 확인된 매물과 함께 AI에 한 번 더 묻고(최대
+    // 2회) 그 결과로 분석. 1차 후보에서 밀린 기존 매물(매물4)은 2차 후보에 넣지 않음
+    @Test
+    void analyzeProductRetriesAiWithSearchedListingsWhenTooFewSimilar() {
+        Product product = product(1L, 10L, 800_000L);
+        givenListings(
+                10L,
+                List.of(
+                        listing("아이패드 프로 매물1", 1000L),
+                        listing("아이패드 프로 매물2", 2000L),
+                        listing("아이패드 프로 매물3", 3000L),
+                        listing("아이패드 프로 매물4", 9000L)));
+        List<PlatformListing> searched =
+                List.of(listing(11L, 99L, "아이패드 프로 검색1", 1100L), listing(12L, 99L, "아이패드 프로 검색2", 1200L));
+        when(listingSearchService.searchAndSave("아이패드 프로", null, 100)).thenReturn(searched);
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.empty());
+        // 1차: 매물1만 같은 물건 → 2차 후보 = [매물1(확인됨), 검색1, 검색2] 중 전부 같은 물건
+        when(geminiAiClient
+                        .prompt()
+                        .system(anyString())
+                        .user(anyString())
+                        .call()
+                        .entity(MarketAnalysisResult.class))
+                .thenReturn(
+                        new MarketAnalysisResult(List.of(1), AnalysisRecommendation.HOLD, 1000L, "1차"),
+                        new MarketAnalysisResult(List.of(1, 2, 3), AnalysisRecommendation.HOLD, 1100L, "2차"));
+
+        // 후보 최대 3건 — 1차 후보 [매물1~3], 2차 후보 [매물1, 검색1, 검색2]
+        service(new ProductAnalysisProperties(3, 24, 3, 0L, null, null, null, null))
+                .analyzeProduct(product);
+
+        ArgumentCaptor<ProductAnalysis> captor = ArgumentCaptor.forClass(ProductAnalysis.class);
+        verify(productAnalysisRepository).save(captor.capture());
+        assertThat(captor.getValue().getMinPrice()).isEqualTo(1000L);
+        assertThat(captor.getValue().getAveragePrice()).isEqualTo(1100L);
+        assertThat(captor.getValue().getMaxPrice()).isEqualTo(1200L);
+        assertThat(captor.getValue().getSuggestedPrice()).isEqualTo(1100L); // 2차 AI 응답 사용
+    }
+
+    // 검색 보탬 - 검색이 꺼져 있으면 검색하지 않고 건너뜀
+    @Test
+    void analyzeProductDoesNotSearchWhenSearchFallbackDisabled() {
+        Product product = product(1L, 10L, 800_000L);
+        givenListings(10L, List.of(listing("아이패드 프로 매물1", 1000L)));
+
+        service(new ProductAnalysisProperties(
+                        3, 24, 30, 0L, null, null, null, new ProductAnalysisProperties.SearchFallback(false, 100)))
+                .analyzeProduct(product);
+
+        verifyNoInteractions(listingSearchService);
+        verify(productAnalysisRepository, never()).save(any());
+    }
+
+    // 검색 보탬 - 관심 외부 매물 분석은 검색 결과에 섞인 자기 자신과 이미 후보에 있는 매물을 빼고 보탬
+    @Test
+    void analyzeListingExcludesItselfAndDuplicatesFromSearchResults() {
+        PlatformListing target = listing(100L, 10L, "아이패드 프로", 900L);
+        PlatformListing existing = listing(1L, 10L, "아이패드 프로 매물1", 1000L);
+        when(platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
+                        eq(10L), eq("SELLING"), any()))
+                .thenReturn(List.of(target, existing));
+        List<PlatformListing> searched = List.of(
+                target, existing, listing(11L, 99L, "아이패드 프로 검색1", 2000L), listing(12L, 99L, "아이패드 프로 검색2", 3000L));
+        when(listingSearchService.searchAndSave("아이패드 프로", null, 100)).thenReturn(searched);
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(100L))
+                .thenReturn(Optional.empty());
+        // 후보 = [매물1, 검색1, 검색2] — 자신(900원)과 중복(매물1 두 번째)이 들어가면 4번이 생겨 결과가 달라짐
+        givenAiResult(new MarketAnalysisResult(List.of(1, 2, 3, 4), AnalysisRecommendation.BUY, 2000L, "설명"));
+
+        service().analyzeListing(target);
+
+        ArgumentCaptor<ProductAnalysis> captor = ArgumentCaptor.forClass(ProductAnalysis.class);
+        verify(productAnalysisRepository).save(captor.capture());
+        assertThat(captor.getValue().getMinPrice()).isEqualTo(1000L);
+        assertThat(captor.getValue().getMaxPrice()).isEqualTo(3000L);
+        assertThat(captor.getValue().getListingCount()).isEqualTo(3);
     }
 
     // 분석 건너뜀 - 비교 매물이 최소 기준(3건)보다 적음

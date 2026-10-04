@@ -12,7 +12,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -23,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.ai.AiChatExecutor;
+import com.swyp.team5.crawl.service.ListingSearchService;
 import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.item.entity.Item;
 import com.swyp.team5.item.repository.ItemRepository;
@@ -150,6 +153,7 @@ public class ProductAnalysisService {
     private final CategoryRepository categoryRepository;
     private final ItemRepository itemRepository;
     private final AnalysisProgressTracker progressTracker;
+    private final ListingSearchService listingSearchService;
 
     public ProductAnalysisService(
             AiChatExecutor aiChatExecutor,
@@ -162,7 +166,8 @@ public class ProductAnalysisService {
             PriceForecastRepository priceForecastRepository,
             CategoryRepository categoryRepository,
             ItemRepository itemRepository,
-            AnalysisProgressTracker progressTracker) {
+            AnalysisProgressTracker progressTracker,
+            ListingSearchService listingSearchService) {
         this.aiChatExecutor = aiChatExecutor;
         this.productRepository = productRepository;
         this.platformListingRepository = platformListingRepository;
@@ -173,6 +178,7 @@ public class ProductAnalysisService {
         this.priceForecastRepository = priceForecastRepository;
         this.categoryRepository = categoryRepository;
         this.itemRepository = itemRepository;
+        this.listingSearchService = listingSearchService;
         this.progressTracker = progressTracker;
     }
 
@@ -489,39 +495,23 @@ public class ProductAnalysisService {
 
     @Transactional
     void analyzeProduct(Product product) {
-        List<PlatformListing> listings =
-                freshSellingListings(product.getCategory().getId());
-
-        // 1단계: 상품명 키워드로 후보를 넓게 고른다(후보가 부족하면 AI 호출 없이 건너뜀)
-        List<PlatformListing> candidates = SimilarListingFilter.selectCandidates(
-                product.getTitle(), product.getBrand(), listings, properties.sampleSize());
-        if (candidates.size() < properties.minListings()) {
-            log.info(
-                    "상품 {}: 같은 카테고리 매물 {}건 중 상품명이 겹치는 후보가 {}건뿐이라 분석을 건너뜁니다(최소 {}건 필요).",
-                    product.getId(),
-                    listings.size(),
-                    candidates.size(),
-                    properties.minListings());
-            return;
-        }
-
-        // 2단계: AI가 후보 중 같은 물건만 고르고(이전 분석 추이를 함께 줘 추세 판단 근거로 씀), 고른 매물에서 가격
-        // 이상치를 뺀 뒤 통계를 낸다
+        // 같은 물건 비교 매물을 고른다(키워드 후보 → AI 최종 선별, 부족하면 상품명 검색으로 보탬). 이전 분석 추이는 AI의
+        // 추세 판단 근거로 함께 준다
         PriceTrend trend =
                 PriceTrend.of(snapshots(productAnalysisRepository.findByItemIdAndAnalyzedAtAfterOrderByAnalyzedAtAsc(
                         product.getId(), LocalDateTime.now().minusMonths(TREND_MONTHS))));
-        MarketAnalysisResult aiResult = requestAiAnalysis(product, candidates, trend);
-        List<Long> prices =
-                SimilarListingFilter.removeOutliers(similarPrices(candidates, aiResult.similarListingNumbers()));
-        if (prices.size() < properties.minListings()) {
-            log.info(
-                    "상품 {}: 후보 {}건 중 같은 물건으로 확인된 매물이 {}건뿐이라 분석을 건너뜁니다(최소 {}건 필요).",
-                    product.getId(),
-                    candidates.size(),
-                    prices.size(),
-                    properties.minListings());
+        Optional<SimilarSelection> selection = selectSimilarListings(
+                "상품 " + product.getId(),
+                product.getTitle(),
+                product.getBrand(),
+                null,
+                freshSellingListings(product.getCategory().getId()),
+                candidates -> requestAiAnalysis(product, candidates, trend));
+        if (selection.isEmpty()) {
             return;
         }
+        MarketAnalysisResult aiResult = selection.get().aiResult();
+        List<Long> prices = selection.get().prices();
 
         LongSummaryStatistics stats = prices.stream().mapToLong(Long::longValue).summaryStatistics();
         long minPrice = stats.getMin();
@@ -586,41 +576,22 @@ public class ProductAnalysisService {
      */
     @Transactional
     void analyzeListing(PlatformListing listing) {
-        List<PlatformListing> comparisons = freshSellingListings(
-                        listing.getCategory().getId())
-                .stream()
-                .filter(comparison -> !Objects.equals(comparison.getId(), listing.getId()))
-                .toList();
-
-        // 1단계: 매물 제목 키워드로 후보를 넓게 고른다(외부 매물은 브랜드 정보가 없음)
-        List<PlatformListing> candidates =
-                SimilarListingFilter.selectCandidates(listing.getTitle(), null, comparisons, properties.sampleSize());
-        if (candidates.size() < properties.minListings()) {
-            log.info(
-                    "외부 매물 {}: 같은 카테고리 매물 {}건 중 제목이 겹치는 후보가 {}건뿐이라 분석을 건너뜁니다(최소 {}건 필요).",
-                    listing.getId(),
-                    comparisons.size(),
-                    candidates.size(),
-                    properties.minListings());
-            return;
-        }
-
-        // 2단계: AI가 후보 중 같은 물건만 고르고(이전 분석 추이 포함), 고른 매물에서 가격 이상치를 뺀 뒤 통계를 낸다
+        // 같은 물건 비교 매물을 고른다(분석 대상 매물 자신은 제외, 외부 매물은 브랜드 정보가 없음)
         PriceTrend trend =
                 PriceTrend.of(snapshots(productAnalysisRepository.findByItemIdAndAnalyzedAtAfterOrderByAnalyzedAtAsc(
                         listing.getId(), LocalDateTime.now().minusMonths(TREND_MONTHS))));
-        MarketAnalysisResult aiResult = requestListingAiAnalysis(listing, candidates, trend);
-        List<Long> prices =
-                SimilarListingFilter.removeOutliers(similarPrices(candidates, aiResult.similarListingNumbers()));
-        if (prices.size() < properties.minListings()) {
-            log.info(
-                    "외부 매물 {}: 후보 {}건 중 같은 물건으로 확인된 매물이 {}건뿐이라 분석을 건너뜁니다(최소 {}건 필요).",
-                    listing.getId(),
-                    candidates.size(),
-                    prices.size(),
-                    properties.minListings());
+        Optional<SimilarSelection> selection = selectSimilarListings(
+                "외부 매물 " + listing.getId(),
+                listing.getTitle(),
+                null,
+                listing.getId(),
+                freshSellingListings(listing.getCategory().getId()),
+                candidates -> requestListingAiAnalysis(listing, candidates, trend));
+        if (selection.isEmpty()) {
             return;
         }
+        MarketAnalysisResult aiResult = selection.get().aiResult();
+        List<Long> prices = selection.get().prices();
 
         LongSummaryStatistics stats = prices.stream().mapToLong(Long::longValue).summaryStatistics();
         long minPrice = stats.getMin();
@@ -763,7 +734,7 @@ public class ProductAnalysisService {
                 categoryId, SELLING_STATUS, freshAfter);
     }
 
-    /** AI 프롬프트용 후보 목록("1. 제목: 가격원"). 번호는 {@link #similarPrices}에서 다시 매물로 바꾼다. */
+    /** AI 프롬프트용 후보 목록("1. 제목: 가격원"). 번호는 {@link #similarListings}에서 다시 매물로 바꾼다. */
     private static String numberedCandidates(List<PlatformListing> candidates) {
         return IntStream.range(0, candidates.size())
                 .mapToObj(i -> "%d. %s: %d원"
@@ -775,15 +746,137 @@ public class ProductAnalysisService {
     }
 
     /** AI가 고른 후보 번호(1부터)를 가격 목록으로 바꾼다. 범위 밖/중복 번호는 무시한다. */
-    private static List<Long> similarPrices(List<PlatformListing> candidates, List<Integer> numbers) {
+    /** AI가 고른 같은 물건 매물(후보 번호 1부터). 범위 밖·중복 번호는 무시한다. */
+    private static List<PlatformListing> similarListings(List<PlatformListing> candidates, List<Integer> numbers) {
         if (numbers == null) {
             return List.of();
         }
         return numbers.stream()
                 .filter(number -> number != null && number >= 1 && number <= candidates.size())
                 .distinct()
-                .map(number -> candidates.get(number - 1).getPrice())
+                .map(number -> candidates.get(number - 1))
                 .toList();
+    }
+
+    /** 같은 물건 비교 매물 선별 결과 — AI 응답(적정가·근거 문장)과 이상치를 뺀 가격 목록. */
+    private record SimilarSelection(MarketAnalysisResult aiResult, List<Long> prices) {}
+
+    /**
+     * 같은 물건 비교 매물을 고른다. 키워드로 후보를 넓게 고르고({@link SimilarListingFilter#selectCandidates}) AI가 같은
+     * 물건만 남긴 뒤 가격 이상치를 뺀다. 후보나 같은 물건이 {@code min-listings}보다 적으면 상품명으로 번개장터를 한 번
+     * 검색해(검색 결과는 저장되어 이후 분석에도 쓰임) 비교 매물을 보탠 뒤 다시 고른다. AI가 이미 확인한 같은 물건은 유지하고 새
+     * 후보만 더해 AI를 한 번 더 호출하며(분석 1건당 AI 최대 2회), 그래도 부족하면 건너뛴다.
+     *
+     * @param label 로그용 대상 이름(예: "상품 1")
+     * @param selfId 비교 매물에서 뺄 분석 대상 매물 ID(우리 상품이면 null)
+     * @param listings 같은 카테고리의 최근 판매중 매물
+     * @param ai 후보 목록을 주고 AI 분석을 요청하는 함수
+     * @return 같은 물건이 부족해 건너뛰면 빈 값
+     */
+    private Optional<SimilarSelection> selectSimilarListings(
+            String label,
+            String title,
+            String brand,
+            Long selfId,
+            List<PlatformListing> listings,
+            Function<List<PlatformListing>, MarketAnalysisResult> ai) {
+        int minListings = properties.minListings();
+        int sampleSize = properties.sampleSize();
+        List<PlatformListing> pool = excludeSelf(listings, selfId);
+        List<PlatformListing> candidates = SimilarListingFilter.selectCandidates(title, brand, pool, sampleSize);
+        boolean searched = false;
+
+        // 1) 키워드 후보부터 부족하면 AI 호출 전에 검색으로 보탠다
+        if (candidates.size() < minListings) {
+            List<PlatformListing> found = searchListings(title, brand, selfId, pool);
+            if (found.isEmpty()) {
+                log.info(
+                        "{}: 같은 카테고리 매물 {}건 중 키워드가 겹치는 후보가 {}건뿐이라 분석을 건너뜁니다(최소 {}건 필요).",
+                        label,
+                        pool.size(),
+                        candidates.size(),
+                        minListings);
+                return Optional.empty();
+            }
+            searched = true;
+            pool = merge(pool, found);
+            candidates = SimilarListingFilter.selectCandidates(title, brand, pool, sampleSize);
+            if (candidates.size() < minListings) {
+                log.info(
+                        "{}: 검색으로 보탠 뒤에도 키워드가 겹치는 후보가 {}건뿐이라 분석을 건너뜁니다(최소 {}건 필요).",
+                        label,
+                        candidates.size(),
+                        minListings);
+                return Optional.empty();
+            }
+        }
+
+        // 2) AI가 같은 물건만 고른다
+        MarketAnalysisResult aiResult = ai.apply(candidates);
+        List<PlatformListing> similar = similarListings(candidates, aiResult.similarListingNumbers());
+        List<Long> prices = SimilarListingFilter.removeOutliers(
+                similar.stream().map(PlatformListing::getPrice).toList());
+
+        // 3) 같은 물건이 부족하고 아직 검색 전이면, 검색으로 새 후보를 보태 확인된 매물과 함께 AI에 한 번 더 묻는다
+        if (prices.size() < minListings && !searched) {
+            // 새 후보는 검색 결과에서만 고른다(searchListings가 기존 풀에 있던 매물은 이미 뺌)
+            List<PlatformListing> found = searchListings(title, brand, selfId, pool);
+            List<PlatformListing> newCandidates = SimilarListingFilter.selectCandidates(
+                    title, brand, found, Math.max(sampleSize - similar.size(), 0));
+            if (!newCandidates.isEmpty()) {
+                log.info("{}: 같은 물건이 {}건뿐이라 검색 후보 {}건을 보태 다시 확인합니다.", label, prices.size(), newCandidates.size());
+                List<PlatformListing> retryCandidates = new ArrayList<>(similar);
+                retryCandidates.addAll(newCandidates);
+                sleepBetweenAiCalls();
+                aiResult = ai.apply(retryCandidates);
+                candidates = retryCandidates;
+                prices = SimilarListingFilter.removeOutliers(
+                        similarListings(retryCandidates, aiResult.similarListingNumbers()).stream()
+                                .map(PlatformListing::getPrice)
+                                .toList());
+            }
+        }
+
+        if (prices.size() < minListings) {
+            log.info(
+                    "{}: 후보 {}건 중 같은 물건으로 확인된 매물이 {}건뿐이라 분석을 건너뜁니다(최소 {}건 필요).",
+                    label,
+                    candidates.size(),
+                    prices.size(),
+                    minListings);
+            return Optional.empty();
+        }
+        return Optional.of(new SimilarSelection(aiResult, prices));
+    }
+
+    /** 상품명 검색 결과 중 기존 후보 풀에 없는 판매중 매물(분석 대상 자신 제외). 검색이 꺼져 있으면 빈 목록. */
+    private List<PlatformListing> searchListings(String title, String brand, Long selfId, List<PlatformListing> pool) {
+        ProductAnalysisProperties.SearchFallback searchFallback = properties.searchFallback();
+        if (!searchFallback.enabled()) {
+            return List.of();
+        }
+        Set<Long> poolIds = pool.stream()
+                .map(PlatformListing::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        return excludeSelf(listingSearchService.searchAndSave(title, brand, searchFallback.size()), selfId).stream()
+                .filter(listing -> listing.getId() == null || !poolIds.contains(listing.getId()))
+                .toList();
+    }
+
+    private static List<PlatformListing> excludeSelf(List<PlatformListing> listings, Long selfId) {
+        if (selfId == null) {
+            return listings;
+        }
+        return listings.stream()
+                .filter(listing -> !Objects.equals(listing.getId(), selfId))
+                .toList();
+    }
+
+    private static List<PlatformListing> merge(List<PlatformListing> pool, List<PlatformListing> found) {
+        List<PlatformListing> merged = new ArrayList<>(pool);
+        merged.addAll(found);
+        return merged;
     }
 
     /** 결함(하자) 상태를 AI 프롬프트에 넣을 한국어 설명으로 변환한다. */

@@ -58,7 +58,6 @@ const tabs: ProductListTab[] = [
 
 export default function WishlistPage() {
     const [activeTabKey, setActiveTabKey] = useState("ALL");
-    const summaryQuery = useInterestsQuery();
     const listQuery = useInterestsQuery(
         activeTabKey === "ALL" ? undefined : (activeTabKey as InterestStatus),
     );
@@ -70,9 +69,10 @@ export default function WishlistPage() {
         isFetchingNextPage,
         isFetchNextPageError,
         fetchNextPage,
+        isPlaceholderData,
     } = listQuery;
-    const interests = data?.pages.flatMap((page) => page.content) ?? [];
-    const summaryFirstPage = summaryQuery.data?.pages[0];
+    const interests = isPlaceholderData ? [] : (data?.pages.flatMap((page) => page.content) ?? []);
+    const firstPage = data?.pages[0];
     const loadMore = useCallback(() => {
         void fetchNextPage();
     }, [fetchNextPage]);
@@ -109,11 +109,11 @@ export default function WishlistPage() {
                     metaLabel: displayStatusMetaLabels[displayStatus],
                 };
             })}
-            totalCount={summaryFirstPage?.totalCount}
-            statusCounts={summaryFirstPage?.statusCounts}
-            isLoading={isPending}
+            totalCount={firstPage?.totalCount}
+            statusCounts={firstPage?.statusCounts}
+            isLoading={isPending || isPlaceholderData}
             errorMessage={error ? getApiErrorMessage(error) : undefined}
-            hasNextPage={hasNextPage}
+            hasNextPage={isPlaceholderData ? false : hasNextPage}
             isFetchingNextPage={isFetchingNextPage}
             isFetchNextPageError={isFetchNextPageError}
             onLoadMore={loadMore}
