@@ -58,7 +58,6 @@ const tabs: ProductListTab[] = [
 
 export default function WishlistPage() {
     const [activeTabKey, setActiveTabKey] = useState("ALL");
-    const summaryQuery = useInterestsQuery();
     const listQuery = useInterestsQuery(
         activeTabKey === "ALL" ? undefined : (activeTabKey as InterestStatus),
     );
@@ -72,7 +71,7 @@ export default function WishlistPage() {
         fetchNextPage,
     } = listQuery;
     const interests = data?.pages.flatMap((page) => page.content) ?? [];
-    const summaryFirstPage = summaryQuery.data?.pages[0];
+    const firstPage = data?.pages[0];
     const loadMore = useCallback(() => {
         void fetchNextPage();
     }, [fetchNextPage]);
@@ -109,8 +108,8 @@ export default function WishlistPage() {
                     metaLabel: displayStatusMetaLabels[displayStatus],
                 };
             })}
-            totalCount={summaryFirstPage?.totalCount}
-            statusCounts={summaryFirstPage?.statusCounts}
+            totalCount={firstPage?.totalCount}
+            statusCounts={firstPage?.statusCounts}
             isLoading={isPending}
             errorMessage={error ? getApiErrorMessage(error) : undefined}
             hasNextPage={hasNextPage}

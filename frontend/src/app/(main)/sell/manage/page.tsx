@@ -51,7 +51,6 @@ const tabs: ProductListTab[] = [
 
 export default function SellManagePage() {
     const [activeTabKey, setActiveTabKey] = useState("ALL");
-    const summaryQuery = useMyProductsQuery();
     const listQuery = useMyProductsQuery(
         activeTabKey === "ALL" ? undefined : (activeTabKey as ProductStatus),
     );
@@ -65,7 +64,7 @@ export default function SellManagePage() {
         fetchNextPage,
     } = listQuery;
     const products = data?.pages.flatMap((page) => page.content) ?? [];
-    const summaryFirstPage = summaryQuery.data?.pages[0];
+    const firstPage = data?.pages[0];
     const loadMore = useCallback(() => {
         void fetchNextPage();
     }, [fetchNextPage]);
@@ -93,8 +92,8 @@ export default function SellManagePage() {
                 metaLabel: statusMetaLabels[product.status],
                 status: product.status,
             }))}
-            totalCount={summaryFirstPage?.totalCount}
-            statusCounts={summaryFirstPage?.statusCounts}
+            totalCount={firstPage?.totalCount}
+            statusCounts={firstPage?.statusCounts}
             isLoading={isPending}
             errorMessage={error ? getApiErrorMessage(error) : undefined}
             hasNextPage={hasNextPage}
