@@ -3,6 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useRef, useState } from "react";
+import { Menu, X } from "lucide-react";
 
 import { Button } from "@/common/components/ui/Button";
 import { Skeleton } from "@/common/components/ui/Skeleton";
@@ -16,6 +18,8 @@ function isRouteActive(pathname: string, href: string) {
 }
 
 export function SiteHeader() {
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const menuButtonRef = useRef<HTMLButtonElement>(null);
     const pathname = usePathname();
     const router = useRouter();
     const isProfileActive = isRouteActive(pathname, "/my");
@@ -31,21 +35,21 @@ export function SiteHeader() {
 
     return (
         <header className="border-border bg-background border-b">
-            <div className="layout-container flex min-h-[var(--header-height)] items-center justify-between gap-6 py-2">
-                <Link href={logoHref} className="shrink-0">
+            <div className="layout-container flex min-h-[var(--header-height)] items-center justify-between gap-3 py-2 lg:gap-6">
+                <Link href={logoHref} className="shrink-0" onClick={() => setIsMenuOpen(false)}>
                     <Image
                         src="/brand/jigeumini-logo.png"
                         alt="지금이니?"
                         width={129}
                         height={71}
                         unoptimized
-                        className="h-[71px] w-[129px] object-contain"
+                        className="h-[55px] w-[100px] object-contain lg:h-[71px] lg:w-[129px]"
                     />
                 </Link>
 
                 <nav
                     aria-label="주요 메뉴"
-                    className={`flex min-w-0 flex-1 items-center justify-end gap-1 ${hideMenus ? "hidden" : ""}`}
+                    className={`hidden min-w-0 flex-1 items-center justify-end gap-1 ${hideMenus ? "" : "lg:flex"}`}
                 >
                     {HEADER_LINKS.map((link) => {
                         const isActive = isRouteActive(pathname, link.href);
@@ -67,7 +71,7 @@ export function SiteHeader() {
                     })}
                 </nav>
 
-                <div className="typography-body-medium flex w-[120px] shrink-0 items-center justify-end gap-2">
+                <div className="typography-body-medium flex shrink-0 items-center justify-end gap-2 lg:w-[120px]">
                     {isProfileLoading ? (
                         <Skeleton
                             role="status"
@@ -83,6 +87,7 @@ export function SiteHeader() {
                         >
                             <Link
                                 href="/my"
+                                onClick={() => setIsMenuOpen(false)}
                                 aria-label="프로필"
                                 title="프로필"
                                 aria-current={isProfileActive ? "page" : undefined}
@@ -93,14 +98,69 @@ export function SiteHeader() {
                     ) : (
                         <Button
                             type="button"
-                            onClick={() => router.push("/login")}
-                            className={`typography-body-medium h-auto rounded-full px-[30px] py-2.5 font-semibold hover:bg-[#5745e7] focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30 dark:hover:bg-[#5745e7] ${isOnboardingPage ? "font-brand h-[41px] border-0 text-[14px] leading-[21px]" : ""}`}
+                            onClick={() => {
+                                setIsMenuOpen(false);
+                                router.push("/login");
+                            }}
+                            className={`typography-body-medium h-auto rounded-full px-4 py-2.5 font-semibold hover:bg-[#5745e7] focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30 lg:px-[30px] dark:hover:bg-[#5745e7] ${isOnboardingPage ? "font-brand h-[41px] border-0 text-[14px] leading-[21px]" : ""}`}
                         >
                             로그인
                         </Button>
                     )}
+                    {!hideMenus && (
+                        <Button
+                            ref={menuButtonRef}
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label={isMenuOpen ? "메뉴 닫기" : "메뉴 열기"}
+                            aria-expanded={isMenuOpen}
+                            aria-controls="mobile-header-menu"
+                            onClick={() => setIsMenuOpen((open) => !open)}
+                            className="size-10 shrink-0 rounded-lg text-[#545d82] lg:hidden"
+                        >
+                            {isMenuOpen ? (
+                                <X aria-hidden="true" className="size-5" />
+                            ) : (
+                                <Menu aria-hidden="true" className="size-5" />
+                            )}
+                        </Button>
+                    )}
                 </div>
             </div>
+            {!hideMenus && (
+                <nav
+                    id="mobile-header-menu"
+                    aria-label="모바일 주요 메뉴"
+                    className={`${isMenuOpen ? "grid" : "hidden"} layout-container grid-cols-2 gap-2 border-t border-[#eef0f5] py-3 lg:hidden`}
+                    onKeyDown={(event) => {
+                        if (event.key === "Escape") {
+                            setIsMenuOpen(false);
+                            menuButtonRef.current?.focus();
+                        }
+                    }}
+                >
+                    {HEADER_LINKS.map((link) => {
+                        const isActive = isRouteActive(pathname, link.href);
+                        return (
+                            <Button
+                                key={link.href}
+                                asChild
+                                variant="ghost"
+                                className={`h-11 justify-start rounded-lg px-4 text-sm font-semibold ${isActive ? "text-primary bg-[#f0edff]" : "text-[#464646]"}`}
+                            >
+                                <Link
+                                    href={link.href}
+                                    aria-current={isActive ? "page" : undefined}
+                                    onClick={() => setIsMenuOpen(false)}
+                                >
+                                    {link.label}
+                                </Link>
+                            </Button>
+                        );
+                    })}
+                </nav>
+            )}
         </header>
     );
 }

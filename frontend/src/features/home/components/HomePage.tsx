@@ -332,7 +332,7 @@ export function HomePage() {
                 {isInitialized && isLoggedIn && (
                     <section
                         aria-labelledby="recommended-products-heading"
-                        className="flex flex-col gap-10 py-[60px] lg:min-h-[630px] lg:justify-between"
+                        className="hidden flex-col gap-10 py-[60px] lg:min-h-[630px] lg:justify-between"
                     >
                         <div className="flex flex-wrap items-end justify-between gap-5 lg:pr-10">
                             <div className="space-y-2.5">
