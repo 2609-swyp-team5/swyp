@@ -27,8 +27,10 @@ import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.entity.MemberRole;
 import com.swyp.team5.member.repository.MemberRepository;
 import com.swyp.team5.notification.entity.Notification;
+import com.swyp.team5.notification.entity.NotificationSetting;
 import com.swyp.team5.notification.entity.NotificationType;
 import com.swyp.team5.notification.repository.NotificationRepository;
+import com.swyp.team5.notification.repository.NotificationSettingRepository;
 import com.swyp.team5.notification.service.NotificationService;
 import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.Product;
@@ -85,6 +87,9 @@ class NotificationTest extends IntegrationTest {
         ownerToken = jwtTokenProvider.createAccessToken(owner.getId(), MemberRole.USER);
         otherToken = jwtTokenProvider.createAccessToken(other.getId(), MemberRole.USER);
     }
+
+    @Autowired
+    private NotificationSettingRepository notificationSettingRepository;
 
     @AfterEach
     void tearDown() {
@@ -271,6 +276,51 @@ class NotificationTest extends IntegrationTest {
                 .andExpect(jsonPath("$.data.content[0].productId").value(product.getId()));
         assertThat(interestRepository.findById(interest.getId()).orElseThrow().getNotifiedAt())
                 .isNotNull();
+    }
+
+    // 알림 설정 - 바꾼 적 없으면 기본값, PATCH는 보낸 항목만 바꾸고 다시 조회해도 유지, 다른 회원 설정은 그대로, 비로그인 401
+    @Test
+    void notificationSettingsDefaultAndPartialUpdate() throws Exception {
+        mockMvc.perform(get("/notifications/settings").header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.recommendationEnabled").value(true))
+                .andExpect(jsonPath("$.data.targetPriceEnabled").value(true))
+                .andExpect(jsonPath("$.data.platformExpiryEnabled").value(true))
+                .andExpect(jsonPath("$.data.marketingEnabled").value(false));
+
+        mockMvc.perform(patch("/notifications/settings")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"recommendationEnabled\":false,\"marketingEnabled\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.recommendationEnabled").value(false))
+                .andExpect(jsonPath("$.data.marketingEnabled").value(true))
+                .andExpect(jsonPath("$.data.targetPriceEnabled").value(true));
+
+        mockMvc.perform(get("/notifications/settings").header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.recommendationEnabled").value(false))
+                .andExpect(jsonPath("$.data.marketingEnabled").value(true));
+        mockMvc.perform(get("/notifications/settings").header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.recommendationEnabled").value(true));
+        mockMvc.perform(get("/notifications/settings")).andExpect(status().isUnauthorized());
+    }
+
+    // 알림 설정 - AI 추천 타이밍 알림을 끈 판매자는 추천 전환 알림을 받지 않음
+    @Test
+    void recommendationAlertSkippedWhenDisabled() {
+        NotificationSetting setting = NotificationSetting.defaults(owner.getId());
+        setting.update(false, null, null, null);
+        notificationSettingRepository.save(setting);
+        Product product = productRepository.save(newProduct(owner));
+
+        int count = notificationService.notifyRecommendationChanged(
+                product, AnalysisRecommendation.HOLD, AnalysisRecommendation.SELL);
+
+        assertThat(count).isZero();
+        assertThat(notificationRepository.findAll())
+                .noneMatch(n -> n.getMember().getId().equals(owner.getId()));
     }
 
     private static Member newMember(String prefix) {

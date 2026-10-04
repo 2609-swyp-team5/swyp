@@ -13,13 +13,16 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
+import com.swyp.team5.interest.entity.Interest;
 import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.notification.entity.Notification;
 import com.swyp.team5.notification.entity.NotificationType;
 import com.swyp.team5.notification.error.NotificationNotFoundException;
 import com.swyp.team5.notification.repository.NotificationRepository;
+import com.swyp.team5.notification.repository.NotificationSettingRepository;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
@@ -39,8 +42,11 @@ class NotificationServiceTest {
     @Mock
     private InterestRepository interestRepository;
 
+    @Mock
+    private NotificationSettingRepository notificationSettingRepository;
+
     private NotificationService service() {
-        return new NotificationService(notificationRepository, interestRepository);
+        return new NotificationService(notificationRepository, interestRepository, notificationSettingRepository);
     }
 
     private static Product product(Member owner) {
@@ -206,6 +212,68 @@ class NotificationServiceTest {
     }
 
     // 본인 알림이 아니면(또는 없으면) 404
+    // 알림 설정에서 AI 추천 타이밍 알림을 끈 관심 회원은 구매 추천 알림을 받지 않음
+    @Test
+    void skipsMembersWhoDisabledRecommendationAlerts() {
+        Member buyer1 = member(21L);
+        Member buyer2 = member(22L);
+        Product product = product(member(10L));
+        when(interestRepository.findMembersByItemId(1L)).thenReturn(List.of(buyer1, buyer2));
+        when(notificationSettingRepository.findRecommendationDisabledMemberIds(List.of(21L, 22L)))
+                .thenReturn(Set.of(22L));
+
+        int count =
+                service().notifyRecommendationChanged(product, AnalysisRecommendation.WAIT, AnalysisRecommendation.BUY);
+
+        assertThat(count).isEqualTo(1);
+        assertThat(savedNotifications()).extracting(Notification::getMember).containsExactly(buyer1);
+    }
+
+    // 판매자가 AI 추천 타이밍 알림을 끄면 판매 추천 알림도 만들지 않음
+    @Test
+    void skipsOwnerWhoDisabledRecommendationAlerts() {
+        when(notificationSettingRepository.findRecommendationDisabledMemberIds(List.of(10L)))
+                .thenReturn(Set.of(10L));
+
+        int count = service()
+                .notifyRecommendationChanged(
+                        product(member(10L)), AnalysisRecommendation.HOLD, AnalysisRecommendation.SELL);
+
+        assertThat(count).isZero();
+        assertThat(savedNotifications()).isEmpty();
+    }
+
+    // 목표가 도달 알림을 끈 회원이면 알림을 만들지 않고 false
+    @Test
+    void skipsTargetPriceAlertWhenDisabled() {
+        Interest interest = mock(Interest.class);
+        Member buyer = member(21L);
+        when(interest.getMember()).thenReturn(buyer);
+        when(notificationSettingRepository.existsByMemberIdAndTargetPriceEnabledFalse(21L))
+                .thenReturn(true);
+
+        assertThat(service().notifyTargetPriceReached(interest, 10_000L)).isFalse();
+
+        verify(notificationRepository, never()).save(any());
+    }
+
+    // 목표가 도달 알림이 켜져 있으면(설정 행 없음 포함) 알림을 만들고 true
+    @Test
+    void createsTargetPriceAlertWhenEnabled() {
+        Product product = product(member(10L));
+        Member buyer = member(21L);
+        Interest interest = mock(Interest.class);
+        when(interest.getMember()).thenReturn(buyer);
+        when(interest.getProduct()).thenReturn(product);
+        when(interest.getTargetPrice()).thenReturn(12_000L);
+
+        assertThat(service().notifyTargetPriceReached(interest, 10_000L)).isTrue();
+
+        ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
+        verify(notificationRepository).save(captor.capture());
+        assertThat(captor.getValue().getType()).isEqualTo(NotificationType.TARGET_PRICE);
+    }
+
     @Test
     void markReadFailsWhenNotOwnNotification() {
         when(notificationRepository.findByIdAndMemberId(5L, 2L)).thenReturn(Optional.empty());

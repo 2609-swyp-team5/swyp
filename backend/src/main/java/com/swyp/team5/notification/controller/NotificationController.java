@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,12 +18,15 @@ import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.common.passport.PrincipalMember;
 import com.swyp.team5.notification.dto.NotificationReadResponse;
 import com.swyp.team5.notification.dto.NotificationResponse;
+import com.swyp.team5.notification.dto.NotificationSettingResponse;
+import com.swyp.team5.notification.dto.NotificationSettingUpdateRequest;
 import com.swyp.team5.notification.dto.NotificationUnreadCountResponse;
 import com.swyp.team5.notification.service.NotificationService;
+import com.swyp.team5.notification.service.NotificationSettingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
-/** 회원 알림 API. 알림은 서버가 시세 분석 결과에 따라 만들며, 회원은 조회/읽음 처리/삭제만 한다. */
+/** 회원 알림 API. 알림은 서버가 시세 분석 결과에 따라 만들며, 회원은 조회/읽음 처리/삭제와 수신 설정만 한다. */
 @Tag(name = "Notification", description = "알림")
 @RestController
 @RequestMapping("/notifications")
@@ -30,6 +34,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final NotificationSettingService notificationSettingService;
 
     /**
      * 본인 알림 목록을 커서 기반으로 조회한다(정렬은 {@code notificationId} 내림차순 = 최신순).
@@ -46,6 +51,32 @@ public class NotificationController {
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(
                 ApiResponse.success(notificationService.getNotifications(currentMember.memberId(), cursor, size)));
+    }
+
+    /**
+     * 본인 알림 수신 설정을 조회한다(바꾼 적이 없으면 기본값).
+     *
+     * @return 200 OK + 알림 수신 설정
+     */
+    @Operation(summary = "알림 설정 조회")
+    @GetMapping("/settings")
+    public ResponseEntity<ApiResponse<NotificationSettingResponse>> getSetting(
+            @AuthenticationPrincipal PrincipalMember currentMember) {
+        return ResponseEntity.ok(ApiResponse.success(notificationSettingService.getSetting(currentMember.memberId())));
+    }
+
+    /**
+     * 본인 알림 수신 설정을 바꾼다. 보낸 항목만 바꾸고 나머지는 유지한다.
+     *
+     * @return 200 OK + 바뀐 뒤의 전체 설정
+     */
+    @Operation(summary = "알림 설정 변경")
+    @PatchMapping("/settings")
+    public ResponseEntity<ApiResponse<NotificationSettingResponse>> updateSetting(
+            @AuthenticationPrincipal PrincipalMember currentMember,
+            @RequestBody NotificationSettingUpdateRequest request) {
+        return ResponseEntity.ok(
+                ApiResponse.success(notificationSettingService.updateSetting(currentMember.memberId(), request)));
     }
 
     /**

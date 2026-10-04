@@ -56,7 +56,8 @@ public abstract class IntegrationTest {
     private static final String TRUNCATE_DATA_TABLES =
             "TRUNCATE TABLE members, socials, items, products, platform_listings, "
                     + "product_images, product_tags, tags, product_components, components, interests, product_analysis, "
-                    + "price_forecasts, notifications, member_platforms, product_platforms, search_logs RESTART IDENTITY CASCADE";
+                    + "price_forecasts, notifications, notification_settings, member_platforms, product_platforms, search_logs "
+                    + "RESTART IDENTITY CASCADE";
 
     private static Class<?> lastResetClass;
 
