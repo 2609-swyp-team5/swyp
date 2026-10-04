@@ -3,6 +3,7 @@ package com.swyp.team5.product.entity;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 /** 상품 판매 상태 */
@@ -18,6 +19,15 @@ public enum ProductStatus {
 
     /** 시세 분석·시세 수집 대상 상태(외부 게시 전 상품도 시세를 보여주기 위해 {@link #DRAFT} 포함). */
     public static final List<ProductStatus> ANALYSIS_TARGETS = List.of(DRAFT, ON_SALE, RESERVED);
+
+    /**
+     * {@link #ANALYSIS_TARGETS}에 대응하는 외부 매물 원본 상태 문자열(SELLING·RESERVED) — 관심 등록된 외부 매물도 우리 상품과 같은 상태
+     * 기준으로 분석하기 위함(외부 매물에는 DRAFT가 없음).
+     */
+    public static final List<String> EXTERNAL_ANALYSIS_TARGETS = ANALYSIS_TARGETS.stream()
+            .map(ProductStatus::externalValue)
+            .filter(Objects::nonNull)
+            .toList();
 
     /**
      * 외부 매물의 원본 상태 문자열을 같은 상태 체계로 바꾼다(SELLING → ON_SALE, RESERVED → RESERVED, 그 외 — 판매 완료·삭제·재확인

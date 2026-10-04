@@ -9,7 +9,7 @@ import java.util.function.Function;
  * 검색처럼 정렬값이 여러 개인 목록은 인코딩한 값을 담는다. 호출 측은 해석하지 않고 다음 요청의 {@code cursor}로 돌려주기만 한다.
  *
  * <p>{@code totalCount}는 조건에 맞는 전체 건수, {@code statusCounts}는 같은 조건의 상태별 건수(없는 상태는 0)다 — 내 상품은 상품
- * 상태(DRAFT/ON_SALE/RESERVED/SOLD_OUT), 관심상품은 관심상품 상태(BUY/WATCHING/SOLD_OUT/PENDING, 탭 숫자용이라 상태 필터와 무관하게 전체 기준). 검색·알림은 {@code totalCount}를 첫 페이지({@code cursor} 없이 호출)에서만 채우고(스크롤마다 COUNT 쿼리를 돌리지
+ * 상태(DRAFT/ON_SALE/RESERVED/SOLD_OUT), 관심상품은 관심상품 상태(BUY/WAIT/SOLD_OUT/PENDING, 탭 숫자용이라 상태 필터와 무관하게 전체 기준). 검색·알림은 {@code totalCount}를 첫 페이지({@code cursor} 없이 호출)에서만 채우고(스크롤마다 COUNT 쿼리를 돌리지
  * 않도록), 회원 본인 목록인 내 상품·관심상품은 두 값 모두 매 페이지 채운다. 제공하지 않는 목록·페이지는 {@code null}.
  */
 public record CursorPageResponse<T>(

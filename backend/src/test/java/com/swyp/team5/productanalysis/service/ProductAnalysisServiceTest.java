@@ -94,6 +94,8 @@ class ProductAnalysisServiceTest {
     @Mock
     private ItemRepository itemRepository;
 
+    private final AnalysisProgressTracker progressTracker = new AnalysisProgressTracker();
+
     private ProductAnalysisService service() {
         return new ProductAnalysisService(
                 new AiChatExecutor(geminiAiClient, openAiClient),
@@ -105,7 +107,8 @@ class ProductAnalysisServiceTest {
                 interestRepository,
                 priceForecastRepository,
                 categoryRepository,
-                itemRepository);
+                itemRepository,
+                progressTracker);
     }
 
     private static Product product(Long productId, Long categoryId, Long price) {
@@ -186,7 +189,7 @@ class ProductAnalysisServiceTest {
         verify(geminiAiClient, never()).prompt();
     }
 
-    // 관심 등록 직후 분석 - 분석 대상 상태 상품·판매중 외부 매물만 분석, 최근 6시간 안에 분석했거나 없는 대상은 건너뜀
+    // 관심 등록 직후 분석 - 분석 대상 상태 상품·판매중·예약중 외부 매물만 분석, 최근 6시간 안에 분석했거나 없는 대상은 건너뜀
     @Test
     void analyzeInterestedItemByIdAnalyzesOnlyEligibleItems() {
         Product draft = product(1L, 10L, 800_000L);
@@ -197,6 +200,8 @@ class ProductAnalysisServiceTest {
         when(selling.getStatus()).thenReturn("SELLING");
         PlatformListing soldListing = listing(4L, 20L, "아이폰 15", 700_000L);
         when(soldListing.getStatus()).thenReturn("SOLD_OUT");
+        PlatformListing reservedListing = listing(7L, 30L, "아이패드 에어", 500_000L);
+        when(reservedListing.getStatus()).thenReturn("RESERVED");
         Product recentlyAnalyzed = product(5L, 10L, 800_000L);
         ProductAnalysis recent = mock(ProductAnalysis.class);
         when(recent.getAnalyzedAt()).thenReturn(LocalDateTime.now().minusHours(1));
@@ -206,22 +211,28 @@ class ProductAnalysisServiceTest {
         when(itemRepository.findById(4L)).thenReturn(Optional.of(soldListing));
         when(itemRepository.findById(5L)).thenReturn(Optional.of(recentlyAnalyzed));
         when(itemRepository.findById(6L)).thenReturn(Optional.empty());
+        when(itemRepository.findById(7L)).thenReturn(Optional.of(reservedListing));
         lenient()
                 .when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(5L))
                 .thenReturn(Optional.of(recent));
         givenListings(10L, List.of(listing("갤럭시 탭 S9", 9000L)));
         givenListings(20L, List.of(listing("갤럭시 S24", 9000L)));
+        givenListings(30L, List.of(listing("갤럭시 탭 S8", 9000L)));
 
-        for (long id = 1; id <= 6; id++) {
+        for (long id = 1; id <= 7; id++) {
             service().analyzeInterestedItemById(id);
         }
 
-        // 분석은 DRAFT 상품(카테고리 10)과 판매중 매물(카테고리 20) 두 건만 — 둘 다 후보 부족이라 AI 호출 없이 끝남
+        // 분석은 DRAFT 상품(카테고리 10)·판매중 매물(카테고리 20)·예약중 매물(카테고리 30) 세 건만 — 모두 후보 부족이라 AI 호출 없이 끝남
         verify(platformListingRepository, times(1))
                 .findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(eq(10L), anyString(), any());
         verify(platformListingRepository, times(1))
                 .findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(eq(20L), anyString(), any());
+        verify(platformListingRepository, times(1))
+                .findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(eq(30L), anyString(), any());
         verify(geminiAiClient, never()).prompt();
+        // 분석이 끝나면(건너뜀 포함) 진행 중 기록이 남지 않음
+        assertThat(progressTracker.inProgressAmong(List.of(1L, 3L, 7L))).isEmpty();
     }
 
     // 관심 등록 직후 분석 - 마지막 분석이 6시간보다 오래됐으면 다시 분석
@@ -612,12 +623,13 @@ class ProductAnalysisServiceTest {
         verify(notificationService).notifyListingRecommendationChanged(target, null, AnalysisRecommendation.BUY);
     }
 
-    // 배치 - 우리 상품 다음으로 관심 등록된 판매중 외부 매물도 분석
+    // 배치 - 우리 상품 다음으로 관심 등록된 판매중·예약중 외부 매물도 분석
     @Test
     void analyzeAllAlsoAnalyzesInterestedListings() {
         when(productRepository.findByStatusIn(ProductStatus.ANALYSIS_TARGETS)).thenReturn(List.of());
         PlatformListing target = listing(100L, 10L, "아이패드 프로", 900L);
-        when(interestRepository.findInterestedListingsByStatus("SELLING")).thenReturn(List.of(target));
+        when(interestRepository.findInterestedListingsByStatusIn(List.of("SELLING", "RESERVED")))
+                .thenReturn(List.of(target));
         List<PlatformListing> comparisons = List.of(
                 listing(1L, 10L, "아이패드 프로 매물1", 1000L),
                 listing(2L, 10L, "아이패드 프로 매물2", 2000L),

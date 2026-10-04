@@ -1,6 +1,7 @@
 package com.swyp.team5.interest.repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -41,10 +42,10 @@ public interface InterestRepository extends JpaRepository<Interest, Long> {
     @Query("SELECT i.member FROM Interest i WHERE i.item.id = :itemId")
     List<Member> findMembersByItemId(@Param("itemId") Long itemId);
 
-    /** 한 명 이상이 관심 등록한 외부 매물 중 지정 상태(판매중)인 매물 — 시세 분석 대상. */
+    /** 한 명 이상이 관심 등록한 외부 매물 중 지정 상태(판매중·예약중)인 매물 — 시세 분석 대상. */
     @Query(
-            "SELECT l FROM PlatformListing l WHERE l.status = :status AND EXISTS (SELECT 1 FROM Interest i WHERE i.item.id = l.id)")
-    List<PlatformListing> findInterestedListingsByStatus(@Param("status") String status);
+            "SELECT l FROM PlatformListing l WHERE l.status IN :statuses AND EXISTS (SELECT 1 FROM Interest i WHERE i.item.id = l.id)")
+    List<PlatformListing> findInterestedListingsByStatusIn(@Param("statuses") Collection<String> statuses);
 
     @Query("SELECT p.id FROM Interest i, Product p WHERE i.item.id = p.id AND i.createdAt >= :since "
             + "GROUP BY p.id ORDER BY COUNT(i) DESC")
