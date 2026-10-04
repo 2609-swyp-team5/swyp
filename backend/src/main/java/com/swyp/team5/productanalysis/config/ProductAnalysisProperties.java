@@ -13,10 +13,17 @@ public record ProductAnalysisProperties(
         @NotNull Integer freshnessHours, // 비교 매물로 인정할 최근 수집 기준 시간
         @NotNull Integer sampleSize, // 상품명 키워드로 고른 유사 매물 후보(AI 프롬프트에 포함) 최대 개수
         @NotNull Long aiCallIntervalMs, // AI 호출 간 최소 대기 시간(무료 티어 RPM 제한 대응)
+        Integer interestSkipHours, // 관심 등록 직후 분석을 건너뛸 최근 분석 기준 시간(없으면 6, 0이면 항상 분석)
         Confidence confidence, // 신뢰도 기준(없으면 기본값)
         Competition competition) { // 경쟁 상품 기준(없으면 기본값)
 
+    /** 관심 등록 직후 분석을 건너뛸 최근 분석 기준 기본값(시간). 정기 배치 주기(6시간)와 같다. */
+    public static final int DEFAULT_INTEREST_SKIP_HOURS = 6;
+
     public ProductAnalysisProperties {
+        if (interestSkipHours == null) {
+            interestSkipHours = DEFAULT_INTEREST_SKIP_HOURS;
+        }
         if (confidence == null) {
             confidence = Confidence.DEFAULT;
         }

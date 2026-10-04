@@ -65,7 +65,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class ProductAnalysisServiceTest {
 
     private static final ProductAnalysisProperties PROPERTIES =
-            new ProductAnalysisProperties(3, 24, 30, 0L, null, null);
+            new ProductAnalysisProperties(3, 24, 30, 0L, null, null, null);
 
     private final ChatClient geminiAiClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
     private final ChatClient openAiClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
@@ -97,12 +97,16 @@ class ProductAnalysisServiceTest {
     private final AnalysisProgressTracker progressTracker = new AnalysisProgressTracker();
 
     private ProductAnalysisService service() {
+        return service(PROPERTIES);
+    }
+
+    private ProductAnalysisService service(ProductAnalysisProperties properties) {
         return new ProductAnalysisService(
                 new AiChatExecutor(geminiAiClient, openAiClient),
                 productRepository,
                 platformListingRepository,
                 productAnalysisRepository,
-                PROPERTIES,
+                properties,
                 notificationService,
                 interestRepository,
                 priceForecastRepository,
@@ -248,6 +252,24 @@ class ProductAnalysisServiceTest {
         givenListings(10L, List.of(listing("갤럭시 탭 S9", 9000L)));
 
         service().analyzeInterestedItemById(1L);
+
+        verify(platformListingRepository)
+                .findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(eq(10L), anyString(), any());
+    }
+
+    // 관심 등록 직후 분석 - 건너뜀 기준이 0시간이면 방금 분석한 대상도 다시 분석(개발용)
+    @Test
+    void analyzeInterestedItemByIdAlwaysAnalyzesWhenSkipHoursIsZero() {
+        Product product = product(1L, 10L, 800_000L);
+        when(product.getStatus()).thenReturn(ProductStatus.ON_SALE);
+        ProductAnalysis recent = mock(ProductAnalysis.class);
+        lenient().when(recent.getAnalyzedAt()).thenReturn(LocalDateTime.now().minusMinutes(1));
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.of(recent));
+        givenListings(10L, List.of(listing("갤럭시 탭 S9", 9000L)));
+
+        service(new ProductAnalysisProperties(3, 24, 30, 0L, 0, null, null)).analyzeInterestedItemById(1L);
 
         verify(platformListingRepository)
                 .findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(eq(10L), anyString(), any());

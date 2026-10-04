@@ -64,9 +64,6 @@ public class ProductAnalysisService {
     /** 추세 계산에 쓸 이전 분석 기록 기간(개월). 프롬프트의 1/3/6개월 전 대비 비교 중 가장 긴 기간과 같다. */
     private static final int TREND_MONTHS = 6;
 
-    /** 관심 등록 직후 분석을 건너뛸 최근 분석 기준(시간). 정기 배치 주기(6시간)와 같다. */
-    private static final int RECENT_ANALYSIS_HOURS = 6;
-
     private static final String SYSTEM_PROMPT =
             """
             너는 중고거래 플랫폼의 시세 분석 AI야. 등록된 상품 1건과, 같은 카테고리에서 최근 수집된 실제
@@ -427,8 +424,8 @@ public class ProductAnalysisService {
 
     /**
      * 관심 등록된 대상 1건(우리 상품 또는 외부 매물)을 정기 배치와 같은 방식으로 분석한다(관심 등록 직후 분석 진입점). 우리 상품은
-     * 분석 대상 상태일 때, 외부 매물은 같은 기준(판매중·예약중)일 때만 분석하고, 최근 {@value #RECENT_ANALYSIS_HOURS}시간 안에 분석한 대상은
-     * 건너뛴다(여러 회원이 같은 대상을 연달아 등록해도 AI를 반복 호출하지 않도록). 실패해도 예외를 던지지 않는다(로그만 남김).
+     * 분석 대상 상태일 때, 외부 매물은 같은 기준(판매중·예약중)일 때만 분석하고, 최근 {@code analysis.interest-skip-hours}시간(기본 6) 안에 분석한
+     * 대상은 건너뛴다(여러 회원이 같은 대상을 연달아 등록해도 AI를 반복 호출하지 않도록, 0이면 항상 분석). 실패해도 예외를 던지지 않는다(로그만 남김).
      *
      * @param itemId 관심 등록 대상 ID
      */
@@ -438,14 +435,16 @@ public class ProductAnalysisService {
             log.info("관심 대상 {}: 없어서 관심 등록 직후 분석을 건너뜁니다.", itemId);
             return;
         }
-        LocalDateTime recent = LocalDateTime.now().minusHours(RECENT_ANALYSIS_HOURS);
+        int skipHours = properties.interestSkipHours();
+        LocalDateTime recent = LocalDateTime.now().minusHours(skipHours);
         boolean analyzedRecently = productAnalysisRepository
                 .findFirstByItemIdOrderByAnalyzedAtDesc(itemId)
-                .map(analysis -> analysis.getAnalyzedAt() != null
+                .map(analysis -> skipHours > 0
+                        && analysis.getAnalyzedAt() != null
                         && analysis.getAnalyzedAt().isAfter(recent))
                 .orElse(false);
         if (analyzedRecently) {
-            log.info("관심 대상 {}: 최근 {}시간 안에 분석해 관심 등록 직후 분석을 건너뜁니다.", itemId, RECENT_ANALYSIS_HOURS);
+            log.info("관심 대상 {}: 최근 {}시간 안에 분석해 관심 등록 직후 분석을 건너뜁니다.", itemId, skipHours);
             return;
         }
         if (item.get() instanceof Product product && ProductStatus.ANALYSIS_TARGETS.contains(product.getStatus())) {
