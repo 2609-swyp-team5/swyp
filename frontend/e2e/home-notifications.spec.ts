@@ -76,7 +76,7 @@ test("guest home publishes the shared design and forwards search keywords", asyn
         .toBe(true);
 });
 
-test("signed-in home adds the greeting, summary and recommendations", async ({
+test("signed-in home adds the greeting and summary while hiding recommendations", async ({
     page,
 }, testInfo) => {
     await page.route("**/auth/refresh", (route) =>
@@ -90,7 +90,7 @@ test("signed-in home adds the greeting, summary and recommendations", async ({
     await expect(
         page.getByRole("region", { name: "나의 거래 요약" }).locator('[data-slot="card"]'),
     ).toHaveCount(4);
-    await expect(page.getByRole("heading", { name: "내 물건 추천", exact: true })).toBeVisible();
+    await expect(page.locator("#recommended-products-heading")).toBeHidden();
     await expect(
         page.getByRole("link", { name: "판매 상품 등록하기", exact: true }),
     ).toHaveAttribute("href", "/sell/register");
