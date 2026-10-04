@@ -12,6 +12,7 @@ const {
     useMyPlatformsQuery,
     useProductQuery,
     usePublishProductMutation,
+    useUpdateProductStatusMutation,
 } = vi.hoisted(() => ({
     push: vi.fn(),
     replace: vi.fn(),
@@ -20,6 +21,7 @@ const {
     useMyPlatformsQuery: vi.fn(),
     useProductQuery: vi.fn(),
     usePublishProductMutation: vi.fn(),
+    useUpdateProductStatusMutation: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -42,6 +44,10 @@ vi.mock("@/features/my/hooks/queries/useMyPlatformsQuery", () => ({
 
 vi.mock("@/features/sell/hooks/mutations/usePublishProductMutation", () => ({
     usePublishProductMutation,
+}));
+
+vi.mock("@/features/sell/hooks/mutations/useUpdateProductStatusMutation", () => ({
+    useUpdateProductStatusMutation,
 }));
 
 import ProductReviewPage from "./page";
@@ -109,6 +115,12 @@ describe("ProductReviewPage", () => {
             isPending: false,
             mutateAsync: vi.fn(),
         });
+        useUpdateProductStatusMutation.mockReturnValue({
+            error: null,
+            isPending: false,
+            mutate: vi.fn(),
+            reset: vi.fn(),
+        });
         push.mockReset();
         replace.mockReset();
         searchParamsValue.current = "method=direct";
@@ -148,6 +160,16 @@ describe("ProductReviewPage", () => {
         await user.click(screen.getByRole("button", { name: "판매 상품 목록 보기" }));
 
         expect(push).toHaveBeenCalledWith("/sell/manage");
+    });
+
+    it("opens the selected product in the full product management list from price analysis", async () => {
+        const user = userEvent.setup();
+
+        render(<ProductReviewPage />);
+
+        await user.click(screen.getByRole("button", { name: "가격 분석 자세히 보기" }));
+
+        expect(push).toHaveBeenCalledWith("/sell/manage?selected=42");
     });
 
     it("shows the edit completion copy after an update", () => {

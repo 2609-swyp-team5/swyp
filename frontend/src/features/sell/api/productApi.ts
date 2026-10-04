@@ -69,6 +69,9 @@ const getMyProducts = (params?: { status?: ProductStatus; cursor?: string; size?
 
 const deleteProduct = (id: number) => api.delete<ApiResponse<null>>(`/products/${id}`);
 
+const updateProductStatus = (id: number, status: ProductStatus) =>
+    api.patch<ApiResponse<ProductResponse>>(`/products/${id}/status`, { status });
+
 const publishProduct = (productId: number, platform: MyPlatformType) =>
     api.post<ApiResponse<ProductPlatformPublishResponse>>(
         `/products/${productId}/platforms/${platform}/publish`,
@@ -318,6 +321,7 @@ export const productApi = {
     getProductCompetition,
     getMyProducts,
     deleteProduct,
+    updateProductStatus,
     publishProduct,
     createDirectProduct,
     createAiProduct,

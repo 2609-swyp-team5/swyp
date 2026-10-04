@@ -1,14 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { del, fetchMock, get, post } = vi.hoisted(() => ({
+const { del, fetchMock, get, patch, post } = vi.hoisted(() => ({
     del: vi.fn(),
     fetchMock: vi.fn(),
     get: vi.fn(),
+    patch: vi.fn(),
     post: vi.fn(),
 }));
 
 vi.mock("@/common/lib/api/client", () => ({
-    api: { delete: del, get, post, defaults: { baseURL: "https://api.test" } },
+    api: { delete: del, get, patch, post, defaults: { baseURL: "https://api.test" } },
 }));
 
 import { productApi } from "./productApi";
@@ -105,6 +106,14 @@ describe("productApi", () => {
                 error: null,
             },
         });
+        patch.mockResolvedValue({
+            data: {
+                success: true,
+                message: "",
+                data: { id: 42, status: "SOLD_OUT" },
+                error: null,
+            },
+        });
         post.mockResolvedValue({
             data: {
                 success: true,
@@ -144,6 +153,18 @@ describe("productApi", () => {
             },
         });
         expect(del).toHaveBeenCalledWith("/products/42");
+    });
+
+    it("updates a product listing status", async () => {
+        await expect(productApi.updateProductStatus(42, "SOLD_OUT")).resolves.toEqual({
+            data: {
+                success: true,
+                message: "",
+                data: { id: 42, status: "SOLD_OUT" },
+                error: null,
+            },
+        });
+        expect(patch).toHaveBeenCalledWith("/products/42/status", { status: "SOLD_OUT" });
     });
 
     it("returns the publish response envelope without handling success in the api adapter", async () => {

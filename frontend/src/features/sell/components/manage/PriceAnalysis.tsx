@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { ArrowRight, Sparkles } from "lucide-react";
 
 import { Button } from "@/common/components/ui/Button";
@@ -15,6 +16,7 @@ const recommendationLabels: Record<string, string> = {
 };
 
 export function PriceAnalysis({ product }: { product: ProductResponse }) {
+    const router = useRouter();
     const suggestedPrice = product.suggestedPrice;
     const recommendation = product.recommendation;
     const recommendationValue = recommendation ?? "—";
@@ -43,6 +45,7 @@ export function PriceAnalysis({ product }: { product: ProductResponse }) {
                 <Button
                     type="button"
                     variant="outline"
+                    onClick={() => router.push(`/sell/manage?selected=${product.id}`)}
                     className="h-auto rounded-full border-[#6653fb] bg-white px-5 py-1 text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#6653fb] hover:bg-[#f5f3ff] hover:text-[#5745e7]"
                 >
                     가격 분석 자세히 보기
