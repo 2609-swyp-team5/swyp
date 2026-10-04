@@ -19,10 +19,11 @@ export const productCompetitionQueryKey = (
 export function useProductCompetitionQuery(
     productId: number,
     options?: {
+        enabled?: boolean;
         perspective?: ProductManagementPerspective;
     },
 ) {
-    const enabled = isValidProductId(productId);
+    const enabled = isValidProductId(productId) && (options?.enabled ?? true);
     const perspective = options?.perspective ?? "SELL";
 
     return useQuery({

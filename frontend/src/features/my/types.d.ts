@@ -1,5 +1,14 @@
-import type { CursorPageResponse } from "@/common/lib/api/types";
-import type { ProductStatus, ProductSummaryResponse } from "@/features/sell/types";
+import type { z } from "zod";
+
+import type { productSummaryPageResponseSchema } from "@/features/sell/schemas/productResponseSchema";
+import type { ProductStatus } from "@/features/sell/types";
+import type {
+    myPlatformConnectionSchema,
+    myPlatformConnectionStateSchema,
+    myPlatformStatusSchema,
+    myPlatformTypeSchema,
+    myProductSchema,
+} from "./schemas/myResponseSchema";
 
 export type MyProductStatus = ProductStatus;
 export type MyProductFilter = "ALL" | MyProductStatus;
@@ -9,24 +18,16 @@ export interface MyProductsParams {
     size: number;
 }
 
-export type MyProduct = ProductSummaryResponse & {
-    platformName: string | null;
-};
+export type MyProduct = z.infer<typeof myProductSchema>;
 
-export type MyProductsResponse = CursorPageResponse<ProductSummaryResponse>;
+export type MyProductsResponse = z.infer<typeof productSummaryPageResponseSchema>;
 
-export type MyPlatformType = "BUNJANG";
-export type MyPlatformStatus = "CONNECTED" | "EXPIRED" | "DISCONNECTED";
+export type MyPlatformType = z.infer<typeof myPlatformTypeSchema>;
+export type MyPlatformStatus = z.infer<typeof myPlatformStatusSchema>;
 
-export interface MyPlatformConnectionState {
-    status: MyPlatformStatus;
-    updatedAt: string | null;
-}
+export type MyPlatformConnectionState = z.infer<typeof myPlatformConnectionStateSchema>;
 
-export interface MyPlatformConnection extends MyPlatformConnectionState {
-    platform: MyPlatformType;
-    platformName: string;
-}
+export type MyPlatformConnection = z.infer<typeof myPlatformConnectionSchema>;
 
 export type MyPlatformConnectionAction =
     | { platform: MyPlatformType; action: "connect"; cookie: string }

@@ -133,7 +133,7 @@ test("detail gallery and favorite use product and interest APIs", async ({ page 
         "href",
         detailProduct.externalUrl!,
     );
-    await expect(page.getByRole("button", { name: "AI 분석 보기", exact: true })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "AI 분석 보기", exact: true })).toBeEnabled();
     expect(productRequests).toBe(1);
 });
 
@@ -164,7 +164,10 @@ test("detail matches the design layout and fits desktop and mobile", async ({ pa
         expect(
             (await page.getByRole("button", { name: "AI 분석 보기", exact: true }).boundingBox())
                 ?.height,
-        ).toBe(44);
+        ).toBe(45);
+        await expect(
+            page.getByText("AI가 시세 분석과 거래 타이밍을 종합해 알려드려요."),
+        ).toBeVisible();
         await page
             .locator("main")
             .screenshot({ path: testInfo.outputPath(`search-detail-${width}.png`) });

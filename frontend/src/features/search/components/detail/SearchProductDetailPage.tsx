@@ -13,9 +13,13 @@ import { LoginRequiredDialog } from "@/features/auth/components/LoginRequiredDia
 import { useSearchProductDetailQuery } from "@/features/search/hooks/queries/useSearchProductDetailQuery";
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { formatRelativeCreatedAt } from "@/features/search/utils/formatRelativeCreatedAt";
+import { MarketAnalysisSection } from "@/features/product-management/components/analysis/market-analysis/MarketAnalysisSection";
+import { useProductManagementSectionsQuery } from "@/features/product-management/hooks/useProductManagementSectionsQuery";
+import { ProductCompetitionSection } from "@/features/product-management/components/competition/ProductCompetitionSection";
 
 export function SearchProductDetailPage({ targetId }: { targetId: number }) {
     const [selectedImage, setSelectedImage] = useState(0);
+    const [analysisProductId, setAnalysisProductId] = useState<number | null>(null);
     const interests = useInterestToggle();
     const {
         data: product,
@@ -24,6 +28,17 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
         refetch,
         isFetching,
     } = useSearchProductDetailQuery(targetId);
+    const analysisEnabled = Boolean(product) && analysisProductId === targetId;
+    const sections = useProductManagementSectionsQuery(targetId, {
+        enabled: analysisEnabled,
+        perspective: "BUY",
+        summaryEnabled: false,
+    });
+    const analysisFetching =
+        sections.productAnalysis.isFetching ||
+        sections.productPriceTrend.isFetching ||
+        sections.productValuationForecast.isFetching ||
+        sections.productCompetition.isFetching;
     const liked = interests.interests.some(
         (item) => item.source === product?.source && item.targetId === targetId,
     );
@@ -285,22 +300,64 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                     </>
                 )}
 
-                <div className="flex justify-end border-t border-[#d3d3d3] px-2.5 py-[50px]">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        disabled
-                        title="AI 분석은 API 연결 후 제공됩니다."
-                        className="h-11 gap-2 rounded-full border-[#6653fb] bg-white px-5 text-[#6653fb] disabled:opacity-100"
-                    >
-                        <span aria-hidden="true" className="text-[18px] leading-7">
-                            ✦
-                        </span>
-                        <span className="text-[18px] leading-7 font-semibold tracking-[0.5px]">
-                            AI 분석 보기
-                        </span>
-                    </Button>
-                </div>
+                {product && (
+                    <div className="flex flex-col items-center justify-center gap-[15px] rounded-[5px] border border-[#eaeafd] bg-[#fafbff] px-2.5 py-[50px]">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={!product || analysisFetching}
+                            onClick={() => setAnalysisProductId(targetId)}
+                            className="h-auto gap-2.5 rounded-full border-[#6653fb] bg-white px-[30px] py-[5px] text-[#6653fb] disabled:opacity-100"
+                        >
+                            <span
+                                aria-hidden="true"
+                                className="text-[22px] leading-[33px] font-normal tracking-[-0.2578px]"
+                            >
+                                ✦
+                            </span>
+                            <span className="text-[20px] leading-[30px] font-semibold tracking-[0.5px]">
+                                {analysisFetching ? "분석 불러오는 중" : "AI 분석 보기"}
+                            </span>
+                        </Button>
+                        <p className="text-center text-[16px] leading-[25px] font-normal tracking-normal text-[#83889e]">
+                            AI가 시세 분석과 거래 타이밍을 종합해 알려드려요.
+                        </p>
+                    </div>
+                )}
+                {analysisEnabled && (
+                    <div className="flex min-w-0 flex-col gap-4">
+                        <MarketAnalysisSection
+                            result={sections.productAnalysis.data}
+                            error={sections.productAnalysis.error}
+                            isPending={sections.productAnalysis.isPending}
+                            priceTrendQuery={sections.productPriceTrend}
+                            valuationForecastQuery={sections.productValuationForecast}
+                        />
+                        <ProductCompetitionSection
+                            query={sections.productCompetition}
+                            heading="비슷한 상품"
+                            showCompetitionMeta={false}
+                        />
+                        {(sections.productAnalysis.error ||
+                            sections.productPriceTrend.error ||
+                            sections.productValuationForecast.error ||
+                            sections.productCompetition.error) && (
+                            <Button
+                                variant="outline"
+                                className="self-end"
+                                disabled={analysisFetching}
+                                onClick={() => {
+                                    void sections.productAnalysis.refetch();
+                                    void sections.productPriceTrend.refetch();
+                                    void sections.productValuationForecast.refetch();
+                                    void sections.productCompetition.refetch();
+                                }}
+                            >
+                                AI 분석 다시 조회
+                            </Button>
+                        )}
+                    </div>
+                )}
             </div>
         </main>
     );

@@ -1,4 +1,11 @@
 import { test, expect } from "./fixtures";
+import { popularProducts } from "./home-product-fixture";
+
+test.beforeEach(async ({ page }) => {
+    await page.route("**/products/popular", (route) =>
+        route.fulfill({ json: { success: true, data: popularProducts, error: null } }),
+    );
+});
 
 test("guest home publishes the shared design and forwards search keywords", async ({
     page,
@@ -11,8 +18,21 @@ test("guest home publishes the shared design and forwards search keywords", asyn
     await expect(page.getByRole("heading", { name: "안녕하세요", exact: false })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "내 물건 추천", exact: true })).toHaveCount(0);
     await expect(page.getByText("지금, 타이밍을 확인해보세요.", { exact: true })).toHaveCount(0);
-    const carousel = page.getByRole("region", { name: "인기 상품 모음", exact: true });
-    const favorite = carousel.getByRole("button", { name: "인기 상품 모음 당근마켓 관심 상품" });
+    const carousel = page.locator('[role="region"][aria-label="인기 상품 모음"]');
+    await expect(carousel.getByRole("heading", { name: "인기 상품 1", exact: true })).toBeVisible();
+    await expect(carousel.getByRole("link", { name: "인기 상품 1 상세보기" })).toHaveAttribute(
+        "href",
+        "/search/701",
+    );
+    await expect(carousel.getByRole("img", { name: "인기 상품 1", exact: true })).toBeVisible();
+    await expect(carousel).toContainText("10,000원");
+    await expect(carousel).toContainText("판매완료");
+    await expect(carousel).toContainText("비교 데이터 부족");
+    await expect(carousel.getByRole("button", { name: /페이지$/ })).toHaveCount(4);
+    const favorite = carousel.getByRole("button", {
+        name: "인기 상품 모음 인기 상품 1 관심 상품",
+        exact: true,
+    });
     await favorite.click();
     await expect(favorite).toHaveAttribute("aria-pressed", "true");
     await expect(favorite.locator("svg")).toHaveAttribute("fill", "currentColor");
@@ -23,6 +43,11 @@ test("guest home publishes the shared design and forwards search keywords", asyn
     );
     await page.screenshot({ path: testInfo.outputPath("guest-home-desktop.png"), fullPage: true });
     await page.setViewportSize({ width: 390, height: 844 });
+    await expect(carousel.getByRole("button", { name: /페이지$/ })).toHaveCount(10);
+    await carousel.getByRole("button", { name: "인기 상품 모음 10페이지", exact: true }).click();
+    await expect(
+        carousel.getByRole("heading", { name: "인기 상품 10", exact: true }),
+    ).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
         true,
     );

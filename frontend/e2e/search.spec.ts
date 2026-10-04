@@ -157,7 +157,10 @@ for (const loggedIn of [true, false]) {
         await page.goto("/search");
         await expect(page.locator("main [data-slot=card]")).toHaveCount(1);
         await page.getByRole("textbox", { name: "상품 검색" }).fill("아이패드");
-        await page.getByRole("search").getByRole("button", { name: "검색", exact: true }).click();
+        await page
+            .getByRole("search")
+            .getByRole("button", { name: "일반 검색", exact: true })
+            .click();
         await expect.poll(() => requests.at(-1)?.get("keyword")).toBe("아이패드");
         const statusGroup = page.getByRole("group", { name: "거래 상태" });
         for (const [label, status] of [

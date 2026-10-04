@@ -75,10 +75,10 @@ export function SearchFilters({
     onKeywordSubmit: () => void;
     disabled?: boolean;
 }) {
-    const [minPrice, setMinPrice] = useState("");
-    const [maxPrice, setMaxPrice] = useState("");
+    const [minPrice, setMinPrice] = useState(filters.minPrice?.toString() ?? "");
+    const [maxPrice, setMaxPrice] = useState(filters.maxPrice?.toString() ?? "");
     const [priceError, setPriceError] = useState("");
-    const [excludeKeyword, setExcludeKeyword] = useState("");
+    const [excludeKeyword, setExcludeKeyword] = useState(filters.excludeKeyword ?? "");
     const applyPrices = () => {
         const min = minPrice === "" ? undefined : Number(minPrice);
         const max = maxPrice === "" ? undefined : Number(maxPrice);
@@ -229,7 +229,11 @@ export function SearchFilters({
                 disabled={disabled}
                 values={filters.status ? [filters.status] : []}
                 onValueChange={(value, checked) =>
-                    onFiltersChange({ ...filters, status: checked ? value : undefined })
+                    onFiltersChange({
+                        ...filters,
+                        status: checked ? value : undefined,
+                        tradeStatus: undefined,
+                    })
                 }
             />
             <div className="flex flex-col gap-6">

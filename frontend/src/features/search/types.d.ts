@@ -1,3 +1,14 @@
+import type { z } from "zod";
+
+import type {
+    aiSearchResponseSchema,
+    searchProductDetailSchema,
+    searchResponseSchema,
+    searchResultItemSchema,
+} from "./schemas/searchResponseSchema";
+
+export type AiSearchResponse = z.infer<typeof aiSearchResponseSchema>;
+
 // 우리 상품의 거래 상태 필터
 export type SearchStatus = "DRAFT" | "ON_SALE" | "SOLD_OUT";
 export type SearchPlatform = "ALL" | "BUNJANG" | "OUR";
@@ -23,45 +34,9 @@ export interface SearchParams {
 }
 
 // 우리 상품과 외부 매물의 통합 목록 항목
-export interface SearchResultItem {
-    source: "OUR" | "EXTERNAL";
-    id: number;
-    title: string;
-    brand: string | null;
-    price: number;
-    status: string;
-    condition: SearchCondition | null;
-    defectStatus: SearchDefectStatus | null;
-    purchasedMonths: number | null;
-    categoryName: string;
-    tradeRegion: string | null;
-    deliveryAvailable: boolean;
-    thumbnailUrl: string | null;
-    recommendation: "SELL" | "HOLD" | "BUY" | "WAIT" | null;
-    marketAveragePrice: number | null;
-    platformName: string | null;
-    externalUrl: string | null;
-    createdAt: string;
-}
+export type SearchResultItem = z.infer<typeof searchResultItemSchema>;
 
 // 커서 기반 상품 목록 조회 결과
-export interface SearchResponse {
-    content: SearchResultItem[];
-    nextCursor: string | null;
-    hasNext: boolean;
-}
+export type SearchResponse = z.infer<typeof searchResponseSchema>;
 
-export interface SearchProductDetail {
-    source: "OUR" | "EXTERNAL";
-    id: number;
-    title: string;
-    description: string | null;
-    price: number;
-    status: SearchStatus;
-    category: { id: number; name: string; parentId: number | null; leaf: boolean };
-    imageUrls: string[];
-    platformName: string | null;
-    externalUrl: string | null;
-    marketAveragePrice: number | null;
-    updatedAt: string;
-}
+export type SearchProductDetail = z.infer<typeof searchProductDetailSchema>;

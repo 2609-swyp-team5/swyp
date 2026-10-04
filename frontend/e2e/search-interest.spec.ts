@@ -153,6 +153,80 @@ test("restores all interest pages, uses source-specific IDs and shares state wit
     expect(deletes).toBe(3);
 });
 
+test("saved interests survive reload and revisits and appear in the wishlist", async ({ page }) => {
+    await page.route("**/auth/refresh", (route) =>
+        route.fulfill({
+            json: { success: true, data: { accessToken: "interest-token" }, error: null },
+        }),
+    );
+    let saved = false;
+    const interest = {
+        interestId: 1001,
+        source: "EXTERNAL",
+        targetId: 42,
+        title: "EXTERNAL 상품",
+        price: 1000,
+        status: "ON_SALE",
+        condition: null,
+        categoryName: "전자기기",
+        thumbnailUrl: null,
+        recommendation: "BUY",
+        marketAveragePrice: null,
+        platformName: "번개장터",
+        externalUrl: null,
+        targetPrice: null,
+        createdAt: "2026-10-04T10:00:00",
+    };
+    await page.route(
+        (url) => url.pathname === "/interests",
+        (route) => {
+            if (route.request().method() === "POST") {
+                expect(route.request().postDataJSON()).toEqual({
+                    source: "EXTERNAL",
+                    targetId: 42,
+                });
+                saved = true;
+                return route.fulfill({
+                    json: { success: true, data: { interestId: 1001 }, error: null },
+                });
+            }
+            return route.fulfill({
+                json: {
+                    success: true,
+                    data: { content: saved ? [interest] : [], nextCursor: null, hasNext: false },
+                    error: null,
+                },
+            });
+        },
+    );
+    await page.route("**/interests/1001", (route) => {
+        expect(route.request().method()).toBe("DELETE");
+        saved = false;
+        return route.fulfill({ json: { success: true, data: null, error: null } });
+    });
+    await page.goto("/search");
+    const favorite = page.getByRole("button", { name: "EXTERNAL 상품 관심 상품", exact: true });
+    await expect(favorite).toBeEnabled();
+    await expect(favorite).toHaveAttribute("aria-pressed", "false");
+    await favorite.click();
+    await expect(favorite).toHaveAttribute("aria-pressed", "true");
+    await page.reload();
+    await expect(favorite).toBeEnabled();
+    await expect(favorite).toHaveAttribute("aria-pressed", "true");
+    await page.goto("/buy/wishlist");
+    await expect(page.locator("main").getByText("EXTERNAL 상품", { exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "상품 검색하기", exact: true }).click();
+    await expect(favorite).toBeEnabled();
+    await expect(favorite).toHaveAttribute("aria-pressed", "true");
+    await favorite.click();
+    await expect(favorite).toHaveAttribute("aria-pressed", "false");
+    await page.reload();
+    await expect(favorite).toBeEnabled();
+    await expect(favorite).toHaveAttribute("aria-pressed", "false");
+    await page.goto("/buy/wishlist");
+    await expect(page.locator("main")).toContainText("관심상품이 없습니다.");
+});
+
 test("guests can search but interest buttons require login without API writes", async ({
     page,
 }) => {
