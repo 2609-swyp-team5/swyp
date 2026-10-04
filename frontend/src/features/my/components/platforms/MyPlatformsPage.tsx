@@ -3,33 +3,44 @@
 import { useState } from "react";
 import Image from "next/image";
 import { Sparkles } from "lucide-react";
+import { Button } from "@/common/components/ui/Button";
+import { getApiErrorMessage } from "@/common/lib/api/error";
+import { useMyPlatformsQuery } from "@/features/my/hooks/queries/useMyPlatformsQuery";
+import { useUpdatePlatformConnectionMutation } from "@/features/my/hooks/mutations/useUpdatePlatformConnectionMutation";
+import type { MyPlatformStatus } from "@/features/my/types";
 
 import { MyPageContent } from "@/features/my/components/MyPageContent";
 
 import {
     PlatformCard,
     type ConnectionStatus,
+    type PlatformConnection,
 } from "@/features/my/components/platforms/PlatformCard";
 import { PlatformSummary } from "@/features/my/components/platforms/PlatformSummary";
 import { PlatformDialog } from "@/features/my/components/platforms/PlatformDialog";
 
-const platforms = [
-    {
-        id: "bunjang",
-        name: "번개장터",
-        icon: "/my/platforms/bunjang.png",
-        description: "중고거래 플랫폼",
-        status: "expired",
-        updated: "2시간 전",
-    },
-] as const;
+const connectionStatuses: Record<MyPlatformStatus, ConnectionStatus> = {
+    CONNECTED: "connected",
+    EXPIRED: "expired",
+    DISCONNECTED: "disconnected",
+};
 
 export function MyPlatformsPage() {
-    const [statuses, setStatuses] = useState<Record<string, ConnectionStatus>>(() =>
-        Object.fromEntries(platforms.map((item) => [item.id, item.status])),
+    const { data, isPending, error, refetch } = useMyPlatformsQuery();
+    const mutation = useUpdatePlatformConnectionMutation();
+    const platforms: PlatformConnection[] = (data ?? []).map((item) => ({
+        id: item.platform,
+        name: item.platformName,
+        icon: "/my/platforms/bunjang.png",
+        description: "중고거래 플랫폼",
+        updated: item.updatedAt?.replace("T", " ").slice(0, 16) ?? "연동 이력 없음",
+    }));
+    const statuses: Record<string, ConnectionStatus> = Object.fromEntries(
+        (data ?? []).map((item) => [item.platform, connectionStatuses[item.status]]),
     );
-    const [selected, setSelected] = useState<(typeof platforms)[number] | null>(null);
-    const disconnecting = selected !== null && statuses[selected.id] === "connected";
+    const [selected, setSelected] = useState<PlatformConnection | null>(null);
+    const [cookie, setCookie] = useState("");
+    const [disconnecting, setDisconnecting] = useState(false);
 
     return (
         <MyPageContent
@@ -38,7 +49,21 @@ export function MyPlatformsPage() {
             eyebrowClassName="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#83889e]"
             titleClassName="text-[#363636]"
         >
-            <PlatformSummary statuses={statuses} />
+            {isPending ? (
+                <p role="status" className="text-[#83889e]">
+                    연동 목록을 불러오는 중입니다.
+                </p>
+            ) : (
+                data && <PlatformSummary statuses={statuses} />
+            )}
+            {error && (
+                <div role="alert" className="text-destructive flex items-center gap-3 text-sm">
+                    <p>{getApiErrorMessage(error)}</p>
+                    <Button variant="outline" onClick={() => void refetch()}>
+                        다시 시도
+                    </Button>
+                </div>
+            )}
             <div className="flex items-start gap-3 rounded-xl border border-[#d3d3d3] bg-[#fafbff] px-5 py-4">
                 <Sparkles className="mt-0.5 size-4 shrink-0 text-[#363636]" aria-hidden="true" />
                 <div>
@@ -68,10 +93,16 @@ export function MyPlatformsPage() {
             <div className="grid gap-[10px] md:grid-cols-2 xl:grid-cols-3">
                 {platforms.map((item) => (
                     <PlatformCard
-                        key={item.id}
+                        key={`${item.id}:${statuses[item.id]}`}
                         item={item}
                         status={statuses[item.id]}
-                        onSelect={() => setSelected(item)}
+                        isPending={mutation.isPending}
+                        onSelect={(value) => {
+                            mutation.reset();
+                            setDisconnecting(statuses[item.id] === "connected");
+                            setCookie(value);
+                            setSelected(item);
+                        }}
                     />
                 ))}
             </div>
@@ -79,14 +110,26 @@ export function MyPlatformsPage() {
                 selected={selected}
                 disconnecting={disconnecting}
                 onOpenChange={(open) => {
-                    if (!open) setSelected(null);
+                    if (!open && !mutation.isPending) {
+                        setSelected(null);
+                        setCookie("");
+                    }
                 }}
+                isPending={mutation.isPending}
+                errorMessage={mutation.error ? getApiErrorMessage(mutation.error) : null}
                 onConfirm={() => {
-                    if (selected)
-                        setStatuses((current) => ({
-                            ...current,
-                            [selected.id]: disconnecting ? "disconnected" : "connected",
-                        }));
+                    if (!selected || mutation.isPending) return;
+                    mutation.mutate(
+                        disconnecting
+                            ? { platform: selected.id, action: "disconnect" }
+                            : { platform: selected.id, action: "connect", cookie },
+                        {
+                            onSuccess: () => {
+                                setSelected(null);
+                                setCookie("");
+                            },
+                        },
+                    );
                 }}
             />
         </MyPageContent>

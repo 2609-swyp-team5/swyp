@@ -14,13 +14,17 @@ import {
 import { Skeleton } from "@/common/components/ui/Skeleton";
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { SearchResultCard } from "@/features/search/components/SearchResultCard";
-import type { SearchResultItem } from "@/features/search/types";
+import type { SearchResultItem, SearchSort } from "@/features/search/types";
 
 export function SearchResults({
+    sort,
+    onSortChange,
     keyword,
     products,
+    totalCount,
     liked,
     onLike,
+    likeDisabled,
     isLoading,
     error,
     onRetry,
@@ -28,10 +32,14 @@ export function SearchResults({
     hasNextPage,
     loadMoreRef,
 }: {
+    sort: SearchSort;
+    onSortChange: (sort: SearchSort) => void;
     keyword: string;
     products: SearchResultItem[];
+    totalCount: number | null;
     liked: Record<string, boolean>;
-    onLike: (key: string) => void;
+    onLike: (product: SearchResultItem) => void;
+    likeDisabled: boolean;
     isLoading: boolean;
     error: unknown;
     onRetry: () => void;
@@ -40,7 +48,6 @@ export function SearchResults({
     loadMoreRef: RefObject<HTMLDivElement | null>;
 }) {
     const [now, setNow] = useState(() => Date.now());
-    const [sort, setSort] = useState("latest");
 
     useEffect(() => {
         const timer = window.setInterval(() => setNow(Date.now()), 60_000);
@@ -61,10 +68,14 @@ export function SearchResults({
                         {keyword ? "'" + keyword + "'" : "전체 상품"}
                     </h1>
                     <p className="text-[#6b7395]">
-                        {isLoading ? "상품 검색" : `검색결과 ${products.length}개 표시`}
+                        {isLoading
+                            ? "상품 검색"
+                            : totalCount === null
+                              ? "검색결과"
+                              : `검색결과 ${totalCount}개 표시`}
                     </p>
                 </div>
-                <Select value={sort} onValueChange={setSort}>
+                <Select value={sort} onValueChange={(value) => onSortChange(value as SearchSort)}>
                     <SelectTrigger
                         aria-label="정렬 기준"
                         className="w-[126px] shrink-0 border-[#dedee6] bg-white text-[13px] font-semibold tracking-[-0.5px] text-[#83889e]"
@@ -72,11 +83,11 @@ export function SearchResults({
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent align="end">
-                        <SelectItem value="recommended">추천순</SelectItem>
-                        <SelectItem value="latest">최신순</SelectItem>
-                        <SelectItem value="popular">관심순</SelectItem>
-                        <SelectItem value="price-high">높은 가격순</SelectItem>
-                        <SelectItem value="price-low">낮은 가격순</SelectItem>
+                        <SelectItem value="LATEST">최신순</SelectItem>
+                        <SelectItem value="RECOMMENDED">추천순</SelectItem>
+                        <SelectItem value="INTEREST">관심순</SelectItem>
+                        <SelectItem value="PRICE_HIGH">높은 가격순</SelectItem>
+                        <SelectItem value="PRICE_LOW">낮은 가격순</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
@@ -97,7 +108,8 @@ export function SearchResults({
                                 key={key}
                                 product={product}
                                 liked={Boolean(liked[key])}
-                                onLike={() => onLike(key)}
+                                onLike={() => onLike(product)}
+                                likeDisabled={likeDisabled}
                                 now={now}
                             />
                         );

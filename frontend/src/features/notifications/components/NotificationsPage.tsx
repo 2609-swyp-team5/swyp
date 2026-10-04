@@ -18,7 +18,7 @@ const notifications = [
         time: "10분 전",
         actions: [
             { label: "판매가 수정", href: "/sell/manage" },
-            { label: "분석 보기", href: "/search/EXTERNAL/1" },
+            { label: "분석 보기", href: "/search/1" },
         ],
     },
     {
@@ -39,7 +39,7 @@ const notifications = [
         title: "다이슨 에어랩 시세 하락 중",
         description: "이번 주 평균 시세 -2.1%",
         time: "어제",
-        actions: [{ label: "가격 동향 확인", href: "/search/EXTERNAL/3" }],
+        actions: [{ label: "가격 동향 확인", href: "/search/3" }],
     },
     {
         id: 4,
@@ -62,7 +62,7 @@ const notifications = [
         title: "소니 WH-1000XM5 구매 적기",
         description: "최근 최저가 근접, 평균 대비 -8.2%",
         time: "어제",
-        actions: [{ label: "구매 분석 보기", href: "/search/EXTERNAL/5" }],
+        actions: [{ label: "구매 분석 보기", href: "/search/5" }],
     },
 ];
 const filters = [
@@ -106,7 +106,7 @@ export function NotificationsPage() {
                                     aria-pressed={filter === item.value}
                                     onClick={() => setFilter(item.value)}
                                     className={cn(
-                                        "h-full shrink-0 gap-2 rounded-none border-b-2 px-0 pt-0 pb-2 text-base leading-[25px] font-normal hover:bg-transparent",
+                                        "h-full shrink-0 gap-2 rounded-none border-x-0 border-t-0 border-b-2 px-0 pt-0 pb-2 text-base leading-[25px] font-normal hover:bg-transparent",
                                         filter === item.value
                                             ? "border-[#363636] text-[#363636]"
                                             : "border-transparent text-[#6b6c7b]",

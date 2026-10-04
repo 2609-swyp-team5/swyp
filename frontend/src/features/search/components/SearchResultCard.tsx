@@ -16,25 +16,38 @@ import {
 import type { SearchResultItem } from "@/features/search/types";
 
 const statusLabels: Record<string, string> = {
-    DRAFT: "등록됨",
+    DRAFT: "임시저장",
     ON_SALE: "판매중",
     SOLD_OUT: "판매완료",
     SELLING: "판매중",
+    RESERVED: "예약중",
 };
 
 export function SearchResultCard({
     product,
     liked,
     onLike,
+    likeDisabled,
     now,
 }: {
     product: SearchResultItem;
     liked: boolean;
     onLike: () => void;
+    likeDisabled: boolean;
     now: number;
 }) {
     const status = statusLabels[product.status] ?? product.status;
     const sold = product.status === "SOLD_OUT";
+    const tradeInfo = [
+        product.tradeRegion,
+        product.deliveryAvailable === true
+            ? "택배 가능"
+            : product.deliveryAvailable === false
+              ? "택배 불가"
+              : null,
+    ]
+        .filter(Boolean)
+        .join(" · ");
     const platform =
         product.source === "OUR" ? "지금이니?!" : (product.platformName ?? "외부 매물");
     const platformClass =
@@ -62,7 +75,7 @@ export function SearchResultCard({
     return (
         <Card className="relative gap-0 rounded-xl border border-[#f1f1f1] bg-white py-0 text-[#6b6c7b] ring-0">
             <Link
-                href={`/search/${product.source}/${product.id}`}
+                href={`/search/${product.id}`}
                 className="absolute inset-0 z-10 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6653fb]"
                 aria-label={`${product.title} 상세보기`}
             />
@@ -91,6 +104,7 @@ export function SearchResultCard({
                     aria-label={product.title + " 관심 상품"}
                     aria-pressed={liked}
                     onClick={onLike}
+                    disabled={likeDisabled}
                     className={cn(
                         "absolute top-3 right-3 z-20 rounded-full bg-white shadow-sm hover:bg-[#fafbff]",
                         liked
@@ -154,6 +168,9 @@ export function SearchResultCard({
                     </time>
                 </p>
                 <p className="text-xs leading-[18px] text-[#464646]">{product.categoryName}</p>
+                {tradeInfo && (
+                    <p className="text-xs leading-[18px] break-words text-[#464646]">{tradeInfo}</p>
+                )}
             </CardContent>
         </Card>
     );

@@ -20,10 +20,13 @@ const memberUpdateImage = (image: File) => {
 const memberChangePassword = (params: PasswordChangeRequest) =>
     api.patch<ApiResponse<null>>("/users/password", params);
 
+const memberDeleteImage = () => api.delete<ApiResponse<MemberResponse>>("/users/profile/image");
+
 export const memberApi = {
     memberMe,
     memberWithdraw,
     memberUpdate,
     memberUpdateImage,
+    memberDeleteImage,
     memberChangePassword,
 };
