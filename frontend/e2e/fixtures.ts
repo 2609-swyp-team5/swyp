@@ -10,7 +10,13 @@ export const test = base.extend({
                     ? route.fulfill({
                           json: {
                               success: true,
-                              data: { content: [], nextCursor: null, hasNext: false },
+                              data: {
+                                  content: [],
+                                  nextCursor: null,
+                                  hasNext: false,
+                                  totalCount: 0,
+                                  statusCounts: { BUY: 0, WAIT: 0, SOLD_OUT: 0, PENDING: 0 },
+                              },
                               error: null,
                           },
                       })
@@ -38,7 +44,13 @@ export const test = base.extend({
             route.fulfill({
                 json: {
                     success: true,
-                    data: { content: [], nextCursor: null, hasNext: false },
+                    data: {
+                        content: [],
+                        nextCursor: null,
+                        hasNext: false,
+                        totalCount: 0,
+                        statusCounts: { DRAFT: 0, ON_SALE: 0, SOLD_OUT: 0 },
+                    },
                     error: null,
                 },
             }),

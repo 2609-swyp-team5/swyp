@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/common/components/ui/Button";
 import { cn } from "@/common/lib/utils";
@@ -16,22 +16,73 @@ export function ProductListShell({
     title,
     tabs,
     items,
+    activeTabKey: controlledActiveTabKey,
+    onTabChange,
+    totalCount,
+    statusCounts,
     isLoading,
     errorMessage,
+    hasNextPage = false,
+    isFetchingNextPage = false,
+    isFetchNextPageError = false,
+    onLoadMore,
+    onRetryLoadMore,
     emptyMessage,
     listTitle,
     detailRenderer,
     primaryAction,
 }: ProductListShellProps) {
-    const [activeTabKey, setActiveTabKey] = useState(tabs[0]?.key ?? "all");
+    const [uncontrolledActiveTabKey, setUncontrolledActiveTabKey] = useState(tabs[0]?.key ?? "all");
+    const activeTabKey = controlledActiveTabKey ?? uncontrolledActiveTabKey;
     const selectedItemId = useSelectedProductId();
     const activeTab = tabs.find((tab) => tab.key === activeTabKey) ?? tabs[0];
+    const listScrollRef = useRef<HTMLDivElement>(null);
+    const loadMoreRef = useRef<HTMLDivElement>(null);
     const filteredItems = useMemo(
         () => (activeTab ? items.filter(activeTab.filter) : items),
         [activeTab, items],
     );
     const activeListTitle = activeTab?.listTitle ?? listTitle;
     const selectedItem = filteredItems.find((item) => item.id === selectedItemId) ?? null;
+    const getTabCount = (tab: (typeof tabs)[number]) => {
+        const serverCount =
+            tab.countKey === "total"
+                ? totalCount
+                : tab.countKey
+                  ? (statusCounts?.[tab.countKey] ?? null)
+                  : null;
+
+        return serverCount ?? items.filter(tab.filter).length;
+    };
+    const activeListCount = activeTab ? getTabCount(activeTab) : filteredItems.length;
+
+    useEffect(() => {
+        const root = listScrollRef.current;
+        const target = loadMoreRef.current;
+        if (
+            !root ||
+            !target ||
+            !hasNextPage ||
+            !onLoadMore ||
+            isFetchingNextPage ||
+            isFetchNextPageError ||
+            errorMessage
+        ) {
+            return;
+        }
+
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    onLoadMore();
+                }
+            },
+            { root, rootMargin: "0px 0px 160px 0px" },
+        );
+        observer.observe(target);
+
+        return () => observer.disconnect();
+    }, [errorMessage, hasNextPage, isFetchNextPageError, isFetchingNextPage, onLoadMore]);
 
     return (
         <main className="flex flex-1 bg-white">
@@ -66,7 +117,7 @@ export function ProductListShell({
                     >
                         {tabs.map((tab) => {
                             const isActive = tab.key === activeTabKey;
-                            const count = items.filter(tab.filter).length;
+                            const count = getTabCount(tab);
 
                             return (
                                 <button
@@ -80,7 +131,10 @@ export function ProductListShell({
                                             ? "border-[#363636] text-[#363636]"
                                             : "border-transparent text-[#83889e] hover:text-[#363636]",
                                     )}
-                                    onClick={() => setActiveTabKey(tab.key)}
+                                    onClick={() => {
+                                        setUncontrolledActiveTabKey(tab.key);
+                                        onTabChange?.(tab.key);
+                                    }}
                                 >
                                     {isActive ? (
                                         <span className="flex items-center gap-1 tracking-[0.5px]">
@@ -106,13 +160,16 @@ export function ProductListShell({
                     <aside className="h-fit overflow-hidden rounded-[20px] border border-[#d3d3d3] bg-white px-5 py-[30px]">
                         <div>
                             <p className="text-[20px] leading-[30px] font-semibold text-[#6b6c7b]">
-                                {filteredItems.length}건
+                                {activeListCount}건
                             </p>
                             <h2 className="text-[30px] leading-[42px] font-bold text-[#363636]">
                                 {activeListTitle}
                             </h2>
                         </div>
-                        <div className="mt-[30px] max-h-[600px] overflow-y-auto">
+                        <div
+                            ref={listScrollRef}
+                            className="mt-[30px] max-h-[600px] overflow-y-auto"
+                        >
                             {isLoading ? <ProductListSkeleton /> : null}
                             {!isLoading && errorMessage ? (
                                 <div className="px-5 py-12 text-center text-[14px] leading-5 font-medium text-[#d65353]">
@@ -136,6 +193,33 @@ export function ProductListShell({
                                             }}
                                         />
                                     ))}
+                                </div>
+                            ) : null}
+                            {hasNextPage && !errorMessage ? (
+                                <div ref={loadMoreRef} className="min-h-5" aria-hidden="true" />
+                            ) : null}
+                            {isFetchingNextPage ? (
+                                <p
+                                    role="status"
+                                    className="px-3 py-3 text-center text-[13px] text-[#83889e]"
+                                >
+                                    상품을 더 불러오는 중입니다.
+                                </p>
+                            ) : null}
+                            {isFetchNextPageError ? (
+                                <div className="flex flex-col items-center gap-2 px-3 py-3 text-center">
+                                    <p role="alert" className="text-[13px] text-[#d65353]">
+                                        상품을 더 불러오지 못했습니다.
+                                    </p>
+                                    {onRetryLoadMore ? (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={onRetryLoadMore}
+                                        >
+                                            다시 시도
+                                        </Button>
+                                    ) : null}
                                 </div>
                             ) : null}
                         </div>

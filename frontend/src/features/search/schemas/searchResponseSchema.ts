@@ -1,14 +1,12 @@
 import { z } from "zod";
 
-import {
-    defectStatusSchema,
-    productConditionSchema,
-    productStatusSchema,
-} from "@/features/sell/schemas/productSchema";
+import { defectStatusSchema, productConditionSchema } from "@/features/sell/schemas/productSchema";
 import {
     productRecommendationSchema,
     productResponseSchema,
 } from "@/features/sell/schemas/productResponseSchema";
+
+export const searchStatusSchema = z.enum(["DRAFT", "ON_SALE", "RESERVED", "SOLD_OUT"]);
 
 export const searchResultItemSchema = z.object({
     source: z.enum(["OUR", "EXTERNAL"]),
@@ -42,7 +40,7 @@ export const aiSearchResponseSchema = z.object({
     condition: z.object({
         keyword: z.string().nullable(),
         excludeKeyword: z.string().nullable(),
-        tradeStatus: z.array(z.enum(["SELLING", "RESERVED", "SOLD_OUT"])),
+        status: z.array(searchStatusSchema),
         platform: z.array(z.enum(["BUNJANG", "OUR"])),
         minPrice: z.number().nullable(),
         maxPrice: z.number().nullable(),
@@ -59,7 +57,7 @@ export const searchProductDetailSchema = z.object({
     title: z.string(),
     description: z.string().nullable(),
     price: z.number(),
-    status: productStatusSchema,
+    status: searchStatusSchema,
     category: productResponseSchema.shape.category,
     imageUrls: z.array(z.string()),
     platformName: z.string().nullable(),

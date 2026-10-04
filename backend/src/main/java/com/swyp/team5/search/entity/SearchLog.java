@@ -20,7 +20,8 @@ import com.swyp.team5.member.entity.Member;
 import org.hibernate.annotations.CreationTimestamp;
 
 /**
- * 상품 목록 키워드 검색 요청 1건의 로그. 인기검색어 집계에 사용한다. {@code member}는 비로그인 검색이면 null.
+ * 상품 목록 키워드 검색 요청 1건의 로그. 인기검색어 집계에 사용한다. {@code member}는 비로그인 검색이면 null,
+ * {@code resultCount}는 검색 결과 전체 건수(V28 이전 기록은 null).
  */
 @Entity
 @Table(name = "search_logs")
@@ -40,16 +41,20 @@ public class SearchLog {
     @Column(nullable = false)
     private String keyword;
 
+    @Column(name = "result_count")
+    private Long resultCount;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    private SearchLog(Member member, String keyword) {
+    private SearchLog(Member member, String keyword, Long resultCount) {
         this.member = member;
         this.keyword = keyword;
+        this.resultCount = resultCount;
     }
 
-    public static SearchLog of(Member member, String keyword) {
-        return new SearchLog(member, keyword);
+    public static SearchLog of(Member member, String keyword, Long resultCount) {
+        return new SearchLog(member, keyword, resultCount);
     }
 }

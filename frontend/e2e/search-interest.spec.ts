@@ -75,7 +75,11 @@ test("restores all interest pages, uses source-specific IDs and shares state wit
                 saved = true;
                 return route.fulfill({
                     status: 201,
-                    json: { success: true, data: { interestId: 1001 }, error: null },
+                    json: {
+                        success: true,
+                        data: { interestId: 1001 },
+                        error: null,
+                    },
                 });
             }
             const cursor = new URL(request.url()).searchParams.get("cursor");
@@ -171,6 +175,7 @@ test("saved interests survive reload and revisits and appear in the wishlist", a
         categoryName: "전자기기",
         thumbnailUrl: null,
         recommendation: "BUY",
+        interestStatus: "BUY",
         marketAveragePrice: null,
         platformName: "번개장터",
         externalUrl: null,
@@ -187,13 +192,23 @@ test("saved interests survive reload and revisits and appear in the wishlist", a
                 });
                 saved = true;
                 return route.fulfill({
-                    json: { success: true, data: { interestId: 1001 }, error: null },
+                    json: {
+                        success: true,
+                        data: { interestId: 1001 },
+                        error: null,
+                    },
                 });
             }
             return route.fulfill({
                 json: {
                     success: true,
-                    data: { content: saved ? [interest] : [], nextCursor: null, hasNext: false },
+                    data: {
+                        content: saved ? [interest] : [],
+                        nextCursor: null,
+                        hasNext: false,
+                        totalCount: saved ? 1 : 0,
+                        statusCounts: { BUY: saved ? 1 : 0, WAIT: 0, SOLD_OUT: 0, PENDING: 0 },
+                    },
                     error: null,
                 },
             });

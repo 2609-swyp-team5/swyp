@@ -25,7 +25,7 @@ const product: SearchResultItem = {
 const condition = {
     keyword: "아이폰",
     excludeKeyword: "깨짐",
-    tradeStatus: ["SELLING"],
+    status: ["ON_SALE", "RESERVED"],
     platform: ["OUR"],
     minPrice: null,
     maxPrice: 500000,
@@ -182,7 +182,7 @@ test("AI search uses the returned first page and conditions for pagination and s
     expect(next.searchParams.get("excludeKeyword")).toBe("깨짐");
     expect(next.searchParams.get("maxPrice")).toBe("500000");
     expect(next.searchParams.getAll("platform")).toEqual(["OUR"]);
-    expect(next.searchParams.getAll("tradeStatus")).toEqual(["SELLING"]);
+    expect(next.searchParams.getAll("status")).toEqual(["ON_SALE", "RESERVED"]);
     expect(next.searchParams.getAll("condition")).toEqual(["A"]);
     expect(next.searchParams.getAll("defectStatus")).toEqual(["NORMAL"]);
     expect(next.searchParams.get("sort")).toBe("PRICE_LOW");

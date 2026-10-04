@@ -3,7 +3,6 @@ package com.swyp.team5.product.dto;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 
 import com.swyp.team5.category.dto.CategoryResponse;
 import com.swyp.team5.component.entity.Component;
@@ -33,7 +32,9 @@ public record ProductResponse(
         String brand, // 브랜드
         String description, // 상품 설명
         Long price, // 판매 희망가
-        ProductStatus status, // 게시 상태(외부 매물은 원본 상태를 변환 — 판매중·예약중=ON_SALE, 그 외=SOLD_OUT)
+        ProductStatus
+                status, // 상품 상태 DRAFT/ON_SALE/RESERVED/SOLD_OUT(외부 매물은 원본 상태를 변환 — SELLING→ON_SALE, RESERVED→RESERVED,
+        // 그 외→SOLD_OUT)
         ProductCondition condition, // 상품 상태 등급
         DefectStatus defectStatus, // 결함(하자) 상태 (NORMAL/ISSUES/UNKNOWN)
         LocalDate purchasedAt, // 구매 일시
@@ -57,8 +58,6 @@ public record ProductResponse(
         List<ProductPlatformSummaryResponse> platforms, // 외부 플랫폼 게시 상태(연동 기록만, 없으면 []) — 판매자 본인 상세 조회만, 그 외 null
         Long interestCount, // 관심 등록한 회원 수 — 모든 조회자(우리 상품·외부 매물)
         Long viewCount) { // 조회수(본인 제외, 회원·비회원 IP당 24시간 1회) — 모든 조회자, 외부 매물은 null
-
-    private static final Set<String> EXTERNAL_ON_SALE_STATUSES = Set.of("SELLING", "RESERVED");
 
     /** 시세 정보(판단/평균가) 없이 상품 정보만 내려줄 때 사용한다(수정/상태 변경 응답). */
     public static ProductResponse from(Product product) {
@@ -127,9 +126,7 @@ public record ProductResponse(
                 null,
                 null,
                 listing.getPrice(),
-                EXTERNAL_ON_SALE_STATUSES.contains(listing.getStatus())
-                        ? ProductStatus.ON_SALE
-                        : ProductStatus.SOLD_OUT,
+                ProductStatus.fromExternal(listing.getStatus()),
                 null,
                 null,
                 null,

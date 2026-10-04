@@ -4,16 +4,16 @@ import { useState } from "react";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { useMeQuery } from "@/features/member/hooks/queries/useMeQuery";
 import { getApiErrorMessage } from "@/common/lib/api/error";
-import { useInterestsQuery } from "./queries/useInterestsQuery";
+import { useAllInterestsQuery } from "./queries/useAllInterestsQuery";
 import { useToggleInterestMutation } from "./mutations/useToggleInterestMutation";
-import type { InterestTarget } from "@/features/interest/types";
+import type { InterestTarget } from "@/features/home/types";
 
 export function useInterestToggle() {
     const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
     const isInitialized = useAuthStore((state) => state.isInitialized);
     const member = useMeQuery();
     const memberId = isLoggedIn ? member.data?.memberId : undefined;
-    const interests = useInterestsQuery(memberId);
+    const interests = useAllInterestsQuery(memberId);
     const mutation = useToggleInterestMutation(memberId);
     const [loginNoticeOpen, setLoginNoticeOpen] = useState(false);
     const queryError = isLoggedIn ? member.error || interests.error : null;

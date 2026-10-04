@@ -8,6 +8,7 @@ import type { SearchParams, SearchPlatform, SearchStatus } from "@/features/sear
 const statusOptions = [
     { label: "임시저장", value: "DRAFT" },
     { label: "판매중", value: "ON_SALE" },
+    { label: "예약중", value: "RESERVED" },
     { label: "판매완료", value: "SOLD_OUT" },
 ] as const;
 const conditionOptions = [
@@ -227,19 +228,26 @@ export function SearchFilters({
                 title="거래 상태"
                 options={statusOptions}
                 disabled={disabled}
-                values={filters.status ? [filters.status] : []}
+                values={
+                    Array.isArray(filters.status)
+                        ? filters.status
+                        : filters.status
+                          ? [filters.status]
+                          : []
+                }
                 onValueChange={(value, checked) =>
                     onFiltersChange({
                         ...filters,
                         status: checked ? value : undefined,
-                        tradeStatus: undefined,
                     })
                 }
             />
             <div className="flex flex-col gap-6">
-                {filters.status && (
+                {(Array.isArray(filters.status)
+                    ? filters.status.includes("DRAFT")
+                    : filters.status === "DRAFT") && (
                     <p className="text-xs leading-5 text-[#83889e]">
-                        거래 상태를 선택하면 지금이니?! 상품만 표시됩니다.
+                        임시저장 상태는 지금이니?! 상품에만 적용됩니다.
                     </p>
                 )}
                 <label className="flex flex-col gap-3 text-base leading-[25px] font-semibold tracking-[0.5px]">

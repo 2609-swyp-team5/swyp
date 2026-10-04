@@ -1,6 +1,7 @@
 package com.swyp.team5.platform.repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,9 +22,9 @@ public interface PlatformListingRepository
             Long categoryId, String status, LocalDateTime lastSeenAtAfter);
 
     /**
-     * 재확인(reconciliation) 대상 조회 — 여전히 판매중으로 기록돼 있지만 한동안 재관측되지 않은(=
-     * page-limit 캡에 밀려났을 가능성이 있는) 매물을 오래된 순으로 최대 {@code pageable} 크기만큼 반환한다.
+     * 재확인(reconciliation) 대상 조회 — 여전히 지정 상태(판매중·예약중)로 기록돼 있지만 한동안 재관측되지 않은(=
+     * page-limit 캡에 밀려났거나 예약중이라 수집에서 빠진) 매물을 오래된 순으로 최대 {@code pageable} 크기만큼 반환한다.
      */
-    List<PlatformListing> findByStatusAndLastSeenAtBeforeOrderByLastSeenAtAsc(
-            String status, LocalDateTime lastSeenAtBefore, Pageable pageable);
+    List<PlatformListing> findByStatusInAndLastSeenAtBeforeOrderByLastSeenAtAsc(
+            Collection<String> statuses, LocalDateTime lastSeenAtBefore, Pageable pageable);
 }

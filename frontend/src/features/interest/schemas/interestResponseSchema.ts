@@ -1,9 +1,11 @@
 import { z } from "zod";
 
 import { productConditionSchema } from "@/features/sell/schemas/productSchema";
-import { productRecommendationSchema } from "@/features/sell/schemas/productResponseSchema";
-
-export const interestSourceSchema = z.enum(["OUR", "EXTERNAL"]);
+import {
+    interestRecommendationSchema,
+    interestSourceSchema,
+    interestStatusSchema,
+} from "./interestSchema";
 
 export const interestListItemSchema = z.object({
     interestId: z.number(),
@@ -15,7 +17,8 @@ export const interestListItemSchema = z.object({
     condition: productConditionSchema.nullable(),
     categoryName: z.string(),
     thumbnailUrl: z.string().nullable(),
-    recommendation: productRecommendationSchema.nullable(),
+    recommendation: interestRecommendationSchema.nullable(),
+    interestStatus: interestStatusSchema,
     marketAveragePrice: z.number().nullable(),
     platformName: z.string().nullable(),
     externalUrl: z.string().nullable(),
@@ -27,6 +30,8 @@ export const interestListResponseSchema = z.object({
     content: z.array(interestListItemSchema),
     nextCursor: z.string().nullable(),
     hasNext: z.boolean(),
+    totalCount: z.number().nullable(),
+    statusCounts: z.record(z.number()).nullable(),
 });
 
 export const interestCreateResponseSchema = z.object({

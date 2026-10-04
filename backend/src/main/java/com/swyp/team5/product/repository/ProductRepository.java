@@ -29,4 +29,6 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     long countByCreatedAtGreaterThanEqual(LocalDateTime from);
 
     long countByMemberId(Long memberId);
+
+    List<Product> findByMemberId(Long memberId);
 }

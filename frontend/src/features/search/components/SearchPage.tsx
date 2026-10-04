@@ -12,7 +12,7 @@ import { SearchResults } from "@/features/search/components/SearchResults";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { useSearchQuery } from "@/features/search/hooks/queries/useSearchQuery";
 import type { SearchParams, SearchSort } from "@/features/search/types";
-import { useInterestToggle } from "@/features/interest/hooks/useInterestToggle";
+import { useInterestToggle } from "@/features/search/hooks/useInterestToggle";
 import { Button } from "@/common/components/ui/Button";
 import { LoginRequiredDialog } from "@/features/auth/components/LoginRequiredDialog";
 import { useAiSearchMutation } from "@/features/search/hooks/mutations/useAiSearchMutation";
@@ -81,7 +81,7 @@ export function SearchPage() {
                 onSuccess: async ({ condition, result, aiApplied }) => {
                     const nextFilters: SearchParams = {
                         excludeKeyword: condition.excludeKeyword ?? undefined,
-                        tradeStatus: condition.tradeStatus,
+                        status: condition.status,
                         platform: condition.platform,
                         minPrice: condition.minPrice ?? undefined,
                         maxPrice: condition.maxPrice ?? undefined,

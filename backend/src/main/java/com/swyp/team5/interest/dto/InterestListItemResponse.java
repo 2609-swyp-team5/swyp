@@ -7,6 +7,7 @@ import com.swyp.team5.item.entity.ListingSource;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
+import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 
 /**
@@ -19,11 +20,13 @@ public record InterestListItemResponse(
         Long targetId, // source 내에서만 유일 — 우리 상품이면 productId, 외부 매물이면 listingId
         String title,
         Long price,
-        String status, // 우리 상품은 ProductStatus 이름 그대로, 외부 매물은 원본 status 문자열
+        String status, // 상품 상태 DRAFT/ON_SALE/RESERVED/SOLD_OUT — 외부 매물은 원본 상태를 변환(SELLING→ON_SALE, RESERVED→RESERVED,
+        // 그 외→SOLD_OUT)
         ProductCondition condition, // 외부 매물은 상태 등급 개념이 없어 null
         String categoryName, // 카테고리명
         String thumbnailUrl, // 대표 이미지 URL
         AnalysisRecommendation recommendation, // 분석 이력 없으면 null(외부 매물은 구매자 관점 BUY/WAIT만)
+        InterestStatus interestStatus, // 관심상품 상태 BUY(구매추천)/WAIT(관찰중)/SOLD_OUT(판매종료)/PENDING(분석대기) — 조회 시 계산
         Long marketAveragePrice, // 분석 이력 없으면 null
         String platformName, // 우리 상품은 null, 외부 매물은 수집 플랫폼명(예: "번개장터")
         String externalUrl, // 우리 상품은 null, 외부 매물은 원본 매물 링크
@@ -33,13 +36,13 @@ public record InterestListItemResponse(
     /** {@code interest.getProduct()}/{@code interest.getListing()} 중 채워진 쪽으로 자동 분기한다. */
     public static InterestListItemResponse from(Interest interest, AnalysisRecommendation recommendation) {
         return interest.getProduct() != null
-                ? fromProduct(interest, recommendation, null)
-                : fromListing(interest, recommendation, null);
+                ? fromProduct(interest, recommendation, null, false)
+                : fromListing(interest, recommendation, null, false);
     }
 
     /** 대상 상품의 최근 시세 분석 스냅샷까지 함께 반영하고 싶을 때 사용한다({@code marketAveragePrice} 포함). */
     public static InterestListItemResponse fromProduct(
-            Interest interest, AnalysisRecommendation recommendation, Long marketAveragePrice) {
+            Interest interest, AnalysisRecommendation recommendation, Long marketAveragePrice, boolean analyzing) {
         Product product = interest.getProduct();
         String thumbnailUrl = product.getImages().isEmpty()
                 ? null
@@ -55,6 +58,7 @@ public record InterestListItemResponse(
                 product.getCategory().getName(),
                 thumbnailUrl,
                 recommendation,
+                InterestStatus.of(product.getStatus(), recommendation, analyzing),
                 marketAveragePrice,
                 null,
                 null,
@@ -64,19 +68,21 @@ public record InterestListItemResponse(
 
     /** 외부 매물 대상 건 — 관심 매물 시세 분석 스냅샷이 없으면 {@code recommendation}/{@code marketAveragePrice}는 null. */
     public static InterestListItemResponse fromListing(
-            Interest interest, AnalysisRecommendation recommendation, Long marketAveragePrice) {
+            Interest interest, AnalysisRecommendation recommendation, Long marketAveragePrice, boolean analyzing) {
         PlatformListing listing = interest.getListing();
+        ProductStatus status = ProductStatus.fromExternal(listing.getStatus());
         return new InterestListItemResponse(
                 interest.getId(),
                 ListingSource.EXTERNAL,
                 listing.getId(),
                 listing.getTitle(),
                 listing.getPrice(),
-                listing.getStatus(),
+                status.name(),
                 null,
                 listing.getCategory().getName(),
                 listing.getImageUrl(),
                 recommendation,
+                InterestStatus.of(status, recommendation, analyzing),
                 marketAveragePrice,
                 listing.getPlatform().getName(),
                 listing.getListingUrl(),

@@ -1,6 +1,7 @@
 package com.swyp.team5.interest.repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,14 +18,17 @@ public interface InterestRepository extends JpaRepository<Interest, Long> {
 
     boolean existsByMemberIdAndItemId(Long memberId, Long itemId);
 
+    Optional<Interest> findByMemberIdAndItemId(Long memberId, Long itemId);
+
+    long countByMemberId(Long memberId);
+
+    /** 회원의 관심상품 전체(대상 상품·매물 함께 조회 — 상태별 건수 집계용). */
+    @Query("SELECT i FROM Interest i JOIN FETCH i.item WHERE i.member.id = :memberId")
+    List<Interest> findAllWithItemByMemberId(@Param("memberId") Long memberId);
+
     long countByItemId(Long itemId);
 
     Optional<Interest> findByIdAndMemberId(Long interestId, Long memberId);
-
-    /** 커서({@code id}) 미만의 본인 관심상품을 대상 상품/매물과 함께 조회한다(정렬·개수는 {@code pageable}). */
-    @Query("SELECT i FROM Interest i JOIN FETCH i.item " + "WHERE i.member.id = :memberId AND i.id < :cursor")
-    List<Interest> findByMemberIdAndIdLessThan(
-            @Param("memberId") Long memberId, @Param("cursor") Long cursor, Pageable pageable);
 
     /** 목표가가 설정된 관심상품 전체(대상 상품/매물과 함께) — 목표가 도달 알림 배치용. */
     @Query("SELECT i FROM Interest i JOIN FETCH i.item WHERE i.targetPrice IS NOT NULL")
@@ -38,10 +42,10 @@ public interface InterestRepository extends JpaRepository<Interest, Long> {
     @Query("SELECT i.member FROM Interest i WHERE i.item.id = :itemId")
     List<Member> findMembersByItemId(@Param("itemId") Long itemId);
 
-    /** 한 명 이상이 관심 등록한 외부 매물 중 지정 상태(판매중)인 매물 — 시세 분석 대상. */
+    /** 한 명 이상이 관심 등록한 외부 매물 중 지정 상태(판매중·예약중)인 매물 — 시세 분석 대상. */
     @Query(
-            "SELECT l FROM PlatformListing l WHERE l.status = :status AND EXISTS (SELECT 1 FROM Interest i WHERE i.item.id = l.id)")
-    List<PlatformListing> findInterestedListingsByStatus(@Param("status") String status);
+            "SELECT l FROM PlatformListing l WHERE l.status IN :statuses AND EXISTS (SELECT 1 FROM Interest i WHERE i.item.id = l.id)")
+    List<PlatformListing> findInterestedListingsByStatusIn(@Param("statuses") Collection<String> statuses);
 
     @Query("SELECT p.id FROM Interest i, Product p WHERE i.item.id = p.id AND i.createdAt >= :since "
             + "GROUP BY p.id ORDER BY COUNT(i) DESC")

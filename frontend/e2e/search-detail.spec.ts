@@ -24,7 +24,11 @@ test.beforeEach(async ({ page }) => {
                 content = [{ ...route.request().postDataJSON(), interestId: 1001 }];
                 return route.fulfill({
                     status: 201,
-                    json: { success: true, data: { interestId: 1001 }, error: null },
+                    json: {
+                        success: true,
+                        data: { interestId: 1001 },
+                        error: null,
+                    },
                 });
             }
             return route.fulfill({

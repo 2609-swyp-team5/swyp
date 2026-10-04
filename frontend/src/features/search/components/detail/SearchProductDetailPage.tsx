@@ -8,7 +8,7 @@ import { ExternalLink, Heart, Info } from "lucide-react";
 import { Badge } from "@/common/components/ui/Badge";
 import { Button } from "@/common/components/ui/Button";
 import { cn } from "@/common/lib/utils";
-import { useInterestToggle } from "@/features/interest/hooks/useInterestToggle";
+import { useInterestToggle } from "@/features/search/hooks/useInterestToggle";
 import { LoginRequiredDialog } from "@/features/auth/components/LoginRequiredDialog";
 import { useSearchProductDetailQuery } from "@/features/search/hooks/queries/useSearchProductDetailQuery";
 import { getApiErrorMessage } from "@/common/lib/api/error";
@@ -63,7 +63,9 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
             ? "판매완료"
             : product?.status === "DRAFT"
               ? "임시저장"
-              : "판매중";
+              : product?.status === "RESERVED"
+                ? "예약중"
+                : "판매중";
 
     return (
         <main className="flex-1 bg-white text-[#363636]">

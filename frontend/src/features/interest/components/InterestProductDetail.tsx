@@ -12,7 +12,6 @@ import type { ProductDetailSummaryResponse } from "@/features/product-management
 import type { ProductStatus } from "@/features/sell/types";
 import { useDeleteInterestMutation } from "../hooks/mutations/useDeleteInterestMutation";
 import type { InterestListItem } from "../types";
-import { getInterestDisplayStatus } from "../utils/interestStatus";
 
 const statusLabels: Record<string, string> = {
     DRAFT: "임시저장",
@@ -22,12 +21,13 @@ const statusLabels: Record<string, string> = {
 
 export function InterestProductDetail({ interest }: { interest: InterestListItem }) {
     const deleteMutation = useDeleteInterestMutation();
-    const displayStatus = getInterestDisplayStatus(interest);
     const sections = useProductManagementSectionsQuery(interest.targetId, {
         perspective: "BUY",
         summaryEnabled: dataSource === "api",
         buyerRecommendation:
-            displayStatus === "BUY" || displayStatus === "WAIT" ? displayStatus : undefined,
+            interest.interestStatus === "BUY" || interest.interestStatus === "WAIT"
+                ? interest.interestStatus
+                : undefined,
     });
 
     const handleDelete = () => {

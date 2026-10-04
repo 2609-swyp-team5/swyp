@@ -32,12 +32,19 @@ const subscribeViewport = (onChange: () => void) => {
 export function HomeProductCarousel({
     title,
     products,
+    interestActions,
 }: {
     title: string;
     products: CarouselProduct[];
+    interestActions?: {
+        liked: Record<number, boolean>;
+        disabled: boolean;
+        toggle: (id: number) => void;
+    };
 }) {
     const [page, setPage] = useState(0);
-    const [liked, setLiked] = useState<Record<number, boolean>>({});
+    const [localLiked, setLiked] = useState<Record<number, boolean>>({});
+    const liked = interestActions?.liked ?? localLiked;
     const isDesktop = useSyncExternalStore(
         subscribeViewport,
         () => window.matchMedia("(min-width: 768px)").matches,
@@ -109,11 +116,14 @@ export function HomeProductCarousel({
                                         size="icon"
                                         aria-label={`${title} ${product.title} 관심 상품`}
                                         aria-pressed={Boolean(liked[id])}
+                                        disabled={interestActions?.disabled}
                                         onClick={() =>
-                                            setLiked((previous) => ({
-                                                ...previous,
-                                                [id]: !previous[id],
-                                            }))
+                                            interestActions
+                                                ? interestActions.toggle(id)
+                                                : setLiked((previous) => ({
+                                                      ...previous,
+                                                      [id]: !previous[id],
+                                                  }))
                                         }
                                         className={cn(
                                             "absolute top-3 right-3 z-20 size-8 rounded-full bg-white shadow-sm hover:bg-[#fafbff]",

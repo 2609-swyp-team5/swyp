@@ -2,12 +2,20 @@
 
 import { Button } from "@/common/components/ui/Button";
 import { Skeleton } from "@/common/components/ui/Skeleton";
+import { LoginRequiredDialog } from "@/features/auth/components/LoginRequiredDialog";
+import { useInterestToggle } from "../hooks/useInterestToggle";
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { usePopularProductsQuery } from "../hooks/queries/usePopularProductsQuery";
 import { HomeProductCarousel } from "./HomeProductCarousel";
 
 export function HomePopularProducts() {
     const { data, isPending, error, refetch, isFetching } = usePopularProductsQuery();
+    const interests = useInterestToggle();
+    const liked = Object.fromEntries(
+        interests.interests
+            .filter((item) => item.source === "OUR")
+            .map((item) => [item.targetId, true]),
+    );
 
     if (isPending) {
         return (
@@ -37,9 +45,30 @@ export function HomePopularProducts() {
     }
 
     return (
-        <HomeProductCarousel
-            title="인기 상품 모음"
-            products={data.map((product) => ({ ...product, platformName: "지금이니?!" }))}
-        />
+        <>
+            <LoginRequiredDialog
+                open={interests.loginNoticeOpen}
+                onOpenChange={interests.onLoginNoticeOpenChange}
+            />
+            {interests.errorMessage && (
+                <div role="alert" className="flex flex-col items-center gap-4 py-4">
+                    <p className="text-destructive text-sm">{interests.errorMessage}</p>
+                    {interests.canRetry && (
+                        <Button variant="outline" onClick={interests.retry}>
+                            관심상품 다시 조회
+                        </Button>
+                    )}
+                </div>
+            )}
+            <HomeProductCarousel
+                title="인기 상품 모음"
+                products={data.map((product) => ({ ...product, platformName: "지금이니?!" }))}
+                interestActions={{
+                    liked,
+                    disabled: interests.disabled,
+                    toggle: (id) => interests.toggle({ source: "OUR", targetId: id }),
+                }}
+            />
+        </>
     );
 }

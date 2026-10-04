@@ -85,7 +85,7 @@ for (const loggedIn of [true, false]) {
                     success: true,
                     data: {
                         content,
-                        nextCursor: isNextPage ? null : 1789843458645,
+                        nextCursor: isNextPage ? null : "1789843458645",
                         hasNext: !isNextPage,
                     },
                     error: null,
@@ -388,7 +388,7 @@ test("keeps loaded cards and retries a failed next page", async ({ page }) => {
                                         ...product,
                                         id: index + 1,
                                     })),
-                              nextCursor: hasCursor ? null : 1789843458645,
+                              nextCursor: hasCursor ? null : "1789843458645",
                               hasNext: !hasCursor,
                           },
                           error: null,

@@ -27,7 +27,8 @@ import com.swyp.team5.platform.repository.PlatformListingRepository;
 @RequiredArgsConstructor
 public class ListingReconciliationService {
 
-    private static final String SELLING_STATUS = "SELLING";
+    /** 아직 거래가 끝나지 않은 상태 — 예약중은 수집(판매중만)에서 빠지므로 재확인으로만 판매 완료·판매 재개를 알 수 있다. */
+    private static final List<String> ACTIVE_STATUSES = List.of("SELLING", "RESERVED");
 
     private final BunjangProductClient bunjangProductClient;
     private final PlatformListingRepository platformListingRepository;
@@ -36,8 +37,8 @@ public class ListingReconciliationService {
     public void reconcile() {
         LocalDateTime staleBefore = LocalDateTime.now().minusHours(properties.staleAfterHours());
         List<PlatformListing> candidates =
-                platformListingRepository.findByStatusAndLastSeenAtBeforeOrderByLastSeenAtAsc(
-                        SELLING_STATUS,
+                platformListingRepository.findByStatusInAndLastSeenAtBeforeOrderByLastSeenAtAsc(
+                        ACTIVE_STATUSES,
                         staleBefore,
                         PageRequest.of(
                                 0, properties.batchSize(), Sort.by("lastSeenAt").ascending()));

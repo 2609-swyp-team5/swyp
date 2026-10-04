@@ -18,6 +18,7 @@ export type ProductListTab = {
     key: string;
     label: string;
     listTitle?: string;
+    countKey?: string;
     filter: (item: ProductListItemData) => boolean;
 };
 
@@ -26,8 +27,17 @@ export type ProductListShellProps = {
     title: string;
     tabs: ProductListTab[];
     items: ProductListItemData[];
+    activeTabKey?: string;
+    onTabChange?: (tabKey: string) => void;
+    totalCount?: number | null;
+    statusCounts?: Record<string, number> | null;
     isLoading: boolean;
     errorMessage?: string;
+    hasNextPage?: boolean;
+    isFetchingNextPage?: boolean;
+    isFetchNextPageError?: boolean;
+    onLoadMore?: () => void;
+    onRetryLoadMore?: () => void;
     emptyMessage: string;
     listTitle: string;
     detailRenderer?: (item: ProductListItemData) => ReactNode;

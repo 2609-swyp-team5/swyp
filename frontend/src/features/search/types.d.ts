@@ -1,19 +1,30 @@
 import type { z } from "zod";
+import type {
+    interestItemSchema,
+    interestListResponseSchema,
+    interestTargetSchema,
+    interestCreateResponseSchema,
+} from "./schemas/interestResponseSchema";
+
+export type InterestItem = z.infer<typeof interestItemSchema>;
+export type InterestListResponse = z.infer<typeof interestListResponseSchema>;
+export type InterestTarget = z.infer<typeof interestTargetSchema>;
+export type InterestCreateResponse = z.infer<typeof interestCreateResponseSchema>;
 
 import type {
     aiSearchResponseSchema,
     searchProductDetailSchema,
     searchResponseSchema,
     searchResultItemSchema,
+    searchStatusSchema,
 } from "./schemas/searchResponseSchema";
 
 export type AiSearchResponse = z.infer<typeof aiSearchResponseSchema>;
 
-// 우리 상품의 거래 상태 필터
-export type SearchStatus = "DRAFT" | "ON_SALE" | "SOLD_OUT";
+// 우리 상품과 외부 매물의 거래 상태 필터
+export type SearchStatus = z.infer<typeof searchStatusSchema>;
 export type SearchPlatform = "ALL" | "BUNJANG" | "OUR";
 export type SearchSort = "RECOMMENDED" | "LATEST" | "INTEREST" | "PRICE_HIGH" | "PRICE_LOW";
-export type SearchTradeStatus = "SELLING" | "RESERVED" | "SOLD_OUT";
 export type SearchCondition = "S" | "A" | "B" | "C" | "D";
 export type SearchDefectStatus = "NORMAL" | "ISSUES" | "UNKNOWN";
 
@@ -21,8 +32,7 @@ export type SearchDefectStatus = "NORMAL" | "ISSUES" | "UNKNOWN";
 export interface SearchParams {
     keyword?: string;
     excludeKeyword?: string;
-    status?: SearchStatus;
-    tradeStatus?: SearchTradeStatus[];
+    status?: SearchStatus | SearchStatus[];
     platform?: Exclude<SearchPlatform, "ALL">[];
     minPrice?: number;
     maxPrice?: number;
