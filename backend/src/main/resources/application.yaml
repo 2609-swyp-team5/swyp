@@ -195,6 +195,9 @@ analysis:
     medium-count: 5 # MEDIUM 최소 매물 수(미만이면 LOW)
     high-count: 10 # HIGH 최소 매물 수
     item-limit: 3 # 목록 최대 건수
+  search-fallback: # 같은 물건 비교 매물이 min-listings보다 적으면 상품명으로 번개장터를 검색해 판매중 매물을 저장하고 비교 매물에 보탬
+    enabled: ${PRICE_ANALYSIS_SEARCH_FALLBACK_ENABLED:true}
+    size: ${PRICE_ANALYSIS_SEARCH_FALLBACK_SIZE:100} # 한 번에 검색해 올 건수
 
 # 스웨거 설정
 springdoc:
