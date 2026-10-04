@@ -46,7 +46,7 @@ export default function ProductReviewPage() {
                 <ProductSummary product={product} registrationMethod={registrationMethod} />
                 <PriceAnalysis product={product} />
                 <ProductDetails product={product} />
-                <NextActions />
+                <NextActions productId={product.id} existingPlatforms={product.platforms ?? []} />
             </section>
         </main>
     );

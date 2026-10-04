@@ -7,6 +7,7 @@ import { Button } from "@/common/components/ui/Button";
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { useMyPlatformsQuery } from "@/features/my/hooks/queries/useMyPlatformsQuery";
 import { useUpdatePlatformConnectionMutation } from "@/features/my/hooks/mutations/useUpdatePlatformConnectionMutation";
+import { getPlatformDefinition } from "@/features/my/platformDefinitions";
 import type { MyPlatformStatus } from "@/features/my/types";
 
 import { MyPageContent } from "@/features/my/components/MyPageContent";
@@ -30,9 +31,7 @@ export function MyPlatformsPage() {
     const mutation = useUpdatePlatformConnectionMutation();
     const platforms: PlatformConnection[] = (data ?? []).map((item) => ({
         id: item.platform,
-        name: item.platformName,
-        icon: "/my/platforms/bunjang.png",
-        description: "중고거래 플랫폼",
+        ...getPlatformDefinition(item.platform, item.platformName),
         updated: item.updatedAt?.replace("T", " ").slice(0, 16) ?? "연동 이력 없음",
     }));
     const statuses: Record<string, ConnectionStatus> = Object.fromEntries(

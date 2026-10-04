@@ -56,6 +56,7 @@ export type ProductRegisterError = Error & {
 };
 
 export type {
+    ProductPlatformPublishResponse,
     ProductPlatform,
     ProductResponse,
     ProductSummaryResponse,

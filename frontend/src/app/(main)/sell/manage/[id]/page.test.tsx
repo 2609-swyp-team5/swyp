@@ -4,15 +4,23 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ProductResponse } from "@/features/sell/types";
 
-const { push, replace, searchParamsValue, useDeleteProductMutation, useProductQuery } = vi.hoisted(
-    () => ({
-        push: vi.fn(),
-        replace: vi.fn(),
-        searchParamsValue: { current: "method=direct" },
-        useDeleteProductMutation: vi.fn(),
-        useProductQuery: vi.fn(),
-    }),
-);
+const {
+    push,
+    replace,
+    searchParamsValue,
+    useDeleteProductMutation,
+    useMyPlatformsQuery,
+    useProductQuery,
+    usePublishProductMutation,
+} = vi.hoisted(() => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    searchParamsValue: { current: "method=direct" },
+    useDeleteProductMutation: vi.fn(),
+    useMyPlatformsQuery: vi.fn(),
+    useProductQuery: vi.fn(),
+    usePublishProductMutation: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
     useParams: () => ({ id: "42" }),
@@ -26,6 +34,14 @@ vi.mock("@/features/sell/hooks/queries/useProductQuery", () => ({
 
 vi.mock("@/features/sell/hooks/mutations/useDeleteProductMutation", () => ({
     useDeleteProductMutation,
+}));
+
+vi.mock("@/features/my/hooks/queries/useMyPlatformsQuery", () => ({
+    useMyPlatformsQuery,
+}));
+
+vi.mock("@/features/sell/hooks/mutations/usePublishProductMutation", () => ({
+    usePublishProductMutation,
 }));
 
 import ProductReviewPage from "./page";
@@ -75,6 +91,23 @@ describe("ProductReviewPage", () => {
             isPending: false,
             mutate: vi.fn(),
             reset: vi.fn(),
+        });
+        useMyPlatformsQuery.mockReturnValue({
+            data: [
+                {
+                    platform: "BUNJANG",
+                    platformName: "번개장터",
+                    status: "DISCONNECTED",
+                    updatedAt: null,
+                },
+            ],
+            error: null,
+            isPending: false,
+            refetch: vi.fn(),
+        });
+        usePublishProductMutation.mockReturnValue({
+            isPending: false,
+            mutateAsync: vi.fn(),
         });
         push.mockReset();
         replace.mockReset();
