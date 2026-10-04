@@ -16,6 +16,10 @@ export function ProductListShell({
     title,
     tabs,
     items,
+    activeTabKey: controlledActiveTabKey,
+    onTabChange,
+    totalCount,
+    statusCounts,
     isLoading,
     errorMessage,
     hasNextPage = false,
@@ -28,7 +32,8 @@ export function ProductListShell({
     detailRenderer,
     primaryAction,
 }: ProductListShellProps) {
-    const [activeTabKey, setActiveTabKey] = useState(tabs[0]?.key ?? "all");
+    const [uncontrolledActiveTabKey, setUncontrolledActiveTabKey] = useState(tabs[0]?.key ?? "all");
+    const activeTabKey = controlledActiveTabKey ?? uncontrolledActiveTabKey;
     const selectedItemId = useSelectedProductId();
     const activeTab = tabs.find((tab) => tab.key === activeTabKey) ?? tabs[0];
     const listScrollRef = useRef<HTMLDivElement>(null);
@@ -39,6 +44,17 @@ export function ProductListShell({
     );
     const activeListTitle = activeTab?.listTitle ?? listTitle;
     const selectedItem = filteredItems.find((item) => item.id === selectedItemId) ?? null;
+    const getTabCount = (tab: (typeof tabs)[number]) => {
+        const serverCount =
+            tab.countKey === "total"
+                ? totalCount
+                : tab.countKey
+                  ? (statusCounts?.[tab.countKey] ?? null)
+                  : null;
+
+        return serverCount ?? items.filter(tab.filter).length;
+    };
+    const activeListCount = activeTab ? getTabCount(activeTab) : filteredItems.length;
 
     useEffect(() => {
         const root = listScrollRef.current;
@@ -101,7 +117,7 @@ export function ProductListShell({
                     >
                         {tabs.map((tab) => {
                             const isActive = tab.key === activeTabKey;
-                            const count = items.filter(tab.filter).length;
+                            const count = getTabCount(tab);
 
                             return (
                                 <button
@@ -115,7 +131,10 @@ export function ProductListShell({
                                             ? "border-[#363636] text-[#363636]"
                                             : "border-transparent text-[#83889e] hover:text-[#363636]",
                                     )}
-                                    onClick={() => setActiveTabKey(tab.key)}
+                                    onClick={() => {
+                                        setUncontrolledActiveTabKey(tab.key);
+                                        onTabChange?.(tab.key);
+                                    }}
                                 >
                                     {isActive ? (
                                         <span className="flex items-center gap-1 tracking-[0.5px]">
@@ -141,7 +160,7 @@ export function ProductListShell({
                     <aside className="h-fit overflow-hidden rounded-[20px] border border-[#d3d3d3] bg-white px-5 py-[30px]">
                         <div>
                             <p className="text-[20px] leading-[30px] font-semibold text-[#6b6c7b]">
-                                {filteredItems.length}건
+                                {activeListCount}건
                             </p>
                             <h2 className="text-[30px] leading-[42px] font-bold text-[#363636]">
                                 {activeListTitle}

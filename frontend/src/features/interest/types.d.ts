@@ -1,34 +1,22 @@
-import type { ProductCondition, ProductStatus } from "@/features/sell/types";
-import type { CursorPageResponse } from "@/common/lib/api/types";
+import type { z } from "zod";
 
-export type InterestSource = "OUR" | "EXTERNAL";
-export type InterestRecommendation = "SELL" | "HOLD" | "BUY" | "WAIT";
+import type {
+    interestRecommendationSchema,
+    interestSourceSchema,
+    interestStatusSchema,
+} from "./schemas/interestSchema";
+import type { interestRegisterInputSchema } from "./schemas/interestRequestSchema";
+import type {
+    interestCreateResponseSchema,
+    interestListItemSchema,
+    interestListResponseSchema,
+} from "./schemas/interestResponseSchema";
 
-export interface InterestListItem {
-    interestId: number;
-    source: InterestSource;
-    targetId: number;
-    title: string;
-    price: number;
-    status: ProductStatus | string;
-    condition: ProductCondition | null;
-    categoryName: string;
-    thumbnailUrl: string | null;
-    recommendation: InterestRecommendation | null;
-    marketAveragePrice: number | null;
-    platformName: string | null;
-    externalUrl: string | null;
-    targetPrice: number | null;
-    createdAt: string;
-}
+export type InterestSource = z.infer<typeof interestSourceSchema>;
+export type InterestRecommendation = z.infer<typeof interestRecommendationSchema>;
+export type InterestStatus = z.infer<typeof interestStatusSchema>;
 
-export type InterestListResponse = CursorPageResponse<InterestListItem>;
-
-export interface InterestRegisterInput {
-    source: InterestSource;
-    targetId: number;
-}
-
-export interface InterestCreateResponse {
-    interestId: number;
-}
+export type InterestListItem = z.infer<typeof interestListItemSchema>;
+export type InterestListResponse = z.infer<typeof interestListResponseSchema>;
+export type InterestRegisterInput = z.infer<typeof interestRegisterInputSchema>;
+export type InterestCreateResponse = z.infer<typeof interestCreateResponseSchema>;
