@@ -10,25 +10,28 @@ import type { AnalysisRecommendation, ProductManagementPerspective } from "../ty
 export function useProductManagementSectionsQuery(
     productId: number,
     options?: {
+        enabled?: boolean;
         perspective?: ProductManagementPerspective;
         summaryEnabled?: boolean;
         buyerRecommendation?: Extract<AnalysisRecommendation, "BUY" | "WAIT">;
         mockRecommendation?: AnalysisRecommendation;
     },
 ) {
-    const summaryEnabled = options?.summaryEnabled ?? true;
+    const enabled = options?.enabled ?? true;
+    const summaryEnabled = enabled && (options?.summaryEnabled ?? true);
     const perspective = options?.perspective ?? "SELL";
     const buyerRecommendation = options?.buyerRecommendation;
     const mockRecommendation = options?.mockRecommendation ?? buyerRecommendation;
 
     const productSummary = useProductSummaryQuery(productId, { enabled: summaryEnabled });
     const productAnalysis = useProductAnalysisQuery(productId, {
+        enabled,
         perspective,
         mockRecommendation,
     });
-    const productPriceTrend = useProductPriceTrendQuery(productId);
-    const productValuationForecast = useProductValuationForecastQuery(productId);
-    const productCompetition = useProductCompetitionQuery(productId, { perspective });
+    const productPriceTrend = useProductPriceTrendQuery(productId, { enabled });
+    const productValuationForecast = useProductValuationForecastQuery(productId, { enabled });
+    const productCompetition = useProductCompetitionQuery(productId, { enabled, perspective });
 
     return {
         productSummary,

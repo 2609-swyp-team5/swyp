@@ -2,24 +2,12 @@
 
 import { Button } from "@/common/components/ui/Button";
 import { getApiErrorMessage } from "@/common/lib/api/error";
-import { useMyProductsQuery } from "@/features/my/hooks/queries/useMyProductsQuery";
+import { useHomeSummaryQuery } from "@/features/home/hooks/queries/useHomeSummaryQuery";
+import { getHomeSummaryCards } from "@/features/home/utils/homeSummaryCards";
 
 export function MySummaryCards() {
-    const { data: products, isPending, isError, error, refetch } = useMyProductsQuery();
-    const summaries = [
-        {
-            title: "등록한 물건",
-            value: products ? `${products.length}개` : "—",
-            description: isError
-                ? getApiErrorMessage(error)
-                : products
-                  ? `등록됨 ${products.filter((product) => product.status === "DRAFT").length} · 판매중 ${products.filter((product) => product.status === "ON_SALE").length} · 판매완료 ${products.filter((product) => product.status === "SOLD_OUT").length}`
-                  : "상품을 불러오는 중입니다.",
-        },
-        { title: "AI 추천 알림", value: "2건", description: "오늘 새로 분석한 타이밍" },
-        { title: "평균 시세 대비", value: "+4.1%", description: "내 물건들의 전체 시세 평균" },
-        { title: "최근 분석일", value: "오늘", description: "2026년 9월 9일 오전 9:12" },
-    ];
+    const { data, isPending, isError, error, refetch } = useHomeSummaryQuery();
+    const summaries = getHomeSummaryCards(data);
     return (
         <section aria-label="거래 요약" className="mt-[60px] grid gap-[10px] sm:grid-cols-2">
             {summaries.map((item) => (
@@ -48,7 +36,11 @@ export function MySummaryCards() {
                             }
                             className="text-base leading-[25px] text-[#464646]"
                         >
-                            {item.description}
+                            {isError
+                                ? item.title === "등록한 물건"
+                                    ? getApiErrorMessage(error)
+                                    : "요약 정보를 불러오지 못했습니다."
+                                : item.description}
                         </p>
                         {item.title === "등록한 물건" && isError && (
                             <Button

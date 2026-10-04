@@ -1,16 +1,26 @@
-import type { CursorPageResponse } from "@/common/lib/api/types";
-import type { ProductStatus, ProductSummaryResponse } from "@/features/sell/types";
+import type { z } from "zod";
+
+import type { ProductStatus } from "@/features/sell/types";
+import type {
+    myPlatformConnectionSchema,
+    myPlatformConnectionStateSchema,
+    myPlatformStatusSchema,
+    myPlatformTypeSchema,
+    myProductSchema,
+} from "./schemas/myResponseSchema";
 
 export type MyProductStatus = ProductStatus;
 export type MyProductFilter = "ALL" | MyProductStatus;
 
-export interface MyProductsParams {
-    cursor?: string;
-    size: number;
-}
+export type MyProduct = z.infer<typeof myProductSchema>;
 
-export type MyProduct = ProductSummaryResponse & {
-    platformName: string | null;
-};
+export type MyPlatformType = z.infer<typeof myPlatformTypeSchema>;
+export type MyPlatformStatus = z.infer<typeof myPlatformStatusSchema>;
 
-export type MyProductsResponse = CursorPageResponse<ProductSummaryResponse>;
+export type MyPlatformConnectionState = z.infer<typeof myPlatformConnectionStateSchema>;
+
+export type MyPlatformConnection = z.infer<typeof myPlatformConnectionSchema>;
+
+export type MyPlatformConnectionAction =
+    | { platform: MyPlatformType; action: "connect"; cookie: string }
+    | { platform: MyPlatformType; action: "disconnect" };

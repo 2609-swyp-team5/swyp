@@ -4,20 +4,19 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { searchApi } from "@/features/search/api/searchApi";
-import type { SearchStatus } from "@/features/search/types";
+import type { SearchParams } from "@/features/search/types";
 
 const pageSize = 20;
 
-export function useSearchQuery(keyword: string, status?: SearchStatus) {
+export function useSearchQuery(params: SearchParams, staleTime = 0, enabled = true) {
     const isInitialized = useAuthStore((state) => state.isInitialized);
 
     return useInfiniteQuery({
-        queryKey: ["search", keyword, status],
+        queryKey: ["search", params],
         queryFn: async ({ pageParam, signal }) => {
             const { data } = await searchApi.searchList(
                 {
-                    keyword: keyword || undefined,
-                    status,
+                    ...params,
                     cursor: pageParam ?? undefined,
                     size: pageSize,
                 },
@@ -29,7 +28,8 @@ export function useSearchQuery(keyword: string, status?: SearchStatus) {
         initialPageParam: null as string | null,
         getNextPageParam: (lastPage) =>
             lastPage.hasNext ? (lastPage.nextCursor ?? undefined) : undefined,
-        enabled: isInitialized,
+        enabled: isInitialized && enabled,
+        staleTime,
         retry: false,
     });
 }

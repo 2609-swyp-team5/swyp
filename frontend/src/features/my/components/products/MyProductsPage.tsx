@@ -12,15 +12,34 @@ import type { MyProductFilter } from "@/features/my/types";
 
 export function MyProductsPage() {
     const [filter, setFilter] = useState<MyProductFilter>("ALL");
-    const { data, isPending, isError, error, refetch } = useMyProductsQuery();
-    const counts = data?.reduce<Record<MyProductFilter, number>>(
-        (result, product) => {
-            result[product.status] += 1;
-            return result;
-        },
-        { ALL: data.length, DRAFT: 0, ON_SALE: 0, SOLD_OUT: 0 },
-    );
-    const products = data?.filter((product) => filter === "ALL" || product.status === filter) ?? [];
+    const summaryQuery = useMyProductsQuery();
+    const listQuery = useMyProductsQuery(filter === "ALL" ? undefined : filter);
+    const {
+        data,
+        isPending,
+        isError,
+        error,
+        refetch,
+        hasNextPage,
+        fetchNextPage,
+        isFetchingNextPage,
+        isFetchNextPageError,
+        isFetching,
+    } = listQuery;
+    const summary = summaryQuery.data?.pages[0];
+    const counts =
+        summary?.totalCount != null && summary.statusCounts
+            ? {
+                  ALL: summary.totalCount,
+                  DRAFT: summary.statusCounts.DRAFT ?? 0,
+                  ON_SALE: summary.statusCounts.ON_SALE ?? 0,
+                  SOLD_OUT: summary.statusCounts.SOLD_OUT ?? 0,
+              }
+            : undefined;
+    const products =
+        data?.pages.flatMap((page) =>
+            page.content.map((product) => ({ ...product, platformName: null })),
+        ) ?? [];
     return (
         <MyPageContent
             eyebrow="판매 관리"
@@ -30,12 +49,28 @@ export function MyProductsPage() {
         >
             <ProductFilters filter={filter} onFilterChange={setFilter} counts={counts} />
             <ProductTable products={products} isLoading={isPending} isError={isError} />
+            {hasNextPage && !isError && (
+                <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-4"
+                    disabled={isFetchingNextPage}
+                    onClick={() => void fetchNextPage()}
+                >
+                    {isFetchingNextPage ? "상품을 더 불러오는 중입니다." : "더 불러오기"}
+                </Button>
+            )}
             {isError && (
                 <div className="mt-4 flex flex-col items-start gap-4">
                     <p role="alert" className="text-[#fa503d]">
                         {getApiErrorMessage(error)}
                     </p>
-                    <Button type="button" variant="outline" onClick={() => void refetch()}>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        disabled={isFetching}
+                        onClick={() => void (isFetchNextPageError ? fetchNextPage() : refetch())}
+                    >
                         다시 시도
                     </Button>
                 </div>

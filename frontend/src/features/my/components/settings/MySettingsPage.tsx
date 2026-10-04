@@ -11,6 +11,7 @@ import { useMeQuery } from "@/features/member/hooks/queries/useMeQuery";
 import { useUpdateMemberMutation } from "@/features/member/hooks/mutations/useUpdateMemberMutation";
 import { memberUpdateSchema } from "@/features/member/schemas/memberSchema";
 import { useUpdateProfileImageMutation } from "@/features/member/hooks/mutations/useUpdateProfileImageMutation";
+import { useDeleteProfileImageMutation } from "@/features/member/hooks/mutations/useDeleteProfileImageMutation";
 
 import {
     MySettingsForm,
@@ -22,6 +23,7 @@ export function MySettingsPage() {
     const [photo, setPhoto] = useState("");
     const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
     const [photoFile, setPhotoFile] = useState<File | null>(null);
+    const [isPhotoRemoved, setIsPhotoRemoved] = useState(false);
     const [dismissedQueryError, setDismissedQueryError] = useState(0);
     const {
         data: member,
@@ -39,8 +41,9 @@ export function MySettingsPage() {
             ? { title: "회원정보 조회 실패", message: getApiErrorMessage(queryError) }
             : null);
     const { mutate: updateImage, isPending: isUploading } = useUpdateProfileImageMutation();
-    const isBusy = isPending || isUploading;
-    const profileImageUrl = photo || member?.profileImageUrl;
+    const { mutate: deleteImage, isPending: isDeleting } = useDeleteProfileImageMutation();
+    const isBusy = isPending || isUploading || isDeleting;
+    const profileImageUrl = isPhotoRemoved ? null : photo || member?.profileImageUrl;
     const form = useForm<MySettingsFormValues>({
         resolver: zodResolver(memberUpdateSchema),
         defaultValues: { nickname: "", phone: "" },
@@ -70,23 +73,26 @@ export function MySettingsPage() {
                         nickname: updated.nickname,
                         phone: updated.phone ?? "",
                     });
-                    if (photoFile) {
-                        updateImage(photoFile, {
+                    if (photoFile || isPhotoRemoved) {
+                        const photoOptions = {
                             onSuccess: () => {
                                 setPhoto("");
                                 setPhotoFile(null);
+                                setIsPhotoRemoved(false);
                                 setNotice({
                                     title: "저장 완료",
                                     message: "변경 사항이 적용되었습니다.",
                                 });
                             },
-                            onError: (uploadError) => {
+                            onError: (uploadError: unknown) => {
                                 setNotice({
-                                    title: "사진 저장 실패",
-                                    message: `회원정보는 저장되었지만 사진은 저장하지 못했습니다. ${getApiErrorMessage(uploadError)}`,
+                                    title: isPhotoRemoved ? "사진 삭제 실패" : "사진 저장 실패",
+                                    message: `회원정보는 저장되었지만 사진은 ${isPhotoRemoved ? "삭제" : "저장"}하지 못했습니다. ${getApiErrorMessage(uploadError)}`,
                                 });
                             },
-                        });
+                        };
+                        if (isPhotoRemoved) deleteImage(undefined, photoOptions);
+                        else if (photoFile) updateImage(photoFile, photoOptions);
                     } else {
                         setNotice({
                             title: "저장 완료",
@@ -113,6 +119,7 @@ export function MySettingsPage() {
         }
         setPhoto(URL.createObjectURL(file));
         setPhotoFile(file);
+        setIsPhotoRemoved(false);
     };
 
     return (
@@ -150,6 +157,12 @@ export function MySettingsPage() {
                     isPreview={Boolean(photo)}
                     onSubmit={onSubmit}
                     onFileSelect={onFileSelect}
+                    onPhotoRemove={() => {
+                        if (!member || isBusy) return;
+                        setPhoto("");
+                        setPhotoFile(null);
+                        setIsPhotoRemoved(Boolean(member.profileImageUrl));
+                    }}
                 />
             </MyPanel>
             <MyResultDialog
