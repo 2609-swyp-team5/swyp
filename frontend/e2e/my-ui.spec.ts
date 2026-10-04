@@ -357,17 +357,20 @@ test("product table keeps headers during status loading and fits narrow screens"
     const responseReady = new Promise<void>((resolve) => {
         finishRequest = resolve;
     });
+    let finishStatusRequest!: () => void;
+    const statusResponseReady = new Promise<void>((resolve) => {
+        finishStatusRequest = resolve;
+    });
     await page.route("**/products/me?*", async (route) => {
         await responseReady;
+        const selectedStatus = new URL(route.request().url()).searchParams.get("status");
+        if (selectedStatus === "ON_SALE") await statusResponseReady;
         return route.fulfill({
             json: {
                 success: true,
                 data: {
                     content: (["DRAFT", "ON_SALE"] as const)
                         .filter((status) => {
-                            const selectedStatus = new URL(route.request().url()).searchParams.get(
-                                "status",
-                            );
                             return !selectedStatus || status === selectedStatus;
                         })
                         .map((status, index) => ({
@@ -378,9 +381,9 @@ test("product table keeps headers during status loading and fits narrow screens"
                             ),
                             price: 150000,
                         })),
-                    nextCursor: null,
-                    hasNext: false,
-                    totalCount: 2,
+                    nextCursor: selectedStatus ? null : "2",
+                    hasNext: !selectedStatus,
+                    totalCount: selectedStatus === "SOLD_OUT" ? 0 : selectedStatus ? 1 : 2,
                     statusCounts: { DRAFT: 1, ON_SALE: 1, SOLD_OUT: 0 },
                 },
                 error: null,
@@ -430,10 +433,16 @@ test("product table keeps headers during status loading and fits narrow screens"
             });
     }
     await page.setViewportSize({ width: 1440, height: 1000 });
+    await expect(page.getByRole("button", { name: "더 불러오기", exact: true })).toBeVisible();
     await page.getByRole("button", { name: /^판매중/ }).click();
     await expect(headers).toHaveCount(5);
+    await expect(page.locator("tbody").getByRole("status")).toHaveText("상품을 불러오는 중입니다.");
+    await expect(page.getByRole("button", { name: "전체 2", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "더 불러오기", exact: true })).toHaveCount(0);
     expect((await page.locator("thead").boundingBox())?.y).toBe(headerBox?.y);
+    finishStatusRequest();
     await expect(page.locator("tbody")).toContainText("—");
+    await expect(page.getByRole("button", { name: "전체 2", exact: true })).toBeVisible();
     await page.getByRole("button", { name: /^판매완료/ }).click();
     await expect(page.locator("tbody").getByRole("status")).toHaveText(
         "해당 상태의 상품이 없습니다.",

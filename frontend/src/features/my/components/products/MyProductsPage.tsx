@@ -12,7 +12,6 @@ import type { MyProductFilter } from "@/features/my/types";
 
 export function MyProductsPage() {
     const [filter, setFilter] = useState<MyProductFilter>("ALL");
-    const summaryQuery = useMyProductsQuery();
     const listQuery = useMyProductsQuery(filter === "ALL" ? undefined : filter);
     const {
         data,
@@ -25,21 +24,22 @@ export function MyProductsPage() {
         isFetchingNextPage,
         isFetchNextPageError,
         isFetching,
+        isPlaceholderData,
     } = listQuery;
-    const summary = summaryQuery.data?.pages[0];
-    const counts =
-        summary?.totalCount != null && summary.statusCounts
-            ? {
-                  ALL: summary.totalCount,
-                  DRAFT: summary.statusCounts.DRAFT ?? 0,
-                  ON_SALE: summary.statusCounts.ON_SALE ?? 0,
-                  SOLD_OUT: summary.statusCounts.SOLD_OUT ?? 0,
-              }
-            : undefined;
-    const products =
-        data?.pages.flatMap((page) =>
-            page.content.map((product) => ({ ...product, platformName: null })),
-        ) ?? [];
+    const summary = data?.pages[0];
+    const counts = summary?.statusCounts
+        ? {
+              ALL: Object.values(summary.statusCounts).reduce((sum, count) => sum + count, 0),
+              DRAFT: summary.statusCounts.DRAFT ?? 0,
+              ON_SALE: summary.statusCounts.ON_SALE ?? 0,
+              SOLD_OUT: summary.statusCounts.SOLD_OUT ?? 0,
+          }
+        : undefined;
+    const products = isPlaceholderData
+        ? []
+        : (data?.pages.flatMap((page) =>
+              page.content.map((product) => ({ ...product, platformName: null })),
+          ) ?? []);
     return (
         <MyPageContent
             eyebrow="판매 관리"
@@ -48,8 +48,12 @@ export function MyProductsPage() {
             titleClassName="text-[#1a1f35]"
         >
             <ProductFilters filter={filter} onFilterChange={setFilter} counts={counts} />
-            <ProductTable products={products} isLoading={isPending} isError={isError} />
-            {hasNextPage && !isError && (
+            <ProductTable
+                products={products}
+                isLoading={isPending || isPlaceholderData}
+                isError={isError}
+            />
+            {hasNextPage && !isError && !isPlaceholderData && (
                 <Button
                     type="button"
                     variant="outline"
