@@ -141,6 +141,7 @@ export function ProductSummaryCard({ product, interest }: ProductSummaryCardProp
                                 <ProductSummaryActions
                                     product={product}
                                     editHref={`/sell/manage/${product.id}/edit`}
+                                    canMarkAsSold={product.status === "ON_SALE"}
                                 />
                             </>
                         )}
