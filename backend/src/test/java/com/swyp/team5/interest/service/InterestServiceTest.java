@@ -47,6 +47,7 @@ import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
+import com.swyp.team5.productanalysis.service.AnalysisProgressTracker;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -77,6 +78,8 @@ class InterestServiceTest {
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
+    private final AnalysisProgressTracker analysisProgressTracker = new AnalysisProgressTracker();
+
     private InterestService service() {
         return new InterestService(
                 interestRepository,
@@ -86,7 +89,8 @@ class InterestServiceTest {
                         new ProductInterestRegistrar(interestRepository, productRepository),
                         new ListingInterestRegistrar(interestRepository, platformListingRepository)),
                 targetPriceAlertService,
-                eventPublisher);
+                eventPublisher,
+                analysisProgressTracker);
     }
 
     // 관심상품 등록 성공 - 우리 상품
@@ -291,7 +295,7 @@ class InterestServiceTest {
 
         assertThat(page.totalCount()).isEqualTo(3L);
         assertThat(page.statusCounts())
-                .containsExactly(entry("BUY", 0L), entry("WATCHING", 2L), entry("SOLD_OUT", 1L), entry("PENDING", 0L));
+                .containsExactly(entry("BUY", 0L), entry("WAIT", 0L), entry("SOLD_OUT", 1L), entry("PENDING", 2L));
     }
 
     // 관심상품 목록 조회 - 외부 매물 대상 건도 관심 매물 시세 분석 스냅샷이 있으면 추천·평균가를 채움
@@ -331,7 +335,7 @@ class InterestServiceTest {
     }
 
     // 관심상품 목록 조회 - 관심상품 상태: 판매 완료=판매종료(추천보다 우선), 최근 분석 BUY=구매추천, WAIT=관찰중,
-    // 분석 없음은 등록 6시간 이내 관찰중·이후 분석대기
+    // 분석 없음은 등록 시각과 무관하게 분석대기
     @Test
     void getInterestsComputesInterestStatus() {
         Member member = newMember(1L);
@@ -376,9 +380,31 @@ class InterestServiceTest {
                 .containsExactly(
                         tuple(15L, "SOLD_OUT", InterestStatus.SOLD_OUT),
                         tuple(14L, "ON_SALE", InterestStatus.PENDING),
-                        tuple(13L, "ON_SALE", InterestStatus.WATCHING),
-                        tuple(12L, "ON_SALE", InterestStatus.WATCHING),
+                        tuple(13L, "ON_SALE", InterestStatus.PENDING),
+                        tuple(12L, "ON_SALE", InterestStatus.WAIT),
                         tuple(11L, "ON_SALE", InterestStatus.BUY));
+    }
+
+    // 관심상품 목록 조회 - 분석 결과가 없어도 분석이 대기·진행 중이면 관찰중(WAIT), 끝나면(결과 없음) 분석대기
+    @Test
+    void getInterestsTreatsAnalyzingItemAsWait() {
+        Member member = newMember(1L);
+        PlatformListing analyzing = newPlatformListing(100L);
+        PlatformListing idle = newPlatformListing(101L);
+        when(interestRepository.findAllWithItemByMemberId(1L))
+                .thenReturn(List.of(
+                        newListingInterest(11L, member, analyzing, null), newListingInterest(12L, member, idle, null)));
+        analysisProgressTracker.start(100L);
+
+        assertThat(service().getInterests(1L, null, null, 10).content())
+                .extracting(InterestListItemResponse::interestId, InterestListItemResponse::interestStatus)
+                .containsExactly(tuple(12L, InterestStatus.PENDING), tuple(11L, InterestStatus.WAIT));
+
+        analysisProgressTracker.finish(100L);
+
+        assertThat(service().getInterests(1L, null, null, 10).content())
+                .extracting(InterestListItemResponse::interestStatus)
+                .containsOnly(InterestStatus.PENDING);
     }
 
     // 관심상품 목록 조회 - status 파라미터는 관심상품 상태로 거름(탭과 1:1, 복수 가능), totalCount는 필터 기준·statusCounts는 전체 기준
@@ -426,7 +452,7 @@ class InterestServiceTest {
         assertThat(buy.totalCount()).isEqualTo(1L);
         // 탭 숫자용 상태별 건수는 필터와 무관하게 전체 기준
         assertThat(buy.statusCounts())
-                .containsExactly(entry("BUY", 1L), entry("WATCHING", 0L), entry("SOLD_OUT", 1L), entry("PENDING", 1L));
+                .containsExactly(entry("BUY", 1L), entry("WAIT", 0L), entry("SOLD_OUT", 1L), entry("PENDING", 1L));
 
         // 판매종료 탭
         var soldOut = service().getInterests(1L, Set.of(InterestStatus.SOLD_OUT), null, 10);

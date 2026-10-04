@@ -152,6 +152,7 @@ public class ProductAnalysisService {
     private final PriceForecastRepository priceForecastRepository;
     private final CategoryRepository categoryRepository;
     private final ItemRepository itemRepository;
+    private final AnalysisProgressTracker progressTracker;
 
     public ProductAnalysisService(
             AiChatExecutor aiChatExecutor,
@@ -163,7 +164,8 @@ public class ProductAnalysisService {
             InterestRepository interestRepository,
             PriceForecastRepository priceForecastRepository,
             CategoryRepository categoryRepository,
-            ItemRepository itemRepository) {
+            ItemRepository itemRepository,
+            AnalysisProgressTracker progressTracker) {
         this.aiChatExecutor = aiChatExecutor;
         this.productRepository = productRepository;
         this.platformListingRepository = platformListingRepository;
@@ -174,6 +176,7 @@ public class ProductAnalysisService {
         this.priceForecastRepository = priceForecastRepository;
         this.categoryRepository = categoryRepository;
         this.itemRepository = itemRepository;
+        this.progressTracker = progressTracker;
     }
 
     /**
@@ -388,7 +391,7 @@ public class ProductAnalysisService {
 
     /**
      * 분석 대상 상태({@link ProductStatus#ANALYSIS_TARGETS} — 외부 게시 전 등록 상품 포함)의 상품 전체와, 관심 등록된
-     * 판매중 외부 매물 전체를 순회하며 분석한다(스케줄러 진입점). 한 건이 실패해도 나머지는 계속 진행한다.
+     * 같은 상태 기준({@link ProductStatus#EXTERNAL_ANALYSIS_TARGETS} — 판매중·예약중)의 외부 매물 전체를 순회하며 분석한다(스케줄러 진입점). 한 건이 실패해도 나머지는 계속 진행한다.
      */
     public void analyzeAll() {
         List<Product> products = productRepository.findByStatusIn(ProductStatus.ANALYSIS_TARGETS);
@@ -398,7 +401,8 @@ public class ProductAnalysisService {
             sleepBetweenAiCalls();
         }
 
-        List<PlatformListing> listings = interestRepository.findInterestedListingsByStatus(SELLING_STATUS);
+        List<PlatformListing> listings =
+                interestRepository.findInterestedListingsByStatusIn(ProductStatus.EXTERNAL_ANALYSIS_TARGETS);
         log.info("시세 분석 대상 관심 외부 매물 {}건", listings.size());
         for (PlatformListing listing : listings) {
             analyzeListingSafely(listing);
@@ -423,7 +427,7 @@ public class ProductAnalysisService {
 
     /**
      * 관심 등록된 대상 1건(우리 상품 또는 외부 매물)을 정기 배치와 같은 방식으로 분석한다(관심 등록 직후 분석 진입점). 우리 상품은
-     * 분석 대상 상태일 때, 외부 매물은 판매중일 때만 분석하고, 최근 {@value #RECENT_ANALYSIS_HOURS}시간 안에 분석한 대상은
+     * 분석 대상 상태일 때, 외부 매물은 같은 기준(판매중·예약중)일 때만 분석하고, 최근 {@value #RECENT_ANALYSIS_HOURS}시간 안에 분석한 대상은
      * 건너뛴다(여러 회원이 같은 대상을 연달아 등록해도 AI를 반복 호출하지 않도록). 실패해도 예외를 던지지 않는다(로그만 남김).
      *
      * @param itemId 관심 등록 대상 ID
@@ -446,7 +450,8 @@ public class ProductAnalysisService {
         }
         if (item.get() instanceof Product product && ProductStatus.ANALYSIS_TARGETS.contains(product.getStatus())) {
             analyzeProductSafely(product);
-        } else if (item.get() instanceof PlatformListing listing && SELLING_STATUS.equals(listing.getStatus())) {
+        } else if (item.get() instanceof PlatformListing listing
+                && ProductStatus.EXTERNAL_ANALYSIS_TARGETS.contains(listing.getStatus())) {
             analyzeListingSafely(listing);
         } else {
             log.info("관심 대상 {}: 분석 대상 상태가 아니라 관심 등록 직후 분석을 건너뜁니다.", itemId);
@@ -454,18 +459,24 @@ public class ProductAnalysisService {
     }
 
     private void analyzeListingSafely(PlatformListing listing) {
+        progressTracker.start(listing.getId());
         try {
             analyzeListing(listing);
         } catch (Exception e) {
             log.error("외부 매물 {} 시세 분석 중 오류가 발생했습니다.", listing.getId(), e);
+        } finally {
+            progressTracker.finish(listing.getId());
         }
     }
 
     private void analyzeProductSafely(Product product) {
+        progressTracker.start(product.getId());
         try {
             analyzeProduct(product);
         } catch (Exception e) {
             log.error("상품 {} 시세 분석 중 오류가 발생했습니다.", product.getId(), e);
+        } finally {
+            progressTracker.finish(product.getId());
         }
     }
 
