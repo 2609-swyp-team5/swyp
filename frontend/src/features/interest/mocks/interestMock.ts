@@ -5,6 +5,7 @@ import type {
     InterestListItem,
     InterestListResponse,
     InterestRegisterInput,
+    InterestStatus,
 } from "../types";
 
 export const interestMockSource = "mock" as const;
@@ -23,6 +24,7 @@ const mockInterestItems: InterestListItem[] = [
         categoryName: "스마트폰",
         thumbnailUrl: null,
         recommendation: "BUY",
+        interestStatus: "BUY",
         marketAveragePrice: 350000,
         platformName: null,
         externalUrl: null,
@@ -41,6 +43,7 @@ const mockInterestItems: InterestListItem[] = [
         thumbnailUrl:
             "https://img2.joongna.com/media/original/2026/09/23/17901243280321Lf_aZjpZ.jpg?impolicy=thumb&size=150",
         recommendation: null,
+        interestStatus: "WAIT",
         marketAveragePrice: 1300000,
         platformName: "중고나라",
         externalUrl: "https://web.joongna.com/product/232658062",
@@ -58,6 +61,7 @@ const mockInterestItems: InterestListItem[] = [
         categoryName: "헤드폰",
         thumbnailUrl: null,
         recommendation: "BUY",
+        interestStatus: "SOLD_OUT",
         marketAveragePrice: 300000,
         platformName: "헬로마켓",
         externalUrl: null,
@@ -75,6 +79,7 @@ const mockInterestItems: InterestListItem[] = [
         categoryName: "태블릿",
         thumbnailUrl: null,
         recommendation: "BUY",
+        interestStatus: "BUY",
         marketAveragePrice: 520000,
         platformName: null,
         externalUrl: null,
@@ -92,6 +97,7 @@ const mockInterestItems: InterestListItem[] = [
         categoryName: "생활가전",
         thumbnailUrl: null,
         recommendation: "WAIT",
+        interestStatus: "WAIT",
         marketAveragePrice: 400000,
         platformName: null,
         externalUrl: null,
@@ -109,6 +115,7 @@ const mockInterestItems: InterestListItem[] = [
         categoryName: "패션",
         thumbnailUrl: null,
         recommendation: null,
+        interestStatus: "PENDING",
         marketAveragePrice: 95000,
         platformName: "번개장터",
         externalUrl: "https://m.bunjang.co.kr/products/404048469",
@@ -123,16 +130,35 @@ function waitForMockResponse() {
     return new Promise<void>((resolve) => window.setTimeout(resolve, mockDelayMs));
 }
 
-export async function getInterestsMock(): Promise<ApiResponse<InterestListResponse>> {
+export async function getInterestsMock(
+    status?: InterestStatus,
+): Promise<ApiResponse<InterestListResponse>> {
     await waitForMockResponse();
+    const content = status
+        ? interests.filter((interest) => interest.interestStatus === status)
+        : interests;
+    const statusCounts = interests.reduce<Record<InterestStatus, number>>(
+        (counts, interest) => {
+            counts[interest.interestStatus] += 1;
+            return counts;
+        },
+        {
+            BUY: 0,
+            WAIT: 0,
+            SOLD_OUT: 0,
+            PENDING: 0,
+        },
+    );
 
     return {
         success: true,
         message: "관심상품 mock 목록 조회 성공",
         data: {
-            content: interests.map((interest) => ({ ...interest })),
+            content: content.map((interest) => ({ ...interest })),
             nextCursor: null,
             hasNext: false,
+            totalCount: content.length,
+            statusCounts,
         },
         error: null,
     };
@@ -169,6 +195,7 @@ export async function registerInterestMock(
             categoryName: "기타",
             thumbnailUrl: null,
             recommendation: "BUY",
+            interestStatus: "BUY",
             marketAveragePrice: 350000,
             platformName: input.source === "EXTERNAL" ? "외부 플랫폼" : null,
             externalUrl:
