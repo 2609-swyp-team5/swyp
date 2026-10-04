@@ -153,7 +153,7 @@ class NotificationTest extends IntegrationTest {
         Notification notification =
                 notificationRepository.save(Notification.create(owner, null, NotificationType.NOTICE, "알림", "내용"));
 
-        mockMvc.perform(patch("/notifications/{id}/read", notification.getId())
+        mockMvc.perform(patch("/notifications/{notificationId}/read", notification.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.notificationId").value(notification.getId()))
@@ -178,7 +178,7 @@ class NotificationTest extends IntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.count").value(2));
 
-        mockMvc.perform(patch("/notifications/{id}/read", first.getId())
+        mockMvc.perform(patch("/notifications/{notificationId}/read", first.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
                 .andExpect(status().isOk());
 
@@ -199,12 +199,12 @@ class NotificationTest extends IntegrationTest {
         Notification notification =
                 notificationRepository.save(Notification.create(owner, null, NotificationType.NOTICE, "알림", "내용"));
 
-        mockMvc.perform(patch("/notifications/{id}/read", notification.getId())
+        mockMvc.perform(patch("/notifications/{notificationId}/read", notification.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value("NOT_FOUND"))
                 .andExpect(jsonPath("$.message").value("존재하지 않는 알림이에요."));
-        mockMvc.perform(delete("/notifications/{id}", notification.getId())
+        mockMvc.perform(delete("/notifications/{notificationId}", notification.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
                 .andExpect(status().isNotFound());
 
@@ -217,7 +217,7 @@ class NotificationTest extends IntegrationTest {
         Notification notification =
                 notificationRepository.save(Notification.create(owner, null, NotificationType.NOTICE, "알림", "내용"));
 
-        mockMvc.perform(delete("/notifications/{id}", notification.getId())
+        mockMvc.perform(delete("/notifications/{notificationId}", notification.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
                 .andExpect(status().isOk());
 
@@ -257,7 +257,7 @@ class NotificationTest extends IntegrationTest {
         Interest interest = interestRepository.save(Interest.ofProduct(other, product));
         String body = "{\"targetPrice\": 120000}";
 
-        mockMvc.perform(patch("/interests/{id}/target-price", interest.getId())
+        mockMvc.perform(patch("/interests/{interestId}/target-price", interest.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
