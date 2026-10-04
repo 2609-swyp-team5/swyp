@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -38,6 +39,7 @@ import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.productanalysis.config.ProductAnalysisProperties;
+import com.swyp.team5.productanalysis.dto.AnalysisPerspective;
 import com.swyp.team5.productanalysis.dto.CompetitionLevel;
 import com.swyp.team5.productanalysis.dto.MarketAnalysisResult;
 import com.swyp.team5.productanalysis.dto.PriceTrendResponse;
@@ -66,6 +68,12 @@ public class ProductAnalysisService {
 
     /** 추세 계산에 쓸 이전 분석 기록 기간(개월). 프롬프트의 1/3/6개월 전 대비 비교 중 가장 긴 기간과 같다. */
     private static final int TREND_MONTHS = 6;
+
+    /** 대기 기간(개월)을 일로 바꿀 때 쓰는 한 달 일수. */
+    private static final int DAYS_PER_MONTH = 30;
+
+    /** 가격 분포 구간 수. */
+    private static final int PRICE_DISTRIBUTION_BUCKETS = 5;
 
     private static final String SYSTEM_PROMPT =
             """
@@ -183,35 +191,90 @@ public class ProductAnalysisService {
     }
 
     /**
-     * 상품(또는 외부 매물)의 가장 최근 시세 분석 스냅샷을 감가 예측(1M/3M/6M)과 함께 조회한다(감가 예측만 필요하면 {@link #getForecast} — {@code forecasts}는 프론트 전환 후 제거 예정). 외부 매물은 관심 등록된 것만
-     * 구매자 관점으로 분석되므로 그 밖의 매물은 분석 이력이 없다. 분석 이력이 없으면(배치가 아직 안 돌았거나 비교 매물 부족으로
-     * 건너뛴 경우) 상품 ID·현재 가격만 채우고 나머지 필드는 null인 응답을 반환한다.
+     * 상품(또는 외부 매물)의 가장 최근 시세 분석 스냅샷을 감가 예측(1M/3M/6M)·가격 분포·요약 지표와 함께 조회한다(감가 예측만
+     * 필요하면 {@link #getForecast} — {@code forecasts}는 프론트 전환 후 제거 예정). 외부 매물은 관심 등록된 것만 구매자 관점으로
+     * 분석되므로 그 밖의 매물은 분석 이력이 없다. 분석 이력이 없으면(배치가 아직 안 돌았거나 비교 매물 부족으로 건너뛴 경우) 상품
+     * ID·현재 가격만 채우고 나머지 필드는 null인 응답을 반환한다.
      *
+     * <p>가격 분포는 분석 때 고른 매물을 저장하지 않아 조회 시점에 같은 1단계 기준(키워드 후보·이상치 제외, AI 선별 없음)으로 다시
+     * 고른 매물 중 분석의 최저~최고가 안에 드는 것만 센다.
+     *
+     * @param perspective 조회 관점 — 구매자(BUY)면 우리 상품도 구매자 추천(BUY/WAIT)과 그 근거를 {@code recommendation}에 담는다
      * @throws ProductNotFoundException 존재하지 않는 상품(외부 매물 포함)인 경우
      */
     @Transactional(readOnly = true)
-    public ProductAnalysisResponse getLatestAnalysis(Long productId) {
+    public ProductAnalysisResponse getLatestAnalysis(Long productId, AnalysisPerspective perspective) {
         Item item = getItemOrThrow(productId);
+        boolean buyerView = perspective == AnalysisPerspective.BUY;
         return productAnalysisRepository
                 .findFirstByItemIdOrderByAnalyzedAtDesc(productId)
-                .map(analysis -> ProductAnalysisResponse.from(
-                        item,
-                        analysis,
-                        ConfidenceRule.current(
-                                analysis.getConfidence(),
-                                analysis.getAnalyzedAt(),
-                                LocalDateTime.now(),
-                                properties.confidence()),
-                        analysis.getListingCount() == null
-                                ? null
-                                : ConfidenceRule.rate(analysis.getListingCount(), properties.confidence()),
-                        priceForecastRepository.findByAnalysisId(analysis.getId())))
+                .map(analysis -> {
+                    Integer confidenceRate = analysis.getListingCount() == null
+                            ? null
+                            : ConfidenceRule.rate(analysis.getListingCount(), properties.confidence());
+                    return ProductAnalysisResponse.from(
+                            item,
+                            analysis,
+                            buyerView,
+                            ConfidenceRule.current(
+                                    analysis.getConfidence(),
+                                    analysis.getAnalyzedAt(),
+                                    LocalDateTime.now(),
+                                    properties.confidence()),
+                            confidenceRate,
+                            priceForecastRepository.findByAnalysisId(analysis.getId()),
+                            priceDistribution(item, analysis),
+                            analysisSummary(
+                                    item,
+                                    analysis,
+                                    ProductAnalysisResponse.viewRecommendation(analysis, buyerView),
+                                    confidenceRate));
+                })
                 .orElseGet(() -> ProductAnalysisResponse.empty(item));
     }
 
+    /** 판매 추천(SELL)이면 판매 현황, 그 밖에는 대기 추천 지표. */
+    private ProductAnalysisResponse.Summary analysisSummary(
+            Item item, ProductAnalysis analysis, AnalysisRecommendation recommendation, Integer confidenceRate) {
+        if (recommendation == AnalysisRecommendation.SELL) {
+            return ProductAnalysisResponse.SaleStats.of(
+                    ChronoUnit.DAYS.between(item.getCreatedAt().toLocalDate(), LocalDate.now()) + 1,
+                    item instanceof Product product ? product.getViewCount() : 0,
+                    interestRepository.countByItemId(item.getId()));
+        }
+        int waitPeriodDays = 0;
+        if (recommendation == AnalysisRecommendation.HOLD || recommendation == AnalysisRecommendation.WAIT) {
+            ForecastPeriod waitPeriod =
+                    analysis.getWaitPeriod() == null ? ForecastPeriod.ONE_MONTH : analysis.getWaitPeriod();
+            waitPeriodDays = waitPeriod.getMonths() * DAYS_PER_MONTH;
+        }
+        BigDecimal changeRate = analysis.getExpectedPriceChangeRate() == null
+                ? BigDecimal.ZERO
+                : analysis.getExpectedPriceChangeRate()
+                        .multiply(BigDecimal.valueOf(100))
+                        .setScale(1, RoundingMode.HALF_UP);
+        return ProductAnalysisResponse.WaitRecommendation.of(
+                waitPeriodDays, changeRate, confidenceRate == null ? 0 : confidenceRate);
+    }
+
+    /** 조회 시점 비교 매물(1단계 기준) 중 분석의 최저~최고가 안에 드는 가격을 같은 폭 구간으로 센다. */
+    private List<ProductAnalysisResponse.PriceBucket> priceDistribution(Item item, ProductAnalysis analysis) {
+        List<PlatformListing> others = freshSellingListings(item.getCategory().getId()).stream()
+                .filter(listing -> !listing.getId().equals(item.getId()))
+                .toList();
+        String brand = item instanceof Product product ? product.getBrand() : null;
+        List<Long> prices = SimilarListingFilter.removeOutliers(
+                SimilarListingFilter.selectCandidates(item.getTitle(), brand, others, properties.sampleSize()).stream()
+                        .map(PlatformListing::getPrice)
+                        .toList());
+        return ProductAnalysisResponse.PriceBucket.distribute(
+                prices, analysis.getMinPrice(), analysis.getMaxPrice(), PRICE_DISTRIBUTION_BUCKETS);
+    }
+
     /**
-     * 상품(또는 외부 매물)의 감가 예측(1M/3M/6M)을 조회한다. 가장 최근 시세 분석 때 함께 계산해 둔 값이며, 분석 이력이 없으면
-     * 상품 ID·현재 가격만 채우고 {@code forecasts}는 빈 배열인 응답을 반환한다.
+     * 상품(또는 외부 매물)의 감가 예측(1M/3M/6M)을 조회한다. 가장 최근 시세 분석 때 함께 계산해 둔 값이며, 기준 가치는 그 분석의
+     * 평균 시세(감가 예측의 출발점)다. 분석 이력이 없으면 기준 가치를 현재 등록가로 두고 {@code forecasts}는 빈 배열인 응답을
+     * 반환한다.
      *
      * @throws ProductNotFoundException 존재하지 않는 상품(외부 매물 포함)인 경우
      */
@@ -222,14 +285,15 @@ public class ProductAnalysisService {
                 .findFirstByItemIdOrderByAnalyzedAtDesc(productId)
                 .map(analysis -> ProductForecastResponse.from(
                         item, analysis, priceForecastRepository.findByAnalysisId(analysis.getId())))
-                .orElseGet(() -> ProductForecastResponse.empty(item));
+                .orElseGet(() -> ProductForecastResponse.empty(item, LocalDate.now()));
     }
 
     /**
      * 상품의 최근 {@code days}일(오늘 포함) 시세 분석 스냅샷을 날짜별로 묶어 가격 추이를 조회한다. 같은 날 여러 번 분석됐으면
-     * 평균가는 그 평균, 최저/최고가는 그날 중 최저/최고이고, 기간 평균가는 일별 평균가의 평균이다(분석이 몰린 날이 과대 반영되지
-     * 않도록 {@link PriceTrend}와 같은 기준). 각 점에는 직전 기록일 대비 변화가 붙는다(첫 점은 null). 외부 매물(관심 등록된
-     * 매물의 구매자 관점 분석)도 같은 방식으로 조회한다. 분석 이력이 없으면 {@code points}가 빈 배열이다.
+     * 평균가는 그 평균, 최저/최고가는 그날 중 최저/최고, 비교 매물 수는 그날 중 최대이고, 기간 평균가는 일별 평균가의 평균이다
+     * (분석이 몰린 날이 과대 반영되지 않도록 {@link PriceTrend}와 같은 기준). 각 점에는 직전 기록일 대비 변화가 붙는다(첫 점은
+     * null). 외부 매물(관심 등록된 매물의 구매자 관점 분석)도 같은 방식으로 조회한다. 분석 이력이 없으면 {@code points}가 빈
+     * 배열이다.
      *
      * @throws ProductNotFoundException 존재하지 않는 상품(외부 매물 포함)인 경우
      */
@@ -255,6 +319,12 @@ public class ProductAnalysisService {
                     entry.getKey(),
                     averagePrice,
                     entry.getValue().stream()
+                            .map(ProductAnalysis::getListingCount)
+                            .filter(Objects::nonNull)
+                            .mapToLong(Integer::longValue)
+                            .max()
+                            .orElse(0),
+                    entry.getValue().stream()
                             .mapToLong(ProductAnalysis::getMinPrice)
                             .min()
                             .orElseThrow(),
@@ -270,17 +340,18 @@ public class ProductAnalysisService {
         return new PriceTrendResponse(
                 item.getId(),
                 item.getPrice(),
-                days,
-                from,
-                to,
-                points.isEmpty()
-                        ? null
-                        : Math.round(points.stream()
-                                .mapToLong(PriceTrendResponse.Point::averagePrice)
-                                .average()
-                                .orElseThrow()),
-                trendChangeRate(points),
-                points);
+                PriceTrendResponse.Trend.of(
+                        days,
+                        from,
+                        to,
+                        points.isEmpty()
+                                ? null
+                                : Math.round(points.stream()
+                                        .mapToLong(PriceTrendResponse.Point::averagePrice)
+                                        .average()
+                                        .orElseThrow()),
+                        trendChangeRate(points),
+                        points));
     }
 
     /**
@@ -327,6 +398,9 @@ public class ProductAnalysisService {
     }
 
     private static CompetitionLevel competitionLevel(int count, ProductAnalysisProperties.Competition criteria) {
+        if (count == 0) {
+            return CompetitionLevel.NONE;
+        }
         if (count >= criteria.highCount()) {
             return CompetitionLevel.HIGH;
         }

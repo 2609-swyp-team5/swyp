@@ -12,7 +12,11 @@ const platformBadgeClassNames: Record<string, string> = {
     BUNJANG: "bg-[#403834]",
 };
 
-function formatPriceComparison(priceDiffRate: number) {
+function formatPriceComparison(priceDiffRate: number | null) {
+    if (priceDiffRate === null) {
+        return "= 평균 시세 집계 중이에요";
+    }
+
     if (priceDiffRate === 0) {
         return "= 평균 수준이에요";
     }
@@ -66,10 +70,14 @@ function CompetitionCard({ item }: { item: ProductCompetition["competition"]["it
                     {item.title}
                 </h3>
                 <div className="whitespace-nowrap">
-                    <p className="text-[13px] leading-[13px] font-semibold text-[#fa503d]">
-                        평균가{" "}
-                        <span className="line-through">{formatPrice(item.marketAveragePrice)}</span>
-                    </p>
+                    {item.marketAveragePrice !== null && (
+                        <p className="text-[13px] leading-[13px] font-semibold text-[#fa503d]">
+                            평균가{" "}
+                            <span className="line-through">
+                                {formatPrice(item.marketAveragePrice)}
+                            </span>
+                        </p>
+                    )}
                     <p className="mt-1 text-[20px] leading-5 font-bold text-[#464646]">
                         {formatPrice(item.listingPrice)}
                     </p>

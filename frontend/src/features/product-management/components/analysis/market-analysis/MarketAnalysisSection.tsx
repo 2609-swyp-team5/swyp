@@ -10,7 +10,7 @@ import { MarketAnalysisContent } from "./MarketAnalysisContent";
 import { MarketAnalysisSkeleton } from "./MarketAnalysisSkeleton";
 
 type MarketAnalysisSectionProps = {
-    result: ProductMarketAnalysis | undefined;
+    result: ProductMarketAnalysis | null | undefined;
     error: unknown;
     isPending: boolean;
     priceTrendQuery: StreamingQueryState<ProductPriceTrend>;
@@ -56,6 +56,10 @@ export function MarketAnalysisSection({
                         priceTrendQuery={priceTrendQuery}
                         valuationForecastQuery={valuationForecastQuery}
                     />
+                ) : result === null ? (
+                    <p className="bg-white px-6 py-16 text-center text-[14px] leading-6 text-[#83889e]">
+                        아직 시세 분석 결과가 없어요. 비슷한 매물이 모이면 분석해 드릴게요.
+                    </p>
                 ) : null}
             </section>
         </div>

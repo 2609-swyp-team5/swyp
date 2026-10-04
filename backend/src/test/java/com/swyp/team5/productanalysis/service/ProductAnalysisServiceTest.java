@@ -42,6 +42,7 @@ import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.productanalysis.config.ProductAnalysisProperties;
+import com.swyp.team5.productanalysis.dto.AnalysisPerspective;
 import com.swyp.team5.productanalysis.dto.CompetitionLevel;
 import com.swyp.team5.productanalysis.dto.MarketAnalysisResult;
 import com.swyp.team5.productanalysis.dto.PriceForecastResponse;
@@ -131,6 +132,9 @@ class ProductAnalysisServiceTest {
         lenient().when(product.getPrice()).thenReturn(price);
         lenient().when(product.getCondition()).thenReturn(ProductCondition.A);
         lenient().when(product.getDefectStatus()).thenReturn(DefectStatus.NORMAL);
+        lenient()
+                .when(product.getCreatedAt())
+                .thenReturn(LocalDate.now().minusDays(4).atStartOfDay());
         return product;
     }
 
@@ -848,11 +852,17 @@ class ProductAnalysisServiceTest {
         assertThat(response.productId()).isEqualTo(1L);
         assertThat(response.currentPrice()).isEqualTo(800_000L);
         assertThat(response.analyzedAt()).isEqualTo(analyzedAt);
-        assertThat(response.forecasts())
-                .containsExactly(
-                        new PriceForecastResponse("1M", 3_000L),
-                        new PriceForecastResponse("3M", 2_500L),
-                        new PriceForecastResponse("6M", 2_000L));
+        // 기준 가치는 분석 평균 시세(3,000원), 비율은 기준 대비 %(소수 둘째 자리), 1M/3M/6M 순
+        ProductForecastResponse.ValuationForecast valuation = response.valuationForecast();
+        assertThat(valuation.baseDate()).isEqualTo(analyzedAt.toLocalDate());
+        assertThat(valuation.baseValue()).isEqualTo(3_000L);
+        assertThat(valuation.baseValueRate()).isEqualByComparingTo("100");
+        assertThat(valuation.forecasts())
+                .extracting(ProductForecastResponse.Forecast::period, ProductForecastResponse.Forecast::expectedValue)
+                .containsExactly(tuple("1M", 3_000L), tuple("3M", 2_500L), tuple("6M", 2_000L));
+        assertThat(valuation.forecasts().get(1).expectedValueRate()).isEqualByComparingTo("83.33");
+        assertThat(valuation.forecasts().get(1).expectedChangeRate()).isEqualByComparingTo("-16.67");
+        assertThat(valuation.forecasts().get(2).expectedValueRate()).isEqualByComparingTo("66.67");
     }
 
     // 감가 예측 조회 - 분석 이력이 없으면 상품 ID·현재 등록가만 채우고 예측은 빈 배열
@@ -869,7 +879,10 @@ class ProductAnalysisServiceTest {
         assertThat(response.currentPrice()).isEqualTo(800_000L);
         assertThat(response.analysisId()).isNull();
         assertThat(response.analyzedAt()).isNull();
-        assertThat(response.forecasts()).isEmpty();
+        // 기준 가치는 현재 등록가, 기준일은 오늘
+        assertThat(response.valuationForecast().baseValue()).isEqualTo(800_000L);
+        assertThat(response.valuationForecast().baseDate()).isEqualTo(LocalDate.now());
+        assertThat(response.valuationForecast().forecasts()).isEmpty();
     }
 
     // 감가 예측 조회 실패 - 존재하지 않는 상품
@@ -885,7 +898,8 @@ class ProductAnalysisServiceTest {
     void getLatestAnalysisThrowsWhenProductNotFound() {
         when(itemRepository.findById(999L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service().getLatestAnalysis(999L)).isInstanceOf(ProductNotFoundException.class);
+        assertThatThrownBy(() -> service().getLatestAnalysis(999L, AnalysisPerspective.SELL))
+                .isInstanceOf(ProductNotFoundException.class);
     }
 
     // 조회 성공 - 분석 이력이 없으면 상품 ID·현재 등록가만 채우고 나머지는 null
@@ -896,7 +910,7 @@ class ProductAnalysisServiceTest {
         when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.empty());
 
-        ProductAnalysisResponse response = service().getLatestAnalysis(1L);
+        ProductAnalysisResponse response = service().getLatestAnalysis(1L, AnalysisPerspective.SELL);
 
         assertThat(response.productId()).isEqualTo(1L);
         assertThat(response.currentPrice()).isEqualTo(800_000L);
@@ -905,6 +919,9 @@ class ProductAnalysisServiceTest {
         assertThat(response.marketPriceDiffRate()).isNull();
         assertThat(response.recommendation()).isNull();
         assertThat(response.forecasts()).isEmpty();
+        assertThat(response.marketExpectedPrice()).isNull();
+        assertThat(response.priceDistribution()).isEmpty();
+        assertThat(response.summary()).isNull();
     }
 
     // 조회 성공 - 가장 최근 스냅샷 반환
@@ -930,7 +947,7 @@ class ProductAnalysisServiceTest {
                         PriceForecast.of(analysis, ForecastPeriod.ONE_MONTH, 3_000L),
                         PriceForecast.of(analysis, ForecastPeriod.THREE_MONTHS, 3_000L)));
 
-        ProductAnalysisResponse response = service().getLatestAnalysis(1L);
+        ProductAnalysisResponse response = service().getLatestAnalysis(1L, AnalysisPerspective.SELL);
 
         // 감가 예측은 1M/3M/6M 순으로 정렬해 반환
         assertThat(response.forecasts())
@@ -951,6 +968,10 @@ class ProductAnalysisServiceTest {
         assertThat(response.waitPeriod()).isNull();
         assertThat(response.expectedPrice()).isNull();
         assertThat(response.expectedPriceChangeRate()).isNull();
+        // 1개월 예상 가격 도입 이전 분석이면 예상 시세는 평균가
+        assertThat(response.marketExpectedPrice()).isEqualTo(3000L);
+        // 판매 추천(SELL)이면 판매 현황 — 등록 4일 전 0시면 판매 기간 5일(당일 1)
+        assertThat(response.summary()).isEqualTo(ProductAnalysisResponse.SaleStats.of(5, 0, 0));
     }
 
     // 조회 성공 - HOLD 분석은 대기 기간(1M)·1개월 예상 가격·변화율을 반환
@@ -972,11 +993,19 @@ class ProductAnalysisServiceTest {
         when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.of(analysis));
 
-        ProductAnalysisResponse response = service().getLatestAnalysis(1L);
+        ProductAnalysisResponse response = service().getLatestAnalysis(1L, AnalysisPerspective.SELL);
 
         assertThat(response.waitPeriod()).isEqualTo("1M");
         assertThat(response.expectedPrice()).isEqualTo(520_000L);
         assertThat(response.expectedPriceChangeRate()).isEqualByComparingTo("0.04");
+        assertThat(response.marketExpectedPrice()).isEqualTo(520_000L);
+        // HOLD면 대기 추천 지표 — 대기 1개월 = 30일, 변화율은 %(소수 첫째 자리), 신뢰도 도입 이전이면 0
+        ProductAnalysisResponse.WaitRecommendation summary =
+                (ProductAnalysisResponse.WaitRecommendation) response.summary();
+        assertThat(summary.type()).isEqualTo("WAIT_RECOMMENDATION");
+        assertThat(summary.waitPeriodDays()).isEqualTo(30);
+        assertThat(summary.expectedPriceChangeRate()).isEqualByComparingTo("4.0");
+        assertThat(summary.confidenceScore()).isZero();
     }
 
     // 조회 성공 - 신뢰도 비율은 매물 수로 계산하고, 분석 후 24시간이 지났으면 등급을 한 단계 낮춤
@@ -990,7 +1019,7 @@ class ProductAnalysisServiceTest {
         when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.of(fresh));
 
-        ProductAnalysisResponse response = service().getLatestAnalysis(1L);
+        ProductAnalysisResponse response = service().getLatestAnalysis(1L, AnalysisPerspective.SELL);
 
         assertThat(response.confidence()).isEqualTo(AnalysisConfidence.HIGH);
         assertThat(response.confidenceRate()).isEqualTo(70);
@@ -1010,7 +1039,8 @@ class ProductAnalysisServiceTest {
         when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.of(stale));
 
-        assertThat(service().getLatestAnalysis(1L).confidence()).isEqualTo(AnalysisConfidence.MEDIUM);
+        assertThat(service().getLatestAnalysis(1L, AnalysisPerspective.SELL).confidence())
+                .isEqualTo(AnalysisConfidence.MEDIUM);
     }
 
     // 조회 성공 - 시세 대비 %는 (등록가-평균가)/평균가×100, 소수 첫째 자리 반올림
@@ -1031,9 +1061,95 @@ class ProductAnalysisServiceTest {
         when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.of(analysis));
 
-        ProductAnalysisResponse response = service().getLatestAnalysis(1L);
+        ProductAnalysisResponse response = service().getLatestAnalysis(1L, AnalysisPerspective.SELL);
 
         assertThat(response.marketPriceDiffRate()).isEqualByComparingTo("11.1"); // 등록가가 평균보다 11.1% 비쌈
+    }
+
+    // 조회 성공 - 구매자 관점(BUY)이면 우리 상품도 구매자 추천·근거를 recommendation/description에 담고 대기 지표를 반환
+    @Test
+    void getLatestAnalysisReturnsBuyerViewForOurProduct() {
+        Product product = product(1L, 10L, 500_000L);
+        ProductAnalysis analysis = ProductAnalysis.create(
+                product,
+                400_000L,
+                450_000L,
+                520_000L,
+                null,
+                AnalysisRecommendation.SELL,
+                470_000L,
+                "판매 근거",
+                LocalDateTime.now());
+        analysis.assignBuyerView(AnalysisRecommendation.WAIT, "구매 근거");
+        analysis.assignConfidence(14, AnalysisConfidence.HIGH);
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.of(analysis));
+
+        ProductAnalysisResponse buyer = service().getLatestAnalysis(1L, AnalysisPerspective.BUY);
+
+        assertThat(buyer.recommendation()).isEqualTo(AnalysisRecommendation.WAIT);
+        assertThat(buyer.description()).isEqualTo("구매 근거");
+        // WAIT은 권장 대기 기간이 없으면 1개월(30일), 신뢰도는 매물 수 기반 비율
+        assertThat(buyer.summary()).isEqualTo(ProductAnalysisResponse.WaitRecommendation.of(30, BigDecimal.ZERO, 70));
+
+        ProductAnalysisResponse seller = service().getLatestAnalysis(1L, AnalysisPerspective.SELL);
+
+        assertThat(seller.recommendation()).isEqualTo(AnalysisRecommendation.SELL);
+        assertThat(seller.description()).isEqualTo("판매 근거");
+        assertThat(seller.summary()).isInstanceOf(ProductAnalysisResponse.SaleStats.class);
+    }
+
+    // 조회 성공 - 가격 분포는 조회 시점 비교 매물(다른 물건·이상치 제외) 중 분석 최저~최고가 안의 가격을 5구간으로 셈
+    @Test
+    void getLatestAnalysisReturnsPriceDistribution() {
+        Product product = product(1L, 10L, 500_000L);
+        ProductAnalysis analysis = ProductAnalysis.create(
+                product,
+                400_000L,
+                450_000L,
+                500_000L,
+                null,
+                AnalysisRecommendation.SELL,
+                450_000L,
+                "설명",
+                LocalDateTime.now());
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.of(analysis));
+        givenListings(
+                10L,
+                List.of(
+                        competitor(11L, "아이패드 프로", 400_000L, 1),
+                        competitor(12L, "아이패드 프로", 410_000L, 1),
+                        competitor(13L, "아이패드 프로", 450_000L, 1),
+                        competitor(14L, "아이패드 프로", 500_000L, 1),
+                        competitor(15L, "아이패드 프로", 520_000L, 1), // 분석 최고가 밖
+                        competitor(16L, "갤럭시탭", 450_000L, 1))); // 다른 물건
+
+        ProductAnalysisResponse response = service().getLatestAnalysis(1L, AnalysisPerspective.SELL);
+
+        assertThat(response.priceDistribution())
+                .containsExactly(
+                        new ProductAnalysisResponse.PriceBucket(400_000L, 420_000L, 2),
+                        new ProductAnalysisResponse.PriceBucket(420_000L, 440_000L, 0),
+                        new ProductAnalysisResponse.PriceBucket(440_000L, 460_000L, 1),
+                        new ProductAnalysisResponse.PriceBucket(460_000L, 480_000L, 0),
+                        new ProductAnalysisResponse.PriceBucket(480_000L, 500_000L, 1));
+    }
+
+    // 가격 분포 - 최저가=최고가면 1구간, 범위가 구간 수보다 좁으면 구간을 줄이고, 가격이 없으면 빈 배열
+    @Test
+    void priceBucketDistributeEdgeCases() {
+        assertThat(ProductAnalysisResponse.PriceBucket.distribute(List.of(100L, 100L), 100L, 100L, 5))
+                .containsExactly(new ProductAnalysisResponse.PriceBucket(100L, 100L, 2));
+        assertThat(ProductAnalysisResponse.PriceBucket.distribute(List.of(100L, 103L), 100L, 103L, 5))
+                .containsExactly(
+                        new ProductAnalysisResponse.PriceBucket(100L, 101L, 1),
+                        new ProductAnalysisResponse.PriceBucket(101L, 102L, 0),
+                        new ProductAnalysisResponse.PriceBucket(102L, 103L, 1));
+        assertThat(ProductAnalysisResponse.PriceBucket.distribute(List.of(), 100L, 200L, 5))
+                .isEmpty();
     }
 
     private static final LocalDateTime BASE_TIME = LocalDateTime.of(2026, 10, 1, 0, 0);
@@ -1082,7 +1198,7 @@ class ProductAnalysisServiceTest {
         assertThat(competition.levelLabel()).isEqualTo("보통");
         assertThat(competition.items())
                 .extracting(ProductCompetitionResponse.Item::productId)
-                .containsExactly(13L, 15L, 12L);
+                .containsExactly("13", "15", "12");
         // 같은 유형 6건 평균 500,000원 기준
         ProductCompetitionResponse.Item first = competition.items().get(0);
         assertThat(first.platform()).isEqualTo("BUNJANG");
@@ -1140,6 +1256,22 @@ class ProductAnalysisServiceTest {
         }
     }
 
+    // 경쟁 상품 - 같은 유형 매물이 없으면 경쟁 정도 NONE(없음)
+    @Test
+    void getCompetitionReturnsNoneWhenNoListings() {
+        Product product = product(1L, 10L, 500_000L);
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
+        givenListings(10L, List.of());
+
+        ProductCompetitionResponse.Competition competition =
+                service().getCompetition(1L).competition();
+
+        assertThat(competition.count()).isZero();
+        assertThat(competition.level()).isEqualTo(CompetitionLevel.NONE);
+        assertThat(competition.levelLabel()).isEqualTo("없음");
+        assertThat(competition.items()).isEmpty();
+    }
+
     // 경쟁 상품 - 기준이 외부 매물이면 자기 자신은 경쟁 상품에서 뺌
     @Test
     void getCompetitionExcludesItselfForExternalListing() {
@@ -1155,7 +1287,7 @@ class ProductAnalysisServiceTest {
         assertThat(competition.count()).isEqualTo(2);
         assertThat(competition.items())
                 .extracting(ProductCompetitionResponse.Item::productId)
-                .containsExactly(12L, 11L);
+                .containsExactly("12", "11");
     }
 
     // 경쟁 상품 실패 - 존재하지 않는 상품
@@ -1188,12 +1320,16 @@ class ProductAnalysisServiceTest {
 
         assertThat(response.productId()).isEqualTo(1L);
         assertThat(response.currentPrice()).isEqualTo(800_000L);
-        assertThat(response.days()).isEqualTo(30);
-        assertThat(response.from()).isEqualTo(today.minusDays(29));
-        assertThat(response.to()).isEqualTo(today);
-        assertThat(response.points()).isEmpty();
-        assertThat(response.averagePrice()).isNull();
-        assertThat(response.changeRate()).isNull();
+        PriceTrendResponse.Trend trend = response.priceTrend();
+        assertThat(trend.period()).isEqualTo("1M");
+        assertThat(trend.comparisonBasis()).isEqualTo("PREVIOUS_TRADING_DAY");
+        assertThat(trend.totalTransactionCount()).isZero();
+        assertThat(trend.days()).isEqualTo(30);
+        assertThat(trend.from()).isEqualTo(today.minusDays(29));
+        assertThat(trend.to()).isEqualTo(today);
+        assertThat(trend.points()).isEmpty();
+        assertThat(trend.averagePrice()).isNull();
+        assertThat(trend.changeRate()).isNull();
     }
 
     // 가격 추이 조회 - 같은 날 스냅샷은 하루로 합치고(평균가 평균·최저/최고), 기간 평균은 일별 평균의 평균, 변동률은 첫날→마지막날
@@ -1207,23 +1343,27 @@ class ProductAnalysisServiceTest {
                 .thenReturn(List.of(
                         snapshot(product, 900L, 1_000L, 1_100L, day1.atTime(0, 0)),
                         snapshot(product, 800L, 1_100L, 1_300L, day1.atTime(6, 0)),
-                        snapshot(product, 850L, 1_000L, 1_200L, day1.atTime(12, 0)),
-                        snapshot(product, 700L, 950L, 1_000L, day2.atTime(6, 0))));
+                        snapshot(product, 850L, 1_000L, 1_200L, day1.atTime(12, 0), 7),
+                        snapshot(product, 700L, 950L, 1_000L, day2.atTime(6, 0), 4)));
 
-        PriceTrendResponse response = service().getPriceTrend(1L, 30);
+        PriceTrendResponse.Trend trend = service().getPriceTrend(1L, 7).priceTrend();
 
-        assertThat(response.points())
+        // 비교 매물 수는 그날 분석 중 최대(신뢰도 도입 이전 분석은 제외), 합계는 일별 값의 합
+        assertThat(trend.points())
                 .containsExactly(
-                        new PriceTrendResponse.Point(day1, 1_033L, 800L, 1_300L, 3, null),
+                        new PriceTrendResponse.Point(day1, 1_033L, 7L, 800L, 1_300L, 3, null),
                         new PriceTrendResponse.Point(
                                 day2,
                                 950L,
+                                4L,
                                 700L,
                                 1_000L,
                                 1,
                                 new PriceTrendResponse.Change(day1, -83L, new BigDecimal("-8.03"))));
-        assertThat(response.averagePrice()).isEqualTo(992L); // (1033 + 950) / 2 = 991.5 → 992
-        assertThat(response.changeRate()).isEqualByComparingTo("-0.0803"); // (950 - 1033) / 1033
+        assertThat(trend.period()).isEqualTo("7D");
+        assertThat(trend.totalTransactionCount()).isEqualTo(11L);
+        assertThat(trend.averagePrice()).isEqualTo(992L); // (1033 + 950) / 2 = 991.5 → 992
+        assertThat(trend.changeRate()).isEqualByComparingTo("-0.0803"); // (950 - 1033) / 1033
     }
 
     // 조회 성공 - 관심 등록된 외부 매물도 같은 ID로 최근 분석·현재 판매가를 조회
@@ -1244,7 +1384,7 @@ class ProductAnalysisServiceTest {
         when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(2L))
                 .thenReturn(Optional.of(analysis));
 
-        ProductAnalysisResponse response = service().getLatestAnalysis(2L);
+        ProductAnalysisResponse response = service().getLatestAnalysis(2L, AnalysisPerspective.BUY);
 
         assertThat(response.productId()).isEqualTo(2L);
         assertThat(response.currentPrice()).isEqualTo(300_000L);
@@ -1285,7 +1425,7 @@ class ProductAnalysisServiceTest {
 
         assertThat(response.productId()).isEqualTo(2L);
         assertThat(response.currentPrice()).isEqualTo(300_000L);
-        assertThat(response.points().get(1).change())
+        assertThat(response.priceTrend().points().get(1).change())
                 .isEqualTo(new PriceTrendResponse.Change(day1, 0L, new BigDecimal("0.00")));
     }
 
@@ -1293,5 +1433,17 @@ class ProductAnalysisServiceTest {
             Product product, long minPrice, long averagePrice, long maxPrice, LocalDateTime analyzedAt) {
         return ProductAnalysis.create(
                 product, minPrice, averagePrice, maxPrice, null, AnalysisRecommendation.HOLD, null, null, analyzedAt);
+    }
+
+    private static ProductAnalysis snapshot(
+            Product product,
+            long minPrice,
+            long averagePrice,
+            long maxPrice,
+            LocalDateTime analyzedAt,
+            int listingCount) {
+        ProductAnalysis analysis = snapshot(product, minPrice, averagePrice, maxPrice, analyzedAt);
+        analysis.assignConfidence(listingCount, AnalysisConfidence.LOW);
+        return analysis;
     }
 }

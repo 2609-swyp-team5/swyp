@@ -112,7 +112,28 @@ class PriceForecastTest extends IntegrationTest {
                 .andExpect(jsonPath("$.data.forecasts.length()").value(3))
                 .andExpect(jsonPath("$.data.forecasts[0].period").value("1M"))
                 .andExpect(jsonPath("$.data.forecasts[0].expectedPrice").value(970_000))
-                .andExpect(jsonPath("$.data.forecasts[2].period").value("6M"));
+                .andExpect(jsonPath("$.data.forecasts[2].period").value("6M"))
+                // 프론트 화면용 필드 — 요약 지표는 type으로 구분, 가격 분포는 배열
+                .andExpect(jsonPath("$.data.summary.type").exists())
+                .andExpect(jsonPath("$.data.priceDistribution").isArray())
+                .andExpect(jsonPath("$.data.marketExpectedPrice").isNumber());
+
+        mockMvc.perform(get("/products/{productId}/analysis/forecast", product.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.valuationForecast.baseValueRate").value(100))
+                .andExpect(
+                        jsonPath("$.data.valuationForecast.forecasts.length()").value(3))
+                .andExpect(
+                        jsonPath("$.data.valuationForecast.forecasts[0].period").value("1M"))
+                .andExpect(jsonPath("$.data.valuationForecast.forecasts[0].expectedValue")
+                        .value(970_000));
+
+        // 조회 관점은 SELL/BUY만 허용
+        mockMvc.perform(get("/products/{productId}/analysis", product.getId())
+                        .param("perspective", "OTHER")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isBadRequest());
     }
 
     // 가격 추이 조회 - 기간 안 스냅샷만 날짜별로 묶고, 기간 밖(31일 전) 스냅샷은 제외
@@ -143,14 +164,23 @@ class PriceForecastTest extends IntegrationTest {
             mockMvc.perform(get("/products/{productId}/analysis/trend", product.getId())
                             .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.data.days").value(30))
                     .andExpect(jsonPath("$.data.currentPrice").value(1_000_000))
-                    .andExpect(jsonPath("$.data.points.length()").value(2))
-                    .andExpect(jsonPath("$.data.points[0].averagePrice").value(1_200_000))
-                    .andExpect(jsonPath("$.data.points[1].averagePrice").value(1_000_000))
-                    .andExpect(jsonPath("$.data.points[1].analysisCount").value(1))
-                    .andExpect(jsonPath("$.data.averagePrice").value(1_100_000))
-                    .andExpect(jsonPath("$.data.changeRate").value(-0.1667));
+                    .andExpect(jsonPath("$.data.priceTrend.period").value("1M"))
+                    .andExpect(jsonPath("$.data.priceTrend.comparisonBasis").value("PREVIOUS_TRADING_DAY"))
+                    .andExpect(jsonPath("$.data.priceTrend.days").value(30))
+                    .andExpect(jsonPath("$.data.priceTrend.points.length()").value(2))
+                    .andExpect(
+                            jsonPath("$.data.priceTrend.points[0].averagePrice").value(1_200_000))
+                    .andExpect(
+                            jsonPath("$.data.priceTrend.points[1].averagePrice").value(1_000_000))
+                    .andExpect(jsonPath("$.data.priceTrend.points[1].analysisCount")
+                            .value(1))
+                    .andExpect(jsonPath("$.data.priceTrend.points[1].transactionCount")
+                            .isNumber())
+                    .andExpect(
+                            jsonPath("$.data.priceTrend.points[1].change.rate").isNumber())
+                    .andExpect(jsonPath("$.data.priceTrend.averagePrice").value(1_100_000))
+                    .andExpect(jsonPath("$.data.priceTrend.changeRate").value(-0.1667));
 
             mockMvc.perform(get("/products/{productId}/analysis/trend", product.getId())
                             .param("days", "0")

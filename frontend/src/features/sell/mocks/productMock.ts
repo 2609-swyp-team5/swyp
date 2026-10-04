@@ -61,6 +61,7 @@ export function getMyProductsMock(status?: ProductStatus) {
         statusCounts: {
             DRAFT: mockProducts.filter((product) => product.status === "DRAFT").length,
             ON_SALE: mockProducts.filter((product) => product.status === "ON_SALE").length,
+            RESERVED: mockProducts.filter((product) => product.status === "RESERVED").length,
             SOLD_OUT: mockProducts.filter((product) => product.status === "SOLD_OUT").length,
         },
     });

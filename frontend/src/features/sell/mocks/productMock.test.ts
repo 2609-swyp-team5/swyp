@@ -11,6 +11,7 @@ describe("getMyProductsMock", () => {
         expect(response.statusCounts).toEqual({
             DRAFT: 1,
             ON_SALE: 1,
+            RESERVED: 0,
             SOLD_OUT: 1,
         });
     });

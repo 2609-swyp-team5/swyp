@@ -32,6 +32,7 @@ export function MyProductsPage() {
               ALL: Object.values(summary.statusCounts).reduce((sum, count) => sum + count, 0),
               DRAFT: summary.statusCounts.DRAFT ?? 0,
               ON_SALE: summary.statusCounts.ON_SALE ?? 0,
+              RESERVED: summary.statusCounts.RESERVED ?? 0,
               SOLD_OUT: summary.statusCounts.SOLD_OUT ?? 0,
           }
         : undefined;

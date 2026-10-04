@@ -45,9 +45,14 @@ export function useProductAnalysisQuery(
                 return getProductMarketAnalysisMock(productId, perspective, mockRecommendation);
             }
 
-            const { data: response } = await productApi.getProductAnalysis(productId);
+            const { data: response } = await productApi.getProductAnalysis(productId, perspective);
             if (!response.success) {
                 throw new Error(response.message);
+            }
+
+            // 아직 분석 이력이 없으면(분석 전·비교 매물 부족) 분석 필드가 모두 null로 내려와 빈 상태로 처리합니다.
+            if (response.data.analysisId == null || response.data.recommendation == null) {
+                return null;
             }
 
             return productAnalysisResponseSchema.parse(response.data);
