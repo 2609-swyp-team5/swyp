@@ -501,7 +501,7 @@ class ProductStreamTest extends IntegrationTest {
 
     private MockMultipartHttpServletRequestBuilder updateRequest(
             Long productId, ProductUpdateRequest request, String token) throws Exception {
-        return (MockMultipartHttpServletRequestBuilder) multipart(HttpMethod.PATCH, "/products/{id}", productId)
+        return (MockMultipartHttpServletRequestBuilder) multipart(HttpMethod.PATCH, "/products/{productId}", productId)
                 .file(new MockMultipartFile(
                         "data", "", MediaType.APPLICATION_JSON_VALUE, objectMapper.writeValueAsBytes(request)))
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)

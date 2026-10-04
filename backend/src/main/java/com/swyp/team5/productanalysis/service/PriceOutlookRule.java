@@ -9,7 +9,7 @@ import com.swyp.team5.productanalysis.entity.ForecastPeriod;
 
 /**
  * 판매자 추천에 붙는 1개월 가격 전망. 화면에서 SELL은 "1개월 기다리면 −3%", HOLD는 "1개월 기다리면 +4% 예상"처럼 같은
- * 틀로 보여 준다.
+ * 틀로 보여 준다. 외부 매물(구매자 관점 분석)도 시세 추세로 판매자 규칙을 정해 같은 전망을 쓴다.
  *
  * <ul>
  *   <li>HOLD(시세가 월 {@value RecommendationRule#TREND_THRESHOLD_PERCENT}% 이상 오르는 중): 대기 기간 1개월, 변화율은 관측된 월

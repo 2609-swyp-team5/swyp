@@ -106,7 +106,7 @@ class PriceForecastTest extends IntegrationTest {
                         ForecastPeriod.ONE_MONTH, ForecastPeriod.THREE_MONTHS, ForecastPeriod.SIX_MONTHS);
 
         String token = jwtTokenProvider.createAccessToken(member.getId(), MemberRole.USER);
-        mockMvc.perform(get("/products/{id}/analysis", product.getId())
+        mockMvc.perform(get("/products/{productId}/analysis", product.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.forecasts.length()").value(3))
@@ -140,7 +140,7 @@ class PriceForecastTest extends IntegrationTest {
                 LocalDateTime.now().minusDays(31)));
         try {
             String token = jwtTokenProvider.createAccessToken(member.getId(), MemberRole.USER);
-            mockMvc.perform(get("/products/{id}/analysis/trend", product.getId())
+            mockMvc.perform(get("/products/{productId}/analysis/trend", product.getId())
                             .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.days").value(30))
@@ -152,7 +152,7 @@ class PriceForecastTest extends IntegrationTest {
                     .andExpect(jsonPath("$.data.averagePrice").value(1_100_000))
                     .andExpect(jsonPath("$.data.changeRate").value(-0.1667));
 
-            mockMvc.perform(get("/products/{id}/analysis/trend", product.getId())
+            mockMvc.perform(get("/products/{productId}/analysis/trend", product.getId())
                             .param("days", "0")
                             .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                     .andExpect(status().isBadRequest());

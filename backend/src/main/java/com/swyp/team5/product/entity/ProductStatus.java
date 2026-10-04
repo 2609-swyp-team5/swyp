@@ -62,4 +62,13 @@ public enum ProductStatus {
         statuses.forEach(status -> counts.merge(status.name(), 1L, Long::sum));
         return counts;
     }
+
+    /** 이미 센 상태별 건수를 상태 선언 순서의 문자열 키로 바꾸고, 없는 상태는 0으로 채운다(목록 응답의 statusCounts). */
+    public static Map<String, Long> toStatusCounts(Map<ProductStatus, Long> counted) {
+        Map<String, Long> counts = new LinkedHashMap<>();
+        for (ProductStatus status : values()) {
+            counts.put(status.name(), counted.getOrDefault(status, 0L));
+        }
+        return counts;
+    }
 }

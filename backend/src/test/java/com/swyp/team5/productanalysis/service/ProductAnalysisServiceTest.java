@@ -65,7 +65,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class ProductAnalysisServiceTest {
 
     private static final ProductAnalysisProperties PROPERTIES =
-            new ProductAnalysisProperties(3, 24, 30, 0L, null, null);
+            new ProductAnalysisProperties(3, 24, 30, 0L, null, null, null);
 
     private final ChatClient geminiAiClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
     private final ChatClient openAiClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
@@ -97,12 +97,16 @@ class ProductAnalysisServiceTest {
     private final AnalysisProgressTracker progressTracker = new AnalysisProgressTracker();
 
     private ProductAnalysisService service() {
+        return service(PROPERTIES);
+    }
+
+    private ProductAnalysisService service(ProductAnalysisProperties properties) {
         return new ProductAnalysisService(
                 new AiChatExecutor(geminiAiClient, openAiClient),
                 productRepository,
                 platformListingRepository,
                 productAnalysisRepository,
-                PROPERTIES,
+                properties,
                 notificationService,
                 interestRepository,
                 priceForecastRepository,
@@ -248,6 +252,24 @@ class ProductAnalysisServiceTest {
         givenListings(10L, List.of(listing("갤럭시 탭 S9", 9000L)));
 
         service().analyzeInterestedItemById(1L);
+
+        verify(platformListingRepository)
+                .findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(eq(10L), anyString(), any());
+    }
+
+    // 관심 등록 직후 분석 - 건너뜀 기준이 0시간이면 방금 분석한 대상도 다시 분석(개발용)
+    @Test
+    void analyzeInterestedItemByIdAlwaysAnalyzesWhenSkipHoursIsZero() {
+        Product product = product(1L, 10L, 800_000L);
+        when(product.getStatus()).thenReturn(ProductStatus.ON_SALE);
+        ProductAnalysis recent = mock(ProductAnalysis.class);
+        lenient().when(recent.getAnalyzedAt()).thenReturn(LocalDateTime.now().minusMinutes(1));
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.of(recent));
+        givenListings(10L, List.of(listing("갤럭시 탭 S9", 9000L)));
+
+        service(new ProductAnalysisProperties(3, 24, 30, 0L, 0, null, null)).analyzeInterestedItemById(1L);
 
         verify(platformListingRepository)
                 .findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(eq(10L), anyString(), any());
@@ -576,11 +598,49 @@ class ProductAnalysisServiceTest {
         assertThat(saved.getRecommendation()).isEqualTo(AnalysisRecommendation.BUY);
         assertThat(saved.getListingCount()).isEqualTo(3); // 자신을 뺀 비교 매물 3건
         assertThat(saved.getConfidence()).isEqualTo(AnalysisConfidence.LOW);
-        // 외부 매물은 판매자 1개월 전망 대상이 아님
-        assertThat(saved.getExpectedPrice()).isNull();
+        // 1개월 전망 - 추세 기록이 없어 감가 예측 쪽(대기 기간 없음, 감가 예측 1M 값, 기본 감가율 월 -2%)
+        assertThat(saved.getWaitPeriod()).isNull();
+        assertThat(saved.getExpectedPrice()).isEqualTo(2000L);
+        assertThat(saved.getExpectedPriceChangeRate()).isEqualByComparingTo("-0.02");
         // 외부 매물은 우리 상품 제안가 갱신 대상이 아님
         verify(notificationService)
                 .notifyListingRecommendationChanged(target, AnalysisRecommendation.WAIT, AnalysisRecommendation.BUY);
+    }
+
+    // 관심 외부 매물 분석 - 우리 상품과 같이 최상위 카테고리 기본 감가율로 감가 예측(1M/3M/6M)을 저장하고 1개월 전망을 채움
+    @Test
+    void analyzeListingSavesDepreciationForecastAndOutlook() {
+        PlatformListing target = listing(100L, 10L, "아이패드 프로", 2000L);
+        List<PlatformListing> comparisons = List.of(
+                listing(1L, 10L, "아이패드 프로 매물1", 1000L),
+                listing(2L, 10L, "아이패드 프로 매물2", 3000L),
+                listing(3L, 10L, "아이패드 프로 매물3", 5000L));
+        when(platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
+                        eq(10L), eq("SELLING"), any()))
+                .thenReturn(comparisons);
+        when(categoryRepository.findRootName(10L)).thenReturn(Optional.of("디지털"));
+        givenAiResult(new MarketAnalysisResult(List.of(1, 2, 3), AnalysisRecommendation.BUY, 3000L, "설명"));
+
+        service().analyzeListing(target);
+
+        // 추세 기록이 없어 "디지털" 기본 감가율(월 -3%)로 평균가 3,000원의 1M/3M/6M 예측가를 1,000원 단위로 저장
+        ArgumentCaptor<List<PriceForecast>> forecastCaptor = ArgumentCaptor.captor();
+        verify(priceForecastRepository).saveAll(forecastCaptor.capture());
+        assertThat(forecastCaptor.getValue())
+                .extracting(PriceForecast::getPeriod, PriceForecast::getExpectedPrice)
+                .containsExactly(
+                        tuple(ForecastPeriod.ONE_MONTH, 3000L),
+                        tuple(ForecastPeriod.THREE_MONTHS, 3000L),
+                        tuple(ForecastPeriod.SIX_MONTHS, 2000L));
+        ArgumentCaptor<ProductAnalysis> captor = ArgumentCaptor.forClass(ProductAnalysis.class);
+        verify(productAnalysisRepository).save(captor.capture());
+        ProductAnalysis saved = captor.getValue();
+        // 저장하는 추천은 구매자 관점 그대로(판매가 2,000원이 평균 3,000원보다 33% 저렴 → BUY), 판매자 관점은 비움
+        assertThat(saved.getRecommendation()).isEqualTo(AnalysisRecommendation.BUY);
+        assertThat(saved.getBuyerRecommendation()).isNull();
+        assertThat(saved.getWaitPeriod()).isNull();
+        assertThat(saved.getExpectedPrice()).isEqualTo(3000L);
+        assertThat(saved.getExpectedPriceChangeRate()).isEqualByComparingTo("-0.03");
     }
 
     // 관심 외부 매물 분석 건너뜀 - 자신을 빼면 비교 매물이 최소 기준(3건) 미만

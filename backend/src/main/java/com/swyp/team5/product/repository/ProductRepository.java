@@ -14,7 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductStatus;
 
-public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
+public interface ProductRepository
+        extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product>, ProductRepositoryCustom {
 
     List<Product> findByCategoryId(Long categoryId);
 

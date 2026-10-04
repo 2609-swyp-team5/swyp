@@ -38,3 +38,4 @@ analysis:
   enabled: false
   analyze-on-register: false
   analyze-on-interest: false
+  interest-skip-hours: 6 # .env의 개발용 값이 테스트에 새지 않도록 고정
