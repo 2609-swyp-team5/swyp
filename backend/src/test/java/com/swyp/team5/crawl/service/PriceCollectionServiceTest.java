@@ -49,7 +49,10 @@ class PriceCollectionServiceTest {
 
     private PriceCollectionService service() {
         return new PriceCollectionService(
-                bunjangCategoryClient, categoryPlatformRepository, platformListingRepository, PROPERTIES);
+                bunjangCategoryClient,
+                categoryPlatformRepository,
+                new PlatformListingUpserter(platformListingRepository),
+                PROPERTIES);
     }
 
     private static CategoryPlatform mapping(Long categoryId, String externalCategoryId) {
@@ -173,7 +176,10 @@ class PriceCollectionServiceTest {
     void collectAllStopsAtPageLimitEvenWhenMorePagesExist() {
         BunjangCrawlProperties singlePageLimit = new BunjangCrawlProperties(1);
         PriceCollectionService service = new PriceCollectionService(
-                bunjangCategoryClient, categoryPlatformRepository, platformListingRepository, singlePageLimit);
+                bunjangCategoryClient,
+                categoryPlatformRepository,
+                new PlatformListingUpserter(platformListingRepository),
+                singlePageLimit);
         CategoryPlatform mapping = mapping(10L, "999");
         when(categoryPlatformRepository.findCollectTargets("번개장터", ProductStatus.ANALYSIS_TARGETS))
                 .thenReturn(List.of(mapping));
