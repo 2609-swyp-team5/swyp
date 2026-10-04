@@ -285,7 +285,7 @@ public class ProductController {
      * @param status 상태 필터(선택, DRAFT/ON_SALE/RESERVED/SOLD_OUT 복수)
      * @param cursor 이전 페이지 마지막 상품의 {@code id}(선택, 첫 페이지는 생략)
      * @param size 페이지 크기(기본 20)
-     * @return 200 OK + 커서 페이지 응답
+     * @return 200 OK + 커서 페이지 응답({@code totalCount}는 요청 필터 기준, 탭 숫자용 {@code statusCounts}는 상태 필터와 무관)
      */
     @Operation(summary = "내 상품 목록 조회")
     @GetMapping("/me")

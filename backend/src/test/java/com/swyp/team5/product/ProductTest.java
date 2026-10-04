@@ -525,7 +525,7 @@ class ProductTest extends IntegrationTest {
                 .andExpect(jsonPath("$.data.content[0].purchasedMonths").value(3));
     }
 
-    // 내 상품 목록 조회 - 상태 필터 여러 값, 첫 페이지에 전체 건수·상태별 건수(필터 적용)
+    // 내 상품 목록 조회 - 상태 필터 여러 값, 전체 건수는 필터 기준·상태별 건수는 상태 필터와 무관(탭 숫자)
     @Test
     void getMyProductsFiltersByMultipleStatuses() throws Exception {
         Long draft = createProduct();
@@ -542,7 +542,8 @@ class ProductTest extends IntegrationTest {
                 .andExpect(jsonPath("$.data.totalCount").value(2))
                 .andExpect(jsonPath("$.data.statusCounts.DRAFT").value(1))
                 .andExpect(jsonPath("$.data.statusCounts.RESERVED").value(1))
-                .andExpect(jsonPath("$.data.statusCounts.SOLD_OUT").value(0))
+                .andExpect(jsonPath("$.data.statusCounts.SOLD_OUT").value(1))
+                .andExpect(jsonPath("$.data.statusCounts.ON_SALE").value(0))
                 .andExpect(jsonPath(
                         "$.data.content[*].id",
                         org.hamcrest.Matchers.containsInAnyOrder(draft.intValue(), reserved.intValue())));
