@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useId, useState } from "react";
+import { ChevronDown, SlidersHorizontal } from "lucide-react";
 
+import { Button } from "@/common/components/ui/Button";
 import { Checkbox } from "@/common/components/ui/Checkbox";
 import { Input } from "@/common/components/ui/Input";
 import { RadioGroup, RadioGroupItem } from "@/common/components/ui/RadioGroup";
+import { cn } from "@/common/lib/utils";
 import type { SearchParams, SearchPlatform, SearchStatus } from "@/features/search/types";
 
 const statusOptions = [
@@ -24,9 +27,11 @@ const priceOptions = [
     { label: "30만~50만 원", min: 300000, max: 500000 },
     { label: "50만 원 이상", min: 500000, max: undefined },
 ] as const;
-const fieldsetClass = "flex flex-col gap-3 border-b border-[#dee5ed] pb-6";
-const legendClass = "mb-3 text-base leading-[25px] font-semibold tracking-[0.5px]";
-const optionClass = "flex items-center gap-2 text-base leading-[25px]";
+const fieldsetClass =
+    "grid min-w-0 grid-cols-2 content-start gap-2 border-b border-[#dee5ed] pb-5 xl:flex xl:flex-col xl:gap-3 xl:pb-6";
+const legendClass = "mb-3 text-sm leading-[25px] font-semibold tracking-[0.5px] xl:text-base";
+const optionClass =
+    "flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-[#dee5ed] bg-white px-2.5 py-2 text-sm leading-5 has-[[aria-checked=true]]:border-[#6653fb] has-[[aria-checked=true]]:bg-[#f0edff] xl:min-h-0 xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0 xl:text-base xl:leading-[25px] xl:has-[[aria-checked=true]]:bg-transparent";
 const filterInputClass =
     "h-[38px] rounded-md border-[#dee5ed] bg-transparent px-3 py-2 text-xs leading-5 font-normal tracking-[-0.5px] placeholder:text-black/50 md:text-xs dark:bg-transparent";
 
@@ -76,6 +81,8 @@ export function SearchFilters({
     onKeywordSubmit: () => void;
     disabled?: boolean;
 }) {
+    const [isExpanded, setIsExpanded] = useState(false);
+    const filterContentId = useId();
     const [minPrice, setMinPrice] = useState(filters.minPrice?.toString() ?? "");
     const [maxPrice, setMaxPrice] = useState(filters.maxPrice?.toString() ?? "");
     const [priceError, setPriceError] = useState("");
@@ -104,180 +111,211 @@ export function SearchFilters({
     return (
         <aside
             aria-label="검색 필터"
-            className="grid w-full shrink-0 gap-6 bg-[#fafbff] px-5 py-[30px] text-[#545d82] sm:grid-cols-2 xl:flex xl:w-[260px] xl:flex-col"
+            className="w-full min-w-0 shrink-0 rounded-xl border border-[#dee5ed] bg-[#fafbff] text-[#545d82] xl:w-[260px] xl:rounded-none xl:border-0"
         >
-            <FilterGroup<SearchPlatform>
-                title="플랫폼"
-                options={[
-                    { label: "전체", value: "ALL" },
-                    { label: "번개장터", value: "BUNJANG" },
-                    { label: "지금이니", value: "OUR" },
-                ]}
-                disabled={disabled}
-                values={filters.platform?.length ? filters.platform : ["ALL"]}
-                onValueChange={(value, checked) => {
-                    const selected =
-                        value === "ALL"
-                            ? []
-                            : checked
-                              ? [...(filters.platform ?? []), value]
-                              : (filters.platform ?? []).filter((platform) => platform !== value);
-                    onFiltersChange({
-                        ...filters,
-                        platform: selected.length ? selected : undefined,
-                    });
-                }}
-            />
-            <fieldset disabled={disabled} className={fieldsetClass}>
-                <legend className={legendClass}>가격</legend>
-                <div className="flex items-center gap-2">
-                    <Input
-                        aria-label="최소 가격"
-                        type="number"
-                        min={0}
-                        value={minPrice}
-                        onChange={(event) => setMinPrice(event.target.value)}
-                        onBlur={applyPrices}
-                        onKeyDown={(event) => {
-                            if (event.key === "Enter") applyPrices();
-                        }}
-                        aria-invalid={Boolean(priceError)}
-                        placeholder="최소"
-                        className={filterInputClass}
+            <Button
+                type="button"
+                variant="ghost"
+                aria-expanded={isExpanded}
+                aria-controls={filterContentId}
+                onClick={() => setIsExpanded((expanded) => !expanded)}
+                className="h-14 w-full justify-between rounded-xl px-5 text-sm font-semibold text-[#545d82] xl:hidden"
+            >
+                <span className="flex items-center gap-2">
+                    <SlidersHorizontal aria-hidden="true" className="size-4" />
+                    검색 필터
+                </span>
+                <span className="flex items-center gap-2 text-xs font-normal text-[#83889e]">
+                    {isExpanded ? "접기" : "펼치기"}
+                    <ChevronDown
+                        aria-hidden="true"
+                        className={cn("size-4 transition-transform", isExpanded && "rotate-180")}
                     />
-                    <span className="text-[#8ca2c0]">~</span>
-                    <Input
-                        aria-label="최대 가격"
-                        type="number"
-                        min={0}
-                        value={maxPrice}
-                        onChange={(event) => setMaxPrice(event.target.value)}
-                        onBlur={applyPrices}
-                        onKeyDown={(event) => {
-                            if (event.key === "Enter") applyPrices();
-                        }}
-                        aria-invalid={Boolean(priceError)}
-                        placeholder="최대"
-                        className={filterInputClass}
-                    />
-                </div>
-                {priceError && (
-                    <p role="alert" className="text-destructive text-xs">
-                        {priceError}
-                    </p>
+                </span>
+            </Button>
+            <div
+                id={filterContentId}
+                className={cn(
+                    "gap-5 border-t border-[#dee5ed] p-4 sm:grid-cols-2 sm:p-5 xl:flex xl:flex-col xl:gap-6 xl:border-0 xl:px-5 xl:py-[30px]",
+                    isExpanded ? "grid" : "hidden",
                 )}
-                <RadioGroup
+            >
+                <FilterGroup<SearchPlatform>
+                    title="플랫폼"
+                    options={[
+                        { label: "전체", value: "ALL" },
+                        { label: "번개장터", value: "BUNJANG" },
+                        { label: "지금이니", value: "OUR" },
+                    ]}
                     disabled={disabled}
-                    aria-label="가격 범위"
-                    name="price-range"
-                    className="gap-3"
-                    value={
-                        priceOptions.find(
-                            (option) =>
-                                !priceError &&
-                                option.min === filters.minPrice &&
-                                option.max === filters.maxPrice,
-                        )?.label ?? ""
-                    }
-                    onValueChange={(label) => {
-                        const option = priceOptions.find((option) => option.label === label);
-                        if (!option) return;
-                        setMinPrice(option.min?.toString() ?? "");
-                        setMaxPrice(option.max?.toString() ?? "");
-                        setPriceError("");
-                        onFiltersChange({ ...filters, minPrice: option.min, maxPrice: option.max });
+                    values={filters.platform?.length ? filters.platform : ["ALL"]}
+                    onValueChange={(value, checked) => {
+                        const selected =
+                            value === "ALL"
+                                ? []
+                                : checked
+                                  ? [...(filters.platform ?? []), value]
+                                  : (filters.platform ?? []).filter(
+                                        (platform) => platform !== value,
+                                    );
+                        onFiltersChange({
+                            ...filters,
+                            platform: selected.length ? selected : undefined,
+                        });
                     }}
-                >
-                    {priceOptions.map(({ label }) => (
-                        <label
-                            key={label}
-                            className="flex cursor-pointer items-center gap-2 text-base leading-[25px]"
-                        >
-                            <RadioGroupItem
-                                value={label}
-                                className="size-[13px] border-[#767676] bg-white data-checked:border-[#5d55fe] data-checked:bg-[#5d55fe] data-checked:text-white [&_[data-slot=radio-group-indicator]]:size-[13px] [&_[data-slot=radio-group-indicator]>span]:bg-white"
+                />
+                <fieldset disabled={disabled} className={fieldsetClass}>
+                    <legend className={legendClass}>가격</legend>
+                    <div className="col-span-2 flex min-w-0 items-center gap-2">
+                        <Input
+                            aria-label="최소 가격"
+                            type="number"
+                            min={0}
+                            value={minPrice}
+                            onChange={(event) => setMinPrice(event.target.value)}
+                            onBlur={applyPrices}
+                            onKeyDown={(event) => {
+                                if (event.key === "Enter") applyPrices();
+                            }}
+                            aria-invalid={Boolean(priceError)}
+                            placeholder="최소"
+                            className={filterInputClass}
+                        />
+                        <span className="text-[#8ca2c0]">~</span>
+                        <Input
+                            aria-label="최대 가격"
+                            type="number"
+                            min={0}
+                            value={maxPrice}
+                            onChange={(event) => setMaxPrice(event.target.value)}
+                            onBlur={applyPrices}
+                            onKeyDown={(event) => {
+                                if (event.key === "Enter") applyPrices();
+                            }}
+                            aria-invalid={Boolean(priceError)}
+                            placeholder="최대"
+                            className={filterInputClass}
+                        />
+                    </div>
+                    {priceError && (
+                        <p role="alert" className="text-destructive text-xs">
+                            {priceError}
+                        </p>
+                    )}
+                    <RadioGroup
+                        disabled={disabled}
+                        aria-label="가격 범위"
+                        name="price-range"
+                        className="col-span-2 grid-cols-2 gap-2 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-1 xl:gap-3"
+                        value={
+                            priceOptions.find(
+                                (option) =>
+                                    !priceError &&
+                                    option.min === filters.minPrice &&
+                                    option.max === filters.maxPrice,
+                            )?.label ?? ""
+                        }
+                        onValueChange={(label) => {
+                            const option = priceOptions.find((option) => option.label === label);
+                            if (!option) return;
+                            setMinPrice(option.min?.toString() ?? "");
+                            setMaxPrice(option.max?.toString() ?? "");
+                            setPriceError("");
+                            onFiltersChange({
+                                ...filters,
+                                minPrice: option.min,
+                                maxPrice: option.max,
+                            });
+                        }}
+                    >
+                        {priceOptions.map(({ label }) => (
+                            <label key={label} className={optionClass}>
+                                <RadioGroupItem
+                                    value={label}
+                                    className="size-[13px] border-[#767676] bg-white data-checked:border-[#5d55fe] data-checked:bg-[#5d55fe] data-checked:text-white [&_[data-slot=radio-group-indicator]]:size-[13px] [&_[data-slot=radio-group-indicator]>span]:bg-white"
+                                />
+                                {label}
+                            </label>
+                        ))}
+                    </RadioGroup>
+                </fieldset>
+                <fieldset disabled={disabled} className={fieldsetClass}>
+                    <legend className={legendClass}>제품 상태</legend>
+                    {conditionOptions.map(({ label, value }) => (
+                        <label key={label} className={optionClass}>
+                            <Checkbox
+                                checked={filters.condition?.includes(value) ?? false}
+                                onCheckedChange={(checked) =>
+                                    onFiltersChange({
+                                        ...filters,
+                                        condition: checked
+                                            ? [...(filters.condition ?? []), value]
+                                            : filters.condition?.filter(
+                                                  (condition) => condition !== value,
+                                              ),
+                                    })
+                                }
+                                className="size-[13px] rounded-[2px] border-[#767676] bg-white data-checked:border-[#5d55fe] data-checked:bg-[#5d55fe] data-checked:text-white [&_svg]:size-[11px]"
                             />
                             {label}
                         </label>
                     ))}
-                </RadioGroup>
-            </fieldset>
-            <fieldset disabled={disabled} className={fieldsetClass}>
-                <legend className={legendClass}>제품 상태</legend>
-                {conditionOptions.map(({ label, value }) => (
-                    <label key={label} className={optionClass}>
-                        <Checkbox
-                            checked={filters.condition?.includes(value) ?? false}
-                            onCheckedChange={(checked) =>
-                                onFiltersChange({
-                                    ...filters,
-                                    condition: checked
-                                        ? [...(filters.condition ?? []), value]
-                                        : filters.condition?.filter(
-                                              (condition) => condition !== value,
-                                          ),
-                                })
-                            }
-                            className="size-[13px] rounded-[2px] border-[#767676] bg-white data-checked:border-[#5d55fe] data-checked:bg-[#5d55fe] data-checked:text-white [&_svg]:size-[11px]"
+                </fieldset>
+                <FilterGroup<SearchStatus>
+                    title="거래 상태"
+                    options={statusOptions}
+                    disabled={disabled}
+                    values={
+                        Array.isArray(filters.status)
+                            ? filters.status
+                            : filters.status
+                              ? [filters.status]
+                              : []
+                    }
+                    onValueChange={(value, checked) =>
+                        onFiltersChange({
+                            ...filters,
+                            status: checked ? value : undefined,
+                        })
+                    }
+                />
+                <div className="grid min-w-0 gap-5 sm:col-span-2 sm:grid-cols-2 xl:flex xl:flex-col xl:gap-6">
+                    {(Array.isArray(filters.status)
+                        ? filters.status.includes("DRAFT")
+                        : filters.status === "DRAFT") && (
+                        <p className="text-xs leading-5 text-[#83889e] sm:col-span-2">
+                            임시저장 상태는 지금이니?! 상품에만 적용됩니다.
+                        </p>
+                    )}
+                    <label className="flex flex-col gap-3 text-base leading-[25px] font-semibold tracking-[0.5px]">
+                        포함 키워드
+                        <Input
+                            disabled={disabled}
+                            value={keyword}
+                            onChange={(event) => onKeywordChange(event.target.value)}
+                            onBlur={onKeywordSubmit}
+                            onKeyDown={(event) => {
+                                if (event.key === "Enter") onKeywordSubmit();
+                            }}
+                            placeholder="예: 아이폰 15 프로"
+                            className={filterInputClass}
                         />
-                        {label}
                     </label>
-                ))}
-            </fieldset>
-            <FilterGroup<SearchStatus>
-                title="거래 상태"
-                options={statusOptions}
-                disabled={disabled}
-                values={
-                    Array.isArray(filters.status)
-                        ? filters.status
-                        : filters.status
-                          ? [filters.status]
-                          : []
-                }
-                onValueChange={(value, checked) =>
-                    onFiltersChange({
-                        ...filters,
-                        status: checked ? value : undefined,
-                    })
-                }
-            />
-            <div className="flex flex-col gap-6">
-                {(Array.isArray(filters.status)
-                    ? filters.status.includes("DRAFT")
-                    : filters.status === "DRAFT") && (
-                    <p className="text-xs leading-5 text-[#83889e]">
-                        임시저장 상태는 지금이니?! 상품에만 적용됩니다.
-                    </p>
-                )}
-                <label className="flex flex-col gap-3 text-base leading-[25px] font-semibold tracking-[0.5px]">
-                    포함 키워드
-                    <Input
-                        disabled={disabled}
-                        value={keyword}
-                        onChange={(event) => onKeywordChange(event.target.value)}
-                        onBlur={onKeywordSubmit}
-                        onKeyDown={(event) => {
-                            if (event.key === "Enter") onKeywordSubmit();
-                        }}
-                        placeholder="예: 아이폰 15 프로"
-                        className={filterInputClass}
-                    />
-                </label>
-                <label className="flex flex-col gap-3 text-base leading-[25px] font-semibold tracking-[0.5px]">
-                    제외 키워드
-                    <Input
-                        disabled={disabled}
-                        value={excludeKeyword}
-                        onChange={(event) => setExcludeKeyword(event.target.value)}
-                        onBlur={applyExcludeKeyword}
-                        onKeyDown={(event) => {
-                            if (event.key === "Enter") applyExcludeKeyword();
-                        }}
-                        placeholder="예: 부품용, 고장"
-                        className={filterInputClass}
-                    />
-                </label>
+                    <label className="flex flex-col gap-3 text-base leading-[25px] font-semibold tracking-[0.5px]">
+                        제외 키워드
+                        <Input
+                            disabled={disabled}
+                            value={excludeKeyword}
+                            onChange={(event) => setExcludeKeyword(event.target.value)}
+                            onBlur={applyExcludeKeyword}
+                            onKeyDown={(event) => {
+                                if (event.key === "Enter") applyExcludeKeyword();
+                            }}
+                            placeholder="예: 부품용, 고장"
+                            className={filterInputClass}
+                        />
+                    </label>
+                </div>
             </div>
         </aside>
     );
