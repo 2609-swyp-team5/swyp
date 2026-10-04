@@ -16,6 +16,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.swyp.team5.auth.service.MemberAccessBlocker;
 import com.swyp.team5.member.entity.MemberRole;
 
 @Component
@@ -26,6 +27,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtTokenProvider jwtTokenProvider;
+
+    private final MemberAccessBlocker memberAccessBlocker;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -39,6 +42,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private void authenticate(String token) {
         Long memberId = jwtTokenProvider.getMemberIdFromAccessToken(token);
+        if (memberAccessBlocker.isBlocked(memberId)) {
+            return;
+        }
         MemberRole role = jwtTokenProvider.getRole(token);
         PrincipalMember principal = new PrincipalMember(memberId, role);
         var authentication = new UsernamePasswordAuthenticationToken(

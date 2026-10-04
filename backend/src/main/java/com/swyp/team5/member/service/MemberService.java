@@ -11,6 +11,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.web.multipart.MultipartFile;
 
 import com.swyp.team5.auth.error.DuplicatePhoneException;
+import com.swyp.team5.auth.service.MemberAccessBlocker;
 import com.swyp.team5.auth.service.RefreshTokenService;
 import com.swyp.team5.file.dto.FileUploadResponse;
 import com.swyp.team5.file.error.FileStorageException;
@@ -37,6 +38,8 @@ public class MemberService {
     private final PasswordEncoder passwordEncoder;
 
     private final RefreshTokenService refreshTokenService;
+
+    private final MemberAccessBlocker memberAccessBlocker;
 
     private final FileStorageService fileStorageService;
 
@@ -78,11 +81,11 @@ public class MemberService {
     @Transactional
     public MemberResponse updateProfileImage(Long memberId, MultipartFile image) {
         if (image == null || image.isEmpty()) {
-            throw new FileStorageException("업로드할 이미지가 없어요.");
+            throw new FileStorageException("업로드할 이미지가 없습니다.");
         }
         String contentType = image.getContentType();
         if (contentType == null || !contentType.startsWith("image/")) {
-            throw new FileStorageException("이미지 파일만 등록할 수 있어요.");
+            throw new FileStorageException("이미지 파일만 등록할 수 있습니다.");
         }
 
         Member member = findMember(memberId);
@@ -110,6 +113,7 @@ public class MemberService {
 
         member.withdraw();
         refreshTokenService.delete(memberId);
+        memberAccessBlocker.block(memberId);
     }
 
     private Member findMember(Long memberId) {

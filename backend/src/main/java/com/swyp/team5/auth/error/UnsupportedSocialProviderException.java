@@ -7,7 +7,7 @@ public class UnsupportedSocialProviderException extends RuntimeException impleme
     private final String logDetail;
 
     public UnsupportedSocialProviderException(String provider) {
-        super("지원하지 않는 소셜 로그인이에요.");
+        super("지원하지 않는 소셜 로그인입니다.");
         this.logDetail = "provider=" + provider;
     }
 

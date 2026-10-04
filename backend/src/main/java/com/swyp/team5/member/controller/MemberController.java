@@ -54,7 +54,7 @@ public class MemberController {
         memberService.withdraw(currentMember.memberId());
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, expiredRefreshTokenCookie().toString())
-                .body(ApiResponse.success("회원 탈퇴가 완료됐어요.", null));
+                .body(ApiResponse.success("회원 탈퇴가 완료되었습니다.", null));
     }
 
     @Operation(summary = "프로필 이미지 등록")
@@ -77,7 +77,7 @@ public class MemberController {
     public ResponseEntity<ApiResponse<Void>> changePassword(
             @AuthenticationPrincipal PrincipalMember currentMember, @Valid @RequestBody PasswordChangeRequest request) {
         memberService.changePassword(currentMember.memberId(), request);
-        return ResponseEntity.ok(ApiResponse.success("비밀번호를 변경했어요.", null));
+        return ResponseEntity.ok(ApiResponse.success("비밀번호가 변경되었습니다.", null));
     }
 
     @Operation(summary = "내 정보 수정")

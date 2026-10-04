@@ -129,7 +129,7 @@ public class AuthController {
         authService.logout(currentMember.memberId());
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, expiredRefreshTokenCookie().toString())
-                .body(ApiResponse.<Void>success("로그아웃했어요.", null));
+                .body(ApiResponse.<Void>success("로그아웃되었습니다.", null));
     }
 
     /**
@@ -158,7 +158,7 @@ public class AuthController {
     @PostMapping("/password/reset")
     public ResponseEntity<ApiResponse<Void>> requestPasswordReset(@Valid @RequestBody PasswordResetRequest request) {
         passwordResetService.requestReset(request.email());
-        return ResponseEntity.ok(ApiResponse.success("비밀번호 재설정 메일을 보냈어요.", null));
+        return ResponseEntity.ok(ApiResponse.success("비밀번호 재설정 메일을 발송했습니다.", null));
     }
 
     /**
@@ -173,7 +173,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> confirmPasswordReset(
             @Valid @RequestBody PasswordResetConfirmRequest request) {
         passwordResetService.confirmReset(request.resetToken(), request.newPassword());
-        return ResponseEntity.ok(ApiResponse.success("비밀번호를 재설정했어요.", null));
+        return ResponseEntity.ok(ApiResponse.success("비밀번호가 재설정되었습니다.", null));
     }
 
     private <T> ResponseEntity<ApiResponse<T>> responseWithRefreshTokenCookie(
