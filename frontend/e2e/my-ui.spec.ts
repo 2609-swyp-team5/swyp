@@ -126,7 +126,7 @@ test("my summary uses all home summary fields without product-list requests", as
     await expect(card.getByRole("status")).toHaveText("요약을 불러오는 중입니다.");
     finishRequest();
     await expect(card).toContainText("6개");
-    await expect(card).toContainText("임시저장 2 · 판매중 2 · 예약중 1 · 판매완료 1");
+    await expect(card).toContainText("임시저장 2 · 판매중 2 · 판매완료 1");
     await expect(summary).toContainText("3건");
     await expect(summary).toContainText("-2.5%");
     await expect(summary).toContainText("2026년 10월 3일");
@@ -158,7 +158,7 @@ test("my summary retries errors and shows zero counts and missing analysis", asy
     await expect(card.getByRole("alert")).toHaveText("요약 조회 실패");
     await card.getByRole("button", { name: "다시 시도", exact: true }).click();
     await expect(card).toContainText("0개");
-    await expect(card).toContainText("임시저장 0 · 판매중 0 · 예약중 0 · 판매완료 0");
+    await expect(card).toContainText("임시저장 0 · 판매중 0 · 판매완료 0");
     const summary = page.getByRole("region", { name: "거래 요약", exact: true });
     await expect(summary).toContainText("0건");
     await expect(summary).toContainText("분석된 물건이 없습니다.");

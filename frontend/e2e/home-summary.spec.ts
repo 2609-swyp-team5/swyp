@@ -24,7 +24,7 @@ test("home summary uses API counts, positive price difference and today's analys
     await page.goto("/home");
     const summary = page.getByRole("region", { name: "나의 거래 요약", exact: true });
     await expect(summary).toContainText("6개");
-    await expect(summary).toContainText("임시저장 2 · 판매중 2 · 예약중 1 · 판매완료 1");
+    await expect(summary).toContainText("임시저장 2 · 판매중 2 · 판매완료 1");
     await expect(summary).toContainText("3건");
     await expect(summary).toContainText("+4.1%");
     await expect(summary.getByText("오늘", { exact: true })).toBeVisible();

@@ -10,7 +10,7 @@ export function getHomeSummaryCards(summary?: HomeSummaryResponse) {
             title: "등록한 물건",
             value: summary ? `${summary.productCount}개` : "—",
             description: counts
-                ? `임시저장 ${counts.DRAFT} · 판매중 ${counts.ON_SALE} · 예약중 ${counts.RESERVED} · 판매완료 ${counts.SOLD_OUT}`
+                ? `임시저장 ${counts.DRAFT} · 판매중 ${counts.ON_SALE} · 판매완료 ${counts.SOLD_OUT}`
                 : "",
         },
         {
