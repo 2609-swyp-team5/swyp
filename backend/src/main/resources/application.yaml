@@ -121,6 +121,7 @@ platform:
   bunjang:
     publish:
       headless: ${PLATFORM_BUNJANG_PUBLISH_HEADLESS:true} # false면 등록 과정을 브라우저 창으로 확인 가능(로컬 디버깅용)
+      browser-channel: ${PLATFORM_BUNJANG_PUBLISH_BROWSER_CHANNEL:} # 비우면 Playwright 전용 Chromium → PC의 Chrome → Edge 순으로 있는 것 사용, chrome/msedge 등을 지정하면 그것만 사용
 
 jwt:
   access-token-expires: ${JWT_ACCESS_TOKEN_EXPIRES:30m}

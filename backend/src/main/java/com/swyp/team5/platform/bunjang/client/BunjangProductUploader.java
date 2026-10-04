@@ -76,8 +76,18 @@ public class BunjangProductUploader {
 
     private final boolean headless;
 
-    public BunjangProductUploader(@Value("${platform.bunjang.publish.headless:true}") boolean headless) {
+    // 비어 있으면 Playwright 전용 Chromium(./gradlew installPlaywrightChromium) → PC에 설치된 Chrome → Edge 순으로
+    // 실행되는 것을 쓰고(따로 설치하지 않아도 되도록), "chrome"/"msedge" 등을 지정하면 그 브라우저만 쓴다
+    private final String browserChannel;
+
+    /** 채널을 지정하지 않았을 때 시도 순서("" = Playwright 전용 Chromium). */
+    private static final List<String> DEFAULT_CHANNELS = List.of("", "chrome", "msedge");
+
+    public BunjangProductUploader(
+            @Value("${platform.bunjang.publish.headless:true}") boolean headless,
+            @Value("${platform.bunjang.publish.browser-channel:}") String browserChannel) {
         this.headless = headless;
+        this.browserChannel = browserChannel == null ? "" : browserChannel.strip();
     }
 
     /**
@@ -146,19 +156,49 @@ public class BunjangProductUploader {
     }
 
     private Browser launchBrowser(Playwright playwright) {
-        try {
-            return playwright
-                    .chromium()
-                    .launch(new BrowserType.LaunchOptions()
-                            .setHeadless(headless)
-                            .setArgs(List.of("--disable-blink-features=AutomationControlled", "--no-sandbox"))
-                            .setIgnoreDefaultArgs(List.of("--enable-automation")));
-        } catch (PlaywrightException e) {
-            if (e.getMessage() != null && e.getMessage().contains("Executable doesn't exist")) {
-                log.error("Playwright Chromium이 설치되어 있지 않습니다. ./gradlew installPlaywrightChromium 을 먼저 실행하세요.");
+        if (!browserChannel.isEmpty()) {
+            try {
+                return playwright.chromium().launch(launchOptions(browserChannel));
+            } catch (PlaywrightException e) {
+                if (isBrowserMissing(e)) {
+                    log.error("설정한 브라우저 채널({})이 이 PC에 설치되어 있지 않습니다.", browserChannel);
+                }
+                throw e;
             }
-            throw e;
         }
+        PlaywrightException missing = null;
+        for (String channel : DEFAULT_CHANNELS) {
+            try {
+                Browser browser = playwright.chromium().launch(launchOptions(channel));
+                if (!channel.isEmpty()) {
+                    log.info("Playwright 전용 Chromium이 없어 PC에 설치된 브라우저({})로 등록합니다.", channel);
+                }
+                return browser;
+            } catch (PlaywrightException e) {
+                if (!isBrowserMissing(e)) {
+                    throw e;
+                }
+                missing = e;
+            }
+        }
+        log.error("실행할 브라우저가 없습니다. ./gradlew installPlaywrightChromium 을 실행하거나 Chrome/Edge를 설치하세요.");
+        throw missing;
+    }
+
+    private BrowserType.LaunchOptions launchOptions(String channel) {
+        BrowserType.LaunchOptions options = new BrowserType.LaunchOptions()
+                .setHeadless(headless)
+                .setArgs(List.of("--disable-blink-features=AutomationControlled", "--no-sandbox"))
+                .setIgnoreDefaultArgs(List.of("--enable-automation"));
+        return channel.isEmpty() ? options : options.setChannel(channel);
+    }
+
+    /** 브라우저 실행 파일이 없어서 실패했는지(전용 Chromium: "Executable doesn't exist", 채널: "is not found"). */
+    private static boolean isBrowserMissing(PlaywrightException e) {
+        String message = e.getMessage();
+        return message != null
+                && (message.contains("Executable doesn't exist")
+                        || message.contains("distribution") && message.contains("is not found"));
     }
 
     private BrowserContext newContext(Browser browser, String sessionToken) {
