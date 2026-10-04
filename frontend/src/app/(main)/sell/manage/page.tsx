@@ -51,7 +51,6 @@ const tabs: ProductListTab[] = [
 
 export default function SellManagePage() {
     const [activeTabKey, setActiveTabKey] = useState("ALL");
-    const summaryQuery = useMyProductsQuery();
     const listQuery = useMyProductsQuery(
         activeTabKey === "ALL" ? undefined : (activeTabKey as ProductStatus),
     );
@@ -63,9 +62,10 @@ export default function SellManagePage() {
         isFetchingNextPage,
         isFetchNextPageError,
         fetchNextPage,
+        isPlaceholderData,
     } = listQuery;
-    const products = data?.pages.flatMap((page) => page.content) ?? [];
-    const summaryFirstPage = summaryQuery.data?.pages[0];
+    const products = isPlaceholderData ? [] : (data?.pages.flatMap((page) => page.content) ?? []);
+    const firstPage = data?.pages[0];
     const loadMore = useCallback(() => {
         void fetchNextPage();
     }, [fetchNextPage]);
@@ -93,11 +93,11 @@ export default function SellManagePage() {
                 metaLabel: statusMetaLabels[product.status],
                 status: product.status,
             }))}
-            totalCount={summaryFirstPage?.totalCount}
-            statusCounts={summaryFirstPage?.statusCounts}
-            isLoading={isPending}
+            totalCount={firstPage?.totalCount}
+            statusCounts={firstPage?.statusCounts}
+            isLoading={isPending || isPlaceholderData}
             errorMessage={error ? getApiErrorMessage(error) : undefined}
-            hasNextPage={hasNextPage}
+            hasNextPage={isPlaceholderData ? false : hasNextPage}
             isFetchingNextPage={isFetchingNextPage}
             isFetchNextPageError={isFetchNextPageError}
             onLoadMore={loadMore}

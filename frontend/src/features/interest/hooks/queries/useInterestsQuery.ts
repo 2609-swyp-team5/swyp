@@ -1,6 +1,6 @@
 "use client";
 
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 
 import { dataSource } from "@/common/lib/api/dataSource";
 import { interestApi } from "@/features/interest/api/interestApi";
@@ -16,6 +16,7 @@ export function useInterestsQuery(status?: InterestStatus) {
     return useInfiniteQuery({
         queryKey: [...interestsQueryKey, status] as const,
         initialPageParam: undefined as string | undefined,
+        placeholderData: keepPreviousData,
         queryFn: async ({ pageParam }) => {
             const response =
                 dataSource === "api"
