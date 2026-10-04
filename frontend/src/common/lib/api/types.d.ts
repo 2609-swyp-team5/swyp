@@ -25,4 +25,6 @@ export interface CursorPageResponse<T> {
     content: T[];
     nextCursor: string | null;
     hasNext: boolean;
+    totalCount: number | null;
+    statusCounts: Record<string, number> | null;
 }

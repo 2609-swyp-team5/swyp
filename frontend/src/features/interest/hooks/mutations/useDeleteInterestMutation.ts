@@ -6,7 +6,6 @@ import { dataSource } from "@/common/lib/api/dataSource";
 import { interestApi } from "@/features/interest/api/interestApi";
 import { deleteInterestMock } from "@/features/interest/api/interestMockApi";
 import { interestsQueryKey } from "@/features/interest/hooks/queries/useInterestsQuery";
-import type { InterestListItem } from "@/features/interest/types";
 
 export function useDeleteInterestMutation() {
     const queryClient = useQueryClient();
@@ -21,10 +20,7 @@ export function useDeleteInterestMutation() {
                 throw new Error(response.message);
             }
         },
-        onSuccess: (_, interestId) => {
-            queryClient.setQueryData<InterestListItem[]>(interestsQueryKey, (interests) =>
-                interests?.filter((interest) => interest.interestId !== interestId),
-            );
+        onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: interestsQueryKey });
         },
     });

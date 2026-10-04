@@ -77,6 +77,8 @@ export const productSummaryPageResponseSchema = z.object({
     content: z.array(productSummaryResponseSchema),
     nextCursor: z.string().nullable(),
     hasNext: z.boolean(),
+    totalCount: z.number().nullable(),
+    statusCounts: z.record(z.number()).nullable(),
 });
 
 export type ProductPlatform = z.infer<typeof productPlatformSchema>;
