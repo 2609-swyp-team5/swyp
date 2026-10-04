@@ -83,8 +83,8 @@ public class ProductAnalysis {
     @Column(columnDefinition = "analysis_confidence")
     private AnalysisConfidence confidence; // 분석 시점 신뢰도 등급, 신뢰도 도입 이전 스냅샷은 null
 
-    // 우리 상품만: 판매자 추천에 붙는 1개월 가격 전망. 대기 기간은 HOLD일 때만(1M), 예상 가격·변화율은 SELL(감가 예측)·HOLD(시세
-    // 추세) 모두. 외부 매물 분석·도입 이전 스냅샷은 null
+    // 1개월 가격 전망(우리 상품·외부 매물). 대기 기간은 시세 상승 중(HOLD)일 때만(1M), 예상 가격·변화율은 SELL(감가 예측)·HOLD(시세
+    // 추세) 모두. 외부 매물은 판매자 규칙을 추세 판단에만 써서 같은 방식으로 채운다. 도입 이전 스냅샷은 null
     @Convert(converter = ForecastPeriodConverter.class)
     @ColumnTransformer(write = "CAST(? AS forecast_period)")
     @Column(name = "wait_period", columnDefinition = "forecast_period")

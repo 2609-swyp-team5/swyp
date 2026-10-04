@@ -226,13 +226,14 @@ class ProductTest extends IntegrationTest {
                         List.of()));
         Long productId = createProduct();
 
-        mockMvc.perform(get("/products/{id}", productId).header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+        mockMvc.perform(get("/products/{productId}", productId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.suggestedPrice").value(470_000))
                 .andExpect(jsonPath("$.data.analysisDescription").value("판단 근거")) // 등록 때 저장된 근거
                 .andExpect(jsonPath("$.data.marketAveragePrice").isEmpty());
 
-        JsonNode updated = performStream(multipart(HttpMethod.PATCH, "/products/{id}", productId)
+        JsonNode updated = performStream(multipart(HttpMethod.PATCH, "/products/{productId}", productId)
                 .file(requestPart(updateRequest(category.getId(), ProductStatus.ON_SALE)))
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken));
         assertThat(updated.at("/data/suggestedPrice").asLong()).isEqualTo(470_000L); // 사용자 수정으로는 바뀌지 않음
@@ -455,7 +456,8 @@ class ProductTest extends IntegrationTest {
     void getProductSucceeds() throws Exception {
         Long productId = createProduct();
 
-        mockMvc.perform(get("/products/{id}", productId).header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+        mockMvc.perform(get("/products/{productId}", productId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id").value(productId))
                 .andExpect(jsonPath("$.data.category.name").value(category.getName()));
@@ -467,12 +469,14 @@ class ProductTest extends IntegrationTest {
         Long productId = createProduct();
         String otherToken = createOtherMemberToken();
 
-        mockMvc.perform(get("/products/{id}", productId).header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+        mockMvc.perform(get("/products/{productId}", productId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.platforms.length()").value(0))
                 .andExpect(jsonPath("$.data.interestCount").value(0))
                 .andExpect(jsonPath("$.data.viewCount").isNumber());
-        mockMvc.perform(get("/products/{id}", productId).header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
+        mockMvc.perform(get("/products/{productId}", productId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.platforms").doesNotExist())
                 .andExpect(jsonPath("$.data.interestCount").value(0))
@@ -482,7 +486,8 @@ class ProductTest extends IntegrationTest {
     // 상품 상세 조회 실패 - 존재하지 않는 상품
     @Test
     void getProductFailsWhenNotFound() throws Exception {
-        mockMvc.perform(get("/products/{id}", 999_999_999L).header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+        mockMvc.perform(get("/products/{productId}", 999_999_999L)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isNotFound());
     }
 
@@ -544,7 +549,7 @@ class ProductTest extends IntegrationTest {
     }
 
     private void changeStatus(Long productId, String status) throws Exception {
-        mockMvc.perform(patch("/products/{id}/status", productId)
+        mockMvc.perform(patch("/products/{productId}/status", productId)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\":\"" + status + "\"}"))
@@ -579,14 +584,14 @@ class ProductTest extends IntegrationTest {
                 .andExpect(jsonPath("$.data.content[0].status").value("DRAFT"));
     }
 
-    // 상품 상세 조회 - 외부 수집 매물도 같은 ID 체계(items)라 /products/{id}로 같은 응답 형태로 조회되고, 우리 상품과 ID가 겹치지 않음
+    // 상품 상세 조회 - 외부 수집 매물도 같은 ID 체계(items)라 /products/{productId}로 같은 응답 형태로 조회되고, 우리 상품과 ID가 겹치지 않음
     @Test
     void getProductReturnsExternalListingByItemId() throws Exception {
         Product product = saveProduct(uniqueKeyword() + " 우리 상품", 100_000L, ProductCondition.A, DefectStatus.NORMAL);
         PlatformListing listing = saveListing(uniqueKeyword() + " 번개 매물", 200_000L, "SOLD_OUT");
 
         assertThat(listing.getId()).isNotEqualTo(product.getId());
-        mockMvc.perform(get("/products/{id}", listing.getId())
+        mockMvc.perform(get("/products/{productId}", listing.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.source").value("EXTERNAL"))
@@ -599,7 +604,7 @@ class ProductTest extends IntegrationTest {
                 .andExpect(jsonPath("$.data.interestCount").value(0)) // 외부 매물도 관심 수는 내려줌
                 .andExpect(jsonPath("$.data.viewCount").doesNotExist()) // 외부 매물은 조회수 없음
                 .andExpect(jsonPath("$.data.category.id").value(category.getId()));
-        mockMvc.perform(get("/products/{id}", product.getId())
+        mockMvc.perform(get("/products/{productId}", product.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.source").value("OUR"))
@@ -724,14 +729,15 @@ class ProductTest extends IntegrationTest {
     void guestCanGetProductDetailWithoutSellerStats() throws Exception {
         Long productId = createProduct();
 
-        mockMvc.perform(get("/products/{id}", productId))
+        mockMvc.perform(get("/products/{productId}", productId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id").value(productId))
                 .andExpect(jsonPath("$.data.platforms").doesNotExist())
                 .andExpect(jsonPath("$.data.interestCount").value(0))
                 .andExpect(jsonPath("$.data.viewCount").isNumber());
         // 잘못된 토큰도 비로그인으로 처리
-        mockMvc.perform(get("/products/{id}", productId).header(HttpHeaders.AUTHORIZATION, "Bearer invalid-token"))
+        mockMvc.perform(get("/products/{productId}", productId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer invalid-token"))
                 .andExpect(status().isOk());
     }
 
@@ -742,7 +748,7 @@ class ProductTest extends IntegrationTest {
                 .getId();
 
         mockMvc.perform(get("/products/analysis/search").param("query", "아이폰")).andExpect(status().isUnauthorized());
-        mockMvc.perform(get("/products/{id}/analysis", productId)).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/products/{productId}/analysis", productId)).andExpect(status().isUnauthorized());
         mockMvc.perform(get("/products/me")).andExpect(status().isUnauthorized());
         mockMvc.perform(multipart("/products").file(imagePart())).andExpect(status().isUnauthorized());
     }
@@ -891,7 +897,7 @@ class ProductTest extends IntegrationTest {
     @Test
     void getMyProductsIncludesSoldOutAndScopedToSelf() throws Exception {
         Long soldOutProductId = createProduct();
-        mockMvc.perform(patch("/products/{id}/status", soldOutProductId)
+        mockMvc.perform(patch("/products/{productId}/status", soldOutProductId)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
@@ -915,7 +921,7 @@ class ProductTest extends IntegrationTest {
         Long productId = createProduct();
         ProductUpdateRequest request = updateRequest(category.getId(), ProductStatus.SOLD_OUT);
 
-        JsonNode data = performStream(multipart(HttpMethod.PATCH, "/products/{id}", productId)
+        JsonNode data = performStream(multipart(HttpMethod.PATCH, "/products/{productId}", productId)
                         .file(requestPart(request))
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .get("data");
@@ -936,7 +942,7 @@ class ProductTest extends IntegrationTest {
         when(fileStorageService.upload(any(), eq("products")))
                 .thenReturn(new FileUploadResponse("key", "https://image.example.com/new.png", 3, "image/png"));
 
-        JsonNode data = performStream(multipart(HttpMethod.PATCH, "/products/{id}", productId)
+        JsonNode data = performStream(multipart(HttpMethod.PATCH, "/products/{productId}", productId)
                         .file(new MockMultipartFile("images", "new.png", "image/png", new byte[] {1, 2, 3}))
                         .file(requestPart(request))
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
@@ -970,7 +976,7 @@ class ProductTest extends IntegrationTest {
                 base.tags(),
                 base.includedItems());
 
-        mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{id}", productId)
+        mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{productId}", productId)
                         .file(requestPart(request))
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isBadRequest())
@@ -984,7 +990,7 @@ class ProductTest extends IntegrationTest {
         String otherToken = createOtherMemberToken();
         ProductUpdateRequest request = updateRequest(category.getId(), ProductStatus.SOLD_OUT);
 
-        mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{id}", productId)
+        mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{productId}", productId)
                         .file(requestPart(request))
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
                 .andExpect(status().isForbidden())
@@ -996,7 +1002,7 @@ class ProductTest extends IntegrationTest {
     void updateFailsWhenNotFound() throws Exception {
         ProductUpdateRequest request = updateRequest(category.getId(), ProductStatus.SOLD_OUT);
 
-        mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{id}", 999_999_999L)
+        mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{productId}", 999_999_999L)
                         .file(requestPart(request))
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isNotFound());
@@ -1007,7 +1013,7 @@ class ProductTest extends IntegrationTest {
     void updateStatusSucceedsWhenOwner() throws Exception {
         Long productId = createProduct();
 
-        mockMvc.perform(patch("/products/{id}/status", productId)
+        mockMvc.perform(patch("/products/{productId}/status", productId)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
@@ -1022,7 +1028,7 @@ class ProductTest extends IntegrationTest {
         Long productId = createProduct();
         String otherToken = createOtherMemberToken();
 
-        mockMvc.perform(patch("/products/{id}/status", productId)
+        mockMvc.perform(patch("/products/{productId}/status", productId)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
@@ -1035,7 +1041,8 @@ class ProductTest extends IntegrationTest {
     void deleteSucceedsWhenOwner() throws Exception {
         Long productId = createProduct();
 
-        mockMvc.perform(delete("/products/{id}", productId).header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+        mockMvc.perform(delete("/products/{productId}", productId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
@@ -1048,7 +1055,8 @@ class ProductTest extends IntegrationTest {
         Long productId = createProduct();
         String otherToken = createOtherMemberToken();
 
-        mockMvc.perform(delete("/products/{id}", productId).header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
+        mockMvc.perform(delete("/products/{productId}", productId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
                 .andExpect(status().isForbidden());
 
         assertThat(productRepository.existsById(productId)).isTrue();
@@ -1059,17 +1067,19 @@ class ProductTest extends IntegrationTest {
     void deleteFailsWithoutAuthentication() throws Exception {
         Long productId = createProduct();
 
-        mockMvc.perform(delete("/products/{id}", productId)).andExpect(status().isUnauthorized());
+        mockMvc.perform(delete("/products/{productId}", productId)).andExpect(status().isUnauthorized());
     }
 
     // 상품 재삭제 - 이미 삭제된 상품은 404
     @Test
     void deleteFailsWhenAlreadyDeleted() throws Exception {
         Long productId = createProduct();
-        mockMvc.perform(delete("/products/{id}", productId).header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+        mockMvc.perform(delete("/products/{productId}", productId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(delete("/products/{id}", productId).header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+        mockMvc.perform(delete("/products/{productId}", productId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isNotFound());
     }
 

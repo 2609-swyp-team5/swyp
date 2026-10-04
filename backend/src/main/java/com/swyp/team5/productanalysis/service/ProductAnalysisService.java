@@ -562,18 +562,13 @@ public class ProductAnalysisService {
         analysis.assignConfidence(prices.size(), ConfidenceRule.grade(prices, properties.confidence()));
 
         // 감가 예측(1M/3M/6M)과, 판매자 추천에 붙는 1개월 가격 전망(SELL=감가 예측, HOLD=시세 추세)
-        PriceTrend trendWithNow = trend.plus(analyzedAt, averagePrice);
-        String rootCategoryName =
-                categoryRepository.findRootName(product.getCategory().getId()).orElse(null);
-        List<DepreciationForecaster.Forecast> forecasts =
-                DepreciationForecaster.forecast(averagePrice, trendWithNow, rootCategoryName);
-        PriceOutlookRule.Outlook outlook = PriceOutlookRule.forSeller(
-                sellerRecommendation,
+        List<DepreciationForecaster.Forecast> forecasts = forecastWithOutlook(
+                analysis,
+                product.getCategory().getId(),
+                trend.plus(analyzedAt, averagePrice),
                 monthlyRate,
-                DepreciationForecaster.monthlyRate(trendWithNow, rootCategoryName),
-                averagePrice,
-                oneMonthForecast(forecasts));
-        analysis.assignOutlook(outlook.waitPeriod(), outlook.expectedPrice(), outlook.expectedPriceChangeRate());
+                sellerRecommendation,
+                averagePrice);
         productAnalysisRepository.save(analysis);
         saveForecasts(analysis, forecasts);
 
@@ -587,8 +582,8 @@ public class ProductAnalysisService {
     }
 
     /**
-     * 관심 등록된 외부 매물 1건을 구매자 관점(BUY/WAIT)으로 분석한다. 비교 매물에서 분석 대상 매물 자신은 제외한다.
-     * 우리 상품과 달리 AI 적정가로 갱신할 컬럼이 없고, 알림은 관심 등록 회원에게만 간다.
+     * 관심 등록된 외부 매물 1건을 구매자 관점(BUY/WAIT)으로 분석한다. 비교 매물에서 분석 대상 매물 자신은 제외한다. 감가 예측·1개월
+     * 가격 전망은 우리 상품과 같이 계산한다. 우리 상품과 달리 판매자 관점 추천은 없고, 알림은 관심 등록 회원에게만 간다.
      */
     @Transactional
     void analyzeListing(PlatformListing listing) {
@@ -656,10 +651,49 @@ public class ProductAnalysisService {
                         : RecommendationRule.buyerReason(recommendation, listing.getPrice(), averagePrice, monthlyRate),
                 analyzedAt);
         analysis.assignConfidence(prices.size(), ConfidenceRule.grade(prices, properties.confidence()));
+
+        // 감가 예측(1M/3M/6M)과 1개월 가격 전망 — 우리 상품과 같은 규칙. 전망은 시세 추세로 갈리므로(오르는 중이면 상승 전망,
+        // 아니면 감가 예측 1M) 판매자 규칙을 추세 판단에만 쓰고, 저장하는 추천은 구매자 관점 그대로 둔다
+        List<DepreciationForecaster.Forecast> forecasts = forecastWithOutlook(
+                analysis,
+                listing.getCategory().getId(),
+                trend.plus(analyzedAt, averagePrice),
+                monthlyRate,
+                RecommendationRule.forSeller(monthlyRate),
+                averagePrice);
         productAnalysisRepository.save(analysis);
+        saveForecasts(analysis, forecasts);
 
         notificationService.notifyListingRecommendationChanged(
                 listing, previous.map(ProductAnalysis::getRecommendation).orElse(null), recommendation);
+    }
+
+    /**
+     * 감가 예측가(1M/3M/6M)를 계산하고, 그 1M 값을 이용한 1개월 가격 전망을 스냅샷에 채운다. 예측가는 스냅샷 저장 뒤
+     * {@link #saveForecasts}로 저장한다.
+     *
+     * @param trendWithNow 이번 분석까지 포함한 평균가 추이
+     * @param monthlyRate 관측된 월 시세 추세
+     * @param trendView 전망 갈래를 정하는 판매자 관점 추천(HOLD=시세 상승 중, SELL=그 밖)
+     */
+    private List<DepreciationForecaster.Forecast> forecastWithOutlook(
+            ProductAnalysis analysis,
+            Long categoryId,
+            PriceTrend trendWithNow,
+            OptionalDouble monthlyRate,
+            AnalysisRecommendation trendView,
+            long averagePrice) {
+        String rootCategoryName = categoryRepository.findRootName(categoryId).orElse(null);
+        List<DepreciationForecaster.Forecast> forecasts =
+                DepreciationForecaster.forecast(averagePrice, trendWithNow, rootCategoryName);
+        PriceOutlookRule.Outlook outlook = PriceOutlookRule.forSeller(
+                trendView,
+                monthlyRate,
+                DepreciationForecaster.monthlyRate(trendWithNow, rootCategoryName),
+                averagePrice,
+                oneMonthForecast(forecasts));
+        analysis.assignOutlook(outlook.waitPeriod(), outlook.expectedPrice(), outlook.expectedPriceChangeRate());
+        return forecasts;
     }
 
     /** 이번 스냅샷 기준 감가 예측가(1M/3M/6M)를 저장한다({@link DepreciationForecaster}). */

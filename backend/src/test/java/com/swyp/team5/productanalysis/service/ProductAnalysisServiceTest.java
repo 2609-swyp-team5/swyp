@@ -576,11 +576,49 @@ class ProductAnalysisServiceTest {
         assertThat(saved.getRecommendation()).isEqualTo(AnalysisRecommendation.BUY);
         assertThat(saved.getListingCount()).isEqualTo(3); // 자신을 뺀 비교 매물 3건
         assertThat(saved.getConfidence()).isEqualTo(AnalysisConfidence.LOW);
-        // 외부 매물은 판매자 1개월 전망 대상이 아님
-        assertThat(saved.getExpectedPrice()).isNull();
+        // 1개월 전망 - 추세 기록이 없어 감가 예측 쪽(대기 기간 없음, 감가 예측 1M 값, 기본 감가율 월 -2%)
+        assertThat(saved.getWaitPeriod()).isNull();
+        assertThat(saved.getExpectedPrice()).isEqualTo(2000L);
+        assertThat(saved.getExpectedPriceChangeRate()).isEqualByComparingTo("-0.02");
         // 외부 매물은 우리 상품 제안가 갱신 대상이 아님
         verify(notificationService)
                 .notifyListingRecommendationChanged(target, AnalysisRecommendation.WAIT, AnalysisRecommendation.BUY);
+    }
+
+    // 관심 외부 매물 분석 - 우리 상품과 같이 최상위 카테고리 기본 감가율로 감가 예측(1M/3M/6M)을 저장하고 1개월 전망을 채움
+    @Test
+    void analyzeListingSavesDepreciationForecastAndOutlook() {
+        PlatformListing target = listing(100L, 10L, "아이패드 프로", 2000L);
+        List<PlatformListing> comparisons = List.of(
+                listing(1L, 10L, "아이패드 프로 매물1", 1000L),
+                listing(2L, 10L, "아이패드 프로 매물2", 3000L),
+                listing(3L, 10L, "아이패드 프로 매물3", 5000L));
+        when(platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
+                        eq(10L), eq("SELLING"), any()))
+                .thenReturn(comparisons);
+        when(categoryRepository.findRootName(10L)).thenReturn(Optional.of("디지털"));
+        givenAiResult(new MarketAnalysisResult(List.of(1, 2, 3), AnalysisRecommendation.BUY, 3000L, "설명"));
+
+        service().analyzeListing(target);
+
+        // 추세 기록이 없어 "디지털" 기본 감가율(월 -3%)로 평균가 3,000원의 1M/3M/6M 예측가를 1,000원 단위로 저장
+        ArgumentCaptor<List<PriceForecast>> forecastCaptor = ArgumentCaptor.captor();
+        verify(priceForecastRepository).saveAll(forecastCaptor.capture());
+        assertThat(forecastCaptor.getValue())
+                .extracting(PriceForecast::getPeriod, PriceForecast::getExpectedPrice)
+                .containsExactly(
+                        tuple(ForecastPeriod.ONE_MONTH, 3000L),
+                        tuple(ForecastPeriod.THREE_MONTHS, 3000L),
+                        tuple(ForecastPeriod.SIX_MONTHS, 2000L));
+        ArgumentCaptor<ProductAnalysis> captor = ArgumentCaptor.forClass(ProductAnalysis.class);
+        verify(productAnalysisRepository).save(captor.capture());
+        ProductAnalysis saved = captor.getValue();
+        // 저장하는 추천은 구매자 관점 그대로(판매가 2,000원이 평균 3,000원보다 33% 저렴 → BUY), 판매자 관점은 비움
+        assertThat(saved.getRecommendation()).isEqualTo(AnalysisRecommendation.BUY);
+        assertThat(saved.getBuyerRecommendation()).isNull();
+        assertThat(saved.getWaitPeriod()).isNull();
+        assertThat(saved.getExpectedPrice()).isEqualTo(3000L);
+        assertThat(saved.getExpectedPriceChangeRate()).isEqualByComparingTo("-0.03");
     }
 
     // 관심 외부 매물 분석 건너뜀 - 자신을 빼면 비교 매물이 최소 기준(3건) 미만
