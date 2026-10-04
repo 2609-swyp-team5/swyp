@@ -28,6 +28,11 @@ type ProductSummaryCardProps = {
     interest?: InterestSummaryActions;
 };
 
+const detailStatusLabels: Record<string, string> = {
+    ...statusLabels,
+    RESERVED: "예약중",
+};
+
 export function ProductSummaryCard({ product, interest }: ProductSummaryCardProps) {
     const interestPlatformNames = interest
         ? interest.platformName
@@ -35,7 +40,6 @@ export function ProductSummaryCard({ product, interest }: ProductSummaryCardProp
             : Array.from(
                   new Set(
                       product.platforms
-                          .filter((platform) => platform.status !== "REMOVED")
                           .map((platform) => platform.platformName || platform.platform)
                           .filter(Boolean),
                   ),
@@ -64,7 +68,7 @@ export function ProductSummaryCard({ product, interest }: ProductSummaryCardProp
                                 ))
                             ) : (
                                 <span className="rounded-full bg-[#fff4f4] px-4 py-1 text-[13px] leading-5 font-semibold text-[#fa503d]">
-                                    {interest?.detailLabel ?? statusLabels[product.status]}
+                                    {interest?.detailLabel ?? detailStatusLabels[product.status]}
                                 </span>
                             )}
                             <span className="text-[11px] leading-4 text-[#6b6c7b]">
@@ -100,9 +104,11 @@ export function ProductSummaryCard({ product, interest }: ProductSummaryCardProp
                         <span className="rounded-full border border-[#d3d3d3] bg-[#fafbff] px-4 py-2 text-[13px] leading-5 font-semibold text-[#83889e]">
                             {product.category.name}
                         </span>
-                        <span className="rounded-full border border-[#d3d3d3] bg-[#fafbff] px-4 py-2 text-[13px] leading-5 font-semibold text-[#6653fb]">
-                            {conditionLabels[product.condition]}
-                        </span>
+                        {product.condition ? (
+                            <span className="rounded-full border border-[#d3d3d3] bg-[#fafbff] px-4 py-2 text-[13px] leading-5 font-semibold text-[#6653fb]">
+                                {conditionLabels[product.condition]}
+                            </span>
+                        ) : null}
                     </div>
                     <div className="mt-auto flex items-end justify-end gap-[30px] pt-6">
                         {interest ? (

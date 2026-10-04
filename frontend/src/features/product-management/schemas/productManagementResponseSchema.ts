@@ -1,10 +1,6 @@
 import { z } from "zod";
 
-import {
-    productConditionSchema,
-    productPlatformStatusSchema,
-    productStatusSchema,
-} from "@/features/sell/schemas/productSchema";
+import { productConditionSchema, productStatusSchema } from "@/features/sell/schemas/productSchema";
 import { productRecommendationSchema } from "@/features/sell/schemas/productResponseSchema";
 
 export const analysisRecommendationSchema = productRecommendationSchema;
@@ -111,28 +107,59 @@ export const productCompetitionResponseSchema = z.object({
     }),
 });
 
-export const productDetailSummaryResponseSchema = z.object({
-    id: z.number(),
-    status: productStatusSchema,
-    createdAt: z.string(),
-    title: z.string(),
-    price: z.number(),
-    category: z.object({
+export const productDetailSummaryResponseSchema = z
+    .object({
+        source: z.enum(["OUR", "EXTERNAL"]),
         id: z.number(),
-        name: z.string(),
-        parentId: z.number().nullable(),
-    }),
-    condition: productConditionSchema,
-    imageUrls: z.array(z.string()),
-    platforms: z.array(
-        z.object({
-            platform: z.string(),
-            platformName: z.string(),
-            status: productPlatformStatusSchema,
-            productUrl: z.string().nullable(),
+        title: z.string(),
+        brand: z.string().nullable(),
+        description: z.string().nullable(),
+        category: z.object({
+            id: z.number(),
+            name: z.string(),
+            parentId: z.number().nullable(),
+            leaf: z.boolean(),
         }),
-    ),
-});
+        price: z.number(),
+        imageUrls: z.array(z.string()),
+        tags: z.array(z.string()),
+        includedItems: z.array(z.string()),
+        condition: productConditionSchema.nullable(),
+        status: productStatusSchema.or(z.literal("RESERVED")),
+        createdAt: z.string(),
+        updatedAt: z.string(),
+        viewCount: z.number().nullable(),
+        interestCount: z.number(),
+        daysOnSale: z.number().nullable(),
+        platforms: z.array(
+            z.object({
+                platformName: z.string(),
+                productUrl: z.string().nullable(),
+            }),
+        ),
+    })
+    .transform(
+        ({ id, title, price, status, createdAt, category, condition, imageUrls, platforms }) => ({
+            id,
+            title,
+            price,
+            status,
+            createdAt,
+            category: {
+                id: category.id,
+                name: category.name,
+                parentId: category.parentId,
+            },
+            condition,
+            imageUrls,
+            platforms: platforms.map(({ platformName, productUrl }) => ({
+                platform: platformName,
+                platformName,
+                status: "POSTED" as const,
+                productUrl,
+            })),
+        }),
+    );
 
 export type AnalysisRecommendation = z.infer<typeof analysisRecommendationSchema>;
 export type PriceForecastPeriod = z.infer<typeof priceForecastPeriodSchema>;
