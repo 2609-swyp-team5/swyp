@@ -2,7 +2,6 @@ package com.swyp.team5.product.service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -449,23 +448,25 @@ public class ProductService {
      * @param status 상태 필터(선택, 복수 — 비어 있거나 {@code null}이면 전체)
      * @param cursor 이전 페이지 마지막 상품의 {@code id}(선택, {@code null}이면 첫 페이지)
      * @param size 페이지 크기
-     * @return {@code hasNext}/{@code nextCursor}를 포함한 커서 페이지 응답
+     * @return {@code hasNext}/{@code nextCursor}를 포함한 커서 페이지 응답. {@code totalCount}는 요청 필터를 모두 적용한 건수,
+     *     {@code statusCounts}는 탭 숫자용이라 상태 필터만 빼고(카테고리·키워드는 적용) 센 상태별 건수
      */
     @Transactional(readOnly = true)
     public CursorPageResponse<ProductSummaryResponse> getMyProducts(
             Long memberId, Long categoryId, String keyword, Set<ProductStatus> status, Long cursor, int size) {
-        Specification<Product> filter = Specification.where(hasMemberId(memberId))
+        Specification<Product> withoutStatus = Specification.where(hasMemberId(memberId))
                 .and(hasCategoryId(categoryId))
-                .and(hasKeyword(keyword))
-                .and(hasStatusIn(status));
-        CursorPageResponse<ProductSummaryResponse> page = findProducts(filter.and(idLessThan(cursor)), size);
-        // 전체 건수·상태별 건수는 매 페이지 센다(회원 본인 상품이라 부담이 작음, 요청 필터를 모두 적용한 조건)
-        Map<String, Long> statusCounts = new LinkedHashMap<>();
-        for (ProductStatus each : ProductStatus.values()) {
-            statusCounts.put(each.name(), productRepository.count(filter.and(hasStatus(each))));
-        }
-        long total = statusCounts.values().stream().mapToLong(Long::longValue).sum();
-        return page.withTotalCount(total).withStatusCounts(statusCounts);
+                .and(hasKeyword(keyword));
+        CursorPageResponse<ProductSummaryResponse> page =
+                findProducts(withoutStatus.and(hasStatusIn(status)).and(idLessThan(cursor)), size);
+        // 건수는 매 페이지 센다(회원 본인 상품이라 부담이 작음). 상태별 건수는 어느 탭을 요청해도 모든 탭 숫자를 채우도록 상태 필터 없이
+        // GROUP BY 한 번으로 세고, 전체 건수는 그중 요청한 상태(없으면 전부)의 합이다
+        Map<ProductStatus, Long> counted = productRepository.countByStatus(withoutStatus);
+        long total = counted.entrySet().stream()
+                .filter(entry -> status == null || status.isEmpty() || status.contains(entry.getKey()))
+                .mapToLong(Map.Entry::getValue)
+                .sum();
+        return page.withTotalCount(total).withStatusCounts(ProductStatus.toStatusCounts(counted));
     }
 
     private static final int POPULAR_WINDOW_DAYS = 7;
@@ -784,10 +785,6 @@ public class ProductService {
     private static Specification<Product> hasCategoryId(Long categoryId) {
         return (root, query, cb) ->
                 categoryId == null ? null : cb.equal(root.get("category").get("id"), categoryId);
-    }
-
-    private static Specification<Product> hasStatus(ProductStatus status) {
-        return (root, query, cb) -> status == null ? null : cb.equal(root.get("status"), status);
     }
 
     /** 상태 중 하나에 해당하는 상품만 조회한다(비어 있거나 {@code null}이면 미적용). */
