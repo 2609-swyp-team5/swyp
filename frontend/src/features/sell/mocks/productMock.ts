@@ -59,9 +59,9 @@ export function getMyProductsMock(status?: ProductStatus) {
         hasNext: false,
         totalCount: content.length,
         statusCounts: {
-            DRAFT: content.filter((product) => product.status === "DRAFT").length,
-            ON_SALE: content.filter((product) => product.status === "ON_SALE").length,
-            SOLD_OUT: content.filter((product) => product.status === "SOLD_OUT").length,
+            DRAFT: mockProducts.filter((product) => product.status === "DRAFT").length,
+            ON_SALE: mockProducts.filter((product) => product.status === "ON_SALE").length,
+            SOLD_OUT: mockProducts.filter((product) => product.status === "SOLD_OUT").length,
         },
     });
 }

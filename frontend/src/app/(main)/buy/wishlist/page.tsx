@@ -69,8 +69,9 @@ export default function WishlistPage() {
         isFetchingNextPage,
         isFetchNextPageError,
         fetchNextPage,
+        isPlaceholderData,
     } = listQuery;
-    const interests = data?.pages.flatMap((page) => page.content) ?? [];
+    const interests = isPlaceholderData ? [] : (data?.pages.flatMap((page) => page.content) ?? []);
     const firstPage = data?.pages[0];
     const loadMore = useCallback(() => {
         void fetchNextPage();
@@ -110,9 +111,9 @@ export default function WishlistPage() {
             })}
             totalCount={firstPage?.totalCount}
             statusCounts={firstPage?.statusCounts}
-            isLoading={isPending}
+            isLoading={isPending || isPlaceholderData}
             errorMessage={error ? getApiErrorMessage(error) : undefined}
-            hasNextPage={hasNextPage}
+            hasNextPage={isPlaceholderData ? false : hasNextPage}
             isFetchingNextPage={isFetchingNextPage}
             isFetchNextPageError={isFetchNextPageError}
             onLoadMore={loadMore}

@@ -35,6 +35,27 @@ test("sell manage requests and renders the selected status tab", async ({ page }
             const status = url.searchParams.get("status");
             const content = status === "DRAFT" ? [draft] : [onSale, draft, soldOut];
 
+            if (status === "DRAFT") {
+                return new Promise((resolve) => {
+                    setTimeout(() => {
+                        void route.fulfill({
+                            json: {
+                                success: true,
+                                data: {
+                                    content,
+                                    nextCursor: null,
+                                    hasNext: false,
+                                    totalCount: content.length,
+                                    statusCounts: { DRAFT: 1, ON_SALE: 1, SOLD_OUT: 1 },
+                                },
+                                error: null,
+                            },
+                        });
+                        resolve(undefined);
+                    }, 250);
+                });
+            }
+
             return route.fulfill({
                 json: {
                     success: true,
@@ -54,6 +75,7 @@ test("sell manage requests and renders the selected status tab", async ({ page }
     await page.goto("/sell/manage");
     await expect(page.getByRole("tab", { name: "전체 3", exact: true })).toBeVisible();
     await page.getByRole("tab", { name: "임시저장 1", exact: true }).click();
+    await expect(page.getByRole("tab", { name: "전체 3", exact: true })).toBeVisible();
     await expect(page.getByText(draft.title, { exact: true }).first()).toBeVisible();
     await expect(page.getByText(onSale.title, { exact: true })).toHaveCount(0);
     await expect(page.getByText(soldOut.title, { exact: true })).toHaveCount(0);
