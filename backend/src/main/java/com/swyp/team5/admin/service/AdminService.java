@@ -21,6 +21,7 @@ import com.swyp.team5.admin.dto.AdminMemberListItemResponse;
 import com.swyp.team5.admin.dto.MemberStatusUpdateResponse;
 import com.swyp.team5.admin.error.InvalidMemberStatusException;
 import com.swyp.team5.admin.error.SelfStatusChangeException;
+import com.swyp.team5.auth.service.MemberAccessBlocker;
 import com.swyp.team5.auth.service.RefreshTokenService;
 import com.swyp.team5.common.common.PageResponse;
 import com.swyp.team5.member.entity.Member;
@@ -39,6 +40,8 @@ public class AdminService {
     private final ProductRepository productRepository;
 
     private final RefreshTokenService refreshTokenService;
+
+    private final MemberAccessBlocker memberAccessBlocker;
 
     @Transactional(readOnly = true)
     public AdminDashboardResponse getDashboard() {
@@ -84,8 +87,10 @@ public class AdminService {
         if (status == MemberStatus.SUSPENDED) {
             member.suspend(StringUtils.hasText(reason) ? reason.trim() : null);
             refreshTokenService.delete(memberId);
+            memberAccessBlocker.block(memberId);
         } else {
             member.activate();
+            memberAccessBlocker.unblock(memberId);
         }
         log.info(
                 "관리자가 회원 상태를 변경했습니다. adminMemberId={}, memberId={}, {} -> {}",

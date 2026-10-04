@@ -3,6 +3,6 @@ package com.swyp.team5.auth.error;
 public class InvalidCredentialsException extends RuntimeException {
 
     public InvalidCredentialsException() {
-        super("이메일 또는 비밀번호가 일치하지 않아요.");
+        super("이메일 또는 비밀번호가 일치하지 않습니다.");
     }
 }

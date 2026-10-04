@@ -63,8 +63,9 @@ public class AuthService {
 
     @Transactional
     public SignUpResponse signUp(SignUpRequest request) {
-        if (memberRepository.existsByEmailAndStatusNot(request.email(), MemberStatus.DELETED)) {
-            throw new DuplicateEmailException(request.email());
+        String email = EmailNormalizer.normalize(request.email());
+        if (memberRepository.existsByEmailAndStatusNot(email, MemberStatus.DELETED)) {
+            throw new DuplicateEmailException(email);
         }
         if (request.phone() != null
                 && memberRepository.existsByPhoneAndStatusNot(request.phone(), MemberStatus.DELETED)) {
@@ -72,7 +73,7 @@ public class AuthService {
         }
 
         Member member = Member.ofLocalSignUp(
-                request.email(),
+                email,
                 request.phone(),
                 passwordEncoder.encode(request.password()),
                 request.name(),
@@ -93,7 +94,7 @@ public class AuthService {
     @Transactional(readOnly = true)
     public AuthResult login(LoginRequest request) {
         Member member = memberRepository
-                .findByEmailAndStatusNot(request.email(), MemberStatus.DELETED)
+                .findByEmailAndStatusNot(EmailNormalizer.normalize(request.email()), MemberStatus.DELETED)
                 .orElseThrow(InvalidCredentialsException::new);
 
         if (member.getPassword() == null || !passwordEncoder.matches(request.password(), member.getPassword())) {
@@ -141,15 +142,16 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public boolean isEmailAvailable(String email) {
-        return !memberRepository.existsByEmailAndStatusNot(email, MemberStatus.DELETED);
+        return !memberRepository.existsByEmailAndStatusNot(EmailNormalizer.normalize(email), MemberStatus.DELETED);
     }
 
     // 이메일이 같은 기존 회원이 있으면 그 계정에 연결하고, 없으면 신규 가입
     private Member linkOrCreateSocialMember(SocialProvider provider, SocialUserInfo userInfo) {
+        String email = EmailNormalizer.normalize(userInfo.email());
         Member member = memberRepository
-                .findByEmailAndStatusNot(userInfo.email(), MemberStatus.DELETED)
-                .orElseGet(() -> memberRepository.save(Member.ofSocialSignUp(
-                        userInfo.email(), userInfo.name(), userInfo.name(), userInfo.profileImageUrl())));
+                .findByEmailAndStatusNot(email, MemberStatus.DELETED)
+                .orElseGet(() -> memberRepository.save(
+                        Member.ofSocialSignUp(email, userInfo.name(), userInfo.name(), userInfo.profileImageUrl())));
 
         socialRepository.save(Social.of(provider, userInfo.providerId(), member));
         return member;

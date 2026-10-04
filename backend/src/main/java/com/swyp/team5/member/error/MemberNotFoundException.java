@@ -7,7 +7,7 @@ public class MemberNotFoundException extends RuntimeException implements LogDeta
     private final String logDetail;
 
     public MemberNotFoundException(Long memberId) {
-        super("회원 정보를 찾을 수 없어요.");
+        super("회원 정보를 찾을 수 없습니다.");
         this.logDetail = "memberId=" + memberId;
     }
 

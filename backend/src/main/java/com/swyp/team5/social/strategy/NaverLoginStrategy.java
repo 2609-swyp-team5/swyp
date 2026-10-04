@@ -76,10 +76,10 @@ public class NaverLoginStrategy implements SocialLoginStrategy {
         } catch (RestClientResponseException e) {
             // 인가 코드 만료인지 state 불일치인지는 응답 본문에만 나온다. e.getMessage() 로는 구분할 수 없다.
             log.warn("네이버 토큰 교환 실패: status={}, body={}", e.getStatusCode(), e.getResponseBodyAsString());
-            throw new InvalidSocialTokenException("네이버 로그인에 실패했어요. 다시 시도해 주세요.");
+            throw new InvalidSocialTokenException("네이버 로그인에 실패했습니다. 다시 시도해 주십시오.");
         } catch (RestClientException e) {
             log.warn("네이버 토큰 교환 실패(통신 오류)", e);
-            throw new InvalidSocialTokenException("네이버 로그인에 실패했어요. 다시 시도해 주세요.");
+            throw new InvalidSocialTokenException("네이버 로그인에 실패했습니다. 다시 시도해 주십시오.");
         }
 
         // 네이버는 실패해도 200에 error 필드를 담아 돌려주므로 본문까지 확인해야 한다.
@@ -88,7 +88,7 @@ public class NaverLoginStrategy implements SocialLoginStrategy {
                     "네이버 토큰 교환 실패: error={}, description={}",
                     response == null ? null : response.error(),
                     response == null ? null : response.errorDescription());
-            throw new InvalidSocialTokenException("네이버 로그인에 실패했어요. 다시 시도해 주세요.");
+            throw new InvalidSocialTokenException("네이버 로그인에 실패했습니다. 다시 시도해 주십시오.");
         }
         return response.accessToken();
     }
@@ -105,15 +105,15 @@ public class NaverLoginStrategy implements SocialLoginStrategy {
         } catch (RestClientResponseException e) {
             // 토큰 만료인지 권한 부족인지는 응답 본문에만 나온다.
             log.warn("네이버 사용자 정보 조회 실패: status={}, body={}", e.getStatusCode(), e.getResponseBodyAsString());
-            throw new InvalidSocialTokenException("네이버 계정 정보를 가져오지 못했어요. 다시 시도해 주세요.");
+            throw new InvalidSocialTokenException("네이버 계정 정보를 가져오지 못했습니다. 다시 시도해 주십시오.");
         } catch (RestClientException e) {
             log.warn("네이버 사용자 정보 조회 실패(통신 오류)", e);
-            throw new InvalidSocialTokenException("네이버 계정 정보를 가져오지 못했어요. 다시 시도해 주세요.");
+            throw new InvalidSocialTokenException("네이버 계정 정보를 가져오지 못했습니다. 다시 시도해 주십시오.");
         }
 
         if (response == null || !response.isSuccess()) {
             log.warn("네이버 사용자 정보 조회 실패: {}", response == null ? null : response.message());
-            throw new InvalidSocialTokenException("네이버 계정 정보를 가져오지 못했어요. 다시 시도해 주세요.");
+            throw new InvalidSocialTokenException("네이버 계정 정보를 가져오지 못했습니다. 다시 시도해 주십시오.");
         }
         return response.response();
     }

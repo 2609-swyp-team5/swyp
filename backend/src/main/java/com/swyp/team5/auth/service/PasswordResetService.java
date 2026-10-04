@@ -36,7 +36,8 @@ public class PasswordResetService {
     private final SecureRandom random = new SecureRandom();
 
     @Transactional(readOnly = true)
-    public void requestReset(String email) {
+    public void requestReset(String rawEmail) {
+        String email = EmailNormalizer.normalize(rawEmail);
         if (!acquireCooldown(email)) {
             log.info("비밀번호 재설정 요청이 너무 잦아 건너뜁니다.");
             return;

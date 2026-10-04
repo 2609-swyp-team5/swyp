@@ -7,6 +7,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
+import com.swyp.team5.auth.service.MemberAccessBlocker;
 import com.swyp.team5.auth.service.RefreshTokenService;
 import com.swyp.team5.file.service.FileStorageService;
 import com.swyp.team5.product.service.ProductAiSearchService;
@@ -31,6 +32,9 @@ public abstract class IntegrationTest {
 
     @MockitoBean
     protected RefreshTokenService refreshTokenService;
+
+    @MockitoBean
+    protected MemberAccessBlocker memberAccessBlocker;
 
     @MockitoBean
     protected FileStorageService fileStorageService;
