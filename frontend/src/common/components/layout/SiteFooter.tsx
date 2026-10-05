@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
 
-const socialIcons = ["facebook.svg", "twitter.svg", "instagram.svg", "linkedin.svg"];
 const footerLinks = [
     { href: "/home", label: "홈" },
     { href: "/search", label: "검색" },
@@ -35,29 +34,10 @@ export function SiteFooter() {
                         </Link>
                     ))}
                 </nav>
-                <div className="flex shrink-0 gap-4" aria-hidden="true">
-                    {socialIcons.map((icon) => (
-                        <Image
-                            key={icon}
-                            src={`/footer/${icon}`}
-                            alt=""
-                            width={36}
-                            height={36}
-                            loading="eager"
-                        />
-                    ))}
-                </div>
             </div>
             <div className="border-t border-[#d3d3d3]">
                 <div className="layout-container flex flex-wrap items-center justify-between gap-x-8 gap-y-4 py-5">
                     <p>Copyright © 2026 지금이니? | All Rights Reserved</p>
-                    <div className="flex max-w-[calc(100%-90px)] flex-wrap items-center gap-[21px] sm:max-w-none">
-                        <span>이용약관</span>
-                        <Image src="/footer/divider.svg" alt="" width={1} height={18} />
-                        <span>개인정보처리방침</span>
-                        <Image src="/footer/divider.svg" alt="" width={1} height={18} />
-                        <span>운영정책</span>
-                    </div>
                 </div>
             </div>
         </footer>

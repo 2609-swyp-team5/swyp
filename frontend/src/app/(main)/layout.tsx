@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { LoginRequiredDialog } from "@/features/auth/components/LoginRequiredDialog";
 import { ROUTES } from "@/constants/routes";
 import { useAuthStore } from "@/features/auth/store/authStore";
-import { NotificationToaster } from "@/features/notifications/components/NotificationToaster";
 
 export default function MainLayout({ children }: { children: ReactNode }) {
     const pathname = usePathname();
@@ -20,12 +19,7 @@ export default function MainLayout({ children }: { children: ReactNode }) {
     );
 
     if (!requiresLoginNotice || (isInitialized && isLoggedIn)) {
-        return (
-            <>
-                {children}
-                <NotificationToaster />
-            </>
-        );
+        return children;
     }
 
     return <LoginRequiredDialog open={isInitialized && !isLoggedIn} />;
