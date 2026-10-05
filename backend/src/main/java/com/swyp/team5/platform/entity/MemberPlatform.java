@@ -83,8 +83,15 @@ public class MemberPlatform {
         this.status = MemberPlatformStatus.CONNECTED;
     }
 
-    public void markExpired() {
+    /**
+     * 세션 만료로 상태를 {@code EXPIRED}로 바꾼다.
+     *
+     * @return 연동됨({@code CONNECTED})에서 만료로 바뀌었으면 true(이미 만료·해제 상태였으면 false — 연동 만료 알림 중복 방지용)
+     */
+    public boolean markExpired() {
+        boolean changed = this.status == MemberPlatformStatus.CONNECTED;
         this.status = MemberPlatformStatus.EXPIRED;
+        return changed;
     }
 
     public void disconnect() {

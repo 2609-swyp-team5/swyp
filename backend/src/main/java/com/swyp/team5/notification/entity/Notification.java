@@ -89,6 +89,11 @@ public class Notification {
         return new Notification(member, listing, type, title, message);
     }
 
+    /** 상품과 무관한 회원 알림(연동 만료 등)을 생성한다. */
+    public static Notification createForMember(Member member, NotificationType type, String title, String message) {
+        return new Notification(member, null, type, title, message);
+    }
+
     /** 대상이 우리 상품이면 그 상품, 외부 매물이면 {@code null}. */
     public Product getProduct() {
         return Hibernate.unproxy(item) instanceof Product product ? product : null;

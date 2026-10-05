@@ -7,6 +7,7 @@ export const notificationTypeSchema = z.enum([
     "WAIT",
     "NOTICE",
     "TARGET_PRICE",
+    "PLATFORM_EXPIRED",
 ]);
 
 export const notificationSchema = z.object({

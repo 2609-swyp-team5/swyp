@@ -1,11 +1,12 @@
 import type { NotificationItem, NotificationType } from "../schemas/notificationSchema";
 
-export type NotificationCategory = "sell" | "buy" | "notice";
+export type NotificationCategory = "sell" | "buy" | "platform" | "notice";
 
 export const notificationFilters: { value: "all" | NotificationCategory; label: string }[] = [
     { value: "all", label: "전체" },
     { value: "sell", label: "판매추천" },
     { value: "buy", label: "구매추천" },
+    { value: "platform", label: "연동" },
     { value: "notice", label: "공지" },
 ];
 
@@ -15,6 +16,7 @@ const categoryByType: Record<NotificationType, NotificationCategory> = {
     BUY: "buy",
     WAIT: "buy",
     TARGET_PRICE: "buy",
+    PLATFORM_EXPIRED: "platform",
     NOTICE: "notice",
 };
 
@@ -22,8 +24,11 @@ export function getNotificationCategory(type: NotificationType) {
     return categoryByType[type];
 }
 
-/** 알림 대상 화면 — 판매 추천은 판매 관리에서 해당 상품 선택, 구매 쪽은 상품 상세, 대상이 없으면 null. */
+/** 알림 대상 화면 — 연동 만료는 연동 관리, 판매 추천은 판매 관리에서 해당 상품 선택, 구매 쪽은 상품 상세, 대상이 없으면 null. */
 export function getNotificationLink(notification: NotificationItem) {
+    if (notification.type === "PLATFORM_EXPIRED") {
+        return { label: "다시 연결", href: "/my/platforms" };
+    }
     if (getNotificationCategory(notification.type) === "sell" && notification.productId !== null) {
         return { label: "판매 분석 보기", href: `/sell/manage?selected=${notification.productId}` };
     }

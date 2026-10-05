@@ -13,6 +13,7 @@ import java.util.Optional;
 
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.repository.MemberRepository;
+import com.swyp.team5.notification.service.NotificationService;
 import com.swyp.team5.platform.bunjang.client.BunjangSessionClient;
 import com.swyp.team5.platform.bunjang.client.BunjangSessionClient.SessionState;
 import com.swyp.team5.platform.bunjang.dto.BunjangConnectionResponse;
@@ -44,9 +45,16 @@ class BunjangConnectionServiceTest {
     @Mock
     private BunjangSessionClient bunjangSessionClient;
 
+    @Mock
+    private NotificationService notificationService;
+
     private BunjangConnectionService service() {
         return new BunjangConnectionService(
-                memberRepository, platformRepository, memberPlatformRepository, bunjangSessionClient);
+                memberRepository,
+                platformRepository,
+                memberPlatformRepository,
+                bunjangSessionClient,
+                notificationService);
     }
 
     // 쿠키에서 bun_session을 추출할 수 없으면 세션 검증 없이 즉시 실패
@@ -122,7 +130,7 @@ class BunjangConnectionServiceTest {
         assertThat(existing.getStatus()).isEqualTo(MemberPlatformStatus.CONNECTED);
     }
 
-    // 연동됨 상태인데 세션이 만료됐으면 EXPIRED로 전환해 응답
+    // 연동됨 상태인데 세션이 만료됐으면 EXPIRED로 전환해 응답하고 연동 만료 알림을 만든다
     @Test
     void getStatusMarksExpiredWhenSessionInvalid() {
         MemberPlatform existing = givenMemberPlatform();
@@ -130,6 +138,7 @@ class BunjangConnectionServiceTest {
 
         assertThat(service().getStatus(2L).status()).isEqualTo(MemberPlatformStatus.EXPIRED);
         assertThat(existing.getStatus()).isEqualTo(MemberPlatformStatus.EXPIRED);
+        verify(notificationService).notifyPlatformExpired(existing.getMember(), "번개장터");
     }
 
     // 번개장터 응답으로 판단할 수 없으면(네트워크 오류 등) 상태를 바꾸지 않음
@@ -140,9 +149,10 @@ class BunjangConnectionServiceTest {
 
         assertThat(service().getStatus(2L).status()).isEqualTo(MemberPlatformStatus.CONNECTED);
         assertThat(existing.getStatus()).isEqualTo(MemberPlatformStatus.CONNECTED);
+        verify(notificationService, never()).notifyPlatformExpired(any(), any());
     }
 
-    // 이미 만료/해제 상태면 번개장터에 다시 확인하지 않음
+    // 이미 만료/해제 상태면 번개장터에 다시 확인하지 않음(연동 만료 알림도 다시 만들지 않음)
     @Test
     void getStatusSkipsCheckWhenNotConnected() {
         MemberPlatform existing = givenMemberPlatform();
@@ -150,6 +160,7 @@ class BunjangConnectionServiceTest {
 
         assertThat(service().getStatus(2L).status()).isEqualTo(MemberPlatformStatus.EXPIRED);
         verify(bunjangSessionClient, never()).check(any());
+        verify(notificationService, never()).notifyPlatformExpired(any(), any());
     }
 
     // 연동 해제 성공

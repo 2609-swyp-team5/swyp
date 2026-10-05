@@ -19,9 +19,10 @@ const base: NotificationItem = {
 };
 
 describe("notificationDisplay", () => {
-    it("알림 종류를 판매추천·구매추천·공지로 나눈다", () => {
+    it("알림 종류를 판매추천·구매추천·연동·공지로 나눈다", () => {
         expect(getNotificationCategory("HOLD")).toBe("sell");
         expect(getNotificationCategory("TARGET_PRICE")).toBe("buy");
+        expect(getNotificationCategory("PLATFORM_EXPIRED")).toBe("platform");
         expect(getNotificationCategory("NOTICE")).toBe("notice");
     });
 
@@ -33,6 +34,14 @@ describe("notificationDisplay", () => {
         expect(
             getNotificationLink({ ...base, type: "NOTICE", productId: null, listingId: null }),
         ).toBeNull();
+        expect(
+            getNotificationLink({
+                ...base,
+                type: "PLATFORM_EXPIRED",
+                productId: null,
+                listingId: null,
+            }),
+        ).toEqual({ label: "다시 연결", href: "/my/platforms" });
     });
 
     it("오늘은 상대 시간, 어제는 '어제', 그 전은 날짜로 표시한다", () => {
