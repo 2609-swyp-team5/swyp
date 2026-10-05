@@ -31,6 +31,7 @@ import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.ai.AiChatExecutor;
 import com.swyp.team5.crawl.service.ListingSearchService;
 import com.swyp.team5.interest.repository.InterestRepository;
+import com.swyp.team5.item.entity.AnalysisSkipReason;
 import com.swyp.team5.item.repository.ItemRepository;
 import com.swyp.team5.notification.service.NotificationService;
 import com.swyp.team5.platform.entity.PlatformListing;
@@ -68,7 +69,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class ProductAnalysisServiceTest {
 
     private static final ProductAnalysisProperties PROPERTIES =
-            new ProductAnalysisProperties(3, 24, 30, 0L, null, null, null, null);
+            new ProductAnalysisProperties(3, 24, 30, 0L, null, null, null, null, 3);
 
     private final ChatClient geminiAiClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
     private final ChatClient openAiClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
@@ -279,7 +280,7 @@ class ProductAnalysisServiceTest {
                 .thenReturn(Optional.of(recent));
         givenListings(10L, List.of(listing("갤럭시 탭 S9", 9000L)));
 
-        service(new ProductAnalysisProperties(3, 24, 30, 0L, 0, null, null, null))
+        service(new ProductAnalysisProperties(3, 24, 30, 0L, 0, null, null, null, 3))
                 .analyzeInterestedItemById(1L);
 
         verify(platformListingRepository)
@@ -302,6 +303,8 @@ class ProductAnalysisServiceTest {
 
         verify(geminiAiClient, never()).prompt();
         verify(productAnalysisRepository, never()).save(any());
+        // 건너뛴 사유(비교할 판매 글 부족)를 기록
+        verify(itemRepository).recordAnalysisSkip(eq(1L), eq(AnalysisSkipReason.NOT_ENOUGH_CANDIDATES), any());
     }
 
     // 분석 성공 - AI가 고른 같은 물건 매물만으로 통계 계산(범위 밖·중복 번호 무시)
@@ -365,6 +368,9 @@ class ProductAnalysisServiceTest {
 
         verify(productAnalysisRepository, never()).save(any());
         verify(notificationService, never()).notifyRecommendationChanged(any(), any(), any());
+        // 건너뛴 사유(같은 물건 판매 글 부족)를 기록하고, 분석 성공이 아니므로 사유를 비우지 않음
+        verify(itemRepository).recordAnalysisSkip(eq(1L), eq(AnalysisSkipReason.NOT_ENOUGH_SIMILAR), any());
+        verify(itemRepository, never()).clearAnalysisSkip(any());
     }
 
     // 검색 보탬 - 키워드 후보가 3건 미만이면 AI 호출 전에 상품명으로 검색해 보탠 매물까지 후보로 써서 분석
@@ -421,7 +427,7 @@ class ProductAnalysisServiceTest {
                         new MarketAnalysisResult(List.of(1, 2, 3), AnalysisRecommendation.HOLD, 1100L, "2차"));
 
         // 후보 최대 3건 — 1차 후보 [매물1~3], 2차 후보 [매물1, 검색1, 검색2]
-        service(new ProductAnalysisProperties(3, 24, 3, 0L, null, null, null, null))
+        service(new ProductAnalysisProperties(3, 24, 3, 0L, null, null, null, null, 3))
                 .analyzeProduct(product);
 
         ArgumentCaptor<ProductAnalysis> captor = ArgumentCaptor.forClass(ProductAnalysis.class);
@@ -439,7 +445,7 @@ class ProductAnalysisServiceTest {
         givenListings(10L, List.of(listing("아이패드 프로 매물1", 1000L)));
 
         service(new ProductAnalysisProperties(
-                        3, 24, 30, 0L, null, null, null, new ProductAnalysisProperties.SearchFallback(false, 100)))
+                        3, 24, 30, 0L, null, null, null, new ProductAnalysisProperties.SearchFallback(false, 100), 3))
                 .analyzeProduct(product);
 
         verifyNoInteractions(listingSearchService);
@@ -720,6 +726,43 @@ class ProductAnalysisServiceTest {
         // 외부 매물은 우리 상품 제안가 갱신 대상이 아님
         verify(notificationService)
                 .notifyListingRecommendationChanged(target, AnalysisRecommendation.WAIT, AnalysisRecommendation.BUY);
+    }
+
+    // 관심 외부 매물 분석 - 최소 유사 매물은 interest-min-listings라 1이면 같은 물건 1건만 있어도 신뢰도 LOW로 저장하고 건너뛴 사유를 비움
+    @Test
+    void analyzeListingUsesInterestMinListings() {
+        PlatformListing target = listing(100L, 10L, "아이패드 프로", 900L);
+        PlatformListing comparison = listing(1L, 10L, "아이패드 프로 매물1", 1000L);
+        when(platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
+                        eq(10L), eq("SELLING"), any()))
+                .thenReturn(List.of(target, comparison));
+        givenAiResult(new MarketAnalysisResult(List.of(1), AnalysisRecommendation.BUY, 1000L, "설명"));
+
+        service(new ProductAnalysisProperties(3, 24, 30, 0L, null, null, null, null, 1))
+                .analyzeListing(target);
+
+        ArgumentCaptor<ProductAnalysis> captor = ArgumentCaptor.forClass(ProductAnalysis.class);
+        verify(productAnalysisRepository).save(captor.capture());
+        assertThat(captor.getValue().getListingCount()).isEqualTo(1);
+        assertThat(captor.getValue().getConfidence()).isEqualTo(AnalysisConfidence.LOW);
+        verify(itemRepository).clearAnalysisSkip(100L);
+        verify(itemRepository, never()).recordAnalysisSkip(any(), any(), any());
+    }
+
+    // 관심 등록 직후 분석 - 우리 상품도 interest-min-listings(1) 기준으로 분석(정기 배치 기준 min-listings 3이면 건너뛸 매물 수)
+    @Test
+    void analyzeInterestedProductUsesInterestMinListings() {
+        Product product = product(1L, 10L, 900L);
+        when(product.getStatus()).thenReturn(ProductStatus.ON_SALE);
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
+        givenListings(10L, List.of(listing("아이패드 프로 매물1", 1000L)));
+        givenAiResult(new MarketAnalysisResult(List.of(1), AnalysisRecommendation.SELL, 1000L, "설명"));
+
+        service(new ProductAnalysisProperties(3, 24, 30, 0L, 0, null, null, null, 1))
+                .analyzeInterestedItemById(1L);
+
+        verify(productAnalysisRepository).save(any());
+        verify(itemRepository).clearAnalysisSkip(1L);
     }
 
     // 관심 외부 매물 분석 - 우리 상품과 같이 최상위 카테고리 기본 감가율로 감가 예측(1M/3M/6M)을 저장하고 1개월 전망을 채움

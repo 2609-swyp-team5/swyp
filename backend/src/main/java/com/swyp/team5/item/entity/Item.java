@@ -6,6 +6,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorColumn;
 import jakarta.persistence.DiscriminatorType;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -57,6 +59,14 @@ public abstract class Item {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt; // 등록 일시(외부 매물은 최초 수집 일시)
+
+    // 시세 분석은 자기 호출로 엔티티가 분리된 상태에서 돌아 ItemRepository의 JPQL UPDATE로만 바꾼다
+    @Enumerated(EnumType.STRING)
+    @Column(name = "analysis_skip_reason", length = 30)
+    private AnalysisSkipReason analysisSkipReason; // 마지막 시세 분석을 건너뛴 사유, 분석 성공 시 null
+
+    @Column(name = "analysis_skipped_at")
+    private LocalDateTime analysisSkippedAt; // 마지막으로 시세 분석을 건너뛴 시각, 분석 성공 시 null
 
     protected Item(Category category, String title, Long price) {
         this.category = category;

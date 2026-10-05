@@ -39,5 +39,6 @@ analysis:
   analyze-on-register: false
   analyze-on-interest: false
   interest-skip-hours: 6 # .env의 개발용 값이 테스트에 새지 않도록 고정
+  interest-min-listings: 1 # .env 값이 테스트에 새지 않도록 고정
   search-fallback:
     enabled: false # 테스트에서 실제 번개장터 검색 호출 금지

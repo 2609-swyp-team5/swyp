@@ -28,6 +28,7 @@ import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.ai.AiChatExecutor;
 import com.swyp.team5.crawl.service.ListingSearchService;
 import com.swyp.team5.interest.repository.InterestRepository;
+import com.swyp.team5.item.entity.AnalysisSkipReason;
 import com.swyp.team5.item.entity.Item;
 import com.swyp.team5.item.repository.ItemRepository;
 import com.swyp.team5.notification.service.NotificationService;
@@ -474,7 +475,7 @@ public class ProductAnalysisService {
         List<Product> products = productRepository.findByStatusIn(ProductStatus.ANALYSIS_TARGETS);
         log.info("시세 분석 대상 상품 {}건", products.size());
         for (Product product : products) {
-            analyzeProductSafely(product);
+            analyzeProductSafely(product, properties.minListings());
             sleepBetweenAiCalls();
         }
 
@@ -498,7 +499,7 @@ public class ProductAnalysisService {
                 .findById(productId)
                 .filter(product -> ProductStatus.ANALYSIS_TARGETS.contains(product.getStatus()))
                 .ifPresentOrElse(
-                        this::analyzeProductSafely,
+                        product -> analyzeProductSafely(product, properties.minListings()),
                         () -> log.info("상품 {}: 없거나 분석 대상 상태가 아니라 등록 직후 분석을 건너뜁니다.", productId));
     }
 
@@ -528,7 +529,8 @@ public class ProductAnalysisService {
             return;
         }
         if (item.get() instanceof Product product && ProductStatus.ANALYSIS_TARGETS.contains(product.getStatus())) {
-            analyzeProductSafely(product);
+            // 관심 등록 대상은 같은 물건 판매 글이 드물어도 결과를 보여 주도록 최소 매물 수를 낮춘다(신뢰도는 낮게 표시)
+            analyzeProductSafely(product, properties.interestMinListings());
         } else if (item.get() instanceof PlatformListing listing
                 && ProductStatus.EXTERNAL_ANALYSIS_TARGETS.contains(listing.getStatus())) {
             analyzeListingSafely(listing);
@@ -548,10 +550,10 @@ public class ProductAnalysisService {
         }
     }
 
-    private void analyzeProductSafely(Product product) {
+    private void analyzeProductSafely(Product product, int minListings) {
         progressTracker.start(product.getId());
         try {
-            analyzeProduct(product);
+            analyzeProduct(product, minListings);
         } catch (Exception e) {
             log.error("상품 {} 시세 분석 중 오류가 발생했습니다.", product.getId(), e);
         } finally {
@@ -567,8 +569,16 @@ public class ProductAnalysisService {
         }
     }
 
-    @Transactional
+    /** 정기 배치 기준(최소 유사 매물 {@code min-listings})으로 상품을 분석한다. */
     void analyzeProduct(Product product) {
+        analyzeProduct(product, properties.minListings());
+    }
+
+    /**
+     * @param minListings 분석에 필요한 최소 유사 매물 수(관심 등록 직후 분석은 {@code interest-min-listings})
+     */
+    @Transactional
+    void analyzeProduct(Product product, int minListings) {
         // 같은 물건 비교 매물을 고른다(키워드 후보 → AI 최종 선별, 부족하면 상품명 검색으로 보탬). 이전 분석 추이는 AI의
         // 추세 판단 근거로 함께 준다
         PriceTrend trend =
@@ -576,6 +586,8 @@ public class ProductAnalysisService {
                         product.getId(), LocalDateTime.now().minusMonths(TREND_MONTHS))));
         Optional<SimilarSelection> selection = selectSimilarListings(
                 "상품 " + product.getId(),
+                product.getId(),
+                minListings,
                 product.getTitle(),
                 product.getBrand(),
                 null,
@@ -634,6 +646,7 @@ public class ProductAnalysisService {
                 averagePrice);
         productAnalysisRepository.save(analysis);
         saveForecasts(analysis, forecasts);
+        itemRepository.clearAnalysisSkip(product.getId());
 
         // 시세 분석의 적정가는 스냅샷에만 저장한다 — 상품의 AI 제안가(products.suggested_price)는 사진 추정가로 고정
 
@@ -645,7 +658,8 @@ public class ProductAnalysisService {
     }
 
     /**
-     * 관심 등록된 외부 매물 1건을 구매자 관점(BUY/WAIT)으로 분석한다. 비교 매물에서 분석 대상 매물 자신은 제외한다. 감가 예측·1개월
+     * 관심 등록된 외부 매물 1건을 구매자 관점(BUY/WAIT)으로 분석한다. 외부 매물은 관심 등록된 것만 분석하므로 최소 유사 매물 수는
+     * {@code interest-min-listings}다. 비교 매물에서 분석 대상 매물 자신은 제외한다. 감가 예측·1개월
      * 가격 전망은 우리 상품과 같이 계산한다. 우리 상품과 달리 판매자 관점 추천은 없고, 알림은 관심 등록 회원에게만 간다.
      */
     @Transactional
@@ -656,6 +670,8 @@ public class ProductAnalysisService {
                         listing.getId(), LocalDateTime.now().minusMonths(TREND_MONTHS))));
         Optional<SimilarSelection> selection = selectSimilarListings(
                 "외부 매물 " + listing.getId(),
+                listing.getId(),
+                properties.interestMinListings(),
                 listing.getTitle(),
                 null,
                 listing.getId(),
@@ -707,6 +723,7 @@ public class ProductAnalysisService {
                 averagePrice);
         productAnalysisRepository.save(analysis);
         saveForecasts(analysis, forecasts);
+        itemRepository.clearAnalysisSkip(listing.getId());
 
         notificationService.notifyListingRecommendationChanged(
                 listing, previous.map(ProductAnalysis::getRecommendation).orElse(null), recommendation);
@@ -842,19 +859,22 @@ public class ProductAnalysisService {
      * 후보만 더해 AI를 한 번 더 호출하며(분석 1건당 AI 최대 2회), 그래도 부족하면 건너뛴다.
      *
      * @param label 로그용 대상 이름(예: "상품 1")
+     * @param itemId 분석 대상 ID(건너뛴 사유를 기록)
+     * @param minListings 분석에 필요한 최소 유사 매물 수
      * @param selfId 비교 매물에서 뺄 분석 대상 매물 ID(우리 상품이면 null)
      * @param listings 같은 카테고리의 최근 판매중 매물
      * @param ai 후보 목록을 주고 AI 분석을 요청하는 함수
-     * @return 같은 물건이 부족해 건너뛰면 빈 값
+     * @return 같은 물건이 부족해 건너뛰면 빈 값(건너뛴 사유는 {@link ItemRepository#recordAnalysisSkip}로 기록)
      */
     private Optional<SimilarSelection> selectSimilarListings(
             String label,
+            Long itemId,
+            int minListings,
             String title,
             String brand,
             Long selfId,
             List<PlatformListing> listings,
             Function<List<PlatformListing>, MarketAnalysisResult> ai) {
-        int minListings = properties.minListings();
         int sampleSize = properties.sampleSize();
         List<PlatformListing> pool = excludeSelf(listings, selfId);
         List<PlatformListing> candidates = SimilarListingFilter.selectCandidates(title, brand, pool, sampleSize);
@@ -865,23 +885,24 @@ public class ProductAnalysisService {
             List<PlatformListing> found = searchListings(title, brand, selfId, pool);
             if (found.isEmpty()) {
                 log.info(
-                        "{}: 같은 카테고리 매물 {}건 중 키워드가 겹치는 후보가 {}건뿐이라 분석을 건너뜁니다(최소 {}건 필요).",
+                        "{}: 같은 카테고리 매물 {}건 중 키워드가 겹치는 후보가 {}건뿐이고 상품명 검색에서도 새 매물을 찾지 못해 분석을 건너뜁니다(최소 {}건 필요).",
                         label,
                         pool.size(),
                         candidates.size(),
                         minListings);
-                return Optional.empty();
+                return skip(itemId, AnalysisSkipReason.NOT_ENOUGH_CANDIDATES);
             }
             searched = true;
             pool = merge(pool, found);
             candidates = SimilarListingFilter.selectCandidates(title, brand, pool, sampleSize);
             if (candidates.size() < minListings) {
                 log.info(
-                        "{}: 검색으로 보탠 뒤에도 키워드가 겹치는 후보가 {}건뿐이라 분석을 건너뜁니다(최소 {}건 필요).",
+                        "{}: 검색으로 {}건을 보탠 뒤에도 키워드가 겹치는 후보가 {}건뿐이라 분석을 건너뜁니다(최소 {}건 필요).",
                         label,
+                        found.size(),
                         candidates.size(),
                         minListings);
-                return Optional.empty();
+                return skip(itemId, AnalysisSkipReason.NOT_ENOUGH_CANDIDATES);
             }
         }
 
@@ -897,7 +918,9 @@ public class ProductAnalysisService {
             List<PlatformListing> found = searchListings(title, brand, selfId, pool);
             List<PlatformListing> newCandidates = SimilarListingFilter.selectCandidates(
                     title, brand, found, Math.max(sampleSize - similar.size(), 0));
-            if (!newCandidates.isEmpty()) {
+            if (newCandidates.isEmpty()) {
+                log.info("{}: 같은 물건이 {}건뿐이라 상품명으로 검색했지만 보탤 새 후보가 없습니다(검색 결과 {}건).", label, prices.size(), found.size());
+            } else {
                 log.info("{}: 같은 물건이 {}건뿐이라 검색 후보 {}건을 보태 다시 확인합니다.", label, prices.size(), newCandidates.size());
                 List<PlatformListing> retryCandidates = new ArrayList<>(similar);
                 retryCandidates.addAll(newCandidates);
@@ -918,9 +941,14 @@ public class ProductAnalysisService {
                     candidates.size(),
                     prices.size(),
                     minListings);
-            return Optional.empty();
+            return skip(itemId, AnalysisSkipReason.NOT_ENOUGH_SIMILAR);
         }
         return Optional.of(new SimilarSelection(aiResult, prices));
+    }
+
+    private Optional<SimilarSelection> skip(Long itemId, AnalysisSkipReason reason) {
+        itemRepository.recordAnalysisSkip(itemId, reason, LocalDateTime.now());
+        return Optional.empty();
     }
 
     /** 상품명 검색 결과 중 기존 후보 풀에 없는 판매중 매물(분석 대상 자신 제외). 검색이 꺼져 있으면 빈 목록. */

@@ -3,6 +3,7 @@ package com.swyp.team5.interest.dto;
 import java.time.LocalDateTime;
 
 import com.swyp.team5.interest.entity.Interest;
+import com.swyp.team5.item.entity.AnalysisSkipReason;
 import com.swyp.team5.item.entity.ListingSource;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.product.entity.Product;
@@ -27,6 +28,10 @@ public record InterestListItemResponse(
         String thumbnailUrl, // 대표 이미지 URL
         AnalysisRecommendation recommendation, // 분석 이력 없으면 null(외부 매물은 구매자 관점 BUY/WAIT만)
         InterestStatus interestStatus, // 관심상품 상태 BUY(구매추천)/WAIT(관찰중)/SOLD_OUT(판매종료)/PENDING(분석대기) — 조회 시 계산
+        AnalysisSkipReason
+                analysisSkipReason, // 마지막 시세 분석을 건너뛴 사유(NOT_ENOUGH_CANDIDATES/NOT_ENOUGH_SIMILAR), 건너뛴 적 없거나 이후 분석에
+        // 성공했으면 null
+        String analysisSkipMessage, // analysisSkipReason의 화면 표시 문구, 없으면 null
         Long marketAveragePrice, // 분석 이력 없으면 null
         String platformName, // 우리 상품은 null, 외부 매물은 수집 플랫폼명(예: "번개장터")
         String externalUrl, // 우리 상품은 null, 외부 매물은 원본 매물 링크
@@ -59,6 +64,8 @@ public record InterestListItemResponse(
                 thumbnailUrl,
                 recommendation,
                 InterestStatus.of(product.getStatus(), recommendation),
+                product.getAnalysisSkipReason(),
+                skipMessage(product.getAnalysisSkipReason()),
                 marketAveragePrice,
                 null,
                 null,
@@ -83,10 +90,16 @@ public record InterestListItemResponse(
                 listing.getImageUrl(),
                 recommendation,
                 InterestStatus.of(status, recommendation),
+                listing.getAnalysisSkipReason(),
+                skipMessage(listing.getAnalysisSkipReason()),
                 marketAveragePrice,
                 listing.getPlatform().getName(),
                 listing.getListingUrl(),
                 interest.getTargetPrice(),
                 interest.getCreatedAt());
+    }
+
+    private static String skipMessage(AnalysisSkipReason reason) {
+        return reason == null ? null : reason.getMessage();
     }
 }
