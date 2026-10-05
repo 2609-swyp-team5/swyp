@@ -16,10 +16,17 @@ public record ProductAnalysisProperties(
         Integer interestSkipHours, // 관심 등록 직후 분석을 건너뛸 최근 분석 기준 시간(없으면 6, 0이면 항상 분석)
         Confidence confidence, // 신뢰도 기준(없으면 기본값)
         Competition competition, // 경쟁 상품 기준(없으면 기본값)
-        SearchFallback searchFallback) { // 비교 매물 부족 시 상품명 검색 설정(없으면 기본값)
+        SearchFallback searchFallback, // 비교 매물 부족 시 상품명 검색 설정(없으면 기본값)
+        Integer interestMinListings) { // 관심 등록 대상(관심 등록 직후 분석·외부 매물 분석)의 최소 유사 매물 수(없으면 1)
 
     /** 관심 등록 직후 분석을 건너뛸 최근 분석 기준 기본값(시간). 정기 배치 주기(6시간)와 같다. */
     public static final int DEFAULT_INTEREST_SKIP_HOURS = 6;
+
+    /**
+     * 관심 등록 대상 최소 유사 매물 수 기본값. 수집품처럼 같은 물건 판매 글이 드문 대상도 결과를 보여 주도록 낮게 두고, 대신 매물 수
+     * 기반 신뢰도가 낮게(LOW) 표시된다.
+     */
+    public static final int DEFAULT_INTEREST_MIN_LISTINGS = 1;
 
     public ProductAnalysisProperties {
         if (interestSkipHours == null) {
@@ -33,6 +40,9 @@ public record ProductAnalysisProperties(
         }
         if (searchFallback == null) {
             searchFallback = SearchFallback.DEFAULT;
+        }
+        if (interestMinListings == null) {
+            interestMinListings = DEFAULT_INTEREST_MIN_LISTINGS;
         }
     }
 

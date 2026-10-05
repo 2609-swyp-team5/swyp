@@ -31,6 +31,7 @@ import com.swyp.team5.interest.error.InterestAlreadyExistsException;
 import com.swyp.team5.interest.error.InterestNotFoundException;
 import com.swyp.team5.interest.event.InterestRegisteredEvent;
 import com.swyp.team5.interest.repository.InterestRepository;
+import com.swyp.team5.item.entity.AnalysisSkipReason;
 import com.swyp.team5.item.entity.ListingSource;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.repository.MemberRepository;
@@ -393,6 +394,27 @@ class InterestServiceTest {
         assertThat(service().getInterests(1L, null, null, 10).content())
                 .extracting(InterestListItemResponse::interestId, InterestListItemResponse::interestStatus)
                 .containsExactly(tuple(12L, InterestStatus.PENDING), tuple(11L, InterestStatus.PENDING));
+    }
+
+    // 관심상품 목록 조회 - 마지막 시세 분석을 건너뛴 사유와 화면 문구를 함께 내려줌(건너뛴 적 없으면 null)
+    @Test
+    void getInterestsIncludesAnalysisSkipReason() {
+        Member member = newMember(1L);
+        PlatformListing skipped = newPlatformListing(100L);
+        setField(skipped, "analysisSkipReason", AnalysisSkipReason.NOT_ENOUGH_SIMILAR);
+        when(interestRepository.findAllWithItemByMemberId(1L))
+                .thenReturn(List.of(
+                        newListingInterest(11L, member, skipped, null),
+                        newListingInterest(12L, member, newPlatformListing(101L), null)));
+
+        assertThat(service().getInterests(1L, null, null, 10).content())
+                .extracting(
+                        InterestListItemResponse::interestId,
+                        InterestListItemResponse::analysisSkipReason,
+                        InterestListItemResponse::analysisSkipMessage)
+                .containsExactly(
+                        tuple(12L, null, null),
+                        tuple(11L, AnalysisSkipReason.NOT_ENOUGH_SIMILAR, "같은 물건 판매 글이 부족해 아직 분석하지 못했어요."));
     }
 
     // 관심상품 목록 조회 - status 파라미터는 관심상품 상태로 거름(탭과 1:1, 복수 가능), totalCount는 필터 기준·statusCounts는 전체 기준

@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -100,13 +101,48 @@ class ListingSearchServiceTest {
         verifyNoInteractions(bunjangSearchClient, platformListingUpserter);
     }
 
-    // 재검색 검색어 - 단어가 많을 때만 앞 3단어·앞 2단어를 차례로 덧붙임
+    // 재검색 검색어 - 브랜드 붙인 검색어 → 브랜드 뺀 상품명 → 단어가 더 많을 때만 앞 3·2·1단어(중복 제외)
     @Test
-    void queriesToTryAddsShorterQueriesOnlyForLongQueries() {
-        assertThat(ListingSearchService.queriesToTry("빈티지 웨스턴 브라운 스터드 레더 벨트"))
-                .containsExactly("빈티지 웨스턴 브라운 스터드 레더 벨트", "빈티지 웨스턴 브라운", "빈티지 웨스턴");
-        assertThat(ListingSearchService.queriesToTry("다이슨 에어랩 컴플리트")).containsExactly("다이슨 에어랩 컴플리트", "다이슨 에어랩");
-        assertThat(ListingSearchService.queriesToTry("에어랩")).containsExactly("에어랩");
+    void queriesToTryAddsTitleOnlyAndShorterQueries() {
+        assertThat(ListingSearchService.queriesToTry("빈티지 웨스턴 브라운 스터드 레더 벨트", null))
+                .containsExactly("빈티지 웨스턴 브라운 스터드 레더 벨트", "빈티지 웨스턴 브라운", "빈티지 웨스턴", "빈티지");
+        assertThat(ListingSearchService.queriesToTry("에어랩 컴플리트", "다이슨"))
+                .containsExactly("다이슨 에어랩 컴플리트", "에어랩 컴플리트", "에어랩");
+        assertThat(ListingSearchService.queriesToTry("에어랩", null)).containsExactly("에어랩");
+        assertThat(ListingSearchService.queriesToTry("[급처]", null)).isEmpty();
+    }
+
+    // 검색어 정리 - 판매 문구 단어("팝니다"·"급처" 등)와 말투 어미("~이요")를 빼서, 브랜드를 붙여 못 찾으면 핵심어로 찾게 함
+    @Test
+    void queriesToTryDropsFillerWordsAndEndings() {
+        assertThat(ListingSearchService.queriesToTry("주판이요", "몰루")).containsExactly("몰루 주판", "주판");
+        assertThat(ListingSearchService.queriesToTry("아이폰 케이스 팝니다", null)).containsExactly("아이폰 케이스", "아이폰");
+        assertThat(ListingSearchService.searchQuery("급처 아이패드 팝니다 택포", null)).isEqualTo("아이패드");
+        // 어미를 떼면 2글자 미만이 되는 단어는 그대로
+        assertThat(ListingSearchService.searchQuery("고이요", null)).isEqualTo("고이요");
+    }
+
+    // 1단어 재검색 - 2글자 이하나 "~의"로 끝나는 수식어 한 단어만 남으면 검색하지 않음, "중고"는 군더더기로 뺌
+    @Test
+    void queriesToTrySkipsMeaninglessSingleWord() {
+        assertThat(ListingSearchService.queriesToTry("한국의 단청 전지 시트", null))
+                .containsExactly("한국의 단청 전지 시트", "한국의 단청 전지", "한국의 단청");
+        assertThat(ListingSearchService.queriesToTry("PS 비타 본체", null)).containsExactly("PS 비타 본체", "PS 비타");
+        assertThat(ListingSearchService.queriesToTry("PSVITA 중고 영웅전설 섬의 궤적1", null))
+                .containsExactly("PSVITA 영웅전설 섬의 궤적1", "PSVITA 영웅전설 섬의", "PSVITA 영웅전설", "PSVITA");
+        assertThat(ListingSearchService.isMeaningfulSingleWord("주판이")).isTrue();
+        assertThat(ListingSearchService.isMeaningfulSingleWord("두얼굴의")).isFalse();
+    }
+
+    // 검색 결과가 끝까지 없으면 모든 검색어를 시도한 뒤 빈 목록(저장 없음)
+    @Test
+    void searchAndSaveTriesEveryQueryBeforeGivingUp() {
+        when(bunjangSearchClient.search(anyString(), eq(100))).thenReturn(List.of());
+
+        assertThat(service().searchAndSave("주판이요", "몰루", 100)).isEmpty();
+        verify(bunjangSearchClient).search("몰루 주판", 100);
+        verify(bunjangSearchClient).search("주판", 100);
+        verifyNoInteractions(platformListingUpserter);
     }
 
     // 재검색 - 판매중 결과가 10건보다 적으면 앞 단어로 줄여 다시 검색해 합치고(pid 중복 제거), 충분해지면 멈춤
