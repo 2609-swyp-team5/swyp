@@ -184,6 +184,7 @@ analysis:
   ai-call-interval-ms: ${PRICE_ANALYSIS_AI_CALL_INTERVAL_MS:6500} # AI 호출 간 최소 대기 시간(제한 대응)
   analyze-on-register: ${PRICE_ANALYSIS_ON_REGISTER:true} # 상품 등록 직후 시세 분석 1회 실행(배치 on/off와 별개)
   analyze-on-interest: ${PRICE_ANALYSIS_ON_INTEREST:true} # 관심 등록 직후 대상 시세 분석 1회 실행(최근 interest-skip-hours 안에 분석했으면 건너뜀)
+  interest-concurrency: ${PRICE_ANALYSIS_INTEREST_CONCURRENCY:3} # 관심 등록 직후 분석을 동시에 처리할 수(AI 호출 제한에 걸리면 줄임)
   interest-skip-hours: ${PRICE_ANALYSIS_INTEREST_SKIP_HOURS:6} # 관심 등록 직후 분석을 건너뛸 최근 분석 기준 시간(0이면 항상 분석 — 개발용)
   interest-min-listings: ${PRICE_ANALYSIS_INTEREST_MIN_LISTINGS:1} # 관심 등록 대상(관심 등록 직후 분석·외부 매물 분석)의 최소 유사 매물 수 — 적으면 신뢰도 LOW
   confidence: # 신뢰도: 비율 = 매물 수 / full-listings, 등급 = 비율 구간·가격 변동계수 구간 중 낮은 쪽

@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
+import { isFastNotificationPolling, startFastNotificationPolling } from "../lib/fastPolling";
 import { setPushEnabled } from "../lib/pushPreference";
 import { NotificationToaster } from "./NotificationToaster";
 
@@ -109,4 +110,38 @@ it("토스트는 8초 뒤 닫히고 마우스를 올린 동안은 닫히지 않�
     expect(screen.getByText("목표가 도달")).toBeInTheDocument();
     act(() => vi.advanceTimersByTime(1_500));
     expect(screen.queryByText("목표가 도달")).not.toBeInTheDocument();
+});
+
+it("관심 등록 등으로 빠른 조회가 시작되면 30초를 기다리지 않고 바로 다시 확인한다", async () => {
+    getNotifications.mockResolvedValue(page([]));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+        <QueryClientProvider client={client}>
+            <NotificationToaster />
+        </QueryClientProvider>,
+    );
+    // 첫 조회가 끝난 뒤(진행 중이면 재조회가 그 조회에 합쳐짐)
+    await vi.waitFor(() => expect(client.getQueryData(["notification-toaster"])).toBe(0));
+    expect(getNotifications).toHaveBeenCalledTimes(1);
+
+    act(() => startFastNotificationPolling());
+
+    await vi.waitFor(() => expect(getNotifications).toHaveBeenCalledTimes(2));
+    expect(isFastNotificationPolling()).toBe(true);
+    expect(isFastNotificationPolling(Date.now() + 2 * 60 * 1000 + 1)).toBe(false);
+});
+
+it("푸시 알림을 끈 상태에서는 빠른 조회가 시작돼도 확인하지 않는다", async () => {
+    act(() => setPushEnabled(false));
+    const client = new QueryClient();
+    render(
+        <QueryClientProvider client={client}>
+            <NotificationToaster />
+        </QueryClientProvider>,
+    );
+
+    act(() => startFastNotificationPolling());
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(getNotifications).not.toHaveBeenCalled();
 });
