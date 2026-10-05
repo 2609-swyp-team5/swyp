@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.swyp.team5.member.repository.MemberRepository;
+import com.swyp.team5.notification.service.NotificationService;
 import com.swyp.team5.platform.bunjang.BunjangSessionTokenParser;
 import com.swyp.team5.platform.bunjang.client.BunjangSessionClient;
 import com.swyp.team5.platform.bunjang.client.BunjangSessionClient.SessionState;
@@ -35,6 +36,7 @@ public class BunjangConnectionService {
     private final PlatformRepository platformRepository;
     private final MemberPlatformRepository memberPlatformRepository;
     private final BunjangSessionClient bunjangSessionClient;
+    private final NotificationService notificationService;
 
     /**
      * 쿠키 문자열에서 {@code bun_session}을 추출해 유효성을 검증한 뒤 저장(신규 연동/재연동)한다.
@@ -93,8 +95,9 @@ public class BunjangConnectionService {
         if (memberPlatform.getStatus() != MemberPlatformStatus.CONNECTED) {
             return;
         }
-        if (bunjangSessionClient.check(memberPlatform.getSessionToken()) == SessionState.INVALID) {
-            memberPlatform.markExpired();
+        if (bunjangSessionClient.check(memberPlatform.getSessionToken()) == SessionState.INVALID
+                && memberPlatform.markExpired()) {
+            notificationService.notifyPlatformExpired(memberPlatform.getMember(), PLATFORM_NAME);
         }
     }
 

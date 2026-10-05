@@ -13,6 +13,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.error.CategoryNotLeafException;
+import com.swyp.team5.notification.service.NotificationService;
 import com.swyp.team5.platform.bunjang.client.BunjangProductUploader;
 import com.swyp.team5.platform.bunjang.dto.BunjangListingForm;
 import com.swyp.team5.platform.bunjang.dto.BunjangUploadResult;
@@ -61,6 +62,7 @@ public class BunjangProductPublishService {
     private final ProductRepository productRepository;
     private final BunjangProductUploader bunjangProductUploader;
     private final TransactionTemplate transactionTemplate;
+    private final NotificationService notificationService;
 
     /**
      * @throws MemberPlatformNotFoundException 번개장터 세션이 연동되어 있지 않은 경우
@@ -127,7 +129,11 @@ public class BunjangProductPublishService {
     private void fail(PublishTarget target, RuntimeException cause) {
         productPlatformRepository.getReferenceById(target.productPlatformId()).markFailed();
         if (cause instanceof InvalidPlatformSessionException) {
-            memberPlatformRepository.getReferenceById(target.memberPlatformId()).markExpired();
+            MemberPlatform memberPlatform = memberPlatformRepository.getReferenceById(target.memberPlatformId());
+            if (memberPlatform.markExpired()) {
+                notificationService.notifyPlatformExpired(
+                        memberPlatform.getMember(), memberPlatform.getPlatform().getName());
+            }
         }
     }
 

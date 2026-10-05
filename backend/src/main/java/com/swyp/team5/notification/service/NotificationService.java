@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.interest.entity.Interest;
 import com.swyp.team5.interest.repository.InterestRepository;
+import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.notification.dto.NotificationReadResponse;
 import com.swyp.team5.notification.dto.NotificationResponse;
 import com.swyp.team5.notification.dto.NotificationUnreadCountResponse;
@@ -198,6 +199,25 @@ public class NotificationService {
         }
         log.info("관심상품 {} 목표가 도달 알림 생성(현재가 {}, 목표가 {})", interest.getId(), currentPrice, interest.getTargetPrice());
         notificationRepository.save(notification);
+        return true;
+    }
+
+    /**
+     * 외부 플랫폼 연동 세션이 만료됐다고 회원에게 알림을 만든다. 만료로 바뀐 순간에만 호출해야 한다(재알림 방지는 호출 측).
+     *
+     * @return 알림을 만들었으면 true, 회원이 연동 만료 알림을 꺼서 만들지 않았으면 false
+     */
+    public boolean notifyPlatformExpired(Member member, String platformName) {
+        if (notificationSettingRepository.existsByMemberIdAndPlatformExpiryEnabledFalse(member.getId())) {
+            log.info("회원 {} {} 연동 만료 — 회원이 연동 만료 알림을 꺼서 알림을 만들지 않음", member.getId(), platformName);
+            return false;
+        }
+        notificationRepository.save(Notification.createForMember(
+                member,
+                NotificationType.PLATFORM_EXPIRED,
+                "%s 연동이 만료됐어요".formatted(platformName),
+                "판매 상태를 계속 동기화하려면 연동 관리에서 %s 계정을 다시 연결해 주세요.".formatted(platformName)));
+        log.info("회원 {} {} 연동 만료 알림 생성", member.getId(), platformName);
         return true;
     }
 

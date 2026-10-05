@@ -288,4 +288,33 @@ class NotificationServiceTest {
         assertThatThrownBy(() -> service().delete(2L, 5L)).isInstanceOf(NotificationNotFoundException.class);
         verify(notificationRepository, never()).delete(any());
     }
+
+    // 연동 만료 알림이 켜져 있으면(설정 행 없음 포함) 상품 없는 PLATFORM_EXPIRED 알림을 만들고 true
+    @Test
+    void createsPlatformExpiredAlertWhenEnabled() {
+        Member member = member(21L);
+
+        assertThat(service().notifyPlatformExpired(member, "번개장터")).isTrue();
+
+        ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
+        verify(notificationRepository).save(captor.capture());
+        Notification saved = captor.getValue();
+        assertThat(saved.getType()).isEqualTo(NotificationType.PLATFORM_EXPIRED);
+        assertThat(saved.getMember()).isEqualTo(member);
+        assertThat(saved.getProduct()).isNull();
+        assertThat(saved.getListing()).isNull();
+        assertThat(saved.getTitle()).isEqualTo("번개장터 연동이 만료됐어요");
+    }
+
+    // 연동 만료 알림을 끈 회원이면 알림을 만들지 않고 false
+    @Test
+    void skipsPlatformExpiredAlertWhenDisabled() {
+        Member member = member(21L);
+        when(notificationSettingRepository.existsByMemberIdAndPlatformExpiryEnabledFalse(21L))
+                .thenReturn(true);
+
+        assertThat(service().notifyPlatformExpired(member, "번개장터")).isFalse();
+
+        verify(notificationRepository, never()).save(any());
+    }
 }

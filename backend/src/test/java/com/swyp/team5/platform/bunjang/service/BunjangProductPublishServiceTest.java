@@ -22,6 +22,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.error.CategoryNotLeafException;
 import com.swyp.team5.member.entity.Member;
+import com.swyp.team5.notification.service.NotificationService;
 import com.swyp.team5.platform.bunjang.client.BunjangProductUploader;
 import com.swyp.team5.platform.bunjang.dto.BunjangListingForm;
 import com.swyp.team5.platform.bunjang.dto.BunjangUploadResult;
@@ -76,6 +77,9 @@ class BunjangProductPublishServiceTest {
     @Mock
     private BunjangProductUploader bunjangProductUploader;
 
+    @Mock
+    private NotificationService notificationService;
+
     private BunjangProductPublishService service() {
         return new BunjangProductPublishService(
                 platformRepository,
@@ -83,7 +87,8 @@ class BunjangProductPublishServiceTest {
                 productPlatformRepository,
                 productRepository,
                 bunjangProductUploader,
-                new TransactionTemplate(mock(PlatformTransactionManager.class)));
+                new TransactionTemplate(mock(PlatformTransactionManager.class)),
+                notificationService);
     }
 
     // 등록 성공 - 등록 진행 중으로 생성된 뒤 번개장터 매물 ID/주소와 함께 게시됨으로 전환
@@ -211,7 +216,7 @@ class BunjangProductPublishServiceTest {
         assertThat(product.getStatus()).isEqualTo(ProductStatus.DRAFT); // 게시 실패면 상품 상태는 그대로
     }
 
-    // 등록 중 세션 만료가 확인되면 연동 상태도 만료로 전환
+    // 등록 중 세션 만료가 확인되면 연동 상태도 만료로 전환하고 연동 만료 알림을 만든다
     @Test
     void publishMarksSessionExpiredWhenSessionInvalid() {
         MemberPlatform memberPlatform = givenConnectedMemberPlatform();
@@ -226,6 +231,7 @@ class BunjangProductPublishServiceTest {
         assertThatThrownBy(() -> service().publish(2L, 5L)).isInstanceOf(InvalidPlatformSessionException.class);
         assertThat(saved.getStatus()).isEqualTo(ProductPlatformStatus.FAILED);
         assertThat(memberPlatform.getStatus()).isEqualTo(MemberPlatformStatus.EXPIRED);
+        verify(notificationService).notifyPlatformExpired(memberPlatform.getMember(), "번개장터");
     }
 
     // 번개장터 세션이 연동되어 있지 않으면 실패

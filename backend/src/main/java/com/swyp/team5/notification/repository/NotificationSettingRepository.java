@@ -21,4 +21,7 @@ public interface NotificationSettingRepository extends JpaRepository<Notificatio
 
     /** 목표가 도달 알림을 끈 회원인지(설정 행이 없으면 켜진 것으로 봄). */
     boolean existsByMemberIdAndTargetPriceEnabledFalse(Long memberId);
+
+    /** 플랫폼 연동 만료 알림을 끈 회원인지(설정 행이 없으면 켜진 것으로 봄). */
+    boolean existsByMemberIdAndPlatformExpiryEnabledFalse(Long memberId);
 }
