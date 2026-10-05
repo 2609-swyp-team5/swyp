@@ -36,13 +36,13 @@ public record InterestListItemResponse(
     /** {@code interest.getProduct()}/{@code interest.getListing()} 중 채워진 쪽으로 자동 분기한다. */
     public static InterestListItemResponse from(Interest interest, AnalysisRecommendation recommendation) {
         return interest.getProduct() != null
-                ? fromProduct(interest, recommendation, null, false)
-                : fromListing(interest, recommendation, null, false);
+                ? fromProduct(interest, recommendation, null)
+                : fromListing(interest, recommendation, null);
     }
 
     /** 대상 상품의 최근 시세 분석 스냅샷까지 함께 반영하고 싶을 때 사용한다({@code marketAveragePrice} 포함). */
     public static InterestListItemResponse fromProduct(
-            Interest interest, AnalysisRecommendation recommendation, Long marketAveragePrice, boolean analyzing) {
+            Interest interest, AnalysisRecommendation recommendation, Long marketAveragePrice) {
         Product product = interest.getProduct();
         String thumbnailUrl = product.getImages().isEmpty()
                 ? null
@@ -58,7 +58,7 @@ public record InterestListItemResponse(
                 product.getCategory().getName(),
                 thumbnailUrl,
                 recommendation,
-                InterestStatus.of(product.getStatus(), recommendation, analyzing),
+                InterestStatus.of(product.getStatus(), recommendation),
                 marketAveragePrice,
                 null,
                 null,
@@ -68,7 +68,7 @@ public record InterestListItemResponse(
 
     /** 외부 매물 대상 건 — 관심 매물 시세 분석 스냅샷이 없으면 {@code recommendation}/{@code marketAveragePrice}는 null. */
     public static InterestListItemResponse fromListing(
-            Interest interest, AnalysisRecommendation recommendation, Long marketAveragePrice, boolean analyzing) {
+            Interest interest, AnalysisRecommendation recommendation, Long marketAveragePrice) {
         PlatformListing listing = interest.getListing();
         ProductStatus status = ProductStatus.fromExternal(listing.getStatus());
         return new InterestListItemResponse(
@@ -82,7 +82,7 @@ public record InterestListItemResponse(
                 listing.getCategory().getName(),
                 listing.getImageUrl(),
                 recommendation,
-                InterestStatus.of(status, recommendation, analyzing),
+                InterestStatus.of(status, recommendation),
                 marketAveragePrice,
                 listing.getPlatform().getName(),
                 listing.getListingUrl(),

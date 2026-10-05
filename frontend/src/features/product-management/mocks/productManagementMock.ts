@@ -144,6 +144,9 @@ export function createProductSummaryMock(productId: number): ProductDetailSummar
         status: product?.status ?? "ON_SALE",
         condition: product?.condition ?? "A",
         imageUrls: product?.thumbnailUrl ? [product.thumbnailUrl] : [],
+        viewCount: 128,
+        interestCount: 14,
+        daysOnSale: 21,
         platforms: [],
         createdAt: product?.createdAt ?? "2026-10-02T12:00:00",
     };

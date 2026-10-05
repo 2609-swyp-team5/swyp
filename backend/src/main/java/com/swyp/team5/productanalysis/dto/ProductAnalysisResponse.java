@@ -22,7 +22,8 @@ public record ProductAnalysisResponse(
         BigDecimal marketPriceDiffRate, // 등록가가 평균가보다 몇 % 높은지(음수면 저렴, 소수 첫째 자리 반올림, 평균가가 0이면 0)
         BigDecimal changeRate, // 직전 분석 대비 평균가 변동률, 직전 분석이 없으면 null
         AnalysisRecommendation
-                recommendation, // 요청 관점의 추천 — 판매자(기본) SELL/HOLD, 구매자(perspective=BUY) BUY/WAIT. 외부 매물은 항상 BUY/WAIT
+                recommendation, // 요청 관점의 추천 — 판매자(기본) SELL/HOLD, 구매자(perspective=BUY) BUY/WAIT(우리 상품의 구매자 관점 도입 이전 분석이면
+        // null). 외부 매물은 항상 BUY/WAIT
         Long suggestedPrice, // 시세 기반 추천 가격(저장값이 없으면 평균가)
         String description, // recommendation의 근거(없으면 빈 문자열)
         AnalysisRecommendation buyerRecommendation, // 우리 상품을 관심 등록한 구매자 관점(BUY/WAIT), 외부 매물·관점 분리 이전 분석은 null
@@ -143,14 +144,14 @@ public record ProductAnalysisResponse(
     }
 
     /**
-     * 요청 관점의 추천을 고른다. 구매자 관점이고 구매자 추천이 있으면(우리 상품) 구매자 추천, 그 밖에는 저장된 추천이다.
+     * 요청 관점의 추천을 고른다. 구매자 관점이면 구매자에게 보여 줄 추천({@link ProductAnalysis#getBuyerViewRecommendation} — 외부
+     * 매물은 저장된 추천, 우리 상품은 구매자 추천이고 구매자 관점 도입 이전 분석이면 null), 판매자 관점이면 저장된 추천이다. 구매자
+     * 관점에서 판매자 추천(SELL/HOLD)으로 대체하지 않는다.
      *
      * @param buyerView 구매자 관점 요청 여부
      */
     public static AnalysisRecommendation viewRecommendation(ProductAnalysis analysis, boolean buyerView) {
-        return buyerView && analysis.getBuyerRecommendation() != null
-                ? analysis.getBuyerRecommendation()
-                : analysis.getRecommendation();
+        return buyerView ? analysis.getBuyerViewRecommendation() : analysis.getRecommendation();
     }
 
     /**
@@ -169,9 +170,8 @@ public record ProductAnalysisResponse(
             List<PriceForecast> forecasts,
             List<PriceBucket> priceDistribution,
             Summary summary) {
-        String description = buyerView && analysis.getBuyerRecommendation() != null
-                ? analysis.getBuyerDescription()
-                : analysis.getDescription();
+        String description =
+                buyerView && analysis.getProduct() != null ? analysis.getBuyerDescription() : analysis.getDescription();
         return new ProductAnalysisResponse(
                 product.getId(),
                 product.getPrice(),

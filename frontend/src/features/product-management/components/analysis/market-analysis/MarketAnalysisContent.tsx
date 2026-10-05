@@ -36,18 +36,37 @@ export function MarketAnalysisContent({
     analysis,
     priceTrendQuery,
     valuationForecastQuery,
+    summaryOnly = false,
 }: {
     analysis: ProductMarketAnalysis;
     priceTrendQuery: StreamingQueryState<ProductPriceTrend>;
     valuationForecastQuery: StreamingQueryState<ProductValuationForecast>;
+    summaryOnly?: boolean;
 }) {
     const isBuyerView = analysis.recommendation === "BUY" || analysis.recommendation === "WAIT";
+
+    if (summaryOnly) {
+        return (
+            <>
+                <MarketAnalysisRecommendation analysis={analysis} />
+                <div className="bg-[#fafbff] px-10 py-[30px]">
+                    <MarketAnalysisSummaryMetrics
+                        summary={analysis.summary}
+                        isBuyerView={isBuyerView}
+                    />
+                </div>
+            </>
+        );
+    }
 
     return (
         <>
             <MarketAnalysisRecommendation analysis={analysis} />
             <div className="flex flex-col gap-5 bg-[#fafbff] px-10 py-[30px]">
-                <MarketAnalysisSummaryMetrics analysis={analysis} />
+                <MarketAnalysisSummaryMetrics
+                    summary={analysis.summary}
+                    isBuyerView={isBuyerView}
+                />
                 <div className="grid gap-[30px] lg:grid-cols-2">
                     <div className="flex min-w-0 flex-col justify-center gap-10 rounded-[20px] py-5">
                         <div className="flex flex-col gap-[10px]">

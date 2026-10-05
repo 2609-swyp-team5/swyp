@@ -18,13 +18,20 @@ export function ProductManagementDetail({
     initialStatus?: ProductStatus;
     initialRecommendation?: AnalysisRecommendation;
 }) {
+    // 판매 관리에서는 추천 상태·사유와 판매 현황만 보여주므로 가격 변화 추이·감가 상각률은 조회하지 않는다
     const sections = useProductManagementSectionsQuery(productId, {
         mockRecommendation: initialRecommendation,
+        chartsEnabled: false,
     });
     const { data: summaryResult, error, isPending } = sections.productSummary;
     const data = summaryResult;
     const currentStatus = data?.status ?? (isPending ? initialStatus : undefined);
     const shouldShowCompetition = currentStatus !== undefined;
+    const saleStats = {
+        salesDurationDays: data?.daysOnSale ?? 0,
+        viewCount: data?.viewCount ?? 0,
+        interestCount: data?.interestCount ?? 0,
+    };
 
     return (
         <div className="flex min-w-0 flex-col gap-6">
@@ -43,6 +50,7 @@ export function ProductManagementDetail({
                 isPending={sections.productAnalysis.isPending}
                 priceTrendQuery={sections.productPriceTrend}
                 valuationForecastQuery={sections.productValuationForecast}
+                sellerSaleStats={saleStats}
             />
             {shouldShowCompetition ? (
                 <ProductCompetitionSection query={sections.productCompetition} />

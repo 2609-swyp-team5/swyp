@@ -29,6 +29,7 @@ export function InterestProductDetail({ interest }: { interest: InterestListItem
             interest.interestStatus === "BUY" || interest.interestStatus === "WAIT"
                 ? interest.interestStatus
                 : undefined,
+        chartsEnabled: false,
     });
 
     const handleDelete = () => {
@@ -61,6 +62,9 @@ export function InterestProductDetail({ interest }: { interest: InterestListItem
         },
         condition: interest.condition ?? "A",
         imageUrls: interest.thumbnailUrl ? [interest.thumbnailUrl] : [],
+        viewCount: null,
+        interestCount: 0,
+        daysOnSale: null,
         platforms:
             dataSource === "mock" && interest.source === "OUR" && interest.status === "ON_SALE"
                 ? [
@@ -109,6 +113,7 @@ export function InterestProductDetail({ interest }: { interest: InterestListItem
                 isPending={sections.productAnalysis.isPending}
                 priceTrendQuery={sections.productPriceTrend}
                 valuationForecastQuery={sections.productValuationForecast}
+                summaryOnly
             />
             <ProductCompetitionSection
                 query={sections.productCompetition}

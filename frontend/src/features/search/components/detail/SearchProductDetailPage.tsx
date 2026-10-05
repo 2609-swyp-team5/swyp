@@ -10,11 +10,13 @@ import { Button } from "@/common/components/ui/Button";
 import { cn } from "@/common/lib/utils";
 import { useInterestToggle } from "@/features/search/hooks/useInterestToggle";
 import { LoginRequiredDialog } from "@/features/auth/components/LoginRequiredDialog";
+import { useAuthStore } from "@/features/auth/store/authStore";
 import { useSearchProductDetailQuery } from "@/features/search/hooks/queries/useSearchProductDetailQuery";
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { formatRelativeCreatedAt } from "@/features/search/utils/formatRelativeCreatedAt";
 import { MarketAnalysisSection } from "@/features/product-management/components/analysis/market-analysis/MarketAnalysisSection";
 import { useProductManagementSectionsQuery } from "@/features/product-management/hooks/useProductManagementSectionsQuery";
+import { useProductAnalysisQuery } from "@/features/product-management/hooks/useProductAnalysisQuery";
 import { ProductCompetitionSection } from "@/features/product-management/components/competition/ProductCompetitionSection";
 
 export function SearchProductDetailPage({ targetId }: { targetId: number }) {
@@ -28,17 +30,24 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
         refetch,
         isFetching,
     } = useSearchProductDetailQuery(targetId);
-    const analysisEnabled = Boolean(product) && analysisProductId === targetId;
+    const isInitialized = useAuthStore((state) => state.isInitialized);
+    const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
+    // 회원이면 이미 있는 분석 결과를 미리 조회해, 있으면 버튼을 누르지 않아도 바로 보여준다(분석 조회는 회원 전용)
+    const existingAnalysis = useProductAnalysisQuery(targetId, {
+        enabled: Boolean(product) && isInitialized && isLoggedIn,
+        perspective: "BUY",
+    });
+    const analysisEnabled =
+        Boolean(product) && (analysisProductId === targetId || Boolean(existingAnalysis.data));
     const sections = useProductManagementSectionsQuery(targetId, {
         enabled: analysisEnabled,
         perspective: "BUY",
         summaryEnabled: false,
+        // 추천 상태·사유와 요약 지표만 보여주므로 가격 변화 추이·감가 상각률은 조회하지 않는다
+        chartsEnabled: false,
     });
     const analysisFetching =
-        sections.productAnalysis.isFetching ||
-        sections.productPriceTrend.isFetching ||
-        sections.productValuationForecast.isFetching ||
-        sections.productCompetition.isFetching;
+        sections.productAnalysis.isFetching || sections.productCompetition.isFetching;
     const liked = interests.interests.some(
         (item) => item.source === product?.source && item.targetId === targetId,
     );
@@ -334,24 +343,20 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                             isPending={sections.productAnalysis.isPending}
                             priceTrendQuery={sections.productPriceTrend}
                             valuationForecastQuery={sections.productValuationForecast}
+                            summaryOnly
                         />
                         <ProductCompetitionSection
                             query={sections.productCompetition}
                             heading="비슷한 상품"
                             showCompetitionMeta={false}
                         />
-                        {(sections.productAnalysis.error ||
-                            sections.productPriceTrend.error ||
-                            sections.productValuationForecast.error ||
-                            sections.productCompetition.error) && (
+                        {(sections.productAnalysis.error || sections.productCompetition.error) && (
                             <Button
                                 variant="outline"
                                 className="self-end"
                                 disabled={analysisFetching}
                                 onClick={() => {
                                     void sections.productAnalysis.refetch();
-                                    void sections.productPriceTrend.refetch();
-                                    void sections.productValuationForecast.refetch();
                                     void sections.productCompetition.refetch();
                                 }}
                             >

@@ -1100,6 +1100,31 @@ class ProductAnalysisServiceTest {
         assertThat(seller.summary()).isInstanceOf(ProductAnalysisResponse.SaleStats.class);
     }
 
+    // 조회 성공 - 구매자 관점인데 우리 상품 분석에 구매자 추천이 없으면(관점 분리 이전 분석) 판매자 추천(SELL)으로 대체하지 않고 null
+    @Test
+    void getLatestAnalysisDoesNotFallBackToSellerRecommendationForBuyer() {
+        Product product = product(1L, 10L, 500_000L);
+        ProductAnalysis legacy = ProductAnalysis.create(
+                product,
+                400_000L,
+                450_000L,
+                520_000L,
+                null,
+                AnalysisRecommendation.SELL,
+                470_000L,
+                "판매 근거",
+                LocalDateTime.now());
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.of(legacy));
+
+        ProductAnalysisResponse buyer = service().getLatestAnalysis(1L, AnalysisPerspective.BUY);
+
+        assertThat(buyer.analysisId()).isEqualTo(legacy.getId());
+        assertThat(buyer.recommendation()).isNull();
+        assertThat(buyer.description()).isEmpty();
+    }
+
     // 조회 성공 - 가격 분포는 조회 시점 비교 매물(다른 물건·이상치 제외) 중 분석 최저~최고가 안의 가격을 5구간으로 셈
     @Test
     void getLatestAnalysisReturnsPriceDistribution() {
