@@ -3,6 +3,7 @@ import type { ApiResponse } from "@/common/lib/api/types";
 
 import type { AiSearchResponse, SearchParams, SearchResponse, SearchProductDetail } from "../types";
 import type { InterestListResponse, InterestTarget, InterestCreateResponse } from "../types";
+import { startFastNotificationPolling } from "@/features/notifications/lib/fastPolling";
 
 const searchList = (params: SearchParams, signal?: AbortSignal) =>
     api.get<ApiResponse<SearchResponse>>("/products", {
@@ -17,8 +18,12 @@ const searchProductDetail = (id: number, signal?: AbortSignal) =>
 const interestList = (params: { cursor?: string; size: number }, signal?: AbortSignal) =>
     api.get<ApiResponse<InterestListResponse>>("/interests", { params, signal });
 
-const interestRegister = (target: InterestTarget) =>
-    api.post<ApiResponse<InterestCreateResponse>>("/interests", target);
+// 등록 직후 분석이 돌아 추천 알림이 곧 올 수 있어 토스트 조회를 잠시 앞당긴다
+const interestRegister = async (target: InterestTarget) => {
+    const response = await api.post<ApiResponse<InterestCreateResponse>>("/interests", target);
+    startFastNotificationPolling();
+    return response;
+};
 
 const interestDelete = (interestId: number) =>
     api.delete<ApiResponse<null>>(`/interests/${interestId}`);

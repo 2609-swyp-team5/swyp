@@ -10,12 +10,15 @@ import { useAuthStore } from "@/features/auth/store/authStore";
 
 import { notificationApi } from "../api/notificationApi";
 import { useReadNotificationMutation } from "../hooks/mutations/useReadNotificationMutation";
+import { isFastNotificationPolling, onFastNotificationPollingStart } from "../lib/fastPolling";
 import { usePushEnabled } from "../lib/pushPreference";
 import { type NotificationItem, notificationPageSchema } from "../schemas/notificationSchema";
 import { NotificationTypeIcon } from "./NotificationTypeIcon";
 import { getNotificationLink } from "../utils/notificationDisplay";
 
 const pollIntervalMs = 30 * 1000;
+// 관심 등록 직후처럼 곧 알림이 올 만할 때의 조회 간격
+const fastPollIntervalMs = 3 * 1000;
 const toastDurationMs = 8 * 1000;
 const maxToasts = 3;
 
@@ -29,7 +32,8 @@ export function NotificationToaster() {
     // 처음 확인한 시점의 최신 알림 ID — 그 이후에 도착한 알림만 띄운다
     const lastSeenIdRef = useRef<number | null>(null);
 
-    useQuery({
+    const enabled = isInitialized && isLoggedIn && pushEnabled;
+    const { refetch } = useQuery({
         queryKey: ["notification-toaster"],
         queryFn: async ({ signal }) => {
             const { data } = await notificationApi.getNotifications({ size: 10 }, signal);
@@ -48,11 +52,17 @@ export function NotificationToaster() {
             }
             return latestId;
         },
-        enabled: isInitialized && isLoggedIn && pushEnabled,
-        refetchInterval: pollIntervalMs,
+        enabled,
+        refetchInterval: () => (isFastNotificationPolling() ? fastPollIntervalMs : pollIntervalMs),
         refetchIntervalInBackground: false,
         retry: false,
     });
+
+    // 빠른 조회가 시작되면 30초를 기다리지 않고 바로 확인한 뒤, 그 뒤로는 짧은 간격으로 확인한다
+    useEffect(() => {
+        if (!enabled) return;
+        return onFastNotificationPollingStart(() => void refetch());
+    }, [enabled, refetch]);
 
     const dismiss = useCallback(
         (notificationId: number) =>

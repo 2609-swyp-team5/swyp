@@ -74,7 +74,7 @@ export function MyPlatformsPage() {
                     </p>
                 </div>
             </div>
-            <div className="grid gap-[10px] md:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-[30px] grid gap-[10px] md:grid-cols-2 xl:grid-cols-3">
                 {platforms.map((item) => (
                     <PlatformCard
                         key={`${item.id}:${statuses[item.id]}`}
