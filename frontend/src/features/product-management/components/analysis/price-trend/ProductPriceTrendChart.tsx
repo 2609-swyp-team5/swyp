@@ -138,7 +138,10 @@ export function ProductPriceTrendChart({
     const { lower, upper, ticks } = getScale(points);
     const lastIndex = points.length - 1;
     const latestPoint = points[lastIndex];
-    const dateIndexes = [0, Math.floor(lastIndex / 3), Math.ceil((lastIndex * 2) / 3), lastIndex];
+    // 기록일이 4일 미만이면 위치가 겹쳐 같은 날짜 눈금(같은 key)이 생기므로 중복을 뺀다
+    const dateIndexes = [
+        ...new Set([0, Math.floor(lastIndex / 3), Math.ceil((lastIndex * 2) / 3), lastIndex]),
+    ];
     const isLatestHighest =
         latestPoint.averagePrice === Math.max(...points.map((point) => point.averagePrice));
 

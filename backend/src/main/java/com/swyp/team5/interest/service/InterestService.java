@@ -28,7 +28,6 @@ import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.repository.MemberRepository;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
-import com.swyp.team5.productanalysis.service.AnalysisProgressTracker;
 
 @Service
 @RequiredArgsConstructor
@@ -41,7 +40,6 @@ public class InterestService {
     private final List<InterestRegistrar> registrars;
     private final TargetPriceAlertService targetPriceAlertService;
     private final ApplicationEventPublisher eventPublisher;
-    private final AnalysisProgressTracker analysisProgressTracker;
 
     /**
      * 상품 또는 외부 플랫폼 수집 매물을 관심상품으로 등록한다. {@code source}에 맞는
@@ -110,11 +108,9 @@ public class InterestService {
         List<Interest> all = interestRepository.findAllWithItemByMemberId(memberId);
         Map<Long, ProductAnalysis> analyses = findLatestAnalyses(all);
         Map<Long, ProductAnalysis> listingAnalyses = findLatestListingAnalyses(all);
-        Set<Long> analyzing = analysisProgressTracker.inProgressAmong(
-                all.stream().map(interest -> interest.getItem().getId()).toList());
         List<InterestListItemResponse> items = all.stream()
                 .sorted(Comparator.comparing(Interest::getId).reversed())
-                .map(interest -> toListItem(interest, analyses, listingAnalyses, analyzing))
+                .map(interest -> toListItem(interest, analyses, listingAnalyses))
                 .toList();
         List<InterestListItemResponse> matched = items.stream()
                 .filter(item -> statuses == null || statuses.isEmpty() || statuses.contains(item.interestStatus()))
@@ -131,25 +127,20 @@ public class InterestService {
     }
 
     private static InterestListItemResponse toListItem(
-            Interest interest,
-            Map<Long, ProductAnalysis> analyses,
-            Map<Long, ProductAnalysis> listingAnalyses,
-            Set<Long> analyzing) {
+            Interest interest, Map<Long, ProductAnalysis> analyses, Map<Long, ProductAnalysis> listingAnalyses) {
         if (interest.getProduct() == null) {
             ProductAnalysis analysis = listingAnalyses.get(interest.getListing().getId());
             return InterestListItemResponse.fromListing(
                     interest,
                     analysis == null ? null : analysis.getRecommendation(),
-                    analysis == null ? null : analysis.getAveragePrice(),
-                    analyzing.contains(interest.getListing().getId()));
+                    analysis == null ? null : analysis.getAveragePrice());
         }
         ProductAnalysis analysis = analyses.get(interest.getProduct().getId());
         // 관심 등록한 회원에게는 구매자 관점 추천(BUY/WAIT)을 보여 준다
         return InterestListItemResponse.fromProduct(
                 interest,
                 analysis == null ? null : analysis.getBuyerViewRecommendation(),
-                analysis == null ? null : analysis.getAveragePrice(),
-                analyzing.contains(interest.getProduct().getId()));
+                analysis == null ? null : analysis.getAveragePrice());
     }
 
     /**

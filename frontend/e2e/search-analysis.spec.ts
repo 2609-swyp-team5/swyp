@@ -13,6 +13,8 @@ test("detail loads buyer analysis only on click and retries failed analysis", as
     const result = createProductMarketAnalysisMock(productId, "BUY", "BUY");
     const similar = createProductCompetitionMock(productId, "BUY");
     let requests = 0;
+    // 상세 화면은 요약만 보여주므로 가격 변화 추이·감가 상각률은 요청하지 않아야 한다
+    let chartRequests = 0;
     let fail = true;
     let release!: () => void;
     const ready = new Promise<void>((resolve) => {
@@ -46,7 +48,7 @@ test("detail loads buyer analysis only on click and retries failed analysis", as
         },
     );
     await page.route(`**/products/${productId}/analysis/trend`, (route) => {
-        requests++;
+        chartRequests++;
         return route.fulfill({
             json: {
                 success: true,
@@ -56,7 +58,7 @@ test("detail loads buyer analysis only on click and retries failed analysis", as
         });
     });
     await page.route(`**/products/${productId}/analysis/forecast`, (route) => {
-        requests++;
+        chartRequests++;
         return route.fulfill({
             json: {
                 success: true,
@@ -104,7 +106,10 @@ test("detail loads buyer analysis only on click and retries failed analysis", as
     await page.getByRole("button", { name: "AI 분석 다시 조회", exact: true }).click();
     const section = page.getByRole("region", { name: "AI 시세 분석", exact: true });
     await expect(section).toContainText(result.description);
-    await expect(section).toContainText("구매 고려 가격");
+    await expect(section).toContainText("예상 가격 변화");
+    for (const hidden of ["구매 고려 가격", "최근 평균 거래가", "가격 변화 추이", "감가 상각률"]) {
+        await expect(section).not.toContainText(hidden);
+    }
     const similarSection = page.getByRole("region", { name: "비슷한 상품", exact: true });
     await expect(similarSection).toContainText(similar.competition.items[0].title);
     await expect(similarSection.getByRole("link").first()).toHaveAttribute(
@@ -163,4 +168,74 @@ test("detail loads buyer analysis only on click and retries failed analysis", as
         similar.competition.items[0].title,
     );
     expect(requests).toBeGreaterThan(previousRequests);
+    expect(chartRequests).toBe(0);
 });
+
+for (const hasAnalysis of [true, false]) {
+    test(`members ${hasAnalysis ? "see an existing analysis without clicking" : "load analysis only on click when none exists"}`, async ({
+        page,
+    }) => {
+        const productId = 78;
+        const result = createProductMarketAnalysisMock(productId, "BUY", "WAIT");
+        const similar = createProductCompetitionMock(productId, "BUY");
+        let competitionRequests = 0;
+        await page.route("**/auth/refresh", (route) =>
+            route.fulfill({
+                json: { success: true, data: { accessToken: "analysis-member" }, error: null },
+            }),
+        );
+        await page.route(
+            (url) => url.pathname === "/interests",
+            (route) =>
+                route.fulfill({
+                    json: {
+                        success: true,
+                        data: { content: [], hasNext: false, nextCursor: null },
+                        error: null,
+                    },
+                }),
+        );
+        await page.route(`**/products/${productId}`, (route) =>
+            route.fulfill({
+                json: { success: true, data: { ...detailProduct, id: productId }, error: null },
+            }),
+        );
+        await page.route(
+            (url) => url.pathname === `/products/${productId}/analysis`,
+            (route) =>
+                route.fulfill({
+                    json: {
+                        success: true,
+                        // 분석 이력이 없으면 분석 필드가 null로 내려온다
+                        data: hasAnalysis
+                            ? result
+                            : { ...result, analysisId: null, recommendation: null },
+                        error: null,
+                    },
+                }),
+        );
+        await page.route(`**/products/${productId}/competition`, (route) => {
+            competitionRequests++;
+            return route.fulfill({ json: { success: true, data: similar, error: null } });
+        });
+
+        await page.goto(`/search/${productId}`);
+        const button = page.getByRole("button", { name: "AI 분석 보기", exact: true });
+        await expect(button).toBeEnabled();
+        const section = page.getByRole("region", { name: "AI 시세 분석", exact: true });
+        if (hasAnalysis) {
+            await expect(section).toContainText(result.description);
+            await expect(
+                page.getByRole("region", { name: "비슷한 상품", exact: true }),
+            ).toContainText(similar.competition.items[0].title);
+            return;
+        }
+        await expect(section).toHaveCount(0);
+        expect(competitionRequests).toBe(0);
+        await button.click();
+        await expect(section).toContainText("아직 시세 분석 결과가 없어요");
+        await expect(page.getByRole("region", { name: "비슷한 상품", exact: true })).toContainText(
+            similar.competition.items[0].title,
+        );
+    });
+}

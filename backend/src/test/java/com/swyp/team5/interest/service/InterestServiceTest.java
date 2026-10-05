@@ -47,7 +47,6 @@ import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
-import com.swyp.team5.productanalysis.service.AnalysisProgressTracker;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -78,8 +77,6 @@ class InterestServiceTest {
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
-    private final AnalysisProgressTracker analysisProgressTracker = new AnalysisProgressTracker();
-
     private InterestService service() {
         return new InterestService(
                 interestRepository,
@@ -89,8 +86,7 @@ class InterestServiceTest {
                         new ProductInterestRegistrar(interestRepository, productRepository),
                         new ListingInterestRegistrar(interestRepository, platformListingRepository)),
                 targetPriceAlertService,
-                eventPublisher,
-                analysisProgressTracker);
+                eventPublisher);
     }
 
     // 관심상품 등록 성공 - 우리 상품
@@ -385,26 +381,18 @@ class InterestServiceTest {
                         tuple(11L, "ON_SALE", InterestStatus.BUY));
     }
 
-    // 관심상품 목록 조회 - 분석 결과가 없어도 분석이 대기·진행 중이면 관찰중(WAIT), 끝나면(결과 없음) 분석대기
+    // 관심상품 목록 조회 - 구매자 관점 분석 결과가 없으면(관심 등록 직후 분석 중 포함) 분석대기(PENDING)가 최초 상태
     @Test
-    void getInterestsTreatsAnalyzingItemAsWait() {
+    void getInterestsStartsAsPendingWithoutAnalysis() {
         Member member = newMember(1L);
-        PlatformListing analyzing = newPlatformListing(100L);
-        PlatformListing idle = newPlatformListing(101L);
         when(interestRepository.findAllWithItemByMemberId(1L))
                 .thenReturn(List.of(
-                        newListingInterest(11L, member, analyzing, null), newListingInterest(12L, member, idle, null)));
-        analysisProgressTracker.start(100L);
+                        newListingInterest(11L, member, newPlatformListing(100L), null),
+                        newListingInterest(12L, member, newPlatformListing(101L), null)));
 
         assertThat(service().getInterests(1L, null, null, 10).content())
                 .extracting(InterestListItemResponse::interestId, InterestListItemResponse::interestStatus)
-                .containsExactly(tuple(12L, InterestStatus.PENDING), tuple(11L, InterestStatus.WAIT));
-
-        analysisProgressTracker.finish(100L);
-
-        assertThat(service().getInterests(1L, null, null, 10).content())
-                .extracting(InterestListItemResponse::interestStatus)
-                .containsOnly(InterestStatus.PENDING);
+                .containsExactly(tuple(12L, InterestStatus.PENDING), tuple(11L, InterestStatus.PENDING));
     }
 
     // 관심상품 목록 조회 - status 파라미터는 관심상품 상태로 거름(탭과 1:1, 복수 가능), totalCount는 필터 기준·statusCounts는 전체 기준

@@ -103,7 +103,8 @@ test("search cards open product details while favorites stay on search", async (
 test("detail gallery and favorite use product and interest APIs", async ({ page }) => {
     let productRequests = 0;
     page.on("request", (request) => {
-        if (new URL(request.url()).pathname.startsWith("/products")) productRequests += 1;
+        // 회원은 분석 결과를 미리 조회(/products/1/analysis)하므로 상품 상세 요청만 센다
+        if (new URL(request.url()).pathname === "/products/1") productRequests += 1;
     });
     await page.goto("/search/1");
     await expect(

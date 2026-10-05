@@ -139,7 +139,20 @@ export const productDetailSummaryResponseSchema = z
         ),
     })
     .transform(
-        ({ id, title, price, status, createdAt, category, condition, imageUrls, platforms }) => ({
+        ({
+            id,
+            title,
+            price,
+            status,
+            createdAt,
+            category,
+            condition,
+            imageUrls,
+            viewCount,
+            interestCount,
+            daysOnSale,
+            platforms,
+        }) => ({
             id,
             title,
             price,
@@ -152,6 +165,9 @@ export const productDetailSummaryResponseSchema = z
             },
             condition,
             imageUrls,
+            viewCount,
+            interestCount,
+            daysOnSale,
             platforms: platforms.map(({ platformName, productUrl }) => ({
                 platform: platformName,
                 platformName,
