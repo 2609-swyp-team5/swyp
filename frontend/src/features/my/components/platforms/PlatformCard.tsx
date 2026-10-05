@@ -14,6 +14,14 @@ export type PlatformConnection = {
     description: string;
     updated: string;
 };
+
+/** 이름 끝 글자에 받침이 있으면 "이", 없으면 "가"(번개장터가, 당근마켓이). 한글이 아니면 "이". */
+function subjectParticle(name: string) {
+    const code = name.charCodeAt(name.length - 1) - 0xac00;
+    if (code < 0 || code > 11171) return "이";
+    return code % 28 === 0 ? "가" : "이";
+}
+
 type PlatformCardProps = {
     item: PlatformConnection;
     status: ConnectionStatus;
@@ -54,8 +62,8 @@ export function PlatformCard({ item, status, onSelect, isPending }: PlatformCard
                         {status === "expired"
                             ? `${item.name}의 로그인이 만료됐어요.`
                             : status === "connected"
-                              ? `${item.name}이 연결되어 있어요.`
-                              : `${item.name}이 연결되지 않았어요.`}
+                              ? `${item.name}${subjectParticle(item.name)} 연결되어 있어요.`
+                              : `${item.name}${subjectParticle(item.name)} 연결되지 않았어요.`}
                     </h3>
                     <p className="text-[10px] leading-[15px] text-[#83889e]">{item.updated}</p>
                 </div>

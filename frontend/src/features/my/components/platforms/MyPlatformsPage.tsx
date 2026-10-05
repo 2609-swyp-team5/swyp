@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { Sparkles } from "lucide-react";
 import { Button } from "@/common/components/ui/Button";
 import { getApiErrorMessage } from "@/common/lib/api/error";
@@ -74,20 +73,6 @@ export function MyPlatformsPage() {
                         알려드립니다.
                     </p>
                 </div>
-            </div>
-            <div className="flex items-center gap-[11px] py-[30px] text-[#545d82]">
-                <div className="flex shrink-0 flex-col items-start gap-[5px]">
-                    <Image src="/my/platforms/connection-bell.svg" alt="" width={29} height={29} />
-                    <span className="text-base leading-[25px] text-[#d3d3d3]">
-                        {Object.values(statuses).filter((status) => status !== "connected").length}
-                        건
-                    </span>
-                </div>
-                <h2 className="text-[20px] leading-[30px] font-semibold tracking-[0.5px]">
-                    연결 알림을
-                    <br />
-                    확인해주세요
-                </h2>
             </div>
             <div className="grid gap-[10px] md:grid-cols-2 xl:grid-cols-3">
                 {platforms.map((item) => (
