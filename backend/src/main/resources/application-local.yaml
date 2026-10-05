@@ -20,7 +20,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         highlight_sql: true
@@ -37,8 +37,8 @@ jwt:
 logging:
   level:
     com.swyp.team5: debug
-    org.hibernate.SQL: debug
-    org.hibernate.orm.jdbc.bind: trace
+    org.hibernate.SQL: info # SQL 로그가 많아 꺼 둠(필요할 때만 debug)
+    org.hibernate.orm.jdbc.bind: info # 바인딩 값(개인정보 포함 가능) 로그 꺼 둠(필요할 때만 trace)
 
 # 스프링 엑츄에이터 설정
 management:
