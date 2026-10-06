@@ -44,6 +44,7 @@ import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.repository.ProductRepository;
+import com.swyp.team5.product.service.ProductTargetPriceService;
 import com.swyp.team5.productanalysis.config.ProductAnalysisProperties;
 import com.swyp.team5.productanalysis.dto.AnalysisPerspective;
 import com.swyp.team5.productanalysis.dto.CompetitionLevel;
@@ -103,6 +104,9 @@ class ProductAnalysisServiceTest {
     @Mock
     private ListingSearchService listingSearchService;
 
+    @Mock
+    private ProductTargetPriceService productTargetPriceService;
+
     private final AnalysisProgressTracker progressTracker = new AnalysisProgressTracker();
 
     private ProductAnalysisService service() {
@@ -122,7 +126,8 @@ class ProductAnalysisServiceTest {
                 categoryRepository,
                 itemRepository,
                 progressTracker,
-                listingSearchService);
+                listingSearchService,
+                productTargetPriceService);
     }
 
     private static Product product(Long productId, Long categoryId, Long price) {
@@ -562,6 +567,8 @@ class ProductAnalysisServiceTest {
         // 평균 시세가 50% 올랐지만 신뢰도 LOW라 시세 변동 알림은 없음
         verify(notificationService, never())
                 .notifyPriceChanged(any(), anyLong(), anyLong(), anyBoolean(), anyBoolean());
+        // 새 평균 시세로 목표 판매가 도달 확인
+        verify(productTargetPriceService).checkAfterAnalysis(1L, 3000L);
     }
 
     // 시세 변동 알림 - 신뢰도가 LOW가 아니고 평균 시세가 직전보다 5% 이상 변하면 판매자(판매중)·관심 회원에게 알림 요청

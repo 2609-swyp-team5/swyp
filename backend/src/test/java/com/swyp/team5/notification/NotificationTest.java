@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -38,6 +39,8 @@ import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
+import com.swyp.team5.productanalysis.entity.ProductAnalysis;
+import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
 import com.swyp.team5.support.IntegrationTest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -91,6 +94,9 @@ class NotificationTest extends IntegrationTest {
     @Autowired
     private NotificationSettingRepository notificationSettingRepository;
 
+    @Autowired
+    private ProductAnalysisRepository productAnalysisRepository;
+
     @AfterEach
     void tearDown() {
         List<Long> memberIds = List.of(owner.getId(), other.getId());
@@ -99,6 +105,13 @@ class NotificationTest extends IntegrationTest {
                 .toList());
         interestRepository.deleteAll(interestRepository.findAll().stream()
                 .filter(i -> memberIds.contains(i.getMember().getId()))
+                .toList());
+        List<Long> productIds = productRepository.findAll().stream()
+                .filter(p -> memberIds.contains(p.getMember().getId()))
+                .map(Product::getId)
+                .toList();
+        productAnalysisRepository.deleteAll(productAnalysisRepository.findAll().stream()
+                .filter(a -> productIds.contains(a.getItem().getId()))
                 .toList());
         productRepository.deleteAll(productRepository.findAll().stream()
                 .filter(p -> memberIds.contains(p.getMember().getId()))
@@ -276,6 +289,77 @@ class NotificationTest extends IntegrationTest {
                 .andExpect(jsonPath("$.data.content[0].productId").value(product.getId()));
         assertThat(interestRepository.findById(interest.getId()).orElseThrow().getNotifiedAt())
                 .isNotNull();
+    }
+
+    // 목표 판매가 - 본인 상품만, 최근 분석 평균가가 목표가 이상이면 설정 직후 판매자에게 SELL_TARGET_PRICE 1번(여전히 도달인 목표가로
+    // 바꿔도 재알림 없음, 미도달 목표가로 바꾸면 기록 지움), null이면 해제
+    @Test
+    void sellerTargetPriceReachedCreatesNotificationOnce() throws Exception {
+        Product product = productRepository.save(newProduct(owner)); // 등록가 100,000원
+        productAnalysisRepository.save(ProductAnalysis.builder()
+                .product(product)
+                .minPrice(90_000L)
+                .averagePrice(110_000L)
+                .maxPrice(130_000L)
+                .recommendation(AnalysisRecommendation.HOLD)
+                .analyzedAt(LocalDateTime.now())
+                .build());
+
+        mockMvc.perform(patch("/products/{productId}/target-price", product.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"targetPrice\": 100000}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(patch("/products/{productId}/target-price", product.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"targetPrice\": 100000}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.targetPrice").value(100000))
+                .andExpect(jsonPath("$.data.averagePrice").value(110000))
+                .andExpect(jsonPath("$.data.reached").value(true));
+        mockMvc.perform(get("/products/{productId}/target-price", product.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.targetPrice").value(100000));
+
+        mockMvc.perform(get("/notifications").header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].type").value("SELL_TARGET_PRICE"))
+                .andExpect(jsonPath("$.data.content[0].productId").value(product.getId()));
+
+        // 이미 알렸고 바꾼 목표가(110,000원)로도 여전히 도달 → 다시 알리지 않음
+        mockMvc.perform(patch("/products/{productId}/target-price", product.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"targetPrice\": 110000}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.reached").value(true));
+        mockMvc.perform(get("/notifications").header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
+                .andExpect(jsonPath("$.data.content.length()").value(1));
+        assertThat(productRepository.findById(product.getId()).orElseThrow().getTargetPriceNotifiedAt())
+                .isNotNull();
+
+        // 아직 도달 전인 목표가(120,000원)로 바꾸면 기록을 지워 도달할 때 다시 알림
+        mockMvc.perform(patch("/products/{productId}/target-price", product.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"targetPrice\": 120000}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.reached").value(false));
+        assertThat(productRepository.findById(product.getId()).orElseThrow().getTargetPriceNotifiedAt())
+                .isNull();
+
+        mockMvc.perform(patch("/products/{productId}/target-price", product.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"targetPrice\": null}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.targetPrice").doesNotExist())
+                .andExpect(jsonPath("$.data.reached").value(false));
+        assertThat(productRepository.findById(product.getId()).orElseThrow().getTargetPrice())
+                .isNull();
     }
 
     // 알림 설정 - 바꾼 적 없으면 기본값, PATCH는 보낸 항목만 바꾸고 다시 조회해도 유지, 다른 회원 설정은 그대로, 비로그인 401

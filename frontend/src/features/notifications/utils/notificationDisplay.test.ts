@@ -24,6 +24,7 @@ describe("notificationDisplay", () => {
         expect(getNotificationCategory("BUY_PRICE_CHANGE")).toBe("price");
         expect(getNotificationCategory("HOLD")).toBe("sell");
         expect(getNotificationCategory("TARGET_PRICE")).toBe("buy");
+        expect(getNotificationCategory("SELL_TARGET_PRICE")).toBe("sell");
         expect(getNotificationCategory("PLATFORM_EXPIRED")).toBe("platform");
         expect(getNotificationCategory("NOTICE")).toBe("notice");
     });
@@ -49,6 +50,11 @@ describe("notificationDisplay", () => {
             "/sell/manage?selected=10",
         );
         expect(getNotificationLink({ ...base, type: "BUY_PRICE_CHANGE" })?.href).toBe("/search/10");
+        // 목표가 — 판매자 목표 판매가는 판매 관리, 관심상품 목표가는 상품 상세
+        expect(getNotificationLink({ ...base, type: "SELL_TARGET_PRICE" })?.href).toBe(
+            "/sell/manage?selected=10",
+        );
+        expect(getNotificationLink({ ...base, type: "TARGET_PRICE" })?.href).toBe("/search/10");
         expect(
             getNotificationLink({
                 ...base,

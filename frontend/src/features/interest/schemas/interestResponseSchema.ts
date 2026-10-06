@@ -26,6 +26,11 @@ export const interestListItemSchema = z.object({
     createdAt: z.string(),
 });
 
+export const interestTargetPriceResponseSchema = z.object({
+    interestId: z.number(),
+    targetPrice: z.number().nullable(),
+});
+
 export const interestListResponseSchema = z.object({
     content: z.array(interestListItemSchema),
     nextCursor: z.string().nullable(),

@@ -186,3 +186,13 @@ export type ProductValuationForecastResponse = z.infer<
 >;
 export type ProductCompetitionResponse = z.infer<typeof productCompetitionResponseSchema>;
 export type ProductDetailSummaryResponse = z.infer<typeof productDetailSummaryResponseSchema>;
+
+/** 판매자 목표 판매가 — 비교 기준은 최근 시세 분석 평균가(분석 없으면 null). */
+export const productTargetPriceResponseSchema = z.object({
+    productId: z.number(),
+    targetPrice: z.number().nullable(),
+    averagePrice: z.number().nullable(),
+    reached: z.boolean(),
+});
+
+export type ProductTargetPriceResponse = z.infer<typeof productTargetPriceResponseSchema>;

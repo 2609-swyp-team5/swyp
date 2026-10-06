@@ -10,6 +10,7 @@ export const notificationTypeSchema = z.enum([
     "PLATFORM_EXPIRED",
     "SELL_PRICE_CHANGE",
     "BUY_PRICE_CHANGE",
+    "SELL_TARGET_PRICE",
 ]);
 
 export const notificationSchema = z.object({

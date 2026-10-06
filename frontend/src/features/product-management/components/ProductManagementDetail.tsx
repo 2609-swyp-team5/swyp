@@ -8,6 +8,7 @@ import { MarketAnalysisSection } from "./analysis/market-analysis/MarketAnalysis
 import { ProductCompetitionSection } from "./competition/ProductCompetitionSection";
 import { ProductSummaryCard } from "./product-summary/ProductSummaryCard";
 import { ProductSummarySkeleton } from "./product-summary/ProductSummarySkeleton";
+import { SellerTargetPriceSection } from "./target-price/SellerTargetPriceSection";
 
 export function ProductManagementDetail({
     productId,
@@ -44,6 +45,9 @@ export function ProductManagementDetail({
                 </section>
             ) : null}
             {!isPending && !error && data ? <ProductSummaryCard product={data} /> : null}
+            {currentStatus !== undefined && currentStatus !== "SOLD_OUT" ? (
+                <SellerTargetPriceSection productId={productId} />
+            ) : null}
             <MarketAnalysisSection
                 result={sections.productAnalysis.data}
                 error={sections.productAnalysis.error}

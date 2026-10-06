@@ -7,6 +7,7 @@ import type {
     ProductDetailSummaryResponse,
     ProductPriceTrendResponse,
     ProductValuationForecastResponse,
+    ProductTargetPriceResponse,
 } from "@/features/product-management/schemas/productManagementResponseSchema";
 import { productRegisterStreamEventSchema } from "../schemas/productRegisterStreamSchema";
 
@@ -65,6 +66,15 @@ const getMyProducts = (params?: { status?: ProductStatus; cursor?: string; size?
             cursor: params?.cursor,
             size: params?.size ?? 20,
         },
+    });
+
+const getProductTargetPrice = (id: number) =>
+    api.get<ApiResponse<ProductTargetPriceResponse>>(`/products/${id}/target-price`);
+
+// null이면 목표 판매가 해제
+const setProductTargetPrice = (id: number, targetPrice: number | null) =>
+    api.patch<ApiResponse<ProductTargetPriceResponse>>(`/products/${id}/target-price`, {
+        targetPrice,
     });
 
 const deleteProduct = (id: number) => api.delete<ApiResponse<null>>(`/products/${id}`);
@@ -320,6 +330,8 @@ export const productApi = {
     getProductValuationForecast,
     getProductCompetition,
     getMyProducts,
+    getProductTargetPrice,
+    setProductTargetPrice,
     deleteProduct,
     updateProductStatus,
     publishProduct,

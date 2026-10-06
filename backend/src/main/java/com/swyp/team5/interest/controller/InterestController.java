@@ -114,7 +114,7 @@ public class InterestController {
     }
 
     /**
-     * 관심상품의 목표가를 설정(재설정)한다.
+     * 관심상품의 목표가를 설정(재설정)하거나 해제({@code targetPrice: null})한다.
      *
      * @param currentMember 인증된 요청자
      * @param interestId 대상 관심상품 ID

@@ -216,6 +216,23 @@ export async function registerInterestMock(
     };
 }
 
+export async function setInterestTargetPriceMock(
+    interestId: number,
+    targetPrice: number | null,
+): Promise<ApiResponse<{ interestId: number; targetPrice: number | null }>> {
+    await waitForMockResponse();
+    interests = interests.map((interest) =>
+        interest.interestId === interestId ? { ...interest, targetPrice } : interest,
+    );
+
+    return {
+        success: true,
+        message: "관심상품 mock 목표가 설정 성공",
+        data: { interestId, targetPrice },
+        error: null,
+    };
+}
+
 export async function deleteInterestMock(interestId: number): Promise<ApiResponse<null>> {
     await waitForMockResponse();
     interests = interests.filter((interest) => interest.interestId !== interestId);
