@@ -1,5 +1,10 @@
 package com.swyp.team5.notification.service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -200,6 +205,125 @@ public class NotificationService {
         log.info("관심상품 {} 목표가 도달 알림 생성(현재가 {}, 목표가 {})", interest.getId(), currentPrice, interest.getTargetPrice());
         notificationRepository.save(notification);
         return true;
+    }
+
+    /**
+     * 우리 상품의 평균 시세가 직전 분석보다 크게 변했다고 알림을 만든다(변동 기준 판단은 호출 측). 판매자에게는
+     * {@code SELL_PRICE_CHANGE}, 관심 등록 회원에게는 {@code BUY_PRICE_CHANGE}를 보낸다(판매자 본인이 관심 등록했어도 판매자용만).
+     * 시세 변동 알림을 끈 회원과 오늘 이미 이 상품의 같은 종류 알림을 받은 회원은 뺀다.
+     *
+     * @param toSeller 판매자에게 보낼지(판매중·예약중이고 같은 분석에서 판매자 추천 전환 알림이 없을 때)
+     * @param toInterested 관심 등록 회원에게 보낼지(같은 분석에서 구매자 추천 전환 알림이 없을 때)
+     * @return 만든 알림 수
+     */
+    public int notifyPriceChanged(
+            Product product,
+            long previousAveragePrice,
+            long currentAveragePrice,
+            boolean toSeller,
+            boolean toInterested) {
+        String change = priceChangeText(product.getTitle(), previousAveragePrice, currentAveragePrice);
+        boolean rose = currentAveragePrice > previousAveragePrice;
+        List<Notification> notifications = new ArrayList<>();
+        Member seller = product.getMember();
+        if (toSeller) {
+            notifications.addAll(withoutPriceChangeExcluded(
+                    product.getId(),
+                    NotificationType.SELL_PRICE_CHANGE,
+                    List.of(Notification.create(
+                            seller,
+                            product,
+                            NotificationType.SELL_PRICE_CHANGE,
+                            rose ? "등록하신 상품의 시세가 올랐어요" : "등록하신 상품의 시세가 내렸어요",
+                            "등록하신 " + change))));
+        }
+        if (toInterested) {
+            notifications.addAll(withoutPriceChangeExcluded(
+                    product.getId(),
+                    NotificationType.BUY_PRICE_CHANGE,
+                    interestRepository.findMembersByItemId(product.getId()).stream()
+                            .filter(member -> !member.getId().equals(seller.getId()))
+                            .map(member -> Notification.create(
+                                    member,
+                                    product,
+                                    NotificationType.BUY_PRICE_CHANGE,
+                                    rose ? "관심 상품 시세가 올랐어요" : "관심 상품 시세가 내렸어요",
+                                    "관심 상품 " + change))
+                            .toList()));
+        }
+        notificationRepository.saveAll(notifications);
+        if (!notifications.isEmpty()) {
+            log.info(
+                    "상품 {} 시세 변동 {}→{} 알림 {}건 생성",
+                    product.getId(),
+                    previousAveragePrice,
+                    currentAveragePrice,
+                    notifications.size());
+        }
+        return notifications.size();
+    }
+
+    /**
+     * 관심 등록된 외부 매물의 평균 시세가 직전 분석보다 크게 변했다고 관심 등록 회원에게 {@code BUY_PRICE_CHANGE} 알림을 만든다
+     * (변동 기준 판단은 호출 측, 제외 규칙은 우리 상품과 같음).
+     *
+     * @return 만든 알림 수
+     */
+    public int notifyListingPriceChanged(PlatformListing listing, long previousAveragePrice, long currentAveragePrice) {
+        String change = priceChangeText(listing.getTitle(), previousAveragePrice, currentAveragePrice);
+        boolean rose = currentAveragePrice > previousAveragePrice;
+        List<Notification> notifications = withoutPriceChangeExcluded(
+                listing.getId(),
+                NotificationType.BUY_PRICE_CHANGE,
+                interestRepository.findMembersByItemId(listing.getId()).stream()
+                        .map(member -> Notification.createForListing(
+                                member,
+                                listing,
+                                NotificationType.BUY_PRICE_CHANGE,
+                                rose ? "관심 상품 시세가 올랐어요" : "관심 상품 시세가 내렸어요",
+                                "관심 상품 " + change))
+                        .toList());
+        notificationRepository.saveAll(notifications);
+        if (!notifications.isEmpty()) {
+            log.info(
+                    "외부 매물 {} 시세 변동 {}→{} 알림 {}건 생성",
+                    listing.getId(),
+                    previousAveragePrice,
+                    currentAveragePrice,
+                    notifications.size());
+        }
+        return notifications.size();
+    }
+
+    /** 예: "'아이폰 13'의 평균 시세가 300,000원에서 330,000원으로 10.0% 올랐어요." */
+    private static String priceChangeText(String title, long previousAveragePrice, long currentAveragePrice) {
+        BigDecimal percent = BigDecimal.valueOf(Math.abs(currentAveragePrice - previousAveragePrice) * 100)
+                .divide(BigDecimal.valueOf(previousAveragePrice), 1, RoundingMode.HALF_UP);
+        return "'%s'의 평균 시세가 %,d원에서 %,d원으로 %s%% %s."
+                .formatted(
+                        title,
+                        previousAveragePrice,
+                        currentAveragePrice,
+                        percent.toPlainString(),
+                        currentAveragePrice > previousAveragePrice ? "올랐어요" : "내렸어요");
+    }
+
+    /** 시세 변동 알림을 끈 회원과 오늘 이미 이 대상의 같은 종류 알림을 받은 회원의 알림을 뺀다(하루 1회). */
+    private List<Notification> withoutPriceChangeExcluded(
+            Long itemId, NotificationType type, List<Notification> notifications) {
+        if (notifications.isEmpty()) {
+            return notifications;
+        }
+        Set<Long> excluded =
+                new HashSet<>(notificationSettingRepository.findPriceChangeDisabledMemberIds(notifications.stream()
+                        .map(notification -> notification.getMember().getId())
+                        .toList()));
+        excluded.addAll(notificationRepository.findMemberIdsNotifiedSince(
+                itemId, type, LocalDate.now().atStartOfDay()));
+        return notifications.stream()
+                .filter(notification ->
+                        !excluded.contains(notification.getMember().getId()))
+                .toList();
     }
 
     /**
