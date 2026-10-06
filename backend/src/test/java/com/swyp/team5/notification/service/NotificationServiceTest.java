@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -316,5 +317,81 @@ class NotificationServiceTest {
         assertThat(service().notifyPlatformExpired(member, "번개장터")).isFalse();
 
         verify(notificationRepository, never()).save(any());
+    }
+
+    // 시세 변동 - 판매자에게 SELL_PRICE_CHANGE, 관심 등록 회원에게 BUY_PRICE_CHANGE(판매자 본인 관심 등록은 판매자용만)
+    @Test
+    void notifiesSellerAndInterestedMembersWhenPriceChanged() {
+        Member seller = member(10L);
+        Product product = product(seller);
+        Member buyer = member(21L);
+        when(interestRepository.findMembersByItemId(1L)).thenReturn(List.of(buyer, seller));
+
+        assertThat(service().notifyPriceChanged(product, 300_000L, 330_000L, true, true))
+                .isEqualTo(2);
+
+        ArgumentCaptor<List<Notification>> captor = ArgumentCaptor.forClass(List.class);
+        verify(notificationRepository).saveAll(captor.capture());
+        assertThat(captor.getValue())
+                .extracting(
+                        n -> n.getMember().getId(),
+                        Notification::getType,
+                        Notification::getTitle,
+                        Notification::getMessage)
+                .containsExactly(
+                        tuple(
+                                10L,
+                                NotificationType.SELL_PRICE_CHANGE,
+                                "등록하신 상품의 시세가 올랐어요",
+                                "등록하신 '아이패드 프로'의 평균 시세가 300,000원에서 330,000원으로 10.0% 올랐어요."),
+                        tuple(
+                                21L,
+                                NotificationType.BUY_PRICE_CHANGE,
+                                "관심 상품 시세가 올랐어요",
+                                "관심 상품 '아이패드 프로'의 평균 시세가 300,000원에서 330,000원으로 10.0% 올랐어요."));
+    }
+
+    // 시세 변동 - 시세 변동 알림을 끈 회원과 오늘 이미 같은 대상 알림을 받은 회원은 제외, 판매자 대상이 아니면 판매자 제외
+    @Test
+    void skipsPriceChangeForDisabledOrAlreadyNotifiedMembers() {
+        Member seller = member(10L);
+        Product product = product(seller);
+        Member disabled = member(21L);
+        Member notifiedToday = member(22L);
+        Member fresh = member(23L);
+        when(interestRepository.findMembersByItemId(1L)).thenReturn(List.of(disabled, notifiedToday, fresh));
+        when(notificationSettingRepository.findPriceChangeDisabledMemberIds(anyList()))
+                .thenReturn(Set.of(21L));
+        when(notificationRepository.findMemberIdsNotifiedSince(eq(1L), eq(NotificationType.BUY_PRICE_CHANGE), any()))
+                .thenReturn(Set.of(22L));
+
+        assertThat(service().notifyPriceChanged(product, 300_000L, 270_000L, false, true))
+                .isEqualTo(1);
+
+        ArgumentCaptor<List<Notification>> captor = ArgumentCaptor.forClass(List.class);
+        verify(notificationRepository).saveAll(captor.capture());
+        assertThat(captor.getValue())
+                .extracting(n -> n.getMember().getId(), Notification::getTitle)
+                .containsExactly(tuple(23L, "관심 상품 시세가 내렸어요"));
+    }
+
+    // 시세 변동 - 외부 매물은 관심 등록 회원에게만 BUY_PRICE_CHANGE
+    @Test
+    void notifiesInterestedMembersWhenListingPriceChanged() {
+        PlatformListing listing = mock(PlatformListing.class);
+        when(listing.getId()).thenReturn(100L);
+        when(listing.getTitle()).thenReturn("갤럭시 S23");
+        Member buyer = member(21L);
+        when(interestRepository.findMembersByItemId(100L)).thenReturn(List.of(buyer));
+
+        assertThat(service().notifyListingPriceChanged(listing, 500_000L, 470_000L))
+                .isEqualTo(1);
+
+        ArgumentCaptor<List<Notification>> captor = ArgumentCaptor.forClass(List.class);
+        verify(notificationRepository).saveAll(captor.capture());
+        assertThat(captor.getValue())
+                .extracting(Notification::getType, Notification::getMessage)
+                .containsExactly(tuple(
+                        NotificationType.BUY_PRICE_CHANGE, "관심 상품 '갤럭시 S23'의 평균 시세가 500,000원에서 470,000원으로 6.0% 내렸어요."));
     }
 }

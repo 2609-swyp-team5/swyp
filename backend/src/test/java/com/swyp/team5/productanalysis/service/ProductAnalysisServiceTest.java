@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
@@ -557,6 +559,56 @@ class ProductAnalysisServiceTest {
         // 직전 추천(HOLD)과 이번 추천(SELL)을 넘겨 전환 알림 판단
         verify(notificationService)
                 .notifyRecommendationChanged(product, AnalysisRecommendation.HOLD, AnalysisRecommendation.SELL);
+        // 평균 시세가 50% 올랐지만 신뢰도 LOW라 시세 변동 알림은 없음
+        verify(notificationService, never())
+                .notifyPriceChanged(any(), anyLong(), anyLong(), anyBoolean(), anyBoolean());
+    }
+
+    // 시세 변동 알림 - 신뢰도가 LOW가 아니고 평균 시세가 직전보다 5% 이상 변하면 판매자(판매중)·관심 회원에게 알림 요청
+    @Test
+    void analyzeProductRequestsPriceChangeAlertWhenAverageMovesFivePercent() {
+        Product product = product(1L, 10L, 800_000L);
+        when(product.getStatus()).thenReturn(ProductStatus.ON_SALE);
+        List<PlatformListing> listings = new java.util.ArrayList<>();
+        for (int i = 1; i <= 10; i++) {
+            listings.add(listing("아이패드 프로 매물" + i, 10_000L + i * 10));
+        }
+        givenListings(10L, listings);
+        ProductAnalysis previous = mock(ProductAnalysis.class);
+        when(previous.getAveragePrice()).thenReturn(9_000L);
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.of(previous));
+        givenAiResult(new MarketAnalysisResult(
+                List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10), AnalysisRecommendation.HOLD, 10_000L, "설명"));
+
+        service().analyzeProduct(product);
+
+        ArgumentCaptor<ProductAnalysis> captor = ArgumentCaptor.forClass(ProductAnalysis.class);
+        verify(productAnalysisRepository).save(captor.capture());
+        assertThat(captor.getValue().getConfidence()).isNotEqualTo(AnalysisConfidence.LOW);
+        long average = captor.getValue().getAveragePrice();
+        verify(notificationService)
+                .notifyPriceChanged(eq(product), eq(9_000L), eq(average), anyBoolean(), anyBoolean());
+    }
+
+    // 시세 변동 알림 - 직전 분석이 없으면(첫 분석) 시세 변동 알림 없음
+    @Test
+    void analyzeProductSkipsPriceChangeAlertOnFirstAnalysis() {
+        Product product = product(1L, 10L, 800_000L);
+        List<PlatformListing> listings = new java.util.ArrayList<>();
+        for (int i = 1; i <= 10; i++) {
+            listings.add(listing("아이패드 프로 매물" + i, 10_000L + i * 10));
+        }
+        givenListings(10L, listings);
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.empty());
+        givenAiResult(new MarketAnalysisResult(
+                List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10), AnalysisRecommendation.HOLD, 10_000L, "설명"));
+
+        service().analyzeProduct(product);
+
+        verify(notificationService, never())
+                .notifyPriceChanged(any(), anyLong(), anyLong(), anyBoolean(), anyBoolean());
     }
 
     // 분석 성공 - Gemini 호출이 실패하면 GPT 결과로 저장

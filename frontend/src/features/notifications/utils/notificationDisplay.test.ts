@@ -19,7 +19,9 @@ const base: NotificationItem = {
 };
 
 describe("notificationDisplay", () => {
-    it("알림 종류를 판매추천·구매추천·연동·공지로 나눈다", () => {
+    it("알림 종류를 판매추천·구매추천·시세변동·연동·공지로 나눈다", () => {
+        expect(getNotificationCategory("SELL_PRICE_CHANGE")).toBe("price");
+        expect(getNotificationCategory("BUY_PRICE_CHANGE")).toBe("price");
         expect(getNotificationCategory("HOLD")).toBe("sell");
         expect(getNotificationCategory("TARGET_PRICE")).toBe("buy");
         expect(getNotificationCategory("PLATFORM_EXPIRED")).toBe("platform");
@@ -42,6 +44,19 @@ describe("notificationDisplay", () => {
                 listingId: null,
             }),
         ).toEqual({ label: "다시 연결", href: "/my/platforms" });
+        // 시세 변동 — 내 상품은 판매 관리, 관심상품(우리 상품·외부 매물)은 상품 상세
+        expect(getNotificationLink({ ...base, type: "SELL_PRICE_CHANGE" })?.href).toBe(
+            "/sell/manage?selected=10",
+        );
+        expect(getNotificationLink({ ...base, type: "BUY_PRICE_CHANGE" })?.href).toBe("/search/10");
+        expect(
+            getNotificationLink({
+                ...base,
+                type: "BUY_PRICE_CHANGE",
+                productId: null,
+                listingId: 77,
+            })?.href,
+        ).toBe("/search/77");
     });
 
     it("오늘은 상대 시간, 어제는 '어제', 그 전은 날짜로 표시한다", () => {

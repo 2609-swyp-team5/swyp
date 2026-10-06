@@ -4,10 +4,13 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.swyp.team5.notification.entity.Notification;
 import com.swyp.team5.notification.entity.NotificationType;
@@ -23,6 +26,15 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     long countByMemberIdAndReadFalse(Long memberId);
 
     long countByMemberId(Long memberId);
+
+    /** 주어진 대상에 대해 주어진 시각 이후 해당 종류 알림을 받은 회원 ID(시세 변동 알림 하루 1회 제한용). */
+    @Query(
+            """
+            SELECT n.member.id FROM Notification n
+            WHERE n.item.id = :itemId AND n.type = :type AND n.createdAt >= :from
+            """)
+    Set<Long> findMemberIdsNotifiedSince(
+            @Param("itemId") Long itemId, @Param("type") NotificationType type, @Param("from") LocalDateTime from);
 
     long countByMemberIdAndTypeInAndCreatedAtGreaterThanEqual(
             Long memberId, Collection<NotificationType> types, LocalDateTime from);

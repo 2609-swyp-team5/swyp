@@ -67,6 +67,10 @@ public class ProductAnalysisService {
 
     private static final String SELLING_STATUS = "SELLING";
 
+    // 판매자에게 시세 변동 알림을 보내는 상품 상태(임시저장은 아직 판매 전이라 제외)
+    private static final List<ProductStatus> PRICE_CHANGE_SELLER_TARGETS =
+            List.of(ProductStatus.ON_SALE, ProductStatus.RESERVED);
+
     /** 추세 계산에 쓸 이전 분석 기록 기간(개월). 프롬프트의 1/3/6개월 전 대비 비교 중 가장 긴 기간과 같다. */
     private static final int TREND_MONTHS = 6;
 
@@ -651,10 +655,23 @@ public class ProductAnalysisService {
         // 시세 분석의 적정가는 스냅샷에만 저장한다 — 상품의 AI 제안가(products.suggested_price)는 사진 추정가로 고정
 
         // 관점별 추천이 직전 스냅샷과 달라졌으면 판매자(SELL/HOLD)·관심 등록 회원(BUY/WAIT)에게 각각 알림
-        notificationService.notifyRecommendationChanged(
-                product, previous.map(ProductAnalysis::getRecommendation).orElse(null), sellerRecommendation);
-        notificationService.notifyRecommendationChanged(
-                product, previous.map(ProductAnalysis::getBuyerRecommendation).orElse(null), buyerRecommendation);
+        AnalysisRecommendation previousSeller =
+                previous.map(ProductAnalysis::getRecommendation).orElse(null);
+        AnalysisRecommendation previousBuyer =
+                previous.map(ProductAnalysis::getBuyerRecommendation).orElse(null);
+        notificationService.notifyRecommendationChanged(product, previousSeller, sellerRecommendation);
+        notificationService.notifyRecommendationChanged(product, previousBuyer, buyerRecommendation);
+
+        // 평균 시세가 직전 분석보다 크게 변했으면 시세 변동 알림 — 같은 분석에서 추천이 바뀌어 전환 알림이 나간 쪽은 생략
+        if (previous.isPresent() && PriceChangeRule.shouldAlert(changeRate, analysis.getConfidence())) {
+            notificationService.notifyPriceChanged(
+                    product,
+                    previous.get().getAveragePrice(),
+                    averagePrice,
+                    PRICE_CHANGE_SELLER_TARGETS.contains(product.getStatus())
+                            && Objects.equals(previousSeller, sellerRecommendation),
+                    Objects.equals(previousBuyer, buyerRecommendation));
+        }
     }
 
     /**
@@ -727,6 +744,14 @@ public class ProductAnalysisService {
 
         notificationService.notifyListingRecommendationChanged(
                 listing, previous.map(ProductAnalysis::getRecommendation).orElse(null), recommendation);
+
+        // 평균 시세가 직전 분석보다 크게 변했으면 시세 변동 알림 — 같은 분석에서 추천이 바뀌어 전환 알림이 나갔으면 생략
+        if (previous.isPresent()
+                && PriceChangeRule.shouldAlert(changeRate, analysis.getConfidence())
+                && Objects.equals(previous.get().getRecommendation(), recommendation)) {
+            notificationService.notifyListingPriceChanged(
+                    listing, previous.get().getAveragePrice(), averagePrice);
+        }
     }
 
     /**
