@@ -190,11 +190,11 @@ public class InterestService {
     }
 
     /**
-     * 관심상품의 목표가를 설정(재설정)한다. 재설정 시 알림 발송 이력이 초기화된다.
+     * 관심상품의 목표가를 설정(재설정)하거나 해제({@code null})한다. 이미 알렸고 새 목표가로도 도달 상태면 다시 알리지 않는다(해제·미도달 목표가로 바꾸면 이력 초기화).
      *
      * @param memberId 요청자 회원 ID
      * @param interestId 대상 관심상품 ID
-     * @param targetPrice 새 목표 가격
+     * @param targetPrice 새 목표 가격(해제면 null)
      * @return 반영된 목표가
      */
     public TargetPriceResponse setTargetPrice(Long memberId, Long interestId, Long targetPrice) {

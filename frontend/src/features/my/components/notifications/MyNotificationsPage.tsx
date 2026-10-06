@@ -29,6 +29,12 @@ const groups: {
                 title: "시세 변동 알림",
                 description: "등록한 물건의 시세가 크게 변동하면 알려드려요.",
             },
+            {
+                id: "targetPriceEnabled",
+                title: "목표 가격 도달 알림",
+                description:
+                    "내 물건 시세가 목표 판매가 이상이 되거나 관심 상품 가격이 목표 구매가 이하가 되면 알려드려요.",
+            },
         ],
     },
     {

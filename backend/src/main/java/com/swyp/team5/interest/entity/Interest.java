@@ -99,9 +99,16 @@ public class Interest {
         this.notifiedAt = null;
     }
 
-    /** 목표가를 재설정한다. 명세상 재설정 시 알림 발송 이력이 초기화되어 다시 알림 대상이 될 수 있다. */
+    /**
+     * 목표가를 재설정한다({@code null}이면 해제). 이미 도달 알림을 보냈고 새 목표가로도 현재 가격이 여전히 목표가 이하면 기록을
+     * 유지해 같은 도달로 다시 알리지 않는다. 해제하거나 아직 도달하지 않은 목표가로 바꾸면 기록을 지워 도달할 때 다시 알린다.
+     */
     public void changeTargetPrice(Long targetPrice) {
         this.targetPrice = targetPrice;
-        this.notifiedAt = null;
+        Long currentPrice = currentPrice();
+        boolean stillReached = targetPrice != null && currentPrice != null && currentPrice <= targetPrice;
+        if (!stillReached) {
+            this.notifiedAt = null;
+        }
     }
 }

@@ -45,6 +45,8 @@ import com.swyp.team5.product.dto.ProductSearchPlatform;
 import com.swyp.team5.product.dto.ProductSortType;
 import com.swyp.team5.product.dto.ProductStatusUpdateRequest;
 import com.swyp.team5.product.dto.ProductSummaryResponse;
+import com.swyp.team5.product.dto.ProductTargetPriceRequest;
+import com.swyp.team5.product.dto.ProductTargetPriceResponse;
 import com.swyp.team5.product.dto.ProductUpdateRequest;
 import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.ProductCondition;
@@ -52,6 +54,7 @@ import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.service.ProductAiSearchService;
 import com.swyp.team5.product.service.ProductRegisterStreamService;
 import com.swyp.team5.product.service.ProductService;
+import com.swyp.team5.product.service.ProductTargetPriceService;
 import com.swyp.team5.productanalysis.dto.ProductCompetitionResponse;
 import com.swyp.team5.search.service.SearchLogService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -68,6 +71,7 @@ public class ProductController {
     private final ProductRegisterStreamService productRegisterStreamService;
     private final SearchLogService searchLogService;
     private final ProductAiSearchService productAiSearchService;
+    private final ProductTargetPriceService productTargetPriceService;
 
     /**
      * 상품을 직접 등록하며 진행 상황을 SSE로 보낸다. 상품 사진 파일을 직접 받아 서버가 업로드 → AI 사진 분석 → 저장까지 한 번에
@@ -350,6 +354,41 @@ public class ProductController {
             @PathVariable Long productId,
             @Valid @RequestBody ProductStatusUpdateRequest request) {
         ProductResponse response = productService.updateStatus(currentMember.memberId(), productId, request.status());
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    /**
+     * 내 상품의 목표 판매가와 비교 기준(최근 시세 분석 평균가)을 조회한다. 본인이 등록한 상품만 조회할 수 있다.
+     *
+     * @param currentMember 인증된 요청자
+     * @param productId 상품 ID
+     * @return 200 OK + 목표 판매가·최근 평균 시세·도달 여부
+     */
+    @Operation(summary = "목표 판매가 조회")
+    @GetMapping("/{productId}/target-price")
+    public ResponseEntity<ApiResponse<ProductTargetPriceResponse>> getTargetPrice(
+            @AuthenticationPrincipal PrincipalMember currentMember, @PathVariable Long productId) {
+        return ResponseEntity.ok(
+                ApiResponse.success(productTargetPriceService.getTargetPrice(currentMember.memberId(), productId)));
+    }
+
+    /**
+     * 내 상품의 목표 판매가를 설정(재설정)하거나 해제({@code targetPrice: null})한다. 최근 시세 분석 평균가가 목표가 이상이 되면
+     * 판매자에게 알림이 1번 간다(이미 이상이면 설정 직후 바로).
+     *
+     * @param currentMember 인증된 요청자
+     * @param productId 상품 ID
+     * @param request 목표가 요청 바디
+     * @return 200 OK + 반영된 목표 판매가
+     */
+    @Operation(summary = "목표 판매가 설정")
+    @PatchMapping("/{productId}/target-price")
+    public ResponseEntity<ApiResponse<ProductTargetPriceResponse>> setTargetPrice(
+            @AuthenticationPrincipal PrincipalMember currentMember,
+            @PathVariable Long productId,
+            @Valid @RequestBody ProductTargetPriceRequest request) {
+        ProductTargetPriceResponse response =
+                productTargetPriceService.setTargetPrice(currentMember.memberId(), productId, request.targetPrice());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 

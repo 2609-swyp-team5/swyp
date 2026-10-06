@@ -66,6 +66,12 @@ public class Product extends Item {
     @Column(name = "analysis_description", columnDefinition = "TEXT")
     private String analysisDescription; // 등록 시 AI 사진 분석의 상태 등급/제안가 판단 근거(시세 분석으로는 바뀌지 않음)
 
+    @Column(name = "target_price")
+    private Long targetPrice; // 판매자 목표 판매가(선택, 최근 시세 분석 평균가가 이 값 이상이면 알림)
+
+    @Column(name = "target_price_notified_at")
+    private LocalDateTime targetPriceNotifiedAt; // 목표 판매가 도달 알림을 보낸 시각(같은 도달로 다시 보내지 않음)
+
     @Column(name = "view_count", nullable = false)
     private long viewCount; // 조회수(판매자 본인 제외, 회원당 24시간 1회 — 증가는 ProductRepository.incrementViewCount)
 
@@ -274,6 +280,30 @@ public class Product extends Item {
      */
     public void changeAnalysisDescription(String analysisDescription) {
         this.analysisDescription = analysisDescription;
+    }
+
+    /**
+     * 목표 판매가를 설정한다({@code null}이면 해제). 이미 도달 알림을 보냈고 새 목표가로도 여전히 도달 상태면 기록을 유지해 같은
+     * 도달로 다시 알리지 않는다. 해제하거나 아직 도달하지 않은 목표가로 바꾸면 기록을 지워 도달할 때 다시 알린다.
+     *
+     * @param averagePrice 비교 기준인 최근 시세 분석 평균가(분석이 없으면 {@code null})
+     */
+    public void changeTargetPrice(Long targetPrice, Long averagePrice) {
+        this.targetPrice = targetPrice;
+        boolean stillReached = targetPrice != null && averagePrice != null && averagePrice >= targetPrice;
+        if (!stillReached) {
+            this.targetPriceNotifiedAt = null;
+        }
+    }
+
+    /** 목표 판매가 도달 알림을 보냈다고 기록한다. */
+    public void markTargetPriceNotified(LocalDateTime notifiedAt) {
+        this.targetPriceNotifiedAt = notifiedAt;
+    }
+
+    /** 평균가가 목표가 아래로 내려가 알림 기록을 지운다(다음에 다시 오르면 다시 알림). */
+    public void resetTargetPriceNotified() {
+        this.targetPriceNotifiedAt = null;
     }
 
     /**

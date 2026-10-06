@@ -545,6 +545,36 @@ class InterestServiceTest {
         verify(targetPriceAlertService).check(interest);
     }
 
+    // null이면 목표가 해제(알림 기록도 지움)
+    @Test
+    void setTargetPriceNullClearsTarget() {
+        Product product = newProduct(1L, newMember(2L));
+        Interest interest = newProductInterest(10L, newMember(1L), product, 300_000L);
+        setField(interest, "notifiedAt", LocalDateTime.now());
+        when(interestRepository.findByIdAndMemberId(10L, 1L)).thenReturn(Optional.of(interest));
+
+        TargetPriceResponse response = service().setTargetPrice(1L, 10L, null);
+
+        assertThat(response.targetPrice()).isNull();
+        assertThat(interest.getTargetPrice()).isNull();
+        assertThat(interest.getNotifiedAt()).isNull();
+    }
+
+    // 이미 알렸고 바꾼 목표가로도 현재가(500,000원)가 여전히 이하면 기록 유지(재알림 없음)
+    @Test
+    void setTargetPriceKeepsNotifiedWhenStillReached() {
+        Product product = newProduct(1L, newMember(2L));
+        Interest interest = newProductInterest(10L, newMember(1L), product, 550_000L);
+        LocalDateTime notifiedAt = LocalDateTime.now();
+        setField(interest, "notifiedAt", notifiedAt);
+        when(interestRepository.findByIdAndMemberId(10L, 1L)).thenReturn(Optional.of(interest));
+
+        service().setTargetPrice(1L, 10L, 600_000L);
+
+        assertThat(interest.getTargetPrice()).isEqualTo(600_000L);
+        assertThat(interest.getNotifiedAt()).isEqualTo(notifiedAt);
+    }
+
     // 외부 매물 대상 관심상품도 목표가 설정 가능
     @Test
     void setTargetPriceSucceedsForListing() {

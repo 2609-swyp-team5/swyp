@@ -5,7 +5,10 @@ import {
     createProductSummaryMock,
     createProductValuationForecastMock,
 } from "../mocks/productManagementMock";
-import type { ProductDetailSummaryResponse } from "../schemas/productManagementResponseSchema";
+import type {
+    ProductDetailSummaryResponse,
+    ProductTargetPriceResponse,
+} from "../schemas/productManagementResponseSchema";
 import type {
     ProductCompetition,
     ProductMarketAnalysis,
@@ -66,4 +69,29 @@ export async function getProductCompetitionMock(
     await waitForMockResponse(mockResponseDelayMs.competition);
 
     return createProductCompetitionMock(productId, perspective);
+}
+
+// mock 모드에서 상품별 목표 판매가(새로고침하면 초기화). 평균 시세는 등록가 기준 가상값.
+const mockTargetPrices = new Map<number, number | null>();
+
+function productTargetPriceMock(productId: number): ProductTargetPriceResponse {
+    const targetPrice = mockTargetPrices.get(productId) ?? null;
+    const averagePrice = createProductSummaryMock(productId).price;
+    return {
+        productId,
+        targetPrice,
+        averagePrice,
+        reached: targetPrice !== null && averagePrice >= targetPrice,
+    };
+}
+
+export async function getProductTargetPriceMock(productId: number) {
+    await waitForMockResponse(mockResponseDelayMs.marketAnalysis);
+    return productTargetPriceMock(productId);
+}
+
+export async function setProductTargetPriceMock(productId: number, targetPrice: number | null) {
+    await waitForMockResponse(mockResponseDelayMs.marketAnalysis);
+    mockTargetPrices.set(productId, targetPrice);
+    return productTargetPriceMock(productId);
 }

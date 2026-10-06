@@ -327,6 +327,29 @@ public class NotificationService {
     }
 
     /**
+     * 내 상품의 최근 시세 분석 평균가가 목표 판매가 이상이 됐다고 판매자에게 알림을 만든다. 재알림 방지는 호출 측
+     * ({@code target_price_notified_at}). 회원이 목표가 알림을 끈 경우 만들지 않는다.
+     *
+     * @return 알림을 만들었으면 {@code true}(알림을 끈 회원이면 {@code false})
+     */
+    public boolean notifySellerTargetPriceReached(Product product, long averagePrice) {
+        if (notificationSettingRepository.existsByMemberIdAndTargetPriceEnabledFalse(
+                product.getMember().getId())) {
+            log.info("상품 {} 목표 판매가 도달 — 판매자가 목표가 알림을 꺼서 알림을 만들지 않음", product.getId());
+            return false;
+        }
+        notificationRepository.save(Notification.create(
+                product.getMember(),
+                product,
+                NotificationType.SELL_TARGET_PRICE,
+                "목표 판매가에 도달했어요",
+                "등록하신 '%s'의 평균 시세가 %,d원으로 설정하신 목표 판매가 %,d원 이상이 됐어요."
+                        .formatted(product.getTitle(), averagePrice, product.getTargetPrice())));
+        log.info("상품 {} 목표 판매가 도달 알림 생성(평균 시세 {}, 목표가 {})", product.getId(), averagePrice, product.getTargetPrice());
+        return true;
+    }
+
+    /**
      * 외부 플랫폼 연동 세션이 만료됐다고 회원에게 알림을 만든다. 만료로 바뀐 순간에만 호출해야 한다(재알림 방지는 호출 측).
      *
      * @return 알림을 만들었으면 true, 회원이 연동 만료 알림을 꺼서 만들지 않았으면 false

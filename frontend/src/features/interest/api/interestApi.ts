@@ -6,6 +6,7 @@ import type {
     InterestListResponse,
     InterestRegisterInput,
     InterestStatus,
+    InterestTargetPriceResponse,
 } from "../types";
 import { interestRegisterInputSchema } from "../schemas/interestRequestSchema";
 import { startFastNotificationPolling } from "@/features/notifications/lib/fastPolling";
@@ -32,8 +33,15 @@ const registerInterest = async (input: InterestRegisterInput) => {
 const deleteInterest = (interestId: number) =>
     api.delete<ApiResponse<null>>(`/interests/${interestId}`);
 
+// null이면 목표가 해제
+const setTargetPrice = (interestId: number, targetPrice: number | null) =>
+    api.patch<ApiResponse<InterestTargetPriceResponse>>(`/interests/${interestId}/target-price`, {
+        targetPrice,
+    });
+
 export const interestApi = {
     getInterests,
     registerInterest,
     deleteInterest,
+    setTargetPrice,
 };

@@ -275,6 +275,27 @@ class NotificationServiceTest {
         assertThat(captor.getValue().getType()).isEqualTo(NotificationType.TARGET_PRICE);
     }
 
+    // 목표 판매가 도달 - 판매자에게 SELL_TARGET_PRICE 알림(평균 시세·목표가 문구), 목표가 알림을 끈 판매자면 안 만들고 false
+    @Test
+    void createsSellerTargetPriceAlertUnlessDisabled() {
+        Product product = product(member(10L));
+        when(product.getTargetPrice()).thenReturn(300_000L);
+
+        assertThat(service().notifySellerTargetPriceReached(product, 330_000L)).isTrue();
+
+        ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
+        verify(notificationRepository).save(captor.capture());
+        assertThat(captor.getValue().getType()).isEqualTo(NotificationType.SELL_TARGET_PRICE);
+        assertThat(captor.getValue().getTitle()).isEqualTo("목표 판매가에 도달했어요");
+        assertThat(captor.getValue().getMessage())
+                .isEqualTo("등록하신 '아이패드 프로'의 평균 시세가 330,000원으로 설정하신 목표 판매가 300,000원 이상이 됐어요.");
+
+        when(notificationSettingRepository.existsByMemberIdAndTargetPriceEnabledFalse(10L))
+                .thenReturn(true);
+        assertThat(service().notifySellerTargetPriceReached(product, 330_000L)).isFalse();
+        verify(notificationRepository).save(any());
+    }
+
     @Test
     void markReadFailsWhenNotOwnNotification() {
         when(notificationRepository.findByIdAndMemberId(5L, 2L)).thenReturn(Optional.empty());

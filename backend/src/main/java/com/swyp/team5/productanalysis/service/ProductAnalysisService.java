@@ -39,6 +39,7 @@ import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.repository.ProductRepository;
+import com.swyp.team5.product.service.ProductTargetPriceService;
 import com.swyp.team5.productanalysis.config.ProductAnalysisProperties;
 import com.swyp.team5.productanalysis.dto.AnalysisPerspective;
 import com.swyp.team5.productanalysis.dto.CompetitionLevel;
@@ -167,6 +168,7 @@ public class ProductAnalysisService {
     private final ItemRepository itemRepository;
     private final AnalysisProgressTracker progressTracker;
     private final ListingSearchService listingSearchService;
+    private final ProductTargetPriceService productTargetPriceService;
 
     public ProductAnalysisService(
             AiChatExecutor aiChatExecutor,
@@ -180,7 +182,8 @@ public class ProductAnalysisService {
             CategoryRepository categoryRepository,
             ItemRepository itemRepository,
             AnalysisProgressTracker progressTracker,
-            ListingSearchService listingSearchService) {
+            ListingSearchService listingSearchService,
+            ProductTargetPriceService productTargetPriceService) {
         this.aiChatExecutor = aiChatExecutor;
         this.productRepository = productRepository;
         this.platformListingRepository = platformListingRepository;
@@ -193,6 +196,7 @@ public class ProductAnalysisService {
         this.itemRepository = itemRepository;
         this.listingSearchService = listingSearchService;
         this.progressTracker = progressTracker;
+        this.productTargetPriceService = productTargetPriceService;
     }
 
     /**
@@ -672,6 +676,9 @@ public class ProductAnalysisService {
                             && Objects.equals(previousSeller, sellerRecommendation),
                     Objects.equals(previousBuyer, buyerRecommendation));
         }
+
+        // 판매자가 정한 목표 판매가에 평균 시세가 도달했으면 판매자에게 알림(도달 1번에 1회)
+        productTargetPriceService.checkAfterAnalysis(product.getId(), averagePrice);
     }
 
     /**
