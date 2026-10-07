@@ -187,6 +187,11 @@ analysis:
   interest-concurrency: ${PRICE_ANALYSIS_INTEREST_CONCURRENCY:3} # 관심 등록 직후 분석을 동시에 처리할 수(AI 호출 제한에 걸리면 줄임)
   interest-skip-hours: ${PRICE_ANALYSIS_INTEREST_SKIP_HOURS:6} # 관심 등록 직후 분석을 건너뛸 최근 분석 기준 시간(0이면 항상 분석 — 개발용)
   interest-min-listings: ${PRICE_ANALYSIS_INTEREST_MIN_LISTINGS:1} # 관심 등록 대상(관심 등록 직후 분석·외부 매물 분석)의 최소 유사 매물 수 — 적으면 신뢰도 LOW
+  recovery: # 등록·관심 등록 직후 분석이 재시작·오류로 사라진 대상을 다시 대기열에 넣음(분석 결과·건너뛴 기록 둘 다 없는 대상)
+    enabled: ${PRICE_ANALYSIS_RECOVERY_ENABLED:true}
+    window-hours: ${PRICE_ANALYSIS_RECOVERY_WINDOW_HOURS:24} # 최근 이 시간 안에 등록·관심 등록된 대상만
+    initial-delay: PT1M # 기동 후 첫 확인
+    interval: ${PRICE_ANALYSIS_RECOVERY_INTERVAL:PT30M} # 이후 확인 간격(실패한 대상은 이 간격으로 다시 시도)
   confidence: # 신뢰도: 비율 = 매물 수 / full-listings, 등급 = 비율 구간·가격 변동계수 구간 중 낮은 쪽
     full-listings: 20 # 비율 100%가 되는 비교 매물 수
     high-rate: 70 # HIGH 최소 비율(%)

@@ -38,6 +38,8 @@ analysis:
   enabled: false
   analyze-on-register: false
   analyze-on-interest: false
+  recovery:
+    enabled: false # 테스트 중 분석 복구 스케줄러가 돌지 않도록
   interest-skip-hours: 6 # .env의 개발용 값이 테스트에 새지 않도록 고정
   interest-min-listings: 1 # .env 값이 테스트에 새지 않도록 고정
   search-fallback:
