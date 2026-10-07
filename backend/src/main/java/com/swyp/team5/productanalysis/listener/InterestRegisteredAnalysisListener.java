@@ -25,6 +25,8 @@ import com.swyp.team5.productanalysis.service.ProductAnalysisService;
  * 줄인다). 같은 대상이 이미 대기 중이거나 분석 중이면 다시 넣지 않는다(같은 대상 동시 분석·알림 중복 방지). 첫 분석이면 관심
  * 등록 회원에게 추천 알림도 간다(배치와 같은 규칙). 대기열에 넣는 순간부터
  * 분석이 끝날 때까지 {@link AnalysisProgressTracker}에 진행 중으로 기록한다(관심 목록에서 분석대기 대신 관찰중으로 보이도록).
+ * 대기열은 메모리에만 있어 재시작하면 사라지므로, 분석되지 않은 대상은
+ * {@link com.swyp.team5.productanalysis.scheduler.PendingAnalysisRecoveryScheduler}가 다시 넣는다.
  */
 @Component
 @ConditionalOnProperty(prefix = "analysis", name = "analyze-on-interest", havingValue = "true", matchIfMissing = true)
@@ -55,9 +57,17 @@ public class InterestRegisteredAnalysisListener {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onInterestRegistered(InterestRegisteredEvent event) {
-        Long itemId = event.itemId();
+        enqueue(event.itemId());
+    }
+
+    /**
+     * 대상 분석을 대기열에 넣는다(이미 대기 중이거나 분석 중이면 무시 — 그 분석이 끝나면 결과·알림이 같이 반영된다).
+     *
+     * @return 새로 넣었으면 true
+     */
+    public boolean enqueue(Long itemId) {
         if (!queuedItemIds.add(itemId)) {
-            return; // 이미 대기 중이거나 분석 중 — 그 분석이 끝나면 결과·알림이 같이 반영된다
+            return false;
         }
         progressTracker.start(itemId);
         try {
@@ -75,6 +85,7 @@ public class InterestRegisteredAnalysisListener {
             progressTracker.finish(itemId);
             throw e;
         }
+        return true;
     }
 
     @PreDestroy
