@@ -24,6 +24,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.LongStream;
 
 import org.springframework.ai.chat.client.ChatClient;
@@ -72,7 +73,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class ProductAnalysisServiceTest {
 
     private static final ProductAnalysisProperties PROPERTIES =
-            new ProductAnalysisProperties(3, 24, 30, 0L, null, null, null, null, 3);
+            new ProductAnalysisProperties(3, 24, 30, 0L, null, null, null, null, 3, null);
 
     private final ChatClient geminiAiClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
     private final ChatClient openAiClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
@@ -287,7 +288,7 @@ class ProductAnalysisServiceTest {
                 .thenReturn(Optional.of(recent));
         givenListings(10L, List.of(listing("갤럭시 탭 S9", 9000L)));
 
-        service(new ProductAnalysisProperties(3, 24, 30, 0L, 0, null, null, null, 3))
+        service(new ProductAnalysisProperties(3, 24, 30, 0L, 0, null, null, null, 3, null))
                 .analyzeInterestedItemById(1L);
 
         verify(platformListingRepository)
@@ -434,7 +435,7 @@ class ProductAnalysisServiceTest {
                         new MarketAnalysisResult(List.of(1, 2, 3), AnalysisRecommendation.HOLD, 1100L, "2차"));
 
         // 후보 최대 3건 — 1차 후보 [매물1~3], 2차 후보 [매물1, 검색1, 검색2]
-        service(new ProductAnalysisProperties(3, 24, 3, 0L, null, null, null, null, 3))
+        service(new ProductAnalysisProperties(3, 24, 3, 0L, null, null, null, null, 3, null))
                 .analyzeProduct(product);
 
         ArgumentCaptor<ProductAnalysis> captor = ArgumentCaptor.forClass(ProductAnalysis.class);
@@ -452,7 +453,16 @@ class ProductAnalysisServiceTest {
         givenListings(10L, List.of(listing("아이패드 프로 매물1", 1000L)));
 
         service(new ProductAnalysisProperties(
-                        3, 24, 30, 0L, null, null, null, new ProductAnalysisProperties.SearchFallback(false, 100), 3))
+                        3,
+                        24,
+                        30,
+                        0L,
+                        null,
+                        null,
+                        null,
+                        new ProductAnalysisProperties.SearchFallback(false, 100),
+                        3,
+                        null))
                 .analyzeProduct(product);
 
         verifyNoInteractions(listingSearchService);
@@ -797,7 +807,7 @@ class ProductAnalysisServiceTest {
                 .thenReturn(List.of(target, comparison));
         givenAiResult(new MarketAnalysisResult(List.of(1), AnalysisRecommendation.BUY, 1000L, "설명"));
 
-        service(new ProductAnalysisProperties(3, 24, 30, 0L, null, null, null, null, 1))
+        service(new ProductAnalysisProperties(3, 24, 30, 0L, null, null, null, null, 1, null))
                 .analyzeListing(target);
 
         ArgumentCaptor<ProductAnalysis> captor = ArgumentCaptor.forClass(ProductAnalysis.class);
@@ -817,7 +827,7 @@ class ProductAnalysisServiceTest {
         givenListings(10L, List.of(listing("아이패드 프로 매물1", 1000L)));
         givenAiResult(new MarketAnalysisResult(List.of(1), AnalysisRecommendation.SELL, 1000L, "설명"));
 
-        service(new ProductAnalysisProperties(3, 24, 30, 0L, 0, null, null, null, 1))
+        service(new ProductAnalysisProperties(3, 24, 30, 0L, 0, null, null, null, 1, null))
                 .analyzeInterestedItemById(1L);
 
         verify(productAnalysisRepository).save(any());
@@ -923,6 +933,48 @@ class ProductAnalysisServiceTest {
         verify(productAnalysisRepository).save(any());
         // 판매가 900원이 평균 시세 2,000원보다 저렴해 BUY
         verify(notificationService).notifyListingRecommendationChanged(target, null, AnalysisRecommendation.BUY);
+    }
+
+    // 배치 - 등록·관심 등록 직후 분석으로 이미 분석 중인 대상은 건너뜀
+    @Test
+    void analyzeAllSkipsItemsAlreadyInProgress() {
+        Product running = product(1L, 10L, 800_000L);
+        Product waiting = product(2L, 20L, 500_000L);
+        when(productRepository.findByStatusIn(ProductStatus.ANALYSIS_TARGETS)).thenReturn(List.of(running, waiting));
+        progressTracker.start(1L);
+
+        service().analyzeAll();
+
+        verify(platformListingRepository, never())
+                .findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(eq(10L), anyString(), any());
+        verify(platformListingRepository)
+                .findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(eq(20L), anyString(), any());
+        progressTracker.finish(1L);
+    }
+
+    // 배치 - 설정한 수(기본 3)까지 동시에 분석하고, 모두 끝난 뒤 반환
+    @Test
+    void analyzeAllAnalyzesConcurrently() {
+        List<Product> products =
+                List.of(product(1L, 10L, 100_000L), product(2L, 20L, 100_000L), product(3L, 30L, 100_000L));
+        when(productRepository.findByStatusIn(ProductStatus.ANALYSIS_TARGETS)).thenReturn(products);
+        AtomicInteger current = new AtomicInteger();
+        AtomicInteger max = new AtomicInteger();
+        AtomicInteger done = new AtomicInteger();
+        when(platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
+                        anyLong(), anyString(), any()))
+                .thenAnswer(invocation -> {
+                    max.accumulateAndGet(current.incrementAndGet(), Math::max);
+                    Thread.sleep(200);
+                    current.decrementAndGet();
+                    done.incrementAndGet();
+                    return List.of();
+                });
+
+        service().analyzeAll();
+
+        assertThat(done.get()).isEqualTo(3);
+        assertThat(max.get()).isGreaterThan(1);
     }
 
     // 감가 예측 조회 - 가장 최근 분석의 예측을 1M/3M/6M 순으로 반환

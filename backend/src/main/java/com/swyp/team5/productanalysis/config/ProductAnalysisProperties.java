@@ -12,12 +12,13 @@ public record ProductAnalysisProperties(
         @NotNull Integer minListings, // 분석에 필요한 최소 유사 매물 수(후보/최종 선별 모두 미만이면 분석 건너뜀)
         @NotNull Integer freshnessHours, // 비교 매물로 인정할 최근 수집 기준 시간
         @NotNull Integer sampleSize, // 상품명 키워드로 고른 유사 매물 후보(AI 프롬프트에 포함) 최대 개수
-        @NotNull Long aiCallIntervalMs, // AI 호출 간 최소 대기 시간(무료 티어 RPM 제한 대응)
+        @NotNull Long aiCallIntervalMs, // 한 처리 스레드의 AI 호출 간 최소 대기 시간(호출 제한 대응)
         Integer interestSkipHours, // 관심 등록 직후 분석을 건너뛸 최근 분석 기준 시간(없으면 6, 0이면 항상 분석)
         Confidence confidence, // 신뢰도 기준(없으면 기본값)
         Competition competition, // 경쟁 상품 기준(없으면 기본값)
         SearchFallback searchFallback, // 비교 매물 부족 시 상품명 검색 설정(없으면 기본값)
-        Integer interestMinListings) { // 관심 등록 대상(관심 등록 직후 분석·외부 매물 분석)의 최소 유사 매물 수(없으면 1)
+        Integer interestMinListings, // 관심 등록 대상(관심 등록 직후 분석·외부 매물 분석)의 최소 유사 매물 수(없으면 1)
+        Integer batchConcurrency) { // 정기 배치에서 동시에 분석할 대상 수(없으면 3)
 
     /** 관심 등록 직후 분석을 건너뛸 최근 분석 기준 기본값(시간). 정기 배치 주기(6시간)와 같다. */
     public static final int DEFAULT_INTEREST_SKIP_HOURS = 6;
@@ -27,6 +28,9 @@ public record ProductAnalysisProperties(
      * 기반 신뢰도가 낮게(LOW) 표시된다.
      */
     public static final int DEFAULT_INTEREST_MIN_LISTINGS = 1;
+
+    /** 정기 배치 동시 분석 수 기본값. 관심 등록 직후 분석 동시 처리 수({@code interest-concurrency})와 같다. */
+    public static final int DEFAULT_BATCH_CONCURRENCY = 3;
 
     public ProductAnalysisProperties {
         if (interestSkipHours == null) {
@@ -43,6 +47,9 @@ public record ProductAnalysisProperties(
         }
         if (interestMinListings == null) {
             interestMinListings = DEFAULT_INTEREST_MIN_LISTINGS;
+        }
+        if (batchConcurrency == null || batchConcurrency < 1) {
+            batchConcurrency = DEFAULT_BATCH_CONCURRENCY;
         }
     }
 
