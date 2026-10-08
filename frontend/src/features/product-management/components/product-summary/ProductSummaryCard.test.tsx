@@ -48,4 +48,26 @@ describe("ProductSummaryCard", () => {
         expect(screen.queryByText("최종판매가격")).not.toBeInTheDocument();
         expect(screen.queryByRole("button", { name: "판매완료" })).not.toBeInTheDocument();
     });
+
+    it("관심 상품은 상단에 판매글 바로가기를 표시하고 관심 액션을 하단으로 이동한다", () => {
+        render(
+            <ProductSummaryCard
+                product={{ ...soldProduct, status: "ON_SALE", platforms: [] }}
+                interest={{
+                    detailLabel: "번개장터 매물",
+                    platformName: "번개장터",
+                    externalUrl: "https://example.com/product/3",
+                    deletePending: false,
+                    onDelete: vi.fn(),
+                }}
+            />,
+        );
+
+        expect(screen.getByRole("link", { name: "판매글 바로가기" })).toHaveAttribute(
+            "href",
+            "https://example.com/product/3",
+        );
+        expect(screen.getByRole("button", { name: "관심 상품 삭제" })).toHaveTextContent("관심");
+        expect(screen.queryByText("바로가기")).not.toBeInTheDocument();
+    });
 });
