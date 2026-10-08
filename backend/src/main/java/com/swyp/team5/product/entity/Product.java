@@ -72,6 +72,12 @@ public class Product extends Item {
     @Column(name = "target_price_notified_at")
     private LocalDateTime targetPriceNotifiedAt; // 목표 판매가 도달 알림을 보낸 시각(같은 도달로 다시 보내지 않음)
 
+    @Column(name = "sold_price")
+    private Long soldPrice; // 최종 판매 가격(판매 완료로 바꿀 때 판매자가 직접 입력, 선택)
+
+    @Column(name = "sold_platform", length = 30)
+    private String soldPlatform; // 최종 판매 플랫폼명(판매 완료로 바꿀 때 판매자가 자유 입력, 선택 — 게시 플랫폼과 별개)
+
     @Column(name = "view_count", nullable = false)
     private long viewCount; // 조회수(판매자 본인 제외, 회원당 24시간 1회 — 증가는 ProductRepository.incrementViewCount)
 
@@ -307,12 +313,26 @@ public class Product extends Item {
     }
 
     /**
-     * 상품 게시 상태를 변경한다.
+     * 상품 게시 상태를 변경한다. 판매 완료가 아닌 상태로 바꾸면 최종 판매 정보(가격·플랫폼)를 지운다.
      *
      * @param status 변경할 상태
      */
     public void changeStatus(ProductStatus status) {
+        changeStatus(status, null, null);
+    }
+
+    /**
+     * 상품 게시 상태와 최종 판매 정보를 함께 변경한다. 판매 완료가 아닌 상태로 바꾸면 최종 판매 정보를 지운다.
+     *
+     * @param status 변경할 상태
+     * @param soldPrice 최종 판매 가격(판매 완료일 때만 저장, 미입력이면 null)
+     * @param soldPlatform 최종 판매 플랫폼명(판매 완료일 때만 앞뒤 공백을 빼고 저장, 미입력·빈 문자열이면 null)
+     */
+    public void changeStatus(ProductStatus status, Long soldPrice, String soldPlatform) {
         this.status = status;
+        boolean soldOut = status == ProductStatus.SOLD_OUT;
+        this.soldPrice = soldOut ? soldPrice : null;
+        this.soldPlatform = soldOut && soldPlatform != null && !soldPlatform.isBlank() ? soldPlatform.strip() : null;
     }
 
     /** 외부 플랫폼에 게시되면 호출한다. 아직 {@link ProductStatus#DRAFT}일 때만 판매중으로 바꾸고, 품절 상태는 그대로 둔다. */

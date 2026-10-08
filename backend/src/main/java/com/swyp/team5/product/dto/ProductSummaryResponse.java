@@ -14,6 +14,8 @@ public record ProductSummaryResponse(
         String title, // 상품 제목
         String brand, // 브랜드 (없으면 null)
         Long price, // 판매 희망가
+        Long soldPrice, // 최종 판매 가격(판매 완료 시 판매자가 직접 입력, 미입력·판매 완료 전이면 null)
+        String soldPlatform, // 최종 판매 플랫폼명(판매자 자유 입력 — 게시 플랫폼과 별개), 미입력·판매 완료 전·외부 매물은 null
         ProductStatus status, // 게시 상태
         ProductCondition condition, // 상품 상태 등급
         DefectStatus defectStatus, // 결함(하자) 상태
@@ -38,6 +40,8 @@ public record ProductSummaryResponse(
                 product.getTitle(),
                 product.getBrand(),
                 product.getPrice(),
+                product.getSoldPrice(),
+                product.getSoldPlatform(),
                 product.getStatus(),
                 product.getCondition(),
                 product.getDefectStatus(),

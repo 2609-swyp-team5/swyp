@@ -46,6 +46,7 @@ import com.swyp.team5.product.dto.ProductCreateRequest;
 import com.swyp.team5.product.dto.ProductDetailSummaryResponse;
 import com.swyp.team5.product.dto.ProductDetailSummaryResponse.PlatformLink;
 import com.swyp.team5.product.dto.ProductListItemResponse;
+import com.swyp.team5.product.dto.ProductManagementOverviewResponse;
 import com.swyp.team5.product.dto.ProductResponse;
 import com.swyp.team5.product.dto.ProductSearchCondition;
 import com.swyp.team5.product.dto.ProductSearchCursor;
@@ -1044,9 +1045,49 @@ class ProductServiceTest {
 
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
 
-        ProductResponse response = service().updateStatus(1L, 1L, ProductStatus.SOLD_OUT);
+        ProductResponse response = service().updateStatus(1L, 1L, ProductStatus.SOLD_OUT, null, null);
 
         assertThat(response.status()).isEqualTo(ProductStatus.SOLD_OUT);
+    }
+
+    // 상품 상태 변경 - 판매 완료로 바꾸면 최종 판매 가격·플랫폼을 저장하고, 다른 상태로 바꾸면 지운다
+    @Test
+    void updateStatusStoresSoldInfoOnlyWhileSoldOut() {
+        Product product = newProduct(1L, newMember(1L), newCategory(1L, "전자기기"));
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+
+        ProductResponse soldOut = service().updateStatus(1L, 1L, ProductStatus.SOLD_OUT, 850_000L, "당근");
+        assertThat(soldOut.soldPrice()).isEqualTo(850_000L);
+        assertThat(product.getSoldPrice()).isEqualTo(850_000L);
+        assertThat(soldOut.soldPlatform()).isEqualTo("당근");
+        assertThat(product.getSoldPlatform()).isEqualTo("당근");
+
+        ProductResponse onSale = service().updateStatus(1L, 1L, ProductStatus.ON_SALE, null, null);
+        assertThat(onSale.soldPrice()).isNull();
+        assertThat(product.getSoldPrice()).isNull();
+        assertThat(product.getSoldPlatform()).isNull();
+
+        service().updateStatus(1L, 1L, ProductStatus.SOLD_OUT, 850_000L, "  ");
+        assertThat(product.getSoldPlatform()).isNull();
+    }
+
+    // 판매 관리 상품 개요 조회 - 본인 상품이면 최종 판매 정보 포함, 다른 회원이면 거절
+    @Test
+    void getManagementOverviewReturnsSoldInfoToOwnerOnly() {
+        Product product = newProduct(1L, newMember(1L), newCategory(1L, "전자기기"));
+        product.changeStatus(ProductStatus.SOLD_OUT, 800_000L, "번개장터");
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+
+        ProductManagementOverviewResponse response = service().getManagementOverview(1L, 1L);
+
+        assertThat(response.id()).isEqualTo(1L);
+        assertThat(response.status()).isEqualTo(ProductStatus.SOLD_OUT);
+        assertThat(response.soldPrice()).isEqualTo(800_000L);
+        assertThat(response.soldPlatform()).isEqualTo("번개장터");
+        assertThatThrownBy(() -> service().getManagementOverview(2L, 1L))
+                .isInstanceOf(ProductAccessDeniedException.class);
     }
 
     // 상품 상태 변경 실패 - 소유자가 아님
@@ -1056,7 +1097,7 @@ class ProductServiceTest {
 
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
 
-        assertThatThrownBy(() -> service().updateStatus(2L, 1L, ProductStatus.SOLD_OUT))
+        assertThatThrownBy(() -> service().updateStatus(2L, 1L, ProductStatus.SOLD_OUT, null, null))
                 .isInstanceOf(ProductAccessDeniedException.class);
     }
 
@@ -1065,7 +1106,7 @@ class ProductServiceTest {
     void updateStatusFailsWhenNotFound() {
         when(productRepository.findById(1L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service().updateStatus(1L, 1L, ProductStatus.SOLD_OUT))
+        assertThatThrownBy(() -> service().updateStatus(1L, 1L, ProductStatus.SOLD_OUT, null, null))
                 .isInstanceOf(ProductNotFoundException.class);
     }
 

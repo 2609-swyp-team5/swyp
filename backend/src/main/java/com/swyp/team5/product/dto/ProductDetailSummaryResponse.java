@@ -22,6 +22,8 @@ public record ProductDetailSummaryResponse(
         String description, // 상품 설명, 외부 매물은 null
         CategoryResponse category, // 카테고리 정보
         Long price, // 판매 희망가(외부 매물은 판매가)
+        Long soldPrice, // 최종 판매 가격(판매 완료 시 판매자가 직접 입력, 미입력·판매 완료 전·외부 매물은 null)
+        String soldPlatform, // 최종 판매 플랫폼명(판매자 자유 입력 — 게시 플랫폼과 별개), 미입력·판매 완료 전·외부 매물은 null
         List<String> imageUrls, // 상품 이미지 URL 목록(등록 순서)
         List<String> tags, // 태그 이름 목록, 외부 매물은 []
         List<String> includedItems, // 구성품 이름 목록, 외부 매물은 []
@@ -56,6 +58,8 @@ public record ProductDetailSummaryResponse(
                 detail.description(),
                 detail.category(),
                 detail.price(),
+                detail.soldPrice(),
+                detail.soldPlatform(),
                 detail.imageUrls(),
                 detail.tags(),
                 detail.includedItems(),
