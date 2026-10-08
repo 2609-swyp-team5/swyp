@@ -171,7 +171,7 @@ describe("productApi", () => {
         const request = {
             status: "SOLD_OUT" as const,
             soldPrice: 300000,
-            soldPlatform: "BUNJANG",
+            soldPlatform: "번개장터",
         };
 
         await expect(productApi.updateProductStatus(42, request)).resolves.toEqual({

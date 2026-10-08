@@ -30,8 +30,8 @@ type ProductSummaryActionsProps = {
     canMarkAsSold?: boolean;
 };
 
-const soldPlatformOptions = Object.entries(platformDefinitions).map(([value, definition]) => ({
-    value,
+const soldPlatformOptions = Object.values(platformDefinitions).map((definition) => ({
+    value: definition.name,
     label: definition.name,
 }));
 

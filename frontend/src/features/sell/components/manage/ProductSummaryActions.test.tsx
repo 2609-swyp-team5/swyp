@@ -69,7 +69,7 @@ describe("ProductSummaryActions", () => {
                 id: 42,
                 status: "SOLD_OUT",
                 soldPrice: 300000,
-                soldPlatform: "BUNJANG",
+                soldPlatform: "번개장터",
             },
             expect.objectContaining({ onSuccess: expect.any(Function) }),
         );
