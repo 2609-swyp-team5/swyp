@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+
 import {
     Area,
     AreaChart,
@@ -26,6 +28,12 @@ const chartConfig = {
         color: "#6653fb",
     },
 } satisfies ChartConfig;
+
+const PRICE_TREND_CHART_HEIGHT = 258;
+const PRICE_TREND_X_AXIS_RESERVED_HEIGHT = 28;
+const CURRENT_PRICE_BADGE_HEIGHT = 25;
+const CURRENT_PRICE_BADGE_HORIZONTAL_PADDING = 20;
+const DEFAULT_CURRENT_PRICE_BADGE_WIDTH = 116;
 
 function formatChartPrice(price: number) {
     return `${(price / 10000).toFixed(0)}만`;
@@ -107,22 +115,60 @@ function PriceTrendTooltip({
     );
 }
 
-function CurrentPriceLabel({ viewBox, value }: { viewBox?: unknown; value: number }) {
+function CurrentPriceLabel({
+    viewBox,
+    value,
+    chartHeight,
+    textWidth,
+    onTextWidthChange,
+}: {
+    viewBox?: unknown;
+    value: number;
+    chartHeight: number;
+    textWidth: number | null;
+    onTextWidthChange: (width: number) => void;
+}) {
     const viewBoxRecord =
         typeof viewBox === "object" && viewBox !== null
-            ? (viewBox as { x?: unknown; y?: unknown })
+            ? (viewBox as { x?: unknown; y?: unknown; width?: unknown; height?: unknown })
             : {};
-    const x = Number(viewBoxRecord.x ?? 0);
-    const y = Number(viewBoxRecord.y ?? 0);
-    const badgeWidth = 116;
-    const badgeX = x - 12;
+    const x = Number(viewBoxRecord.x ?? 0) + Number(viewBoxRecord.width ?? 0) / 2;
+    const y = Number(viewBoxRecord.y ?? 0) + Number(viewBoxRecord.height ?? 0) / 2;
+    const label = `현재 ₩${value.toLocaleString("ko-KR")}`;
+    const textRef = useRef<SVGTextElement>(null);
+    const badgeWidth =
+        textWidth === null
+            ? DEFAULT_CURRENT_PRICE_BADGE_WIDTH
+            : Math.ceil(textWidth + CURRENT_PRICE_BADGE_HORIZONTAL_PADDING);
+    const badgeHeight = CURRENT_PRICE_BADGE_HEIGHT;
+    const badgeX = x - badgeWidth / 2;
+    const markerRadius = 14.5;
+    const labelGap = 15;
+    const chartBottom = chartHeight - PRICE_TREND_X_AXIS_RESERVED_HEIGHT;
+    const canPlaceBelow = y + markerRadius + labelGap + badgeHeight <= chartBottom;
+    const badgeY = canPlaceBelow
+        ? y + markerRadius + labelGap
+        : y - markerRadius - labelGap - badgeHeight;
+
+    useEffect(() => {
+        const measuredTextWidth = textRef.current?.getComputedTextLength();
+
+        if (measuredTextWidth && Number.isFinite(measuredTextWidth)) {
+            onTextWidthChange(measuredTextWidth);
+        }
+    }, [label, onTextWidthChange]);
 
     return (
-        <g transform={`translate(${badgeX} ${y - 12})`} filter="url(#price-trend-current-shadow)">
-            <rect width={badgeWidth} height="24" rx="12" fill="#6653fb" />
-            <circle cx="12" cy="12" r="5" fill="white" />
-            <text x="22" y="16" className="fill-white text-[10px] font-semibold">
-                {`현재 ₩${value.toLocaleString("ko-KR")}`}
+        <g transform={`translate(${badgeX} ${badgeY})`} filter="url(#price-trend-current-shadow)">
+            <rect width={badgeWidth} height={badgeHeight} rx="10" fill="#6653fb" stroke="#6653fb" />
+            <text
+                ref={textRef}
+                x={badgeWidth - 10}
+                y="16"
+                textAnchor="end"
+                className="fill-white text-[10px] font-bold"
+            >
+                {label}
             </text>
         </g>
     );
@@ -144,6 +190,12 @@ export function ProductPriceTrendChart({
     ];
     const isLatestHighest =
         latestPoint.averagePrice === Math.max(...points.map((point) => point.averagePrice));
+    const [currentPriceTextWidth, setCurrentPriceTextWidth] = useState<number | null>(null);
+    const currentPriceBadgeWidth =
+        currentPriceTextWidth === null
+            ? DEFAULT_CURRENT_PRICE_BADGE_WIDTH
+            : Math.ceil(currentPriceTextWidth + CURRENT_PRICE_BADGE_HORIZONTAL_PADDING);
+    const chartRightPadding = Math.max(50, Math.ceil(currentPriceBadgeWidth / 2 + 12));
 
     return (
         <div
@@ -151,11 +203,12 @@ export function ProductPriceTrendChart({
             aria-label="최근 30일 일 평균 거래가 차트"
         >
             <div className="mb-2 flex items-center justify-between gap-3 px-1">
-                <div className="flex items-center gap-2">
-                    <span className="size-2 rounded-full bg-[#6653fb]" aria-hidden="true" />
-                    <p className="text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#2f3037]">
-                        일 평균 거래가
-                    </p>
+                <div className="flex flex-col items-start justify-center gap-[5px]">
+                    <div className="flex items-center gap-2">
+                        <p className="text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#2f3037]">
+                            일 평균 거래가
+                        </p>
+                    </div>
                     <p className="text-[10px] leading-[15px] text-[#a1a3ae]">
                         실거래 {totalTransactionCount.toLocaleString("ko-KR")}건 기준
                     </p>
@@ -169,7 +222,7 @@ export function ProductPriceTrendChart({
                 id="price-trend"
                 config={chartConfig}
                 className="aspect-auto h-[258px] w-full p-0 [&_*:focus]:outline-none [&_.recharts-surface]:outline-none [&_.recharts-wrapper]:outline-none [&_svg]:outline-none"
-                initialDimension={{ width: 700, height: 258 }}
+                initialDimension={{ width: 700, height: PRICE_TREND_CHART_HEIGHT }}
             >
                 <AreaChart
                     accessibilityLayer
@@ -192,9 +245,9 @@ export function ProductPriceTrendChart({
                             <feDropShadow
                                 dx="0"
                                 dy="0"
-                                stdDeviation="6"
+                                stdDeviation="5.85"
                                 floodColor="#6653fb"
-                                floodOpacity="0.7"
+                                floodOpacity="0.8"
                             />
                         </filter>
                     </defs>
@@ -202,7 +255,10 @@ export function ProductPriceTrendChart({
                     <XAxis
                         dataKey="date"
                         ticks={dateIndexes.map((index) => points[index].date)}
-                        padding={{ left: 0, right: 120 }}
+                        padding={{
+                            left: 10,
+                            right: chartRightPadding,
+                        }}
                         tickFormatter={formatChartDate}
                         tickLine={false}
                         axisLine={false}
@@ -216,8 +272,8 @@ export function ProductPriceTrendChart({
                         tickLine={false}
                         axisLine={false}
                         tick={{ fill: "#a1a3ae", fontSize: 11 }}
-                        tickMargin={8}
-                        width={42}
+                        tickMargin={4}
+                        width="auto"
                     />
                     <ChartTooltip
                         cursor={{ stroke: "#b8b1ff", strokeDasharray: "3 4" }}
@@ -240,15 +296,27 @@ export function ProductPriceTrendChart({
                     <ReferenceDot
                         x={latestPoint.date}
                         y={latestPoint.averagePrice}
-                        r={0}
-                        fill="transparent"
+                        r={14.5}
+                        fill="#6b49fd"
+                        fillOpacity={0.3}
                         stroke="transparent"
+                    />
+                    <ReferenceDot
+                        x={latestPoint.date}
+                        y={latestPoint.averagePrice}
+                        r={8.5}
+                        fill="#6b49fd"
+                        stroke="white"
+                        strokeWidth={0.5}
                     >
                         <Label
                             content={(props) => (
                                 <CurrentPriceLabel
                                     viewBox={props.viewBox}
                                     value={latestPoint.averagePrice}
+                                    chartHeight={PRICE_TREND_CHART_HEIGHT}
+                                    textWidth={currentPriceTextWidth}
+                                    onTextWidthChange={setCurrentPriceTextWidth}
                                 />
                             )}
                         />

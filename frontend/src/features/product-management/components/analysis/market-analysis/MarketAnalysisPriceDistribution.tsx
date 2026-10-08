@@ -34,7 +34,7 @@ function PriceMetric({
 
 function ExpectedPriceLabel({ price }: { price: string }) {
     return (
-        <div className="flex h-[54px] w-[98px] flex-col items-center justify-center gap-[4px] rounded-[6px] border border-[#e1e1e1] bg-white">
+        <div className="flex h-[50px] w-[99px] flex-col items-center justify-center gap-[5px] rounded-[5px] border-[0.5px] border-[#e1e1e1] bg-white">
             <span className="text-[11px] leading-[13px] font-bold text-[#9a84f3]">예상가격</span>
             <strong className="text-[15px] leading-[18px] font-semibold whitespace-nowrap text-black">
                 {price}
@@ -45,8 +45,11 @@ function ExpectedPriceLabel({ price }: { price: string }) {
 
 function PriceMarker() {
     return (
-        <div className="flex size-[29px] items-center justify-center rounded-full bg-[#d9d1ff]">
-            <span className="size-[17px] rounded-full bg-[#6b49fd]" aria-hidden="true" />
+        <div className="flex size-[29px] items-center justify-center rounded-full bg-[#6b49fd]/30">
+            <span
+                className="size-[17px] rounded-full border-[0.5px] border-white bg-[#6b49fd]"
+                aria-hidden="true"
+            />
         </div>
     );
 }
