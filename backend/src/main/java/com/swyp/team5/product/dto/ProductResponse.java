@@ -32,8 +32,8 @@ public record ProductResponse(
         String brand, // 브랜드
         String description, // 상품 설명
         Long price, // 판매 희망가
-        Long soldPrice, // 최종 판매 가격(판매 완료 시 판매자가 직접 입력, 미입력·판매 완료 전·외부 매물은 null)
-        String soldPlatform, // 최종 판매 플랫폼명(판매자 자유 입력 — 게시 플랫폼과 별개), 미입력·판매 완료 전·외부 매물은 null
+        Long soldPrice, // 최종 판매 가격(판매 완료 시 판매자가 직접 입력) — 판매자 본인 조회만, 미입력·판매 완료 전·외부 매물·그 외 조회자는 null
+        String soldPlatform, // 최종 판매 플랫폼명(판매자 자유 입력 — 게시 플랫폼과 별개) — 판매자 본인 조회만, 그 외 null
         ProductStatus
                 status, // 상품 상태 DRAFT/ON_SALE/RESERVED/SOLD_OUT(외부 매물은 원본 상태를 변환 — SELLING→ON_SALE, RESERVED→RESERVED,
         // 그 외→SOLD_OUT)
@@ -61,19 +61,31 @@ public record ProductResponse(
         Long interestCount, // 관심 등록한 회원 수 — 모든 조회자(우리 상품·외부 매물)
         Long viewCount) { // 조회수(본인 제외, 회원·비회원 IP당 24시간 1회) — 모든 조회자, 외부 매물은 null
 
-    /** 시세 정보(판단/평균가) 없이 상품 정보만 내려줄 때 사용한다(수정/상태 변경 응답). */
+    /** 시세 정보(판단/평균가) 없이 상품 정보만 내려줄 때 사용한다(수정/상태 변경 응답 — 판매자 본인이라 최종 판매 정보 포함). */
     public static ProductResponse from(Product product) {
         return from(product, null, null);
     }
 
     /**
-     * 시세 정보까지 함께 내려줄 때 사용한다(등록/상세 응답).
+     * 시세 정보까지 함께 내려줄 때 사용한다(등록 응답 — 판매자 본인이라 최종 판매 정보 포함).
      *
      * @param recommendation 가장 최근 시세 분석 판단(없으면 null)
      * @param marketAveragePrice 비교 매물 평균가(없으면 null)
      */
     public static ProductResponse from(
             Product product, AnalysisRecommendation recommendation, Long marketAveragePrice) {
+        return from(product, recommendation, marketAveragePrice, true);
+    }
+
+    /**
+     * 조회자에 따라 최종 판매 정보를 가려서 내려줄 때 사용한다(상세·상세 요약 조회).
+     *
+     * @param recommendation 가장 최근 시세 분석 판단(없으면 null)
+     * @param marketAveragePrice 비교 매물 평균가(없으면 null)
+     * @param includeSoldInfo 최종 판매 가격·플랫폼을 채울지(판매자 본인 조회일 때만 true)
+     */
+    public static ProductResponse from(
+            Product product, AnalysisRecommendation recommendation, Long marketAveragePrice, boolean includeSoldInfo) {
         return new ProductResponse(
                 ListingSource.OUR,
                 product.getId(),
@@ -84,8 +96,8 @@ public record ProductResponse(
                 product.getBrand(),
                 product.getDescription(),
                 product.getPrice(),
-                product.getSoldPrice(),
-                product.getSoldPlatform(),
+                includeSoldInfo ? product.getSoldPrice() : null,
+                includeSoldInfo ? product.getSoldPlatform() : null,
                 product.getStatus(),
                 product.getCondition(),
                 product.getDefectStatus(),

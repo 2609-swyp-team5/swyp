@@ -14,8 +14,8 @@ public record ProductSummaryResponse(
         String title, // 상품 제목
         String brand, // 브랜드 (없으면 null)
         Long price, // 판매 희망가
-        Long soldPrice, // 최종 판매 가격(판매 완료 시 판매자가 직접 입력, 미입력·판매 완료 전이면 null)
-        String soldPlatform, // 최종 판매 플랫폼명(판매자 자유 입력 — 게시 플랫폼과 별개), 미입력·판매 완료 전·외부 매물은 null
+        Long soldPrice, // 최종 판매 가격(판매 완료 시 판매자가 직접 입력) — 내 상품 목록만, 미입력·판매 완료 전·공개 목록(인기 상품)은 null
+        String soldPlatform, // 최종 판매 플랫폼명(판매자 자유 입력 — 게시 플랫폼과 별개) — 내 상품 목록만, 그 외 null
         ProductStatus status, // 게시 상태
         ProductCondition condition, // 상품 상태 등급
         DefectStatus defectStatus, // 결함(하자) 상태
@@ -31,7 +31,15 @@ public record ProductSummaryResponse(
         return from(product, null);
     }
 
+    /** 판매자 본인 목록(내 상품 목록)용 — 최종 판매 정보를 포함한다. */
     public static ProductSummaryResponse from(Product product, ProductAnalysis analysis) {
+        return from(product, analysis, true);
+    }
+
+    /**
+     * @param includeSoldInfo 최종 판매 가격·플랫폼을 채울지(판매자 본인 목록일 때만 true, 인기 상품 등 공개 목록은 false)
+     */
+    public static ProductSummaryResponse from(Product product, ProductAnalysis analysis, boolean includeSoldInfo) {
         String thumbnailUrl = product.getImages().isEmpty()
                 ? null
                 : product.getImages().get(0).getImageUrl();
@@ -40,8 +48,8 @@ public record ProductSummaryResponse(
                 product.getTitle(),
                 product.getBrand(),
                 product.getPrice(),
-                product.getSoldPrice(),
-                product.getSoldPlatform(),
+                includeSoldInfo ? product.getSoldPrice() : null,
+                includeSoldInfo ? product.getSoldPlatform() : null,
                 product.getStatus(),
                 product.getCondition(),
                 product.getDefectStatus(),

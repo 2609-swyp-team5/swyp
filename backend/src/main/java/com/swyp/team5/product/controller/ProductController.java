@@ -158,8 +158,8 @@ public class ProductController {
     }
 
     /**
-     * 상품 상세 요약(판매 관리 화면 요약 영역)을 조회한다. 로그인 회원 누구나 모든 필드를 조회할 수 있고, 외부 수집 매물 ID도
-     * 받는다. 상세 조회와 같은 규칙으로 조회수에 반영한다(판매자 본인 제외, 회원 단위 24시간에 1회).
+     * 상품 상세 요약(판매 관리 화면 요약 영역)을 조회한다. 로그인 회원 누구나 조회할 수 있고(최종 판매 가격·플랫폼은 판매자
+     * 본인에게만), 외부 수집 매물 ID도 받는다. 상세 조회와 같은 규칙으로 조회수에 반영한다(판매자 본인 제외, 회원 단위 24시간에 1회).
      *
      * @param productId 조회할 상품(또는 외부 매물) ID
      * @return 200 OK + 상품 상세 요약(조회수·관심 수·판매 일수·게시 플랫폼 링크 포함)
@@ -171,7 +171,8 @@ public class ProductController {
             @PathVariable Long productId,
             HttpServletRequest request) {
         productService.recordView(productId, currentMember.memberId(), request.getRemoteAddr());
-        return ResponseEntity.ok(ApiResponse.success(productService.getProductSummary(productId)));
+        return ResponseEntity.ok(
+                ApiResponse.success(productService.getProductSummary(productId, currentMember.memberId())));
     }
 
     /**
@@ -342,8 +343,8 @@ public class ProductController {
 
     /**
      * 상품 게시 상태를 변경한다. 본인이 등록한 상품만 변경할 수 있다. 판매 완료(SOLD_OUT)로 바꿀 때는 최종 판매 가격
-     * {@code soldPrice}·최종 판매 플랫폼 {@code soldPlatform}을 함께 보낼 수 있고(선택, 게시 플랫폼과 달라도 됨), 다른 상태로
-     * 바꾸면 저장된 최종 판매 정보는 지워진다.
+     * {@code soldPrice}·최종 판매 플랫폼 {@code soldPlatform}을 함께 보낼 수 있고(선택, 게시 플랫폼과 달라도 됨 — 생략하면 기존 값
+     * 유지), 다른 상태로 바꾸면 저장된 최종 판매 정보는 지워진다.
      *
      * @param currentMember 인증된 요청자
      * @param productId 상태를 변경할 상품 ID

@@ -322,17 +322,27 @@ public class Product extends Item {
     }
 
     /**
-     * 상품 게시 상태와 최종 판매 정보를 함께 변경한다. 판매 완료가 아닌 상태로 바꾸면 최종 판매 정보를 지운다.
+     * 상품 게시 상태와 최종 판매 정보를 함께 변경한다. 판매 완료로 바꿀 때 보낸 값만 저장하고 생략한 값(null·빈 문자열)은
+     * 기존 값을 유지한다(판매 완료 상태에서 상태만 다시 저장해도 지워지지 않게). 판매 완료가 아닌 상태로 바꾸면 최종 판매 정보를
+     * 지운다.
      *
      * @param status 변경할 상태
-     * @param soldPrice 최종 판매 가격(판매 완료일 때만 저장, 미입력이면 null)
-     * @param soldPlatform 최종 판매 플랫폼명(판매 완료일 때만 앞뒤 공백을 빼고 저장, 미입력·빈 문자열이면 null)
+     * @param soldPrice 최종 판매 가격(판매 완료일 때만 저장, null이면 기존 값 유지)
+     * @param soldPlatform 최종 판매 플랫폼명(판매 완료일 때만 앞뒤 공백을 빼고 저장, null·빈 문자열이면 기존 값 유지)
      */
     public void changeStatus(ProductStatus status, Long soldPrice, String soldPlatform) {
         this.status = status;
-        boolean soldOut = status == ProductStatus.SOLD_OUT;
-        this.soldPrice = soldOut ? soldPrice : null;
-        this.soldPlatform = soldOut && soldPlatform != null && !soldPlatform.isBlank() ? soldPlatform.strip() : null;
+        if (status != ProductStatus.SOLD_OUT) {
+            this.soldPrice = null;
+            this.soldPlatform = null;
+            return;
+        }
+        if (soldPrice != null) {
+            this.soldPrice = soldPrice;
+        }
+        if (soldPlatform != null && !soldPlatform.isBlank()) {
+            this.soldPlatform = soldPlatform.strip();
+        }
     }
 
     /** 외부 플랫폼에 게시되면 호출한다. 아직 {@link ProductStatus#DRAFT}일 때만 판매중으로 바꾸고, 품절 상태는 그대로 둔다. */
