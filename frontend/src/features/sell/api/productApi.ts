@@ -5,6 +5,7 @@ import type {
     ProductAnalysisResponse,
     ProductCompetitionResponse,
     ProductDetailSummaryResponse,
+    ProductManagementOverviewResponse,
     ProductPriceTrendResponse,
     ProductValuationForecastResponse,
     ProductTargetPriceResponse,
@@ -22,6 +23,7 @@ import type {
     AiProductCreateInput,
     DirectProductCreateInput,
     ProductResponse,
+    ProductStatusUpdateRequest,
     ProductStatus,
     ProductSummaryResponse,
     ProductRegisterProgress,
@@ -44,6 +46,9 @@ const getProduct = (id: number) => api.get<ApiResponse<ProductResponse>>(`/produ
 
 const getProductManagementSummary = (id: number) =>
     api.get<ApiResponse<ProductDetailSummaryResponse>>(`/products/${id}/summary`);
+
+const getProductManagementOverview = (id: number) =>
+    api.get<ApiResponse<ProductManagementOverviewResponse>>(`/products/${id}/management-overview`);
 
 const getProductAnalysis = (id: number, perspective?: "SELL" | "BUY") =>
     api.get<ApiResponse<ProductAnalysisResponse>>(`/products/${id}/analysis`, {
@@ -79,8 +84,8 @@ const setProductTargetPrice = (id: number, targetPrice: number | null) =>
 
 const deleteProduct = (id: number) => api.delete<ApiResponse<null>>(`/products/${id}`);
 
-const updateProductStatus = (id: number, status: ProductStatus) =>
-    api.patch<ApiResponse<ProductResponse>>(`/products/${id}/status`, { status });
+const updateProductStatus = (id: number, request: ProductStatusUpdateRequest) =>
+    api.patch<ApiResponse<ProductResponse>>(`/products/${id}/status`, request);
 
 const publishProduct = (productId: number, platform: MyPlatformType) =>
     api.post<ApiResponse<ProductPlatformPublishResponse>>(
@@ -325,6 +330,7 @@ const updateProduct = async (
 export const productApi = {
     getProduct,
     getProductManagementSummary,
+    getProductManagementOverview,
     getProductAnalysis,
     getProductPriceTrend,
     getProductValuationForecast,

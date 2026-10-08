@@ -20,6 +20,7 @@ type SellAlertDialogProps = {
     onConfirm: () => void;
     title: ReactNode;
     description: ReactNode;
+    content?: ReactNode;
     confirmLabel: string;
     cancelLabel: string;
     confirmDisabled?: boolean;
@@ -34,6 +35,7 @@ export function SellAlertDialog({
     onConfirm,
     title,
     description,
+    content,
     confirmLabel,
     cancelLabel,
     confirmDisabled = false,
@@ -73,6 +75,8 @@ export function SellAlertDialog({
                         </AlertDialogDescription>
                     </div>
                 </div>
+
+                {content ? <div className="mt-5 flex w-full flex-col">{content}</div> : null}
 
                 <div className="mt-[30px] flex w-full items-center justify-center gap-3">
                     <AlertDialogAction
