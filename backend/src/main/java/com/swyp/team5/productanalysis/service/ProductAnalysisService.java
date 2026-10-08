@@ -15,9 +15,15 @@ import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -477,22 +483,69 @@ public class ProductAnalysisService {
 
     /**
      * 분석 대상 상태({@link ProductStatus#ANALYSIS_TARGETS} — 외부 게시 전 등록 상품 포함)의 상품 전체와, 관심 등록된
-     * 같은 상태 기준({@link ProductStatus#EXTERNAL_ANALYSIS_TARGETS} — 판매중·예약중)의 외부 매물 전체를 순회하며 분석한다(스케줄러 진입점). 한 건이 실패해도 나머지는 계속 진행한다.
+     * 같은 상태 기준({@link ProductStatus#EXTERNAL_ANALYSIS_TARGETS} — 판매중·예약중)의 외부 매물 전체를 분석한다(스케줄러 진입점).
+     * {@code analysis.batch-concurrency}건(기본 3)까지 동시에 분석하고, 처리 스레드마다 AI 호출 사이에 {@code ai-call-interval-ms}만큼
+     * 쉰다. 등록·관심 등록 직후 분석으로 이미 분석 중인 대상은 건너뛴다. 한 건이 실패해도 나머지는 계속 진행하고, 모두 끝날 때까지
+     * 기다린다(다음 배치와 겹치지 않도록).
      */
     public void analyzeAll() {
+        long startedAt = System.currentTimeMillis();
         List<Product> products = productRepository.findByStatusIn(ProductStatus.ANALYSIS_TARGETS);
-        log.info("시세 분석 대상 상품 {}건", products.size());
-        for (Product product : products) {
-            analyzeProductSafely(product, properties.minListings());
-            sleepBetweenAiCalls();
-        }
-
         List<PlatformListing> listings =
                 interestRepository.findInterestedListingsByStatusIn(ProductStatus.EXTERNAL_ANALYSIS_TARGETS);
-        log.info("시세 분석 대상 관심 외부 매물 {}건", listings.size());
-        for (PlatformListing listing : listings) {
-            analyzeListingSafely(listing);
-            sleepBetweenAiCalls();
+        Set<Long> running = progressTracker.inProgressAmong(Stream.concat(
+                        products.stream().map(Product::getId), listings.stream().map(PlatformListing::getId))
+                .toList());
+        log.info(
+                "시세 분석 대상 상품 {}건, 관심 외부 매물 {}건(이미 분석 중이라 건너뜀 {}건), 동시 {}건",
+                products.size(),
+                listings.size(),
+                running.size(),
+                properties.batchConcurrency());
+
+        List<Runnable> tasks = new ArrayList<>();
+        products.stream()
+                .filter(product -> !running.contains(product.getId()))
+                .forEach(product -> tasks.add(() -> analyzeProductSafely(product, properties.minListings())));
+        listings.stream()
+                .filter(listing -> !running.contains(listing.getId()))
+                .forEach(listing -> tasks.add(() -> analyzeListingSafely(listing)));
+        runConcurrently(tasks);
+        log.info("시세 분석 배치 완료: {}건, {}초", tasks.size(), (System.currentTimeMillis() - startedAt) / 1000);
+    }
+
+    /** 작업을 {@code batch-concurrency}개 스레드로 나눠 실행하고 모두 끝날 때까지 기다린다(스레드마다 작업 사이에 AI 호출 간격만큼 쉼). */
+    private void runConcurrently(List<Runnable> tasks) {
+        if (tasks.isEmpty()) {
+            return;
+        }
+        int threads = Math.min(properties.batchConcurrency(), tasks.size());
+        AtomicInteger threadNumber = new AtomicInteger();
+        ExecutorService executor = Executors.newFixedThreadPool(threads, runnable -> {
+            Thread thread = new Thread(runnable, "analysis-batch-" + threadNumber.incrementAndGet());
+            thread.setDaemon(true);
+            return thread;
+        });
+        try {
+            List<Future<?>> futures = tasks.stream()
+                    .<Future<?>>map(task -> executor.submit(() -> {
+                        task.run();
+                        sleepBetweenAiCalls();
+                    }))
+                    .toList();
+            for (Future<?> future : futures) {
+                try {
+                    future.get();
+                } catch (ExecutionException e) {
+                    // 각 작업은 예외를 로그로만 남기므로 보통 여기까지 오지 않는다(Error 등) — 나머지 작업은 계속 기다린다
+                    log.error("시세 분석 배치 작업 중 오류가 발생했습니다.", e.getCause());
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("시세 분석 배치가 중단됐습니다.");
+        } finally {
+            executor.shutdownNow();
         }
     }
 
