@@ -1,30 +1,25 @@
 import type { ProductMarketAnalysis } from "../../../types";
 import { formatSignedPercent } from "./formatters";
 
-export function MarketAnalysisSummaryMetrics({
-    summary,
-    isBuyerView = false,
-}: {
-    summary: ProductMarketAnalysis["summary"];
-    isBuyerView?: boolean;
-}) {
+export function MarketAnalysisSummaryMetrics({ analysis }: { analysis: ProductMarketAnalysis }) {
+    const isBuyerView = analysis.recommendation === "BUY" || analysis.recommendation === "WAIT";
     const metrics =
-        summary.type === "SALE_STATS"
+        analysis.summary.type === "SALE_STATS"
             ? [
-                  { label: "판매 기간", value: `${summary.salesDurationDays}일` },
-                  { label: "조회수", value: `${summary.viewCount}` },
-                  { label: "관심 수", value: `${summary.interestCount}` },
+                  { label: "판매 기간", value: `${analysis.summary.salesDurationDays}일` },
+                  { label: "조회수", value: `${analysis.summary.viewCount}` },
+                  { label: "관심 수", value: `${analysis.summary.interestCount}` },
               ]
             : [
                   {
                       label: isBuyerView ? "구매 대기 기간" : "추천 대기 기간",
-                      value: `${Math.ceil(summary.waitPeriodDays / 7)}주`,
+                      value: `${Math.ceil(analysis.summary.waitPeriodDays / 7)}주`,
                   },
                   {
                       label: "예상 가격 변화",
-                      value: formatSignedPercent(summary.expectedPriceChangeRate),
+                      value: formatSignedPercent(analysis.summary.expectedPriceChangeRate),
                   },
-                  { label: "신뢰도", value: `${summary.confidenceScore}%` },
+                  { label: "신뢰도", value: `${analysis.summary.confidenceScore}%` },
               ];
 
     return (

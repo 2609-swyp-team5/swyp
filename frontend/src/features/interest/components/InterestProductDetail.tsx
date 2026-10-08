@@ -34,7 +34,6 @@ export function InterestProductDetail({ interest }: { interest: InterestListItem
             interest.interestStatus === "BUY" || interest.interestStatus === "WAIT"
                 ? interest.interestStatus
                 : undefined,
-        chartsEnabled: false,
     });
 
     const handleDelete = () => {
@@ -137,7 +136,6 @@ export function InterestProductDetail({ interest }: { interest: InterestListItem
                 isPending={sections.productAnalysis.isPending}
                 priceTrendQuery={sections.productPriceTrend}
                 valuationForecastQuery={sections.productValuationForecast}
-                summaryOnly
             />
             <ProductCompetitionSection
                 query={sections.productCompetition}

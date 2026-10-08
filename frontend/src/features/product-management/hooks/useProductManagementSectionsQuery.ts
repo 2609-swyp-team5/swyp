@@ -15,8 +15,6 @@ export function useProductManagementSectionsQuery(
         summaryEnabled?: boolean;
         buyerRecommendation?: Extract<AnalysisRecommendation, "BUY" | "WAIT">;
         mockRecommendation?: AnalysisRecommendation;
-        // false면 가격 변화 추이·감가 상각률을 조회하지 않음(판매 관리처럼 차트를 숨기는 화면)
-        chartsEnabled?: boolean;
     },
 ) {
     const enabled = options?.enabled ?? true;
@@ -31,11 +29,8 @@ export function useProductManagementSectionsQuery(
         perspective,
         mockRecommendation,
     });
-    const chartsEnabled = enabled && (options?.chartsEnabled ?? true);
-    const productPriceTrend = useProductPriceTrendQuery(productId, { enabled: chartsEnabled });
-    const productValuationForecast = useProductValuationForecastQuery(productId, {
-        enabled: chartsEnabled,
-    });
+    const productPriceTrend = useProductPriceTrendQuery(productId, { enabled });
+    const productValuationForecast = useProductValuationForecastQuery(productId, { enabled });
     const productCompetition = useProductCompetitionQuery(productId, { enabled, perspective });
 
     return {
