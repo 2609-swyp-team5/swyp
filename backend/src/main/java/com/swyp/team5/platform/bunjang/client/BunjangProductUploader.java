@@ -19,14 +19,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
-import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
@@ -47,14 +46,12 @@ import com.swyp.team5.platform.error.PlatformPublishFailedException;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class BunjangProductUploader {
 
     private static final String HOME_URL = "https://bunjang.co.kr";
     private static final String PRODUCT_FORM_URL = HOME_URL + "/products/new";
     private static final String PRODUCT_URL_PREFIX = "https://m.bunjang.co.kr/products/";
-
-    private static final String USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-            + "(KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
 
     private static final int MAX_IMAGES = 12; // 번개장터 등록 가능 최대 이미지 수
     private static final int DEFAULT_SHIPPING_FEE = 3_000; // "배송비 별도"일 때 입력할 기본 배송비
@@ -63,10 +60,6 @@ public class BunjangProductUploader {
     private static final int PRODUCT_URL_CONFIRM_ATTEMPTS = 15;
     private static final int MY_SHOP_CONFIRM_ATTEMPTS = 3;
     private static final String API_BASE_URL = "https://api.bunjang.co.kr";
-
-    // 기본값이면 첫 실행 시 Firefox/WebKit까지 전부 내려받으므로 자동 다운로드를 끄고 Chromium만 별도 설치한다
-    // (./gradlew installPlaywrightChromium)
-    private static final Map<String, String> PLAYWRIGHT_ENV = Map.of("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1");
 
     private static final Pattern PRODUCT_ID_PATTERN =
             Pattern.compile("\"(?:pid|productId|product_id)\"\\s*:\\s*\"?(\\d{6,})\"?|/products/(\\d{6,})");
@@ -77,21 +70,7 @@ public class BunjangProductUploader {
             .connectTimeout(Duration.ofSeconds(5))
             .build();
 
-    private final boolean headless;
-
-    // 비어 있으면 Playwright 전용 Chromium(./gradlew installPlaywrightChromium) → PC에 설치된 Chrome → Edge 순으로
-    // 실행되는 것을 쓰고(따로 설치하지 않아도 되도록), "chrome"/"msedge" 등을 지정하면 그 브라우저만 쓴다
-    private final String browserChannel;
-
-    /** 채널을 지정하지 않았을 때 시도 순서("" = Playwright 전용 Chromium). */
-    private static final List<String> DEFAULT_CHANNELS = List.of("", "chrome", "msedge");
-
-    public BunjangProductUploader(
-            @Value("${platform.bunjang.publish.headless:true}") boolean headless,
-            @Value("${platform.bunjang.publish.browser-channel:}") String browserChannel) {
-        this.headless = headless;
-        this.browserChannel = browserChannel == null ? "" : browserChannel.strip();
-    }
+    private final BunjangBrowserLauncher browserLauncher;
 
     /**
      * @throws InvalidPlatformSessionException 세션이 만료되어 로그인 화면으로 이동된 경우
@@ -104,8 +83,8 @@ public class BunjangProductUploader {
             List<Path> images = downloadImages(form.imageUrls(), imageDir);
             log.info("번개장터 매물 등록 시작. title={}, imageCount={}", form.title(), images.size());
 
-            try (Playwright playwright = Playwright.create(new Playwright.CreateOptions().setEnv(PLAYWRIGHT_ENV));
-                    Browser browser = launchBrowser(playwright);
+            try (Playwright playwright = browserLauncher.createPlaywright();
+                    Browser browser = browserLauncher.launch(playwright);
                     BrowserContext context = newContext(browser, sessionToken)) {
                 Page page = context.newPage();
                 try {
@@ -190,58 +169,8 @@ public class BunjangProductUploader {
         return paths;
     }
 
-    private Browser launchBrowser(Playwright playwright) {
-        if (!browserChannel.isEmpty()) {
-            try {
-                return playwright.chromium().launch(launchOptions(browserChannel));
-            } catch (PlaywrightException e) {
-                if (isBrowserMissing(e)) {
-                    log.error("설정한 브라우저 채널({})이 이 PC에 설치되어 있지 않습니다.", browserChannel);
-                }
-                throw e;
-            }
-        }
-        PlaywrightException missing = null;
-        for (String channel : DEFAULT_CHANNELS) {
-            try {
-                Browser browser = playwright.chromium().launch(launchOptions(channel));
-                if (!channel.isEmpty()) {
-                    log.info("Playwright 전용 Chromium이 없어 PC에 설치된 브라우저({})로 등록합니다.", channel);
-                }
-                return browser;
-            } catch (PlaywrightException e) {
-                if (!isBrowserMissing(e)) {
-                    throw e;
-                }
-                missing = e;
-            }
-        }
-        log.error("실행할 브라우저가 없습니다. ./gradlew installPlaywrightChromium 을 실행하거나 Chrome/Edge를 설치하세요.");
-        throw missing;
-    }
-
-    private BrowserType.LaunchOptions launchOptions(String channel) {
-        BrowserType.LaunchOptions options = new BrowserType.LaunchOptions()
-                .setHeadless(headless)
-                .setArgs(List.of("--disable-blink-features=AutomationControlled", "--no-sandbox"))
-                .setIgnoreDefaultArgs(List.of("--enable-automation"));
-        return channel.isEmpty() ? options : options.setChannel(channel);
-    }
-
-    /** 브라우저 실행 파일이 없어서 실패했는지(전용 Chromium: "Executable doesn't exist", 채널: "is not found"). */
-    private static boolean isBrowserMissing(PlaywrightException e) {
-        String message = e.getMessage();
-        return message != null
-                && (message.contains("Executable doesn't exist")
-                        || message.contains("distribution") && message.contains("is not found"));
-    }
-
     private BrowserContext newContext(Browser browser, String sessionToken) {
-        BrowserContext context = browser.newContext(new Browser.NewContextOptions()
-                .setLocale("ko-KR")
-                .setUserAgent(USER_AGENT)
-                .setViewportSize(1280, 1600));
-        context.addInitScript("Object.defineProperty(navigator, 'webdriver', {get: () => undefined});");
+        BrowserContext context = browserLauncher.newContext(browser);
         context.addCookies(List.of(new Cookie("bun_session", sessionToken)
                 .setDomain(".bunjang.co.kr")
                 .setPath("/")

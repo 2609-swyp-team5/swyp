@@ -22,12 +22,17 @@ import com.swyp.team5.common.common.ApiResponse;
 import com.swyp.team5.common.passport.PrincipalMember;
 import com.swyp.team5.platform.bunjang.dto.BunjangConnectRequest;
 import com.swyp.team5.platform.bunjang.dto.BunjangConnectionResponse;
+import com.swyp.team5.platform.bunjang.dto.BunjangVerificationConfirmRequest;
+import com.swyp.team5.platform.bunjang.dto.BunjangVerificationConfirmResponse;
+import com.swyp.team5.platform.bunjang.dto.BunjangVerificationRequest;
+import com.swyp.team5.platform.bunjang.dto.BunjangVerificationResponse;
 import com.swyp.team5.platform.bunjang.dto.PlatformConnectionResponse;
 import com.swyp.team5.platform.bunjang.dto.ProductPlatformLinkRequest;
 import com.swyp.team5.platform.bunjang.dto.ProductPlatformResponse;
 import com.swyp.team5.platform.bunjang.service.BunjangConnectionService;
 import com.swyp.team5.platform.bunjang.service.BunjangProductLinkService;
 import com.swyp.team5.platform.bunjang.service.BunjangProductPublishService;
+import com.swyp.team5.platform.bunjang.service.BunjangVerificationService;
 import com.swyp.team5.platform.entity.PlatformType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -47,6 +52,7 @@ public class BunjangController {
     private final BunjangConnectionService bunjangConnectionService;
     private final BunjangProductLinkService bunjangProductLinkService;
     private final BunjangProductPublishService bunjangProductPublishService;
+    private final BunjangVerificationService bunjangVerificationService;
 
     @Operation(summary = "플랫폼 세션 연동/재연동")
     @PostMapping("/platforms/{platform}/connect")
@@ -56,6 +62,28 @@ public class BunjangController {
             @Valid @RequestBody BunjangConnectRequest request) {
         BunjangConnectionResponse response =
                 bunjangConnectionService.connect(currentMember.memberId(), request.cookie());
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @Operation(summary = "본인인증으로 플랫폼 연동 - 인증 문자 요청")
+    @PostMapping("/platforms/{platform}/verification")
+    public ResponseEntity<ApiResponse<BunjangVerificationResponse>> requestVerification(
+            @AuthenticationPrincipal PrincipalMember currentMember,
+            @PathVariable PlatformType platform,
+            @Valid @RequestBody BunjangVerificationRequest request) {
+        BunjangVerificationResponse response = bunjangVerificationService.request(currentMember.memberId(), request);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @Operation(summary = "본인인증으로 플랫폼 연동 - 인증번호 확인")
+    @PostMapping("/platforms/{platform}/verification/{verificationId}/confirm")
+    public ResponseEntity<ApiResponse<BunjangVerificationConfirmResponse>> confirmVerification(
+            @AuthenticationPrincipal PrincipalMember currentMember,
+            @PathVariable PlatformType platform,
+            @PathVariable String verificationId,
+            @Valid @RequestBody BunjangVerificationConfirmRequest request) {
+        BunjangVerificationConfirmResponse response =
+                bunjangVerificationService.confirm(currentMember.memberId(), verificationId, request.otp());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 

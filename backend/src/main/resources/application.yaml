@@ -122,6 +122,10 @@ platform:
     publish:
       headless: ${PLATFORM_BUNJANG_PUBLISH_HEADLESS:true} # false면 등록 과정을 브라우저 창으로 확인 가능(로컬 디버깅용)
       browser-channel: ${PLATFORM_BUNJANG_PUBLISH_BROWSER_CHANNEL:} # 비우면 Playwright 전용 Chromium → PC의 Chrome → Edge 순으로 있는 것 사용, chrome/msedge 등을 지정하면 그것만 사용
+    verification:
+      max-concurrency: ${PLATFORM_BUNJANG_VERIFICATION_MAX_CONCURRENCY:2} # 본인인증 연결을 동시에 진행할 수 있는 수(1건당 브라우저 1개)
+      timeout-seconds: ${PLATFORM_BUNJANG_VERIFICATION_TIMEOUT_SECONDS:200} # 인증번호를 기다리는 최대 시간(번개장터 인증번호 유효 180초 + 여유), 지나면 브라우저를 닫는다
+      max-requests-per-hour: ${PLATFORM_BUNJANG_VERIFICATION_MAX_REQUESTS_PER_HOUR:10} # 회원 1명이 1시간에 요청할 수 있는 인증 문자 수
 
 jwt:
   access-token-expires: ${JWT_ACCESS_TOKEN_EXPIRES:30m}

@@ -41,6 +41,7 @@ import com.swyp.team5.member.error.InvalidCurrentPasswordException;
 import com.swyp.team5.member.error.MemberNotFoundException;
 import com.swyp.team5.member.error.PasswordChangeNotAllowedException;
 import com.swyp.team5.notification.error.NotificationNotFoundException;
+import com.swyp.team5.platform.error.BunjangVerificationException;
 import com.swyp.team5.platform.error.InvalidPlatformSessionException;
 import com.swyp.team5.platform.error.InvalidProductUrlException;
 import com.swyp.team5.platform.error.MemberPlatformNotFoundException;
@@ -161,6 +162,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handlePlatformPublishFailed(PlatformPublishFailedException e) {
         log.error("외부 플랫폼 매물 등록 실패: {}", ErrorLogs.describe(e), e);
         return errorResponse(HttpStatus.BAD_GATEWAY, "BAD_GATEWAY", e.getMessage());
+    }
+
+    @ExceptionHandler(BunjangVerificationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleBunjangVerification(BunjangVerificationException e) {
+        BunjangVerificationException.Reason reason = e.getReason();
+        if (reason == BunjangVerificationException.Reason.FAILED) {
+            log.error("번개장터 본인인증 처리 실패: {}", ErrorLogs.describe(e));
+        } else {
+            log.warn("번개장터 본인인증 요청 거절({}): {}", reason, ErrorLogs.describe(e));
+        }
+        return errorResponse(reason.getStatus(), reason.getCode(), e.getMessage(), e.getDetails());
     }
 
     @ExceptionHandler(ProductRegisterBusyException.class)
