@@ -39,6 +39,7 @@ import com.swyp.team5.product.dto.ProductAiSearchResponse;
 import com.swyp.team5.product.dto.ProductCreateRequest;
 import com.swyp.team5.product.dto.ProductDetailSummaryResponse;
 import com.swyp.team5.product.dto.ProductListItemResponse;
+import com.swyp.team5.product.dto.ProductManagementOverviewResponse;
 import com.swyp.team5.product.dto.ProductResponse;
 import com.swyp.team5.product.dto.ProductSearchCondition;
 import com.swyp.team5.product.dto.ProductSearchPlatform;
@@ -340,11 +341,13 @@ public class ProductController {
     }
 
     /**
-     * 상품 게시 상태만 변경한다. 본인이 등록한 상품만 변경할 수 있다.
+     * 상품 게시 상태를 변경한다. 본인이 등록한 상품만 변경할 수 있다. 판매 완료(SOLD_OUT)로 바꿀 때는 최종 판매 가격
+     * {@code soldPrice}·최종 판매 플랫폼 {@code soldPlatform}을 함께 보낼 수 있고(선택, 게시 플랫폼과 달라도 됨), 다른 상태로
+     * 바꾸면 저장된 최종 판매 정보는 지워진다.
      *
      * @param currentMember 인증된 요청자
      * @param productId 상태를 변경할 상품 ID
-     * @param request 변경할 상태를 담은 요청 바디
+     * @param request 변경할 상태(와 판매 완료 시 최종 판매 가격·플랫폼)를 담은 요청 바디
      * @return 200 OK + 변경된 상품
      */
     @Operation(summary = "상품 상태 변경")
@@ -353,8 +356,24 @@ public class ProductController {
             @AuthenticationPrincipal PrincipalMember currentMember,
             @PathVariable Long productId,
             @Valid @RequestBody ProductStatusUpdateRequest request) {
-        ProductResponse response = productService.updateStatus(currentMember.memberId(), productId, request.status());
+        ProductResponse response = productService.updateStatus(
+                currentMember.memberId(), productId, request.status(), request.soldPrice(), request.soldPlatform());
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    /**
+     * 판매 관리 화면의 상품 개요(제목·등록가·상태·등록일·최종 판매 가격·플랫폼)를 조회한다. 본인이 등록한 상품만 조회할 수 있다.
+     *
+     * @param currentMember 인증된 요청자
+     * @param productId 상품 ID(우리 상품만)
+     * @return 200 OK + 상품 개요(판매 완료 정보는 미입력·판매 완료 전이면 null)
+     */
+    @Operation(summary = "판매 관리 상품 개요 조회")
+    @GetMapping("/{productId}/management-overview")
+    public ResponseEntity<ApiResponse<ProductManagementOverviewResponse>> getManagementOverview(
+            @AuthenticationPrincipal PrincipalMember currentMember, @PathVariable Long productId) {
+        return ResponseEntity.ok(
+                ApiResponse.success(productService.getManagementOverview(currentMember.memberId(), productId)));
     }
 
     /**

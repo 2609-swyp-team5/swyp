@@ -32,6 +32,8 @@ public record ProductResponse(
         String brand, // 브랜드
         String description, // 상품 설명
         Long price, // 판매 희망가
+        Long soldPrice, // 최종 판매 가격(판매 완료 시 판매자가 직접 입력, 미입력·판매 완료 전·외부 매물은 null)
+        String soldPlatform, // 최종 판매 플랫폼명(판매자 자유 입력 — 게시 플랫폼과 별개), 미입력·판매 완료 전·외부 매물은 null
         ProductStatus
                 status, // 상품 상태 DRAFT/ON_SALE/RESERVED/SOLD_OUT(외부 매물은 원본 상태를 변환 — SELLING→ON_SALE, RESERVED→RESERVED,
         // 그 외→SOLD_OUT)
@@ -82,6 +84,8 @@ public record ProductResponse(
                 product.getBrand(),
                 product.getDescription(),
                 product.getPrice(),
+                product.getSoldPrice(),
+                product.getSoldPlatform(),
                 product.getStatus(),
                 product.getCondition(),
                 product.getDefectStatus(),
@@ -126,6 +130,8 @@ public record ProductResponse(
                 null,
                 null,
                 listing.getPrice(),
+                null,
+                null,
                 ProductStatus.fromExternal(listing.getStatus()),
                 null,
                 null,
@@ -170,6 +176,8 @@ public record ProductResponse(
                 brand,
                 description,
                 price,
+                soldPrice,
+                soldPlatform,
                 status,
                 condition,
                 defectStatus,
