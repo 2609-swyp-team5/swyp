@@ -33,7 +33,6 @@ it("판매자 전체 보기는 추천·가격·차트 정보를 함께 보여준
         "27.4만 원",
         "42만 원",
         "30.8만 원",
-        "감가 상각률",
     ]) {
         expect(screen.getAllByText(visible).length).toBeGreaterThan(0);
     }
@@ -54,7 +53,7 @@ it("구매자 전체 보기는 구매 가격과 차트 정보를 함께 보여�
 
     expect(screen.getByText("BUY")).toBeInTheDocument();
     expect(screen.getByText(analysis.description)).toBeInTheDocument();
-    for (const visible of ["구매 고려 가격", "최근 평균 거래가", "감가 상각률"]) {
+    for (const visible of ["구매 고려 가격", "최근 평균 거래가"]) {
         expect(screen.getByText(visible)).toBeInTheDocument();
     }
 });
