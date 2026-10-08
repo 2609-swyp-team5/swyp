@@ -1,12 +1,15 @@
 import {
     createProductCompetitionMock,
+    createProductManagementOverviewMock,
     createProductMarketAnalysisMock,
     createProductPriceTrendMock,
     createProductSummaryMock,
     createProductValuationForecastMock,
 } from "../mocks/productManagementMock";
+import { mockProducts } from "@/features/sell/mocks/productMock";
 import type {
     ProductDetailSummaryResponse,
+    ProductManagementOverviewResponse,
     ProductTargetPriceResponse,
 } from "../schemas/productManagementResponseSchema";
 import type {
@@ -19,6 +22,7 @@ import type {
 } from "../types";
 
 const mockResponseDelayMs = {
+    summary: 100,
     marketAnalysis: 500,
     priceTrend: 900,
     valuationForecast: 700,
@@ -32,18 +36,31 @@ function waitForMockResponse(delayMs: number) {
 export async function getProductSummaryMock(
     productId: number,
 ): Promise<ProductDetailSummaryResponse> {
-    await waitForMockResponse(mockResponseDelayMs.marketAnalysis);
+    await waitForMockResponse(mockResponseDelayMs.summary);
 
     return createProductSummaryMock(productId);
+}
+
+export async function getProductManagementOverviewMock(
+    productId: number,
+): Promise<ProductManagementOverviewResponse> {
+    await waitForMockResponse(mockResponseDelayMs.summary);
+
+    return createProductManagementOverviewMock(productId);
 }
 
 export async function getProductMarketAnalysisMock(
     productId: number,
     perspective: ProductManagementPerspective = "SELL",
     recommendation?: AnalysisRecommendation,
-): Promise<ProductMarketAnalysis> {
+): Promise<ProductMarketAnalysis | null> {
     // Keep the independent loading state visible until the real endpoint replaces this adapter.
     await waitForMockResponse(mockResponseDelayMs.marketAnalysis);
+
+    const product = mockProducts.find((item) => item.id === productId);
+    if (product?.status === "SOLD_OUT" && product.marketAveragePrice === null) {
+        return null;
+    }
 
     return createProductMarketAnalysisMock(productId, perspective, recommendation);
 }

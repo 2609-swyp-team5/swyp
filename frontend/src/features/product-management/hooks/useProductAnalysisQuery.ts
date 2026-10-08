@@ -1,5 +1,6 @@
 "use client";
 
+import { isAxiosError } from "axios";
 import { useQuery } from "@tanstack/react-query";
 
 import { dataSource } from "@/common/lib/api/dataSource";
@@ -45,17 +46,28 @@ export function useProductAnalysisQuery(
                 return getProductMarketAnalysisMock(productId, perspective, mockRecommendation);
             }
 
-            const { data: response } = await productApi.getProductAnalysis(productId, perspective);
-            if (!response.success) {
-                throw new Error(response.message);
-            }
+            try {
+                const { data: response } = await productApi.getProductAnalysis(
+                    productId,
+                    perspective,
+                );
+                if (!response.success) {
+                    throw new Error(response.message);
+                }
 
-            // 아직 분석 이력이 없으면(분석 전·비교 매물 부족) 분석 필드가 모두 null로 내려와 빈 상태로 처리합니다.
-            if (response.data.analysisId == null || response.data.recommendation == null) {
-                return null;
-            }
+                // 아직 분석 이력이 없으면(분석 전·비교 매물 부족) 분석 필드가 모두 null로 내려와 빈 상태로 처리합니다.
+                if (response.data.analysisId == null || response.data.recommendation == null) {
+                    return null;
+                }
 
-            return productAnalysisResponseSchema.parse(response.data);
+                return productAnalysisResponseSchema.parse(response.data);
+            } catch (error) {
+                if (isAxiosError(error) && error.response?.status === 404) {
+                    return null;
+                }
+
+                throw error;
+            }
         },
         enabled,
     });

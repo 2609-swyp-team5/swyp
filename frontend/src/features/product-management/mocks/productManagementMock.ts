@@ -1,5 +1,8 @@
 import { mockProducts } from "@/features/sell/mocks/productMock";
-import type { ProductDetailSummaryResponse } from "../schemas/productManagementResponseSchema";
+import type {
+    ProductDetailSummaryResponse,
+    ProductManagementOverviewResponse,
+} from "../schemas/productManagementResponseSchema";
 
 import type {
     ProductCompetition,
@@ -123,6 +126,8 @@ export function createProductSummaryMock(productId: number): ProductDetailSummar
         },
         title: product?.title ?? `상품 ${productId}`,
         price: product?.price ?? 495000,
+        soldPrice: product?.soldPrice ?? null,
+        soldPlatform: product?.soldPlatform ?? null,
         status: product?.status ?? "ON_SALE",
         condition: product?.condition ?? "A",
         imageUrls: product?.thumbnailUrl ? [product.thumbnailUrl] : [],
@@ -131,6 +136,22 @@ export function createProductSummaryMock(productId: number): ProductDetailSummar
         daysOnSale: 21,
         platforms: [],
         createdAt: product?.createdAt ?? "2026-10-02T12:00:00",
+    };
+}
+
+export function createProductManagementOverviewMock(
+    productId: number,
+): ProductManagementOverviewResponse {
+    const product = mockProducts.find((item) => item.id === productId);
+
+    return {
+        id: productId,
+        title: product?.title ?? `상품 ${productId}`,
+        price: product?.price ?? 495000,
+        status: product?.status ?? "ON_SALE",
+        createdAt: product?.createdAt ?? "2026-10-02T12:00:00",
+        soldPrice: product?.soldPrice ?? null,
+        soldPlatform: product?.soldPlatform ?? null,
     };
 }
 

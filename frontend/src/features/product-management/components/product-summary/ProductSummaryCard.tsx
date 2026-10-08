@@ -89,7 +89,7 @@ export function ProductSummaryCard({ product, interest }: ProductSummaryCardProp
                                 />
                                 관심
                             </button>
-                        ) : product.status === "ON_SALE" && product.platforms.length > 0 ? (
+                        ) : product.status === "ON_SALE" || product.status === "SOLD_OUT" ? (
                             <PlatformShortcutDialog
                                 product={product}
                                 label="판매글 바로가기"

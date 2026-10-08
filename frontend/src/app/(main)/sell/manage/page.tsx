@@ -115,6 +115,7 @@ export default function SellManagePage() {
 
                 return (
                     <ProductManagementDetail
+                        key={item.id}
                         productId={Number(item.id)}
                         initialStatus={item.status}
                         initialRecommendation={initialRecommendation}
