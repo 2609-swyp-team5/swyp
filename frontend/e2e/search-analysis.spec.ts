@@ -107,7 +107,7 @@ test("detail loads buyer analysis only on click and retries failed analysis", as
     const section = page.getByRole("region", { name: "AI 시세 분석", exact: true });
     await expect(section).toContainText(result.description);
     await expect(section).toContainText("예상 가격 변화");
-    for (const visible of ["구매 고려 가격", "최근 평균 거래가", "가격 변화 추이", "감가 상각률"]) {
+    for (const visible of ["구매 고려 가격", "최근 평균 거래가", "일 평균 거래가", "감가 상각률"]) {
         await expect(section).toContainText(visible);
     }
     const similarSection = page.getByRole("region", { name: "비슷한 상품", exact: true });

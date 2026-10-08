@@ -4,7 +4,6 @@ import { useState } from "react";
 
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import type { ProductStatus } from "@/features/sell/types";
-import type { AnalysisRecommendation } from "../types";
 import { useProductManagementOverviewQuery } from "../hooks/useProductManagementOverviewQuery";
 import { useProductManagementSectionsQuery } from "../hooks/useProductManagementSectionsQuery";
 import { MarketAnalysisSection } from "./analysis/market-analysis/MarketAnalysisSection";
@@ -18,11 +17,9 @@ import { SellerTargetPriceSection } from "./target-price/SellerTargetPriceSectio
 export function ProductManagementDetail({
     productId,
     initialStatus,
-    initialRecommendation,
 }: {
     productId: number;
     initialStatus?: ProductStatus;
-    initialRecommendation?: AnalysisRecommendation;
 }) {
     const [showSoldDetails, setShowSoldDetails] = useState(initialStatus !== "SOLD_OUT");
     const isSoldOverviewMode = initialStatus === "SOLD_OUT" && !showSoldDetails;
@@ -31,7 +28,6 @@ export function ProductManagementDetail({
         enabled: isSoldOverviewMode,
     });
     const sections = useProductManagementSectionsQuery(productId, {
-        mockRecommendation: initialRecommendation,
         summaryEnabled: !isSoldOverviewMode,
         analysisEnabled: shouldLoadDetailSections,
         competitionEnabled: shouldLoadDetailSections,

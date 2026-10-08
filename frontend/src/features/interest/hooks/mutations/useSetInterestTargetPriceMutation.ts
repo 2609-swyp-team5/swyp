@@ -2,9 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { dataSource } from "@/common/lib/api/dataSource";
 import { interestApi } from "@/features/interest/api/interestApi";
-import { setInterestTargetPriceMock } from "@/features/interest/api/interestMockApi";
 import { interestsQueryKey } from "@/features/interest/hooks/queries/useInterestsQuery";
 import { interestTargetPriceResponseSchema } from "@/features/interest/schemas/interestResponseSchema";
 
@@ -14,10 +12,7 @@ export function useSetInterestTargetPriceMutation(interestId: number) {
 
     return useMutation({
         mutationFn: async (targetPrice: number | null) => {
-            const response =
-                dataSource === "api"
-                    ? (await interestApi.setTargetPrice(interestId, targetPrice)).data
-                    : await setInterestTargetPriceMock(interestId, targetPrice);
+            const response = (await interestApi.setTargetPrice(interestId, targetPrice)).data;
             if (!response.success) {
                 throw new Error(response.message);
             }

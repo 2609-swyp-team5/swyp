@@ -5,7 +5,7 @@ import { useProductCompetitionQuery } from "./useProductCompetitionQuery";
 import { useProductPriceTrendQuery } from "./useProductPriceTrendQuery";
 import { useProductSummaryQuery } from "./useProductSummaryQuery";
 import { useProductValuationForecastQuery } from "./useProductValuationForecastQuery";
-import type { AnalysisRecommendation, ProductManagementPerspective } from "../types";
+import type { ProductManagementPerspective } from "../types";
 
 export function useProductManagementSectionsQuery(
     productId: number,
@@ -15,8 +15,6 @@ export function useProductManagementSectionsQuery(
         summaryEnabled?: boolean;
         analysisEnabled?: boolean;
         competitionEnabled?: boolean;
-        buyerRecommendation?: Extract<AnalysisRecommendation, "BUY" | "WAIT">;
-        mockRecommendation?: AnalysisRecommendation;
     },
 ) {
     const enabled = options?.enabled ?? true;
@@ -24,14 +22,11 @@ export function useProductManagementSectionsQuery(
     const analysisEnabled = enabled && (options?.analysisEnabled ?? true);
     const competitionEnabled = enabled && (options?.competitionEnabled ?? true);
     const perspective = options?.perspective ?? "SELL";
-    const buyerRecommendation = options?.buyerRecommendation;
-    const mockRecommendation = options?.mockRecommendation ?? buyerRecommendation;
 
     const productSummary = useProductSummaryQuery(productId, { enabled: summaryEnabled });
     const productAnalysis = useProductAnalysisQuery(productId, {
         enabled: analysisEnabled,
         perspective,
-        mockRecommendation,
     });
     const productPriceTrend = useProductPriceTrendQuery(productId, { enabled: analysisEnabled });
     const productValuationForecast = useProductValuationForecastQuery(productId, {

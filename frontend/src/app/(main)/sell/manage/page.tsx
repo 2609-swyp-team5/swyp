@@ -6,7 +6,6 @@ import { getApiErrorMessage } from "@/common/lib/api/error";
 import { ProductListShell } from "@/features/product-management/components/product-list/ProductListShell";
 import type { ProductListTab } from "@/features/product-management/components/product-list/productListTypes";
 import { ProductManagementDetail } from "@/features/product-management/components/ProductManagementDetail";
-import type { AnalysisRecommendation } from "@/features/product-management/types";
 import { useMyProductsQuery } from "@/features/sell/hooks/queries/useMyProductsQuery";
 import type { ProductStatus } from "@/features/sell/types";
 
@@ -16,8 +15,6 @@ const statusMetaLabels: Record<ProductStatus, string> = {
     RESERVED: "예약 중인 상품",
     SOLD_OUT: "판매 완료 상품",
 };
-
-const analysisRecommendations: AnalysisRecommendation[] = ["SELL", "HOLD", "BUY", "WAIT"];
 
 const tabs: ProductListTab[] = [
     {
@@ -106,19 +103,11 @@ export default function SellManagePage() {
             emptyMessage="등록된 상품이 없습니다."
             listTitle="전체 상품 목록"
             detailRenderer={(item) => {
-                const product = products.find((candidate) => String(candidate.id) === item.id);
-                const initialRecommendation = analysisRecommendations.includes(
-                    product?.recommendation as AnalysisRecommendation,
-                )
-                    ? (product?.recommendation as AnalysisRecommendation)
-                    : undefined;
-
                 return (
                     <ProductManagementDetail
                         key={item.id}
                         productId={Number(item.id)}
                         initialStatus={item.status}
-                        initialRecommendation={initialRecommendation}
                     />
                 );
             }}

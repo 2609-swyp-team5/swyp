@@ -2,9 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { dataSource } from "@/common/lib/api/dataSource";
 import { interestApi } from "@/features/interest/api/interestApi";
-import { deleteInterestMock } from "@/features/interest/api/interestMockApi";
 import { interestsQueryKey } from "@/features/interest/hooks/queries/useInterestsQuery";
 
 export function useDeleteInterestMutation() {
@@ -12,10 +10,7 @@ export function useDeleteInterestMutation() {
 
     return useMutation({
         mutationFn: async (interestId: number) => {
-            const response =
-                dataSource === "api"
-                    ? (await interestApi.deleteInterest(interestId)).data
-                    : await deleteInterestMock(interestId);
+            const response = (await interestApi.deleteInterest(interestId)).data;
             if (!response.success) {
                 throw new Error(response.message);
             }
