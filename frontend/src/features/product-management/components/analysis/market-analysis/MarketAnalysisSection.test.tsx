@@ -25,8 +25,18 @@ it("판매자 전체 보기는 추천·가격·차트 정보를 함께 보여준
 
     expect(screen.getByText("HOLD")).toBeInTheDocument();
     expect(screen.getByText(analysis.description)).toBeInTheDocument();
-    for (const visible of ["AI 추천 가격", "중고시세", "가격 변화 추이", "감가 상각률"]) {
-        expect(screen.getByText(visible)).toBeInTheDocument();
+    for (const visible of [
+        "AI 추천 가격",
+        "거래 가격 분포",
+        "비슷한 상품의 가격과 비교해 보세요.",
+        "18만 원",
+        "27.4만 원",
+        "42만 원",
+        "30.8만 원",
+        "가격 변화 추이",
+        "감가 상각률",
+    ]) {
+        expect(screen.getAllByText(visible).length).toBeGreaterThan(0);
     }
 });
 

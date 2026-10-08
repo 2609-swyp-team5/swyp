@@ -88,10 +88,6 @@ describe("백엔드 분석 응답 파싱", () => {
             expectedPriceChangeRate: 0.04,
             forecasts: [{ period: "1M", expectedPrice: 440000 }],
             marketExpectedPrice: 468000,
-            priceDistribution: [
-                { from: 400000, to: 424000, count: 3 },
-                { from: 424000, to: 520000, count: 5 },
-            ],
             summary: {
                 type: "WAIT_RECOMMENDATION",
                 waitPeriodDays: 30,
@@ -106,7 +102,6 @@ describe("백엔드 분석 응답 파싱", () => {
             expectedPriceChangeRate: 4,
             confidenceScore: 70,
         });
-        expect(result.priceDistribution).toHaveLength(2);
     });
 
     it("판매 추천(SELL)이면 판매 현황 요약을 파싱한다", () => {
