@@ -21,11 +21,17 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     @EntityGraph(attributePaths = "item")
     List<Notification> findByMemberIdAndIdLessThan(Long memberId, Long cursor, Pageable pageable);
 
+    @EntityGraph(attributePaths = "item")
+    List<Notification> findByMemberIdAndTypeInAndIdLessThan(
+            Long memberId, Collection<NotificationType> types, Long cursor, Pageable pageable);
+
+    /** 회원의 알림 종류별 건수(탭 숫자용). 행마다 [종류, 건수]. */
+    @Query("SELECT n.type, COUNT(n) FROM Notification n WHERE n.member.id = :memberId GROUP BY n.type")
+    List<Object[]> countByMemberIdGroupByType(@Param("memberId") Long memberId);
+
     Optional<Notification> findByIdAndMemberId(Long notificationId, Long memberId);
 
     long countByMemberIdAndReadFalse(Long memberId);
-
-    long countByMemberId(Long memberId);
 
     /** 주어진 대상에 대해 주어진 시각 이후 해당 종류 알림을 받은 회원 ID(시세 변동 알림 하루 1회 제한용). */
     @Query(

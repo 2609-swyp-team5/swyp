@@ -29,6 +29,8 @@ export const notificationPageSchema = z.object({
     nextCursor: z.string().nullable(),
     hasNext: z.boolean(),
     totalCount: z.number().nullable(),
+    // 탭(SELL/BUY/PRICE/PLATFORM/NOTICE)별 전체 건수 — 탭 필터와 무관
+    statusCounts: z.record(z.number()).nullish(),
 });
 
 export const notificationSettingsSchema = z.object({
@@ -40,6 +42,8 @@ export const notificationSettingsSchema = z.object({
 });
 
 export type NotificationType = z.infer<typeof notificationTypeSchema>;
+/** 알림 목록 탭 필터(`GET /notifications?category=`) — 생략하면 전체. */
+export type NotificationCategoryParam = "SELL" | "BUY" | "PRICE" | "PLATFORM" | "NOTICE";
 export type NotificationItem = z.infer<typeof notificationSchema>;
 export type NotificationPage = z.infer<typeof notificationPageSchema>;
 export type NotificationSettings = z.infer<typeof notificationSettingsSchema>;

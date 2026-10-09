@@ -18,6 +18,7 @@ import {
     getNotificationLink,
     isToday,
     notificationFilters,
+    toCategoryParam,
     type NotificationCategory,
 } from "../utils/notificationDisplay";
 
@@ -121,12 +122,16 @@ function NotificationCard({
 
 export function NotificationsPage() {
     const [filter, setFilter] = useState<"all" | NotificationCategory>("all");
-    const query = useNotificationsQuery();
+    const query = useNotificationsQuery(filter === "all" ? undefined : toCategoryParam(filter));
     const readMutation = useReadNotificationMutation();
-    const notifications = query.data?.pages.flatMap((page) => page.content) ?? [];
-    const visible = notifications.filter(
-        (item) => filter === "all" || getNotificationCategory(item.type) === filter,
-    );
+    const pages = query.data?.pages ?? [];
+    // 탭을 바꾸는 동안은 이전 탭 목록(placeholder)을 감추고 탭 숫자만 유지한다
+    const visible = query.isPlaceholderData ? [] : pages.flatMap((page) => page.content);
+    const statusCounts = pages.at(-1)?.statusCounts ?? {};
+    const countOf = (value: "all" | NotificationCategory) =>
+        value === "all"
+            ? Object.values(statusCounts).reduce((sum, count) => sum + count, 0)
+            : (statusCounts[toCategoryParam(value)] ?? 0);
 
     return (
         <main className="flex-1 bg-white">
@@ -146,11 +151,7 @@ export function NotificationsPage() {
                         className="flex h-10 gap-5 overflow-x-auto border-b border-[#dee5ed] lg:gap-[39px]"
                     >
                         {notificationFilters.map((item) => {
-                            const count = notifications.filter(
-                                (notification) =>
-                                    item.value === "all" ||
-                                    getNotificationCategory(notification.type) === item.value,
-                            ).length;
+                            const count = countOf(item.value);
                             return (
                                 <Button
                                     key={item.value}
@@ -182,7 +183,7 @@ export function NotificationsPage() {
                         })}
                     </div>
                     <div className="max-w-[976px] space-y-6">
-                        {query.isPending ? (
+                        {query.isPending || query.isPlaceholderData ? (
                             <p role="status" className="py-10 text-center text-[#83889e]">
                                 알림을 불러오는 중입니다.
                             </p>
@@ -232,7 +233,7 @@ export function NotificationsPage() {
                                 );
                             })
                         )}
-                        {query.hasNextPage && (
+                        {query.hasNextPage && !query.isPlaceholderData && (
                             <Button
                                 type="button"
                                 variant="outline"
