@@ -12,7 +12,6 @@ export const notificationFilters: { value: "all" | NotificationCategory; label: 
     { value: "buy", label: "구매추천" },
     { value: "price", label: "시세변동" },
     { value: "platform", label: "연동" },
-    { value: "notice", label: "공지" },
 ];
 
 const categoryByType: Record<NotificationType, NotificationCategory> = {
