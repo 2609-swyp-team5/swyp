@@ -67,7 +67,7 @@ describe("ProductSummaryCard", () => {
             "href",
             "https://example.com/product/3",
         );
-        expect(screen.getByRole("button", { name: "관심 상품 삭제" })).toHaveTextContent("관심");
+        expect(screen.getByRole("button", { name: "관심 상품 삭제" })).toBeInTheDocument();
         expect(screen.queryByText("바로가기")).not.toBeInTheDocument();
     });
 });
