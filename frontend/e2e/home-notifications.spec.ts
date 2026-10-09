@@ -127,37 +127,50 @@ test("notifications filter their preview list and keep navigation working", asyn
             json: { success: true, data: { accessToken: "notifications-preview" }, error: null },
         }),
     );
+    const notifications = [
+        notification(5, "SELL", "아이폰 13 지금 판매 추천", 10),
+        notification(4, "BUY", "다이슨 에어랩 시세 하락 중", null, 20),
+        notification(3, "TARGET_PRICE", "갤럭시 버즈 목표가 도달", 30),
+        notification(2, "HOLD", "맥북 에어 판매 대기 추천", 40),
+        notification(1, "NOTICE", "서비스 점검 안내", null, null, "2026-09-01T09:00:00"),
+    ];
+    // 서버 탭 분류(백엔드 NotificationCategory)와 같게 `category`로 거르고 탭별 건수를 준다
+    const categoryTypes: Record<string, string[]> = {
+        SELL: ["SELL", "HOLD", "SELL_TARGET_PRICE"],
+        BUY: ["BUY", "WAIT", "TARGET_PRICE"],
+        PRICE: ["SELL_PRICE_CHANGE", "BUY_PRICE_CHANGE"],
+        PLATFORM: ["PLATFORM_EXPIRED"],
+        NOTICE: ["NOTICE"],
+    };
+    const statusCounts = Object.fromEntries(
+        Object.entries(categoryTypes).map(([category, types]) => [
+            category,
+            notifications.filter((item) => types.includes(item.type)).length,
+        ]),
+    );
     // 화면 경로와 API 경로가 같아 페이지 이동 요청은 그대로 통과시킨다
     await page.route(
         (url) => url.pathname === "/notifications",
-        (route) =>
-            route.request().isNavigationRequest()
-                ? route.fallback()
-                : route.fulfill({
-                      json: {
-                          success: true,
-                          data: {
-                              content: [
-                                  notification(5, "SELL", "아이폰 13 지금 판매 추천", 10),
-                                  notification(4, "BUY", "다이슨 에어랩 시세 하락 중", null, 20),
-                                  notification(3, "TARGET_PRICE", "갤럭시 버즈 목표가 도달", 30),
-                                  notification(2, "HOLD", "맥북 에어 판매 대기 추천", 40),
-                                  notification(
-                                      1,
-                                      "NOTICE",
-                                      "서비스 점검 안내",
-                                      null,
-                                      null,
-                                      "2026-09-01T09:00:00",
-                                  ),
-                              ],
-                              nextCursor: null,
-                              hasNext: false,
-                              totalCount: 5,
-                          },
-                          error: null,
-                      },
-                  }),
+        (route) => {
+            if (route.request().isNavigationRequest()) return route.fallback();
+            const category = new URL(route.request().url()).searchParams.get("category");
+            const content = category
+                ? notifications.filter((item) => categoryTypes[category].includes(item.type))
+                : notifications;
+            return route.fulfill({
+                json: {
+                    success: true,
+                    data: {
+                        content,
+                        nextCursor: null,
+                        hasNext: false,
+                        totalCount: content.length,
+                        statusCounts,
+                    },
+                    error: null,
+                },
+            });
+        },
     );
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/notifications");

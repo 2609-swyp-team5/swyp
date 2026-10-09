@@ -1,4 +1,8 @@
-import type { NotificationItem, NotificationType } from "../schemas/notificationSchema";
+import type {
+    NotificationCategoryParam,
+    NotificationItem,
+    NotificationType,
+} from "../schemas/notificationSchema";
 
 export type NotificationCategory = "sell" | "buy" | "price" | "platform" | "notice";
 
@@ -26,6 +30,11 @@ const categoryByType: Record<NotificationType, NotificationCategory> = {
 
 export function getNotificationCategory(type: NotificationType) {
     return categoryByType[type];
+}
+
+/** 화면 탭 값 → 서버 탭 필터·`statusCounts` 키(백엔드 `NotificationCategory`와 같은 분류). */
+export function toCategoryParam(category: NotificationCategory): NotificationCategoryParam {
+    return category.toUpperCase() as NotificationCategoryParam;
 }
 
 /**

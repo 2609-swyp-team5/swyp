@@ -18,6 +18,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.jayway.jsonpath.JsonPath;
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.passport.JwtTokenProvider;
@@ -163,6 +164,105 @@ class NotificationTest extends IntegrationTest {
                 .andExpect(jsonPath("$.data.content.length()").value(1))
                 .andExpect(jsonPath("$.data.content[0].title").value("첫 알림"))
                 .andExpect(jsonPath("$.data.hasNext").value(false));
+    }
+
+    // 탭 필터 - 해당 탭 알림만 최신순으로 주고, totalCount는 필터 기준, statusCounts는 필터와 무관한 탭별 건수
+    @Test
+    void getNotificationsFiltersByCategoryWithCategoryCounts() throws Exception {
+        saveNotifications(
+                owner,
+                NotificationType.SELL,
+                NotificationType.BUY,
+                NotificationType.HOLD,
+                NotificationType.SELL_TARGET_PRICE,
+                NotificationType.TARGET_PRICE,
+                NotificationType.SELL_PRICE_CHANGE,
+                NotificationType.BUY_PRICE_CHANGE,
+                NotificationType.PLATFORM_EXPIRED,
+                NotificationType.NOTICE);
+        saveNotifications(other, NotificationType.SELL, NotificationType.NOTICE);
+
+        mockMvc.perform(get("/notifications")
+                        .param("category", "SELL")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(3))
+                .andExpect(jsonPath("$.data.content[0].type").value("SELL_TARGET_PRICE"))
+                .andExpect(jsonPath("$.data.content[1].type").value("HOLD"))
+                .andExpect(jsonPath("$.data.content[2].type").value("SELL"))
+                .andExpect(jsonPath("$.data.totalCount").value(3))
+                .andExpect(jsonPath("$.data.statusCounts.SELL").value(3))
+                .andExpect(jsonPath("$.data.statusCounts.BUY").value(2))
+                .andExpect(jsonPath("$.data.statusCounts.PRICE").value(2))
+                .andExpect(jsonPath("$.data.statusCounts.PLATFORM").value(1))
+                .andExpect(jsonPath("$.data.statusCounts.NOTICE").value(1));
+
+        mockMvc.perform(get("/notifications")
+                        .param("category", "PLATFORM", "NOTICE")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[*].type").value(containsInAnyOrder("PLATFORM_EXPIRED", "NOTICE")))
+                .andExpect(jsonPath("$.data.totalCount").value(2));
+
+        mockMvc.perform(get("/notifications").header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(9))
+                .andExpect(jsonPath("$.data.totalCount").value(9))
+                .andExpect(jsonPath("$.data.statusCounts.SELL").value(3));
+    }
+
+    // 탭 필터 커서 페이징 - 다음 페이지도 같은 탭 안에서 이어지고, 건수는 매 페이지 채움
+    @Test
+    void getNotificationsPagesByCursorWithinCategory() throws Exception {
+        saveNotifications(
+                owner,
+                NotificationType.BUY,
+                NotificationType.NOTICE,
+                NotificationType.WAIT,
+                NotificationType.NOTICE,
+                NotificationType.TARGET_PRICE);
+
+        String nextCursor = JsonPath.read(
+                mockMvc.perform(get("/notifications")
+                                .param("category", "BUY")
+                                .param("size", "2")
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.data.content[0].type").value("TARGET_PRICE"))
+                        .andExpect(jsonPath("$.data.content[1].type").value("WAIT"))
+                        .andExpect(jsonPath("$.data.hasNext").value(true))
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString(),
+                "$.data.nextCursor");
+
+        mockMvc.perform(get("/notifications")
+                        .param("category", "BUY")
+                        .param("size", "2")
+                        .param("cursor", nextCursor)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].type").value("BUY"))
+                .andExpect(jsonPath("$.data.hasNext").value(false))
+                .andExpect(jsonPath("$.data.totalCount").value(3))
+                .andExpect(jsonPath("$.data.statusCounts.NOTICE").value(2));
+    }
+
+    // 없는 탭 이름은 400
+    @Test
+    void getNotificationsRejectsUnknownCategory() throws Exception {
+        mockMvc.perform(get("/notifications")
+                        .param("category", "UNKNOWN")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    /** 주어진 순서대로 알림을 저장한다(뒤에 저장한 것이 최신). */
+    private void saveNotifications(Member member, NotificationType... types) {
+        for (NotificationType type : types) {
+            notificationRepository.save(Notification.create(member, null, type, type.name() + " 알림", "내용"));
+        }
     }
 
     // 읽음 처리

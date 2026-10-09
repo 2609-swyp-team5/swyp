@@ -4,8 +4,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -22,6 +24,7 @@ import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.interest.entity.Interest;
 import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.member.entity.Member;
+import com.swyp.team5.notification.dto.NotificationCategory;
 import com.swyp.team5.notification.dto.NotificationReadResponse;
 import com.swyp.team5.notification.dto.NotificationResponse;
 import com.swyp.team5.notification.dto.NotificationUnreadCountResponse;
@@ -49,24 +52,39 @@ public class NotificationService {
     private final NotificationSettingRepository notificationSettingRepository;
 
     /**
-     * 본인 알림 목록을 커서 기반으로 조회한다({@code id} 내림차순 = 최신순).
+     * 본인 알림 목록을 커서 기반으로 조회한다({@code id} 내림차순 = 최신순). 탭 필터가 있으면 그 탭에 속한 알림만 준다.
+     * 탭 숫자용 {@code statusCounts}(탭별 건수, 필터와 무관)와 {@code totalCount}(필터 기준)는 매 페이지 채운다 — 읽음·삭제로
+     * 건수가 바뀌어도 다음 페이지 응답에서 맞춰지도록.
      *
+     * @param categories 탭 필터(선택, {@code null}이거나 비면 전체)
      * @param cursor 이전 페이지 마지막 알림의 {@code notificationId}(선택, {@code null}이면 첫 페이지)
-     * @return {@code hasNext}/{@code nextCursor}를 포함한 커서 페이지 응답
+     * @return {@code hasNext}/{@code nextCursor}/{@code totalCount}/{@code statusCounts}를 포함한 커서 페이지 응답
      */
     @Transactional(readOnly = true)
-    public CursorPageResponse<NotificationResponse> getNotifications(Long memberId, Long cursor, int size) {
+    public CursorPageResponse<NotificationResponse> getNotifications(
+            Long memberId, Set<NotificationCategory> categories, Long cursor, int size) {
         Pageable pageable = PageRequest.of(0, size + 1, Sort.by(Sort.Direction.DESC, "id"));
+        long cursorId = cursor == null ? Long.MAX_VALUE : cursor;
+        boolean filtered = categories != null && !categories.isEmpty();
+        List<Notification> notifications = filtered
+                ? notificationRepository.findByMemberIdAndTypeInAndIdLessThan(
+                        memberId, NotificationCategory.typesOf(categories), cursorId, pageable)
+                : notificationRepository.findByMemberIdAndIdLessThan(memberId, cursorId, pageable);
         List<NotificationResponse> items =
-                notificationRepository
-                        .findByMemberIdAndIdLessThan(memberId, cursor == null ? Long.MAX_VALUE : cursor, pageable)
-                        .stream()
-                        .map(NotificationResponse::from)
-                        .toList();
-        CursorPageResponse<NotificationResponse> page =
-                CursorPageResponse.of(items, size, NotificationResponse::notificationId);
-        // 전체 건수는 첫 페이지에서만 센다
-        return cursor == null ? page.withTotalCount(notificationRepository.countByMemberId(memberId)) : page;
+                notifications.stream().map(NotificationResponse::from).toList();
+
+        Map<NotificationType, Long> countsByType = new EnumMap<>(NotificationType.class);
+        for (Object[] row : notificationRepository.countByMemberIdGroupByType(memberId)) {
+            countsByType.put((NotificationType) row[0], (Long) row[1]);
+        }
+        Map<String, Long> categoryCounts = NotificationCategory.toCategoryCounts(countsByType);
+        long totalCount = categoryCounts.entrySet().stream()
+                .filter(entry -> !filtered || categories.contains(NotificationCategory.valueOf(entry.getKey())))
+                .mapToLong(Map.Entry::getValue)
+                .sum();
+        return CursorPageResponse.of(items, size, NotificationResponse::notificationId)
+                .withTotalCount(totalCount)
+                .withStatusCounts(categoryCounts);
     }
 
     /** 본인의 안 읽은 알림 수를 센다. */
