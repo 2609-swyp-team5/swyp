@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Bell } from "lucide-react";
 
 import { Button } from "@/common/components/ui/Button";
 import { Card, CardContent } from "@/common/components/ui/Card";
+import { Skeleton } from "@/common/components/ui/Skeleton";
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { cn } from "@/common/lib/utils";
 
@@ -90,7 +92,7 @@ function NotificationCard({
                             {link && (
                                 <Button
                                     asChild
-                                    className="h-auto rounded-full bg-[#6653fb] px-4 py-1.5 text-[13px] leading-5 font-semibold text-white"
+                                    className="h-auto rounded-full bg-[#6653fb] px-4 py-1.5 text-[13px] leading-5 font-semibold text-white hover:bg-[#5745e7] focus-visible:border-[#6653fb] focus-visible:ring-[#6653fb]/30"
                                 >
                                     <Link
                                         href={link.href}
@@ -106,7 +108,7 @@ function NotificationCard({
                                 <Button
                                     type="button"
                                     variant="link"
-                                    className="h-auto px-0 py-0 text-[13px] leading-5 font-semibold text-[#6653fb] underline"
+                                    className="h-auto px-0 py-0 text-[13px] leading-5 font-semibold text-[#6653fb] underline hover:text-[#5745e7] focus-visible:border-[#6653fb] focus-visible:ring-[#6653fb]/30"
                                     onClick={() => onRead(notification.notificationId)}
                                 >
                                     읽음 처리
@@ -117,6 +119,51 @@ function NotificationCard({
                 </div>
             </CardContent>
         </Card>
+    );
+}
+
+function NotificationListSkeleton() {
+    return (
+        <div role="status" aria-label="알림 불러오는 중" className="space-y-3">
+            {Array.from({ length: 3 }, (_, index) => (
+                <Card
+                    key={index}
+                    aria-hidden="true"
+                    className="gap-0 rounded-xl border border-[#eef0f5] bg-white px-5 py-4 ring-0"
+                >
+                    <CardContent className="flex items-start gap-3 p-0">
+                        <Skeleton className="mt-0.5 size-5 shrink-0 rounded-full bg-[#f0edff]" />
+                        <div className="min-w-0 flex-1 space-y-2">
+                            <div className="flex items-center justify-between gap-3">
+                                <Skeleton className="h-4 w-40 bg-[#eef0f5]" />
+                                <Skeleton className="h-3 w-14 bg-[#eef0f5]" />
+                            </div>
+                            <Skeleton className="h-4 w-4/5 bg-[#eef0f5]" />
+                            <Skeleton className="h-8 w-28 rounded-full bg-[#f0edff]" />
+                        </div>
+                    </CardContent>
+                </Card>
+            ))}
+        </div>
+    );
+}
+
+function NotificationEmptyState({ filtered }: { filtered: boolean }) {
+    return (
+        <div className="flex flex-col items-center justify-center rounded-[20px] border border-dashed border-[#dcd8ff] bg-[#fafbff] px-6 py-16 text-center">
+            <Bell aria-hidden="true" className="mb-4 size-9 text-[#b8b2ff]" />
+            <p className="text-sm leading-6 font-medium text-[#83889e]">
+                {filtered ? "해당하는 알림이 없습니다." : "아직 받은 알림이 없습니다."}
+            </p>
+            {!filtered && (
+                <Button
+                    asChild
+                    className="mt-5 rounded-full bg-[#6653fb] px-5 font-semibold text-white hover:bg-[#5745e7] focus-visible:border-[#6653fb] focus-visible:ring-[#6653fb]/30"
+                >
+                    <Link href="/my/notifications">알림 설정 확인</Link>
+                </Button>
+            )}
+        </div>
     );
 }
 
@@ -201,11 +248,7 @@ export function NotificationsPage() {
                                 </Button>
                             </div>
                         ) : visible.length === 0 ? (
-                            <p className="py-10 text-center text-[#83889e]">
-                                {filter === "all"
-                                    ? "아직 받은 알림이 없습니다."
-                                    : "해당하는 알림이 없습니다."}
-                            </p>
+                            <NotificationEmptyState filtered={filter !== "all"} />
                         ) : (
                             [true, false].map((today) => {
                                 const items = visible.filter(

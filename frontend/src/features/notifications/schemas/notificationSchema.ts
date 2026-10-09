@@ -33,6 +33,10 @@ export const notificationPageSchema = z.object({
     statusCounts: z.record(z.number()).nullish(),
 });
 
+export const notificationUnreadCountSchema = z.object({
+    count: z.number().int().nonnegative(),
+});
+
 export const notificationSettingsSchema = z.object({
     recommendationEnabled: z.boolean(),
     priceChangeEnabled: z.boolean(),
@@ -46,5 +50,6 @@ export type NotificationType = z.infer<typeof notificationTypeSchema>;
 export type NotificationCategoryParam = "SELL" | "BUY" | "PRICE" | "PLATFORM" | "NOTICE";
 export type NotificationItem = z.infer<typeof notificationSchema>;
 export type NotificationPage = z.infer<typeof notificationPageSchema>;
+export type NotificationUnreadCount = z.infer<typeof notificationUnreadCountSchema>;
 export type NotificationSettings = z.infer<typeof notificationSettingsSchema>;
 export type NotificationSettingKey = keyof NotificationSettings;
