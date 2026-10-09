@@ -44,29 +44,44 @@ describe("ProductSummaryActions", () => {
 
         render(
             <ProductSummaryActions
-                product={{ id: 42 }}
+                product={{ id: 42, price: 250000 }}
                 actionHref="/sell/manage/42/edit"
                 canMarkAsSold
             />,
         );
 
         await user.click(screen.getByRole("button", { name: "판매완료" }));
-        expect(screen.getByRole("heading", { name: "판매완료로 변경할까요?" })).toBeVisible();
+        expect(
+            screen.getByRole("heading", { name: "판매완료 정보를 입력해 주세요" }),
+        ).toBeVisible();
 
         const confirmButton = screen
             .getAllByRole("button", { name: "판매완료" })
             .find((button) => button.closest('[role="alertdialog"]'));
         expect(confirmButton).toBeDefined();
+        const soldPriceInput = screen.getByLabelText(/최종 거래 가격/);
+        await user.clear(soldPriceInput);
+        await user.type(soldPriceInput, "300000");
         await user.click(confirmButton!);
 
         expect(mutate).toHaveBeenCalledWith(
-            { id: 42, status: "SOLD_OUT" },
+            {
+                id: 42,
+                status: "SOLD_OUT",
+                soldPrice: 300000,
+                soldPlatform: "번개장터",
+            },
             expect.objectContaining({ onSuccess: expect.any(Function) }),
         );
     });
 
     it("판매완료 상태 변경이 불가능한 상품에는 버튼을 표시하지 않는다", () => {
-        render(<ProductSummaryActions product={{ id: 42 }} actionHref="/sell/manage/42/edit" />);
+        render(
+            <ProductSummaryActions
+                product={{ id: 42, price: 250000 }}
+                actionHref="/sell/manage/42/edit"
+            />,
+        );
 
         expect(screen.queryByRole("button", { name: "판매완료" })).not.toBeInTheDocument();
     });
@@ -76,7 +91,7 @@ describe("ProductSummaryActions", () => {
 
         render(
             <ProductSummaryActions
-                product={{ id: 42 }}
+                product={{ id: 42, price: 250000 }}
                 actionHref="/sell/manage/42"
                 actionLabel="자세히보기"
                 actionIconSrc="/sell/detail.svg"

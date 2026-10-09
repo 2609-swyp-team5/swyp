@@ -13,7 +13,7 @@ test("detail loads buyer analysis only on click and retries failed analysis", as
     const result = createProductMarketAnalysisMock(productId, "BUY", "BUY");
     const similar = createProductCompetitionMock(productId, "BUY");
     let requests = 0;
-    // 상세 화면은 요약만 보여주므로 가격 변화 추이·감가 상각률은 요청하지 않아야 한다
+    // 분석을 표시하면 가격 변화 추이·감가 상각률도 함께 요청한다
     let chartRequests = 0;
     let fail = true;
     let release!: () => void;
@@ -107,8 +107,8 @@ test("detail loads buyer analysis only on click and retries failed analysis", as
     const section = page.getByRole("region", { name: "AI 시세 분석", exact: true });
     await expect(section).toContainText(result.description);
     await expect(section).toContainText("예상 가격 변화");
-    for (const hidden of ["구매 고려 가격", "최근 평균 거래가", "가격 변화 추이", "감가 상각률"]) {
-        await expect(section).not.toContainText(hidden);
+    for (const visible of ["구매 고려 가격", "최근 평균 거래가", "일 평균 거래가", "감가 상각률"]) {
+        await expect(section).toContainText(visible);
     }
     const similarSection = page.getByRole("region", { name: "비슷한 상품", exact: true });
     await expect(similarSection).toContainText(similar.competition.items[0].title);
@@ -168,7 +168,7 @@ test("detail loads buyer analysis only on click and retries failed analysis", as
         similar.competition.items[0].title,
     );
     expect(requests).toBeGreaterThan(previousRequests);
-    expect(chartRequests).toBe(0);
+    expect(chartRequests).toBeGreaterThan(0);
 });
 
 for (const hasAnalysis of [true, false]) {
@@ -213,6 +213,24 @@ for (const hasAnalysis of [true, false]) {
                         error: null,
                     },
                 }),
+        );
+        await page.route(`**/products/${productId}/analysis/trend`, (route) =>
+            route.fulfill({
+                json: {
+                    success: true,
+                    data: createProductPriceTrendMock(productId),
+                    error: null,
+                },
+            }),
+        );
+        await page.route(`**/products/${productId}/analysis/forecast`, (route) =>
+            route.fulfill({
+                json: {
+                    success: true,
+                    data: createProductValuationForecastMock(productId),
+                    error: null,
+                },
+            }),
         );
         await page.route(`**/products/${productId}/competition`, (route) => {
             competitionRequests++;

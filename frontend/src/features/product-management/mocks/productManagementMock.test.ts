@@ -21,17 +21,21 @@ describe("product management analysis mock", () => {
                 confidenceScore: 88,
             },
         });
-        expect(analysis.priceDistribution).not.toHaveLength(0);
     });
 
     it("returns independent nested data for each request", () => {
         const first = createProductMarketAnalysisMock(1);
         const second = createProductMarketAnalysisMock(2);
 
-        first.priceDistribution[0].count = 99;
+        if (first.summary.type === "WAIT_RECOMMENDATION") {
+            first.summary.waitPeriodDays = 99;
+        }
 
         expect(second.productId).toBe(2);
-        expect(second.priceDistribution[0].count).toBe(2);
+        expect(second.summary).toMatchObject({
+            type: "WAIT_RECOMMENDATION",
+            waitPeriodDays: 14,
+        });
     });
 
     it("keeps the requested recommendation and summary aligned", () => {

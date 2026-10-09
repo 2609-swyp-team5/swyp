@@ -7,7 +7,7 @@ import { productResponseSchema } from "@/features/sell/schemas/productResponseSc
 
 export const productQueryKey = (id: number) => ["product", id] as const;
 
-export function useProductQuery(id: number) {
+export function useProductQuery(id: number, options?: { enabled?: boolean }) {
     return useQuery({
         queryKey: productQueryKey(id),
         queryFn: async () => {
@@ -17,7 +17,7 @@ export function useProductQuery(id: number) {
             }
             return productResponseSchema.parse(data.data);
         },
-        enabled: Number.isInteger(id) && id > 0,
+        enabled: (options?.enabled ?? true) && Number.isInteger(id) && id > 0,
         staleTime: 5 * 60 * 1000,
         refetchOnWindowFocus: false,
         retry: false,

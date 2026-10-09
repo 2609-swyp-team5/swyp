@@ -6,12 +6,6 @@ import { productRecommendationSchema } from "@/features/sell/schemas/productResp
 export const analysisRecommendationSchema = productRecommendationSchema;
 export const priceForecastPeriodSchema = z.enum(["1M", "3M", "6M"]);
 
-const productAnalysisPriceDistributionBucketSchema = z.object({
-    from: z.number(),
-    to: z.number(),
-    count: z.number(),
-});
-
 const productAnalysisSummarySchema = z.discriminatedUnion("type", [
     z.object({
         type: z.literal("SALE_STATS"),
@@ -40,7 +34,6 @@ export const productAnalysisResponseSchema = z.object({
     maxPrice: z.number(),
     marketPriceDiffRate: z.number(),
     marketExpectedPrice: z.number(),
-    priceDistribution: z.array(productAnalysisPriceDistributionBucketSchema),
     summary: productAnalysisSummarySchema,
     analyzedAt: z.string(),
 });
@@ -107,6 +100,20 @@ export const productCompetitionResponseSchema = z.object({
     }),
 });
 
+export const productManagementOverviewResponseSchema = z.object({
+    id: z.number(),
+    title: z.string(),
+    price: z.number(),
+    status: productStatusSchema,
+    createdAt: z.string(),
+    soldPrice: z.number().nullable().optional(),
+    soldPlatform: z.string().nullable().optional(),
+});
+
+export type ProductManagementOverviewResponse = z.infer<
+    typeof productManagementOverviewResponseSchema
+>;
+
 export const productDetailSummaryResponseSchema = z
     .object({
         source: z.enum(["OUR", "EXTERNAL"]),
@@ -121,6 +128,8 @@ export const productDetailSummaryResponseSchema = z
             leaf: z.boolean(),
         }),
         price: z.number(),
+        soldPrice: z.number().nullable().optional(),
+        soldPlatform: z.string().nullable().optional(),
         imageUrls: z.array(z.string()),
         tags: z.array(z.string()),
         includedItems: z.array(z.string()),
@@ -143,6 +152,8 @@ export const productDetailSummaryResponseSchema = z
             id,
             title,
             price,
+            soldPrice,
+            soldPlatform,
             status,
             createdAt,
             category,
@@ -156,6 +167,8 @@ export const productDetailSummaryResponseSchema = z
             id,
             title,
             price,
+            ...(soldPrice !== undefined ? { soldPrice } : {}),
+            ...(soldPlatform !== undefined ? { soldPlatform } : {}),
             status,
             createdAt,
             category: {

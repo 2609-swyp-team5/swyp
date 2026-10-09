@@ -4,19 +4,18 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { productApi } from "@/features/sell/api/productApi";
 import { productQueryKey } from "@/features/sell/hooks/queries/useProductQuery";
-import type { ProductResponse, ProductStatus } from "@/features/sell/types";
+import type { ProductResponse, ProductStatusUpdateRequest } from "@/features/sell/types";
 
-interface UpdateProductStatusInput {
+interface UpdateProductStatusInput extends ProductStatusUpdateRequest {
     id: number;
-    status: ProductStatus;
 }
 
 export function useUpdateProductStatusMutation() {
     const queryClient = useQueryClient();
 
     return useMutation<ProductResponse, Error, UpdateProductStatusInput>({
-        mutationFn: async ({ id, status }) => {
-            const { data } = await productApi.updateProductStatus(id, status);
+        mutationFn: async ({ id, ...request }) => {
+            const { data } = await productApi.updateProductStatus(id, request);
 
             if (!data.success) {
                 throw new Error(data.message);

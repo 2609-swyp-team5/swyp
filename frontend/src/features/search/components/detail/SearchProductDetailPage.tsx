@@ -43,11 +43,12 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
         enabled: analysisEnabled,
         perspective: "BUY",
         summaryEnabled: false,
-        // 추천 상태·사유와 요약 지표만 보여주므로 가격 변화 추이·감가 상각률은 조회하지 않는다
-        chartsEnabled: false,
     });
     const analysisFetching =
-        sections.productAnalysis.isFetching || sections.productCompetition.isFetching;
+        sections.productAnalysis.isFetching ||
+        sections.productPriceTrend.isFetching ||
+        sections.productValuationForecast.isFetching ||
+        sections.productCompetition.isFetching;
     const liked = interests.interests.some(
         (item) => item.source === product?.source && item.targetId === targetId,
     );
@@ -343,20 +344,24 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                             isPending={sections.productAnalysis.isPending}
                             priceTrendQuery={sections.productPriceTrend}
                             valuationForecastQuery={sections.productValuationForecast}
-                            summaryOnly
                         />
                         <ProductCompetitionSection
                             query={sections.productCompetition}
                             heading="비슷한 상품"
                             showCompetitionMeta={false}
                         />
-                        {(sections.productAnalysis.error || sections.productCompetition.error) && (
+                        {(sections.productAnalysis.error ||
+                            sections.productPriceTrend.error ||
+                            sections.productValuationForecast.error ||
+                            sections.productCompetition.error) && (
                             <Button
                                 variant="outline"
                                 className="self-end"
                                 disabled={analysisFetching}
                                 onClick={() => {
                                     void sections.productAnalysis.refetch();
+                                    void sections.productPriceTrend.refetch();
+                                    void sections.productValuationForecast.refetch();
                                     void sections.productCompetition.refetch();
                                 }}
                             >

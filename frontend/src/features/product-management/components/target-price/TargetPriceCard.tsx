@@ -72,9 +72,9 @@ export function TargetPriceCard({
 
     const status =
         targetPrice === null
-            ? { label: "설정 안 함", className: "bg-[#f2f4f7] text-[#6b6c7b]" }
+            ? { label: "미설정", className: "bg-[#f2f4f7] text-[#6b6c7b]" }
             : reached
-              ? { label: "도달", className: "bg-[#fff4f4] text-[#fa503d]" }
+              ? { label: "도달", className: "bg-[#f0edff] text-[#6653fb]" }
               : { label: "대기 중", className: "bg-[#eef4ff] text-[#3a6ff0]" };
     const message = error ? getApiErrorMessage(error) : validation;
 
@@ -99,8 +99,12 @@ export function TargetPriceCard({
                 </div>
                 <div>
                     <dt className="text-[12px] leading-4 text-[#6b6c7b]">현재 목표가</dt>
-                    <dd className="mt-1 text-[15px] leading-6 font-semibold text-[#1b1d29]">
-                        {targetPrice === null ? "—" : formatPrice(targetPrice)}
+                    <dd
+                        className={`mt-1 text-[15px] leading-6 font-semibold ${
+                            targetPrice === null ? "text-[#83889e]" : "text-[#1b1d29]"
+                        }`}
+                    >
+                        {targetPrice === null ? "미설정" : formatPrice(targetPrice)}
                     </dd>
                 </div>
             </dl>
@@ -110,7 +114,10 @@ export function TargetPriceCard({
                 </p>
             ) : null}
 
-            <form onSubmit={handleSubmit} className="mt-4 flex flex-wrap items-center gap-2">
+            <form
+                onSubmit={handleSubmit}
+                className="mt-4 flex flex-wrap items-center gap-2 rounded-[12px] border border-[#e2ddff] bg-[#fafbff] p-3"
+            >
                 <label htmlFor={inputId} className="sr-only">
                     {title} 입력
                 </label>
@@ -119,10 +126,10 @@ export function TargetPriceCard({
                         id={inputId}
                         inputMode="numeric"
                         autoComplete="off"
-                        placeholder="목표 가격"
+                        placeholder="목표 가격 입력"
                         value={input}
                         onChange={(event) => setInput(formatInput(parsePrice(event.target.value)))}
-                        className="h-10 w-full rounded-[10px] border border-[#dee5ed] px-3 pr-8 text-[14px] text-[#1b1d29] outline-none focus:border-[#fa503d]"
+                        className="h-10 w-full rounded-[10px] border border-[#d8d2ff] bg-white px-3 pr-8 text-[14px] text-[#1b1d29] transition-colors outline-none placeholder:text-[#9b96c8] focus:border-[#6653fb] focus:ring-3 focus:ring-[#6653fb]/15"
                     />
                     <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-[13px] text-[#6b6c7b]">
                         원
@@ -131,7 +138,7 @@ export function TargetPriceCard({
                 <button
                     type="submit"
                     disabled={isSaving || unchanged}
-                    className="h-10 rounded-[10px] bg-[#fa503d] px-4 text-[14px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    className="h-10 rounded-[10px] bg-[#6653fb] px-4 text-[14px] font-semibold text-white transition-colors hover:bg-[#5745e7] focus-visible:ring-3 focus-visible:ring-[#6653fb]/30 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     {targetPrice === null ? "설정" : "변경"}
                 </button>
@@ -140,7 +147,7 @@ export function TargetPriceCard({
                         type="button"
                         onClick={handleClear}
                         disabled={isSaving}
-                        className="h-10 rounded-[10px] border border-[#dee5ed] px-4 text-[14px] font-semibold text-[#3b3d4a] disabled:cursor-not-allowed disabled:opacity-50"
+                        className="h-10 rounded-[10px] border border-[#e2ddff] bg-white px-4 text-[14px] font-semibold text-[#6b6c7b] transition-colors hover:border-[#6653fb] hover:bg-[#f5f3ff] hover:text-[#6653fb] focus-visible:ring-3 focus-visible:ring-[#6653fb]/30 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         해제
                     </button>
