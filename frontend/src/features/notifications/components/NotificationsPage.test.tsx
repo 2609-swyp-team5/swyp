@@ -5,13 +5,14 @@ import { beforeEach, expect, it, vi } from "vitest";
 
 import { NotificationsPage } from "./NotificationsPage";
 
-const { getNotifications, markRead } = vi.hoisted(() => ({
+const { getNotifications, markRead, deleteNotification } = vi.hoisted(() => ({
     getNotifications: vi.fn(),
     markRead: vi.fn(),
+    deleteNotification: vi.fn(),
 }));
 
 vi.mock("../api/notificationApi", () => ({
-    notificationApi: { getNotifications, markRead },
+    notificationApi: { getNotifications, markRead, deleteNotification },
 }));
 
 vi.mock("@/features/auth/store/authStore", () => ({
@@ -31,9 +32,11 @@ function renderPage() {
 beforeEach(() => {
     getNotifications.mockReset();
     markRead.mockReset();
+    deleteNotification.mockReset();
     markRead.mockResolvedValue({
         data: { success: true, message: "", data: { notificationId: 1, isRead: true } },
     });
+    deleteNotification.mockResolvedValue({ data: { success: true, message: "", data: null } });
 });
 
 const sellNotification = {
@@ -100,6 +103,8 @@ it("탭마다 서버에서 해당 알림만 받아 보여주고, 탭 숫자는 �
         "href",
         "/sell/manage?selected=10",
     );
+    expect(screen.getByRole("button", { name: "전체2" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "판매추천" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /공지/ }));
     await waitFor(() =>
@@ -118,6 +123,9 @@ it("탭마다 서버에서 해당 알림만 받아 보여주고, 탭 숫자는 �
     await user.click(screen.getByRole("button", { name: /전체/ }));
     await user.click(await screen.findByRole("button", { name: "읽음 처리" }));
     await waitFor(() => expect(markRead).toHaveBeenCalledWith(2));
+
+    await user.click(screen.getAllByRole("button", { name: "알림 삭제" })[0]);
+    await waitFor(() => expect(deleteNotification).toHaveBeenCalledWith(2));
 });
 
 it("알림이 없으면 빈 상태를 보여준다", async () => {

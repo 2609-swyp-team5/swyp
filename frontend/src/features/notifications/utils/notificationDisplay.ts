@@ -38,8 +38,8 @@ export function toCategoryParam(category: NotificationCategory): NotificationCat
 }
 
 /**
- * 알림 대상 화면 — 연동 만료는 연동 관리, 판매 추천·목표 판매가 도달·내 상품 시세 변동은 판매 관리에서 해당 상품 선택, 구매 쪽(관심상품 시세 변동
- * 포함)은 상품 상세, 대상이 없으면 null.
+ * 알림 대상 화면 — 연동 만료는 연동 관리, 판매 추천·목표 판매가 도달·내 상품 시세 변동은 판매 관리에서 해당 상품 선택,
+ * 구매 쪽 알림은 관심 상품에서 해당 대상 선택, 대상이 없으면 null.
  */
 export function getNotificationLink(notification: NotificationItem) {
     if (notification.type === "PLATFORM_EXPIRED") {
@@ -53,7 +53,7 @@ export function getNotificationLink(notification: NotificationItem) {
     }
     const targetId = notification.productId ?? notification.listingId;
     if (targetId === null) return null;
-    return { label: "상품 분석 보기", href: `/search/${targetId}` };
+    return { label: "관심 상품 보기", href: `/buy/wishlist?selected=${targetId}` };
 }
 
 export function isToday(createdAt: string, now = new Date()) {

@@ -64,9 +64,9 @@ it("처음 확인한 뒤 새로 도착한 안 읽은 알림만 토스트로 띄�
 
     expect(await screen.findByText("새 구매 추천")).toBeInTheDocument();
     expect(screen.queryByText("이미 있던 알림")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "상품 분석 보기" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "관심 상품 보기" })).toHaveAttribute(
         "href",
-        "/search/77",
+        "/buy/wishlist?selected=77",
     );
 });
 

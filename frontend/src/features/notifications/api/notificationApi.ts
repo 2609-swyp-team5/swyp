@@ -20,6 +20,9 @@ const markRead = (notificationId: number) =>
         `/notifications/${notificationId}/read`,
     );
 
+const deleteNotification = (notificationId: number) =>
+    api.delete<ApiResponse<null>>(`/notifications/${notificationId}`);
+
 const getSettings = (signal?: AbortSignal) =>
     api.get<ApiResponse<NotificationSettings>>("/notifications/settings", { signal });
 
@@ -30,6 +33,7 @@ export const notificationApi = {
     getNotifications,
     getUnreadCount,
     markRead,
+    deleteNotification,
     getSettings,
     updateSettings,
 };

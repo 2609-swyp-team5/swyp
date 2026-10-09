@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Bell } from "lucide-react";
+import { Bell, Trash2 } from "lucide-react";
 
 import { Button } from "@/common/components/ui/Button";
 import { Card, CardContent } from "@/common/components/ui/Card";
@@ -11,6 +11,7 @@ import { getApiErrorMessage } from "@/common/lib/api/error";
 import { cn } from "@/common/lib/utils";
 
 import { useReadNotificationMutation } from "../hooks/mutations/useReadNotificationMutation";
+import { useDeleteNotificationMutation } from "../hooks/mutations/useDeleteNotificationMutation";
 import { useNotificationsQuery } from "../hooks/queries/useNotificationsQuery";
 import type { NotificationItem } from "../schemas/notificationSchema";
 import { NotificationTypeIcon } from "./NotificationTypeIcon";
@@ -28,10 +29,12 @@ function NotificationCard({
     notification,
     today,
     onRead,
+    onDelete,
 }: {
     notification: NotificationItem;
     today: boolean;
     onRead: (notificationId: number) => void;
+    onDelete: (notificationId: number) => void;
 }) {
     const category = getNotificationCategory(notification.type);
     const link = getNotificationLink(notification);
@@ -69,20 +72,35 @@ function NotificationCard({
                         >
                             {notification.title}
                         </h3>
-                        <span
-                            className={cn(
-                                "flex shrink-0 items-center gap-1 text-xs leading-5 text-[#9b9fb1]",
-                                today && "text-[13px] font-semibold",
-                            )}
-                        >
-                            {unread && (
-                                <span
-                                    className="size-1.5 rounded-full bg-[#6653fb]"
-                                    aria-label="읽지 않음"
-                                />
-                            )}
-                            {formatNotificationTime(notification.createdAt)}
-                        </span>
+                        <div className="flex shrink-0 items-center gap-1">
+                            <span
+                                className={cn(
+                                    "flex items-center gap-1 text-xs leading-5 text-[#9b9fb1]",
+                                    today && "text-[13px] font-semibold",
+                                )}
+                            >
+                                {unread && (
+                                    <span
+                                        className="size-1.5 rounded-full bg-[#6653fb]"
+                                        aria-label="읽지 않음"
+                                    />
+                                )}
+                                <time dateTime={notification.createdAt}>
+                                    {formatNotificationTime(notification.createdAt)}
+                                </time>
+                            </span>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="알림 삭제"
+                                title="알림 삭제"
+                                className="text-[#9b9fb1] hover:bg-[#f0edff] hover:text-[#6653fb] focus-visible:border-[#6653fb] focus-visible:ring-[#6653fb]/30"
+                                onClick={() => onDelete(notification.notificationId)}
+                            >
+                                <Trash2 aria-hidden="true" />
+                            </Button>
+                        </div>
                     </div>
                     <p className="text-xs leading-5 tracking-[-0.5px] text-[#83889e]">
                         {notification.message}
@@ -217,14 +235,11 @@ export function NotificationsPage() {
                                     )}
                                 >
                                     {item.label}
-                                    <span
-                                        className={cn(
-                                            item.value === "all" &&
-                                                "flex size-[30px] items-center justify-center rounded-full bg-[#363636] text-white",
-                                        )}
-                                    >
-                                        {count}
-                                    </span>
+                                    {item.value === "all" && (
+                                        <span className="flex size-[30px] items-center justify-center rounded-full bg-[#363636] text-white">
+                                            {totalCount}
+                                        </span>
+                                    )}
                                 </Button>
                             );
                         })}
@@ -270,6 +285,7 @@ export function NotificationsPage() {
                                                 notification={item}
                                                 today={today}
                                                 onRead={(id) => readMutation.mutate(id)}
+                                                onDelete={(id) => deleteMutation.mutate(id)}
                                             />
                                         ))}
                                     </section>
