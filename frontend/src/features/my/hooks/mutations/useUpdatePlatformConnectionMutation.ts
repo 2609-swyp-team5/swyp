@@ -9,11 +9,6 @@ export function useUpdatePlatformConnectionMutation() {
 
     return useMutation({
         mutationFn: async (params: MyPlatformConnectionAction) => {
-            if (params.action === "connect") {
-                const { data } = await myApi.connectPlatform(params.platform, params.cookie);
-                if (!data.success) throw new Error(data.message);
-                return { platform: params.platform, ...data.data };
-            }
             const { data } = await myApi.disconnectPlatform(params.platform);
             if (!data.success) throw new Error(data.message);
             return { platform: params.platform, status: "DISCONNECTED" as const, updatedAt: null };

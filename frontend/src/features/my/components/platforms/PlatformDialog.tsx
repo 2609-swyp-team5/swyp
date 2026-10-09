@@ -17,7 +17,6 @@ const buttonFocusClassName =
 
 type PlatformDialogProps = {
     selected: PlatformConnection | null;
-    disconnecting: boolean;
     onOpenChange: (open: boolean) => void;
     onConfirm: () => void;
     isPending: boolean;
@@ -26,7 +25,6 @@ type PlatformDialogProps = {
 
 export function PlatformDialog({
     selected,
-    disconnecting,
     onOpenChange,
     onConfirm,
     isPending,
@@ -36,13 +34,9 @@ export function PlatformDialog({
         <AlertDialog open={selected !== null} onOpenChange={onOpenChange}>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>
-                        {selected?.name} {disconnecting ? "연결 해제" : "연결"}
-                    </AlertDialogTitle>
+                    <AlertDialogTitle>{selected?.name} 연결 해제</AlertDialogTitle>
                     <AlertDialogDescription>
-                        {disconnecting
-                            ? "연결을 해제하면 해당 플랫폼의 판매 상태 동기화가 중단됩니다."
-                            : "이 플랫폼과 연결하고 판매 상태를 동기화할까요?"}
+                        연결을 해제하면 해당 플랫폼의 판매 상태 동기화가 중단됩니다.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 {errorMessage && (
@@ -65,7 +59,7 @@ export function PlatformDialog({
                         }}
                         className={`hover:!bg-[#5745e7] dark:hover:!bg-[#5745e7] ${buttonFocusClassName}`}
                     >
-                        {isPending ? "처리 중..." : disconnecting ? "연결 해제" : "연결하기"}
+                        {isPending ? "처리 중..." : "연결 해제"}
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

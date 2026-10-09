@@ -1,9 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState, type FormEvent } from "react";
 import { Button } from "@/common/components/ui/Button";
-import { Input } from "@/common/components/ui/Input";
 import type { MyPlatformType } from "@/features/my/types";
 
 export type ConnectionStatus = "connected" | "expired" | "disconnected";
@@ -25,30 +23,13 @@ function subjectParticle(name: string) {
 type PlatformCardProps = {
     item: PlatformConnection;
     status: ConnectionStatus;
-    onSelect: (cookie: string) => void;
+    onSelect: () => void;
     isPending: boolean;
 };
 
 export function PlatformCard({ item, status, onSelect, isPending }: PlatformCardProps) {
-    const [connectionValue, setConnectionValue] = useState("");
-    const [hasError, setHasError] = useState(false);
-    const errorId = `${item.id}-connection-error`;
-    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        if (isPending) return;
-        if (status !== "connected" && !connectionValue.trim()) {
-            setHasError(true);
-            return;
-        }
-        setHasError(false);
-        onSelect(connectionValue.trim());
-    };
-
     return (
-        <form
-            onSubmit={handleSubmit}
-            className="flex min-h-[154px] flex-col rounded-[10px] border border-[#dedee6] bg-white px-5 pt-5 pb-[15px]"
-        >
+        <div className="flex min-h-[154px] flex-col rounded-[10px] border border-[#dedee6] bg-white px-5 pt-5 pb-[15px]">
             <div className="flex items-center gap-[10px]">
                 <Image
                     src={item.icon}
@@ -89,38 +70,10 @@ export function PlatformCard({ item, status, onSelect, isPending }: PlatformCard
                     </>
                 )}
             </p>
-            {status !== "connected" && (
-                <div className="mt-[10px]">
-                    <Input
-                        type="password"
-                        autoComplete="new-password"
-                        disabled={isPending}
-                        aria-label={`${item.name} 연결 정보`}
-                        aria-required="true"
-                        aria-invalid={hasError}
-                        aria-describedby={hasError ? errorId : undefined}
-                        placeholder={`${item.name} 토큰을 입력해주세요`}
-                        value={connectionValue}
-                        onChange={(event) => {
-                            setConnectionValue(event.target.value);
-                            if (event.target.value.trim()) setHasError(false);
-                        }}
-                        className="h-9 border-[#dedee6] bg-white text-[13px] placeholder:text-[#83889e] md:text-[13px]"
-                    />
-                    {hasError && (
-                        <p
-                            id={errorId}
-                            role="alert"
-                            className="text-destructive mt-1 text-xs leading-5"
-                        >
-                            연결 정보를 입력해주세요.
-                        </p>
-                    )}
-                </div>
-            )}
             <Button
                 variant="outline"
-                type="submit"
+                type="button"
+                onClick={onSelect}
                 disabled={isPending}
                 aria-label={
                     item.name +
@@ -134,6 +87,6 @@ export function PlatformCard({ item, status, onSelect, isPending }: PlatformCard
             >
                 {status === "connected" ? "연결 해제" : status === "expired" ? "다시 연결" : "연결"}
             </Button>
-        </form>
+        </div>
     );
 }

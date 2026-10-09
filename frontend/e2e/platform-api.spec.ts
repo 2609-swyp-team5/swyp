@@ -12,7 +12,8 @@ test("platform connection preserves failures, blocks duplicates and reflects ser
     page,
 }) => {
     let status = "DISCONNECTED";
-    let connectRequests = 0;
+    let verificationRequests = 0;
+    let confirmRequests = 0;
     let disconnectRequests = 0;
     let releaseConnection!: () => void;
     const connectionReady = new Promise<void>((resolve) => {
@@ -31,25 +32,47 @@ test("platform connection preserves failures, blocks duplicates and reflects ser
                 },
             }),
     );
-    await page.route("**/platforms/BUNJANG/connect", async (route) => {
-        connectRequests++;
-        expect(route.request().postDataJSON()).toEqual({ cookie: "test-bun-session" });
-        if (connectRequests === 1)
+    await page.route("**/platforms/BUNJANG/verification", async (route) => {
+        verificationRequests++;
+        expect(route.request().postDataJSON()).toEqual({
+            name: "홍길동",
+            birthDate: "900101",
+            genderDigit: "1",
+            carrier: "SKT",
+            phone: "01012345678",
+            agreedToBunjangTerms: true,
+        });
+        if (verificationRequests === 1)
             return route.fulfill({
                 status: 400,
                 json: {
                     success: false,
-                    message: "번개장터 로그인 정보가 만료됐어요.",
+                    message: "인증 문자 요청에 실패했습니다.",
                     data: null,
                     error: null,
                 },
             });
-        if (connectRequests === 2) await connectionReady;
+        return route.fulfill({
+            json: {
+                success: true,
+                data: { verificationId: "verification-1", expiresInSeconds: 180 },
+                error: null,
+            },
+        });
+    });
+    await page.route("**/platforms/BUNJANG/verification/*/confirm", async (route) => {
+        confirmRequests++;
+        expect(route.request().postDataJSON()).toEqual({ otp: "123456" });
+        if (confirmRequests === 1) await connectionReady;
         status = "CONNECTED";
         return route.fulfill({
             json: {
                 success: true,
-                data: { status, updatedAt: "2026-10-03T12:00:00" },
+                data: {
+                    status,
+                    updatedAt: "2026-10-03T12:00:00",
+                    newBunjangAccount: true,
+                },
                 error: null,
             },
         });
@@ -72,23 +95,36 @@ test("platform connection preserves failures, blocks duplicates and reflects ser
     });
     const count = (label: string) =>
         page.getByText(label, { exact: true }).locator("..").locator("p").first();
+    const fillVerificationForm = async (dialog: ReturnType<typeof page.getByRole>) => {
+        await dialog.getByLabel("이름", { exact: true }).fill("홍길동");
+        await dialog.getByLabel("생년월일", { exact: true }).fill("900101");
+        await dialog.getByLabel("주민등록번호 뒷자리 첫 숫자", { exact: true }).fill("1");
+        await dialog.getByRole("combobox", { name: "통신사" }).click();
+        await page.getByRole("option", { name: "SKT", exact: true }).click();
+        await dialog.getByLabel("휴대폰 번호", { exact: true }).fill("01012345678");
+        await dialog.getByLabel("번개장터 본인인증 필수 약관에 동의합니다.").check();
+    };
     await page.goto("/my/platforms");
     await expect(count("미연결")).toHaveText("1");
-    await page.getByLabel("번개장터 연결 정보").fill("  test-bun-session  ");
     await page.getByRole("button", { name: "번개장터 연결", exact: true }).click();
-    const dialog = page.getByRole("alertdialog");
-    await dialog.getByRole("button", { name: "연결하기", exact: true }).click();
-    await expect(dialog.getByRole("alert")).toHaveText("번개장터 로그인 정보가 만료됐어요.");
+    let dialog = page.getByRole("dialog");
+    await fillVerificationForm(dialog);
+    await dialog.getByRole("button", { name: "인증 문자 받기", exact: true }).click();
+    await expect(dialog.getByRole("alert")).toHaveText("인증 문자 요청에 실패했습니다.");
     await expect(count("미연결")).toHaveText("1");
     await expect(count("연결됨")).toHaveText("0");
-    await dialog.getByRole("button", { name: "연결하기", exact: true }).click();
-    await expect(dialog.getByRole("button", { name: "처리 중..." })).toBeDisabled();
-    await expect(dialog.getByRole("button", { name: "취소", exact: true })).toBeDisabled();
-    expect(connectRequests).toBe(2);
+    await dialog.getByRole("button", { name: "인증 문자 받기", exact: true }).click();
+    await dialog.getByRole("button", { name: "인증번호 다시 받기", exact: true }).click();
+    await expect(dialog.getByLabel("인증번호", { exact: true })).toHaveValue("");
+    await expect(dialog.getByLabel("이름", { exact: true })).toHaveCount(0);
+    await dialog.getByLabel("인증번호", { exact: true }).fill("123456");
+    await dialog.getByRole("button", { name: "인증번호 확인", exact: true }).click();
+    await expect(dialog.getByRole("button", { name: "확인 중..." })).toBeDisabled();
+    expect(verificationRequests).toBe(3);
+    expect(confirmRequests).toBe(1);
     releaseConnection();
     await expect(dialog).toHaveCount(0);
     await expect(count("연결됨")).toHaveText("1");
-    await expect(page.getByLabel("번개장터 연결 정보")).toHaveCount(0);
     await page.reload();
     await expect(
         page.getByRole("button", { name: "번개장터 연결 해제", exact: true }),
@@ -97,22 +133,82 @@ test("platform connection preserves failures, blocks duplicates and reflects ser
     await page.reload();
     await expect(count("만료됨")).toHaveText("1");
     await expect(count("연결됨")).toHaveText("0");
-    const input = page.getByLabel("번개장터 연결 정보");
-    await expect(input).toHaveValue("");
-    await input.fill("test-bun-session");
     await page.getByRole("button", { name: "번개장터 다시 연결", exact: true }).click();
-    await dialog.getByRole("button", { name: "연결하기", exact: true }).click();
+    dialog = page.getByRole("dialog");
+    await fillVerificationForm(dialog);
+    await dialog.getByRole("button", { name: "인증 문자 받기", exact: true }).click();
+    await dialog.getByLabel("인증번호", { exact: true }).fill("123456");
+    await dialog.getByRole("button", { name: "인증번호 확인", exact: true }).click();
     await expect(count("연결됨")).toHaveText("1");
     await page.getByRole("button", { name: "번개장터 연결 해제", exact: true }).click();
+    dialog = page.getByRole("alertdialog");
     await dialog.getByRole("button", { name: "연결 해제", exact: true }).click();
     await expect(dialog.getByRole("alert")).toHaveText("연결 해제에 실패했습니다.");
     await expect(count("연결됨")).toHaveText("1");
     await dialog.getByRole("button", { name: "연결 해제", exact: true }).click();
     await expect(dialog).toHaveCount(0);
     await expect(count("미연결")).toHaveText("1");
-    await expect(page.getByLabel("번개장터 연결 정보")).toHaveValue("");
-    expect(connectRequests).toBe(3);
+    expect(verificationRequests).toBe(4);
+    expect(confirmRequests).toBe(2);
     expect(disconnectRequests).toBe(2);
+});
+
+test("platform verification stays open when confirmation expires", async ({ page }) => {
+    await page.route(
+        (url) => url.pathname === "/platforms",
+        (route) =>
+            route.fulfill({
+                json: {
+                    success: true,
+                    data: [
+                        {
+                            platform: "BUNJANG",
+                            platformName: "번개장터",
+                            status: "DISCONNECTED",
+                            updatedAt: null,
+                        },
+                    ],
+                    error: null,
+                },
+            }),
+    );
+    await page.route("**/platforms/BUNJANG/verification", (route) =>
+        route.fulfill({
+            json: {
+                success: true,
+                data: { verificationId: "expired-verification", expiresInSeconds: 180 },
+                error: null,
+            },
+        }),
+    );
+    await page.route("**/platforms/BUNJANG/verification/*/confirm", (route) =>
+        route.fulfill({
+            json: {
+                success: true,
+                data: { status: "EXPIRED", updatedAt: null, newBunjangAccount: false },
+                error: null,
+            },
+        }),
+    );
+
+    await page.goto("/my/platforms");
+    await page.getByRole("button", { name: "번개장터 연결", exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByLabel("이름", { exact: true }).fill("홍길동");
+    await dialog.getByLabel("생년월일", { exact: true }).fill("900101");
+    await dialog.getByLabel("주민등록번호 뒷자리 첫 숫자", { exact: true }).fill("1");
+    await dialog.getByRole("combobox", { name: "통신사" }).click();
+    await page.getByRole("option", { name: "SKT", exact: true }).click();
+    await dialog.getByLabel("휴대폰 번호", { exact: true }).fill("01012345678");
+    await dialog.getByLabel("번개장터 본인인증 필수 약관에 동의합니다.").check();
+    await dialog.getByRole("button", { name: "인증 문자 받기", exact: true }).click();
+    await dialog.getByLabel("인증번호", { exact: true }).fill("123456");
+    await dialog.getByRole("button", { name: "인증번호 확인", exact: true }).click();
+
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("alert")).toHaveText(
+        "인증번호가 만료되었습니다. 인증번호를 다시 요청해 주세요.",
+    );
 });
 
 test("platform list failure can be retried without displaying preview cards", async ({ page }) => {
