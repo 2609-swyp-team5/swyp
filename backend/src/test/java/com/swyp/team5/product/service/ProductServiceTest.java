@@ -489,7 +489,7 @@ class ProductServiceTest {
         when(interestRepository.countByItemId(1L)).thenReturn(3L);
         when(productPlatformRepository.findByProductId(1L)).thenReturn(List.of(posted, removed, posting));
 
-        ProductDetailSummaryResponse response = service().getProductSummary(1L);
+        ProductDetailSummaryResponse response = service().getProductSummary(1L, seller.getId());
 
         assertThat(response.source()).isEqualTo(ListingSource.OUR);
         assertThat(response.condition()).isEqualTo(ProductCondition.A);
@@ -518,7 +518,7 @@ class ProductServiceTest {
         when(itemRepository.findById(100L)).thenReturn(Optional.of(listing));
         when(interestRepository.countByItemId(100L)).thenReturn(2L);
 
-        ProductDetailSummaryResponse response = service().getProductSummary(100L);
+        ProductDetailSummaryResponse response = service().getProductSummary(100L, 1L);
 
         assertThat(response.source()).isEqualTo(ListingSource.EXTERNAL);
         assertThat(response.status()).isEqualTo(ProductStatus.ON_SALE);
@@ -537,7 +537,7 @@ class ProductServiceTest {
     void getProductSummaryFailsWhenNotFound() {
         when(itemRepository.findById(1L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service().getProductSummary(1L)).isInstanceOf(ProductNotFoundException.class);
+        assertThatThrownBy(() -> service().getProductSummary(1L, 1L)).isInstanceOf(ProductNotFoundException.class);
     }
 
     // 조회수 반영 - 다른 회원의 첫 조회만 올리고, 판매자 본인·24시간 내 재조회는 세지 않음
@@ -1050,7 +1050,7 @@ class ProductServiceTest {
         assertThat(response.status()).isEqualTo(ProductStatus.SOLD_OUT);
     }
 
-    // 상품 상태 변경 - 판매 완료로 바꾸면 최종 판매 가격·플랫폼을 저장하고, 다른 상태로 바꾸면 지운다
+    // 상품 상태 변경 - 판매 완료로 바꾸면 최종 판매 가격·플랫폼을 저장하고(생략한 값은 유지), 다른 상태로 바꾸면 지운다
     @Test
     void updateStatusStoresSoldInfoOnlyWhileSoldOut() {
         Product product = newProduct(1L, newMember(1L), newCategory(1L, "전자기기"));
@@ -1061,6 +1061,13 @@ class ProductServiceTest {
         assertThat(soldOut.soldPrice()).isEqualTo(850_000L);
         assertThat(product.getSoldPrice()).isEqualTo(850_000L);
         assertThat(soldOut.soldPlatform()).isEqualTo("당근");
+        assertThat(product.getSoldPlatform()).isEqualTo("당근");
+
+        service().updateStatus(1L, 1L, ProductStatus.SOLD_OUT, null, "  ");
+        assertThat(product.getSoldPrice()).isEqualTo(850_000L);
+        assertThat(product.getSoldPlatform()).isEqualTo("당근");
+        service().updateStatus(1L, 1L, ProductStatus.SOLD_OUT, 900_000L, null);
+        assertThat(product.getSoldPrice()).isEqualTo(900_000L);
         assertThat(product.getSoldPlatform()).isEqualTo("당근");
 
         ProductResponse onSale = service().updateStatus(1L, 1L, ProductStatus.ON_SALE, null, null);

@@ -26,6 +26,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -1052,7 +1053,8 @@ class ProductTest extends IntegrationTest {
                 .andExpect(jsonPath("$.data.soldPrice").doesNotExist());
     }
 
-    // 상품 상태 변경 - 판매 완료와 함께 보낸 최종 판매 가격·플랫폼명(앞뒤 공백 제거)이 상세·내 상품 목록에 보이고, 판매중으로 되돌리면 지워진다
+    // 상품 상태 변경 - 판매 완료와 함께 보낸 최종 판매 가격·플랫폼명(앞뒤 공백 제거)이 판매자 본인의 상세·상세 요약·내 상품 목록에만 보이고,
+    // 판매 완료를 다시 보내며 생략하면 유지, 판매중으로 되돌리면 지워진다
     @Test
     void updateStatusToSoldOutStoresSoldInfo() throws Exception {
         Long productId = createProduct();
@@ -1075,6 +1077,34 @@ class ProductTest extends IntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[0].soldPrice").value(850_000))
                 .andExpect(jsonPath("$.data.content[0].soldPlatform").value("당근"));
+        mockMvc.perform(get("/products/{productId}/summary", productId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.soldPrice").value(850_000));
+
+        String otherToken = createOtherMemberToken();
+        mockMvc.perform(get("/products/{productId}", productId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.soldPrice").doesNotExist())
+                .andExpect(jsonPath("$.data.soldPlatform").doesNotExist());
+        mockMvc.perform(get("/products/{productId}", productId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.soldPrice").doesNotExist());
+        mockMvc.perform(get("/products/{productId}/summary", productId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.soldPrice").doesNotExist())
+                .andExpect(jsonPath("$.data.soldPlatform").doesNotExist());
+
+        mockMvc.perform(patch("/products/{productId}/status", productId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new ProductStatusUpdateRequest(ProductStatus.SOLD_OUT))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.soldPrice").value(850_000))
+                .andExpect(jsonPath("$.data.soldPlatform").value("당근"));
 
         mockMvc.perform(patch("/products/{productId}/status", productId)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
@@ -1087,20 +1117,24 @@ class ProductTest extends IntegrationTest {
     }
 
     // 상품 상태 변경 실패 - 판매 완료가 아닌 상태에 최종 판매 가격·플랫폼을 보내거나, 가격이 음수거나, 플랫폼명이 30자를 넘으면 400
+    // (오류는 해당 입력 필드 이름으로 내려감)
     @Test
     void updateStatusRejectsInvalidSoldInfo() throws Exception {
         Long productId = createProduct();
 
-        for (ProductStatusUpdateRequest request : List.of(
-                new ProductStatusUpdateRequest(ProductStatus.ON_SALE, 850_000L, null),
-                new ProductStatusUpdateRequest(ProductStatus.RESERVED, null, "번개장터"),
-                new ProductStatusUpdateRequest(ProductStatus.SOLD_OUT, -1L, "지금이니"),
-                new ProductStatusUpdateRequest(ProductStatus.SOLD_OUT, null, "가".repeat(31)))) {
+        Map<ProductStatusUpdateRequest, String> invalidFields = Map.of(
+                new ProductStatusUpdateRequest(ProductStatus.ON_SALE, 850_000L, null), "soldPrice",
+                new ProductStatusUpdateRequest(ProductStatus.RESERVED, null, "번개장터"), "soldPlatform",
+                new ProductStatusUpdateRequest(ProductStatus.SOLD_OUT, -1L, "지금이니"), "soldPrice",
+                new ProductStatusUpdateRequest(ProductStatus.SOLD_OUT, null, "가".repeat(31)), "soldPlatform");
+        for (Map.Entry<ProductStatusUpdateRequest, String> invalid : invalidFields.entrySet()) {
             mockMvc.perform(patch("/products/{productId}/status", productId)
                             .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isBadRequest());
+                            .content(objectMapper.writeValueAsString(invalid.getKey())))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error.details.length()").value(1))
+                    .andExpect(jsonPath("$.error.details[0].field").value(invalid.getValue()));
         }
     }
 

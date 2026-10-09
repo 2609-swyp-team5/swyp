@@ -292,20 +292,22 @@ public class ProductService {
                         .map(ProductPlatformSummaryResponse::from)
                         .toList()
                 : null;
-        return ProductResponse.from(product, recommendation, averagePrice)
+        return ProductResponse.from(product, recommendation, averagePrice, product.isRegisteredBy(memberId))
                 .withStats(platforms, interestRepository.countByItemId(product.getId()), product.getViewCount());
     }
 
     /**
-     * 상품 상세 요약(판매 관리 화면 요약 영역)을 조회한다. 로그인 회원 누구에게나 모든 필드를 공개한다 — 게시 플랫폼은 우리
-     * 상품이면 게시 완료(POSTED)된 외부 게시글 링크, 외부 매물이면 원본 매물 링크 1건. 시세 정보는 포함하지 않는다.
+     * 상품 상세 요약(판매 관리 화면 요약 영역)을 조회한다. 로그인 회원 누구에게나 공개하되, 최종 판매 정보(가격·플랫폼)는
+     * 판매자 본인에게만 채운다 — 게시 플랫폼은 우리 상품이면 게시 완료(POSTED)된 외부 게시글 링크, 외부 매물이면 원본 매물
+     * 링크 1건. 시세 정보는 포함하지 않는다.
      *
      * @param itemId 조회할 상품(또는 외부 매물) ID
+     * @param memberId 조회하는 회원 ID(최종 판매 정보 공개 여부 판단용)
      * @return 상품 상세 요약
      * @throws ProductNotFoundException 존재하지 않는 ID인 경우
      */
     @Transactional(readOnly = true)
-    public ProductDetailSummaryResponse getProductSummary(Long itemId) {
+    public ProductDetailSummaryResponse getProductSummary(Long itemId, Long memberId) {
         Item item = itemRepository.findById(itemId).orElseThrow(() -> new ProductNotFoundException(itemId));
         long interestCount = interestRepository.countByItemId(itemId);
         LocalDate today = LocalDate.now();
@@ -324,7 +326,8 @@ public class ProductService {
                 .map(productPlatform -> new PlatformLink(
                         productPlatform.getMemberPlatform().getPlatform().getName(), productPlatform.getProductUrl()))
                 .toList();
-        ProductResponse detail = ProductResponse.from(product).withStats(null, interestCount, product.getViewCount());
+        ProductResponse detail = ProductResponse.from(product, null, null, product.isRegisteredBy(memberId))
+                .withStats(null, interestCount, product.getViewCount());
         return ProductDetailSummaryResponse.of(detail, platforms, today);
     }
 
@@ -506,7 +509,7 @@ public class ProductService {
                 .toList();
         Map<Long, ProductAnalysis> analyses = findLatestAnalyses(products);
         return products.stream()
-                .map(product -> ProductSummaryResponse.from(product, analyses.get(product.getId())))
+                .map(product -> ProductSummaryResponse.from(product, analyses.get(product.getId()), false))
                 .toList();
     }
 
