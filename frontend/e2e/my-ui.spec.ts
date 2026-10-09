@@ -467,11 +467,12 @@ test("product table keeps headers during status loading and fits narrow screens"
     expect((await page.locator("thead").boundingBox())?.y).toBe(headerBox?.y);
 });
 
-test("platform connection validates input and updates API-backed status counts", async ({
+test("platform connection verifies identity and updates API-backed status counts", async ({
     page,
 }) => {
     const writes: string[] = [];
     let status = "EXPIRED";
+    const verificationId = "verification-preview";
     await page.route(
         (url) => url.pathname === "/platforms",
         (route) =>
@@ -485,14 +486,32 @@ test("platform connection validates input and updates API-backed status counts",
                 },
             }),
     );
-    await page.route("**/platforms/BUNJANG/connect", (route) => {
+    await page.route("**/platforms/BUNJANG/verification", (route) => {
         expect(route.request().method()).toBe("POST");
-        expect(route.request().postDataJSON()).toEqual({ cookie: "preview-connection-value" });
+        expect(route.request().postDataJSON()).toEqual({
+            name: "홍길동",
+            birthDate: "900101",
+            genderDigit: "1",
+            carrier: "SKT",
+            phone: "01012345678",
+            agreedToBunjangTerms: true,
+        });
+        return route.fulfill({
+            json: {
+                success: true,
+                data: { verificationId, expiresInSeconds: 180 },
+                error: null,
+            },
+        });
+    });
+    await page.route("**/platforms/BUNJANG/verification/*/confirm", (route) => {
+        expect(route.request().method()).toBe("POST");
+        expect(route.request().postDataJSON()).toEqual({ otp: "123456" });
         status = "CONNECTED";
         return route.fulfill({
             json: {
                 success: true,
-                data: { status, updatedAt: "2026-10-03T10:00:00" },
+                data: { status, updatedAt: "2026-10-03T10:00:00", newBunjangAccount: false },
                 error: null,
             },
         });
@@ -514,38 +533,36 @@ test("platform connection validates input and updates API-backed status counts",
         page.getByText(label, { exact: true }).locator("..").locator("p").first();
     await expect(summary("연결됨")).toHaveText("0");
     await expect(summary("만료됨")).toHaveText("1");
-    const input = page.getByLabel("번개장터 연결 정보", { exact: true });
     const connect = page.getByRole("button", { name: "번개장터 다시 연결", exact: true });
     await connect.click();
-    await expect(
-        page.getByRole("alert").filter({ hasText: "연결 정보를 입력해주세요." }),
-    ).toBeVisible();
-    await expect(input).toHaveAttribute("aria-invalid", "true");
-    await input.fill("   ");
-    await connect.click();
-    await expect(page.getByRole("alertdialog")).toHaveCount(0);
+    const dialog = page.getByRole("dialog");
+    await dialog.getByRole("button", { name: "인증 문자 받기", exact: true }).click();
+    await expect(dialog.getByText("이름을 입력해 주세요.", { exact: true })).toBeVisible();
     expect(writes).toEqual([]);
-    await input.fill("preview-connection-value");
-    await expect(input).toHaveAttribute("aria-invalid", "false");
-    await connect.click();
-    const dialog = page.getByRole("alertdialog");
-    await dialog.getByRole("button", { name: "취소", exact: true }).click();
-    expect(writes).toEqual([]);
-    await expect(connect).toBeVisible();
-    await connect.click();
-    await dialog.getByRole("button", { name: "연결하기", exact: true }).click();
+    await dialog.getByLabel("이름", { exact: true }).fill("홍길동");
+    await dialog.getByLabel("생년월일", { exact: true }).fill("900101");
+    await dialog.getByLabel("주민등록번호 뒷자리 첫 숫자", { exact: true }).fill("1");
+    await dialog.getByRole("combobox", { name: "통신사" }).click();
+    await page.getByRole("option", { name: "SKT", exact: true }).click();
+    await dialog.getByLabel("휴대폰 번호", { exact: true }).fill("01012345678");
+    await dialog.getByLabel("번개장터 본인인증 필수 약관에 동의합니다.").check();
+    await dialog.getByRole("button", { name: "인증 문자 받기", exact: true }).click();
+    await dialog.getByLabel("인증번호", { exact: true }).fill("123456");
+    await dialog.getByRole("button", { name: "인증번호 확인", exact: true }).click();
     await expect(
         page.getByRole("button", { name: "번개장터 연결 해제", exact: true }),
     ).toBeVisible();
     await expect(summary("연결됨")).toHaveText("1");
     await expect(summary("만료됨")).toHaveText("0");
     await page.getByRole("button", { name: "번개장터 연결 해제", exact: true }).click();
-    await dialog.getByRole("button", { name: "연결 해제", exact: true }).click();
+    const disconnectDialog = page.getByRole("alertdialog");
+    await disconnectDialog.getByRole("button", { name: "연결 해제", exact: true }).click();
     await expect(summary("연결됨")).toHaveText("0");
     await expect(summary("미연결")).toHaveText("1");
     await expect(page.getByRole("button", { name: "번개장터 연결", exact: true })).toBeVisible();
     expect(writes.map((url) => new URL(url).pathname)).toEqual([
-        "/platforms/BUNJANG/connect",
+        "/platforms/BUNJANG/verification",
+        "/platforms/BUNJANG/verification/verification-preview/confirm",
         "/platforms/BUNJANG",
     ]);
 });

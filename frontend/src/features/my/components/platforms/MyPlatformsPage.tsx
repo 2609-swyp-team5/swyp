@@ -6,8 +6,13 @@ import { Button } from "@/common/components/ui/Button";
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { useMyPlatformsQuery } from "@/features/my/hooks/queries/useMyPlatformsQuery";
 import { useUpdatePlatformConnectionMutation } from "@/features/my/hooks/mutations/useUpdatePlatformConnectionMutation";
+import { useBunjangVerificationMutation } from "@/features/my/hooks/mutations/useBunjangVerificationMutation";
 import { getPlatformDefinition } from "@/features/my/platformDefinitions";
-import type { MyPlatformStatus } from "@/features/my/types";
+import type {
+    BunjangVerificationRequest,
+    BunjangVerificationResponse,
+    MyPlatformStatus,
+} from "@/features/my/types";
 
 import { MyPageContent } from "@/features/my/components/MyPageContent";
 
@@ -18,6 +23,7 @@ import {
 } from "@/features/my/components/platforms/PlatformCard";
 import { PlatformSummary } from "@/features/my/components/platforms/PlatformSummary";
 import { PlatformDialog } from "@/features/my/components/platforms/PlatformDialog";
+import { BunjangVerificationDialog } from "@/features/my/components/platforms/BunjangVerificationDialog";
 
 const connectionStatuses: Record<MyPlatformStatus, ConnectionStatus> = {
     CONNECTED: "connected",
@@ -27,7 +33,8 @@ const connectionStatuses: Record<MyPlatformStatus, ConnectionStatus> = {
 
 export function MyPlatformsPage() {
     const { data, isPending, error, refetch } = useMyPlatformsQuery();
-    const mutation = useUpdatePlatformConnectionMutation();
+    const disconnectMutation = useUpdatePlatformConnectionMutation();
+    const verificationMutation = useBunjangVerificationMutation();
     const platforms: PlatformConnection[] = (data ?? []).map((item) => ({
         id: item.platform,
         ...getPlatformDefinition(item.platform, item.platformName),
@@ -37,8 +44,20 @@ export function MyPlatformsPage() {
         (data ?? []).map((item) => [item.platform, connectionStatuses[item.status]]),
     );
     const [selected, setSelected] = useState<PlatformConnection | null>(null);
-    const [cookie, setCookie] = useState("");
-    const [disconnecting, setDisconnecting] = useState(false);
+    const [verificationTarget, setVerificationTarget] = useState<PlatformConnection | null>(null);
+    const [verification, setVerification] = useState<BunjangVerificationResponse | null>(null);
+    const [verificationVersion, setVerificationVersion] = useState(0);
+    const isMutationPending =
+        disconnectMutation.isPending ||
+        verificationMutation.request.isPending ||
+        verificationMutation.confirm.isPending;
+
+    const resetVerification = () => {
+        setVerificationTarget(null);
+        setVerification(null);
+        verificationMutation.request.reset();
+        verificationMutation.confirm.reset();
+    };
 
     return (
         <MyPageContent
@@ -80,39 +99,82 @@ export function MyPlatformsPage() {
                         key={`${item.id}:${statuses[item.id]}`}
                         item={item}
                         status={statuses[item.id]}
-                        isPending={mutation.isPending}
-                        onSelect={(value) => {
-                            mutation.reset();
-                            setDisconnecting(statuses[item.id] === "connected");
-                            setCookie(value);
-                            setSelected(item);
+                        isPending={isMutationPending}
+                        onSelect={() => {
+                            if (statuses[item.id] === "connected") {
+                                disconnectMutation.reset();
+                                setSelected(item);
+                                return;
+                            }
+                            verificationMutation.request.reset();
+                            verificationMutation.confirm.reset();
+                            setVerification(null);
+                            setVerificationTarget(item);
                         }}
                     />
                 ))}
             </div>
             <PlatformDialog
                 selected={selected}
-                disconnecting={disconnecting}
                 onOpenChange={(open) => {
-                    if (!open && !mutation.isPending) {
+                    if (!open && !disconnectMutation.isPending) {
                         setSelected(null);
-                        setCookie("");
                     }
                 }}
-                isPending={mutation.isPending}
-                errorMessage={mutation.error ? getApiErrorMessage(mutation.error) : null}
+                isPending={disconnectMutation.isPending}
+                errorMessage={
+                    disconnectMutation.error ? getApiErrorMessage(disconnectMutation.error) : null
+                }
                 onConfirm={() => {
-                    if (!selected || mutation.isPending) return;
-                    mutation.mutate(
-                        disconnecting
-                            ? { platform: selected.id, action: "disconnect" }
-                            : { platform: selected.id, action: "connect", cookie },
+                    if (!selected || disconnectMutation.isPending) return;
+                    disconnectMutation.mutate(
+                        { platform: selected.id, action: "disconnect" },
+                        { onSuccess: () => setSelected(null) },
+                    );
+                }}
+            />
+            <BunjangVerificationDialog
+                key={verificationTarget?.id ?? "closed"}
+                selected={verificationTarget}
+                verification={verification}
+                verificationVersion={verificationVersion}
+                isRequestPending={verificationMutation.request.isPending}
+                isConfirmPending={verificationMutation.confirm.isPending}
+                errorMessage={
+                    verificationMutation.confirm.error
+                        ? getApiErrorMessage(verificationMutation.confirm.error)
+                        : verificationMutation.request.error
+                          ? getApiErrorMessage(verificationMutation.request.error)
+                          : null
+                }
+                onOpenChange={(open) => {
+                    if (!open && !isMutationPending) resetVerification();
+                }}
+                onRequest={(request: BunjangVerificationRequest) => {
+                    if (!verificationTarget || isMutationPending) return;
+                    verificationMutation.confirm.reset();
+                    verificationMutation.request.mutate(
                         {
-                            onSuccess: () => {
-                                setSelected(null);
-                                setCookie("");
+                            platform: verificationTarget.id,
+                            request,
+                        },
+                        {
+                            onSuccess: (nextVerification) => {
+                                setVerification(nextVerification);
+                                setVerificationVersion((current) => current + 1);
                             },
                         },
+                    );
+                }}
+                onConfirm={(otp, verificationId) => {
+                    if (!verificationTarget || isMutationPending) return;
+                    verificationMutation.confirm.mutate(
+                        {
+                            platform: verificationTarget.id,
+                            verificationId,
+                            otp,
+                        },
+                        { onSuccess: resetVerification },
                     );
                 }}
             />

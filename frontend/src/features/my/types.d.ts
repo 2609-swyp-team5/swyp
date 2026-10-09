@@ -7,6 +7,9 @@ import type {
     myPlatformStatusSchema,
     myPlatformTypeSchema,
     myProductSchema,
+    bunjangCarrierSchema,
+    bunjangVerificationConfirmResponseSchema,
+    bunjangVerificationResponseSchema,
 } from "./schemas/myResponseSchema";
 
 export type MyProductStatus = ProductStatus;
@@ -20,7 +23,21 @@ export type MyPlatformStatus = z.infer<typeof myPlatformStatusSchema>;
 export type MyPlatformConnectionState = z.infer<typeof myPlatformConnectionStateSchema>;
 
 export type MyPlatformConnection = z.infer<typeof myPlatformConnectionSchema>;
+export type BunjangCarrier = z.infer<typeof bunjangCarrierSchema>;
 
-export type MyPlatformConnectionAction =
-    | { platform: MyPlatformType; action: "connect"; cookie: string }
-    | { platform: MyPlatformType; action: "disconnect" };
+export type BunjangVerificationRequest = {
+    name: string;
+    birthDate: string;
+    genderDigit: string;
+    carrier: BunjangCarrier;
+    phone: string;
+    agreedToBunjangTerms: boolean;
+};
+
+export type BunjangVerificationResponse = z.infer<typeof bunjangVerificationResponseSchema>;
+
+export type BunjangVerificationConfirmResponse = z.infer<
+    typeof bunjangVerificationConfirmResponseSchema
+>;
+
+export type MyPlatformConnectionAction = { platform: MyPlatformType; action: "disconnect" };
