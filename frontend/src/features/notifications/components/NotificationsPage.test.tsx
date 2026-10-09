@@ -147,3 +147,41 @@ it("알림이 없으면 빈 상태를 보여준다", async () => {
 
     expect(await screen.findByText("아직 받은 알림이 없습니다.")).toBeInTheDocument();
 });
+
+it("알림 삭제에 실패하면 알림을 복구하고 오류를 안내한다", async () => {
+    getNotifications.mockResolvedValue({
+        data: {
+            success: true,
+            message: "",
+            data: {
+                content: [
+                    {
+                        notificationId: 3,
+                        type: "BUY",
+                        title: "구매 추천 알림",
+                        message: "관심 상품을 확인해 보세요.",
+                        productId: null,
+                        listingId: 77,
+                        isRead: false,
+                        createdAt: new Date().toISOString(),
+                    },
+                ],
+                nextCursor: null,
+                hasNext: false,
+                totalCount: 1,
+            },
+        },
+    });
+    deleteNotification.mockRejectedValue(new Error("네트워크 오류"));
+    const user = userEvent.setup();
+
+    renderPage();
+
+    expect(await screen.findByText("구매 추천 알림")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "알림 삭제" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+        "알림을 삭제하지 못했습니다. 네트워크 오류",
+    );
+    expect(screen.getByText("구매 추천 알림")).toBeInTheDocument();
+});

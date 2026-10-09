@@ -244,6 +244,11 @@ export function NotificationsPage() {
                             );
                         })}
                     </div>
+                    {deleteMutation.isError && (
+                        <p role="alert" className="text-sm font-medium text-[#d65353]">
+                            알림을 삭제하지 못했습니다. {getApiErrorMessage(deleteMutation.error)}
+                        </p>
+                    )}
                     <div className="max-w-[976px] space-y-6">
                         {query.isPending || query.isPlaceholderData ? (
                             <p role="status" className="py-10 text-center text-[#83889e]">
