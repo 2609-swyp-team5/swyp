@@ -76,20 +76,28 @@ export function ProductSummaryCard({ product, interest }: ProductSummaryCardProp
                             </span>
                         </div>
                         {interest ? (
-                            <button
-                                type="button"
-                                aria-label="관심 상품 삭제"
-                                disabled={interest.deletePending}
-                                className="flex items-center gap-1 rounded-full px-3 py-2 text-[12px] leading-5 font-semibold text-[#83889e] transition-colors hover:bg-[#f5f3ff] hover:text-[#6653fb] disabled:cursor-wait disabled:opacity-50"
-                                onClick={interest.onDelete}
-                            >
-                                <Heart
-                                    aria-hidden="true"
-                                    className="size-4 fill-[#6653fb] text-[#6653fb]"
+                            interest.externalUrl ? (
+                                <Button
+                                    asChild
+                                    variant="ghost"
+                                    className="h-auto gap-1.5 rounded-[10px] border border-[#d3d3d3] bg-white text-[13px] text-[#6653fb] hover:border-[#6653fb] hover:bg-[#fafbff]"
+                                >
+                                    <a href={interest.externalUrl} target="_blank" rel="noreferrer">
+                                        <ExternalLink
+                                            aria-hidden="true"
+                                            className="size-[18px] text-[#6653fb]"
+                                        />
+                                        판매글 바로가기
+                                    </a>
+                                </Button>
+                            ) : product.status === "ON_SALE" && product.platforms.length > 0 ? (
+                                <PlatformShortcutDialog
+                                    product={product}
+                                    label="판매글 바로가기"
+                                    compact
                                 />
-                                관심
-                            </button>
-                        ) : product.status === "ON_SALE" && product.platforms.length > 0 ? (
+                            ) : null
+                        ) : product.status === "ON_SALE" || product.status === "SOLD_OUT" ? (
                             <PlatformShortcutDialog
                                 product={product}
                                 label="판매글 바로가기"
@@ -118,27 +126,21 @@ export function ProductSummaryCard({ product, interest }: ProductSummaryCardProp
                     </div>
                     <div className="mt-auto flex items-end justify-end gap-[30px] pt-6">
                         {interest ? (
-                            interest.externalUrl ? (
-                                <Button
-                                    asChild
-                                    variant="ghost"
-                                    className="h-auto flex-col gap-2 rounded-xl p-2.5 text-[#83889e] hover:bg-[#f5f3ff] hover:text-[#6653fb]"
-                                >
-                                    <a href={interest.externalUrl} target="_blank" rel="noreferrer">
-                                        <span className="flex size-10 items-center justify-center rounded-full bg-[#eaeafd]">
-                                            <ExternalLink
-                                                aria-hidden="true"
-                                                className="size-[22px] text-[#6653fb]"
-                                            />
-                                        </span>
-                                        <span className="text-[16px] leading-[25px] font-normal">
-                                            바로가기
-                                        </span>
-                                    </a>
-                                </Button>
-                            ) : product.status === "ON_SALE" && product.platforms.length > 0 ? (
-                                <PlatformShortcutDialog product={product} />
-                            ) : null
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                aria-label="관심 상품 삭제"
+                                disabled={interest.deletePending}
+                                className="h-auto flex-col gap-2 rounded-xl p-2.5 text-[#83889e] hover:bg-[#f5f3ff] hover:text-[#6653fb] disabled:cursor-wait disabled:opacity-50"
+                                onClick={interest.onDelete}
+                            >
+                                <span className="flex size-10 items-center justify-center rounded-full bg-[#eaeafd]">
+                                    <Heart
+                                        aria-hidden="true"
+                                        className="size-[22px] fill-[#6653fb] text-[#6653fb]"
+                                    />
+                                </span>
+                            </Button>
                         ) : (
                             <ProductSummaryActions
                                 product={product}

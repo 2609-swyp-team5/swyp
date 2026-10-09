@@ -143,6 +143,18 @@ describe("productApi", () => {
         expect(get).toHaveBeenCalledWith("/products/42");
     });
 
+    it("gets the lightweight product management overview", async () => {
+        await expect(productApi.getProductManagementOverview(42)).resolves.toEqual({
+            data: {
+                success: true,
+                message: "",
+                data: { id: 42 },
+                error: null,
+            },
+        });
+        expect(get).toHaveBeenCalledWith("/products/42/management-overview");
+    });
+
     it("deletes a product by id", async () => {
         await expect(productApi.deleteProduct(42)).resolves.toEqual({
             data: {
@@ -156,7 +168,13 @@ describe("productApi", () => {
     });
 
     it("updates a product listing status", async () => {
-        await expect(productApi.updateProductStatus(42, "SOLD_OUT")).resolves.toEqual({
+        const request = {
+            status: "SOLD_OUT" as const,
+            soldPrice: 300000,
+            soldPlatform: "번개장터",
+        };
+
+        await expect(productApi.updateProductStatus(42, request)).resolves.toEqual({
             data: {
                 success: true,
                 message: "",
@@ -164,7 +182,7 @@ describe("productApi", () => {
                 error: null,
             },
         });
-        expect(patch).toHaveBeenCalledWith("/products/42/status", { status: "SOLD_OUT" });
+        expect(patch).toHaveBeenCalledWith("/products/42/status", request);
     });
 
     it("returns the publish response envelope without handling success in the api adapter", async () => {

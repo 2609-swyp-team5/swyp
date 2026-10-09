@@ -1,6 +1,3 @@
-import { mockProducts } from "@/features/sell/mocks/productMock";
-import type { ProductDetailSummaryResponse } from "../schemas/productManagementResponseSchema";
-
 import type {
     ProductCompetition,
     ProductMarketAnalysis,
@@ -9,6 +6,7 @@ import type {
     ProductPriceTrend,
     ProductValuationForecast,
 } from "../types";
+import type { ProductDetailSummaryResponse } from "../schemas/productManagementResponseSchema";
 
 const baseAnalysis: Omit<ProductMarketAnalysis, "productId"> = {
     analysisId: 5,
@@ -22,13 +20,6 @@ const baseAnalysis: Omit<ProductMarketAnalysis, "productId"> = {
     maxPrice: 420000,
     marketPriceDiffRate: 4.9,
     marketExpectedPrice: 308000,
-    priceDistribution: [
-        { from: 180000, to: 220000, count: 2 },
-        { from: 220000, to: 260000, count: 4 },
-        { from: 260000, to: 300000, count: 7 },
-        { from: 300000, to: 360000, count: 5 },
-        { from: 360000, to: 420000, count: 3 },
-    ],
     summary: {
         type: "WAIT_RECOMMENDATION",
         waitPeriodDays: 14,
@@ -98,16 +89,6 @@ export function createProductMarketAnalysisMock(
                 ? "최근 평균 시세보다 낮은 가격이에요. 지금 구매를 고려해볼 만해요."
                 : baseAnalysis.description;
 
-    const priceDistribution = isBuyerView
-        ? [
-              { from: 280000, to: 310000, count: 2 },
-              { from: 310000, to: 340000, count: 5 },
-              { from: 340000, to: 370000, count: 7 },
-              { from: 370000, to: 400000, count: 4 },
-              { from: 400000, to: 420000, count: 2 },
-          ]
-        : baseAnalysis.priceDistribution;
-
     return {
         ...baseAnalysis,
         recommendation: resolvedRecommendation,
@@ -124,31 +105,30 @@ export function createProductMarketAnalysisMock(
               }
             : {}),
         productId,
-        priceDistribution: priceDistribution.map((bucket) => ({ ...bucket })),
         summary,
     };
 }
 
 export function createProductSummaryMock(productId: number): ProductDetailSummaryResponse {
-    const product = mockProducts.find((item) => item.id === productId);
-
     return {
         id: productId,
         category: {
             id: 1,
-            name: product?.categoryName ?? "전자기기",
+            name: "전자기기",
             parentId: null,
         },
-        title: product?.title ?? `상품 ${productId}`,
-        price: product?.price ?? 495000,
-        status: product?.status ?? "ON_SALE",
-        condition: product?.condition ?? "A",
-        imageUrls: product?.thumbnailUrl ? [product.thumbnailUrl] : [],
+        title: `상품 ${productId}`,
+        price: 495000,
+        soldPrice: null,
+        soldPlatform: null,
+        status: "ON_SALE",
+        condition: "A",
+        imageUrls: [],
         viewCount: 128,
         interestCount: 14,
         daysOnSale: 21,
         platforms: [],
-        createdAt: product?.createdAt ?? "2026-10-02T12:00:00",
+        createdAt: "2026-10-02T12:00:00",
     };
 }
 

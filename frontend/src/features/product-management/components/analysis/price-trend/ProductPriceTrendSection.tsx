@@ -17,9 +17,6 @@ export function ProductPriceTrendSection({
     if (query.error || !query.data) {
         return (
             <div className="flex flex-col gap-[10px]">
-                <h3 className="text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#6653fb]">
-                    가격 변화 추이
-                </h3>
                 <section className="flex min-h-[363px] items-center justify-center rounded-[10px] border border-[#6653fb] bg-white p-6">
                     <p className="text-center text-[14px] leading-6 text-[#d65353]">
                         가격 변화 추이 데이터를 불러오지 못했습니다.
@@ -37,14 +34,8 @@ export function ProductPriceTrendSection({
 
     return (
         <div className="flex min-w-0 flex-col gap-[10px]">
-            <h3
-                id="product-price-trend-title"
-                className="text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#6653fb]"
-            >
-                가격 변화 추이
-            </h3>
             <section
-                aria-labelledby="product-price-trend-title"
+                aria-label="최근 30일 일 평균 거래가"
                 className="h-[363px] min-w-0 rounded-[10px] border border-[#6653fb] bg-white px-5 py-[22px]"
             >
                 <ProductPriceTrendChart

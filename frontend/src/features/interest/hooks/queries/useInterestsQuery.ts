@@ -2,13 +2,11 @@
 
 import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 
-import { dataSource } from "@/common/lib/api/dataSource";
 import { interestApi } from "@/features/interest/api/interestApi";
-import { getInterestsMock } from "@/features/interest/api/interestMockApi";
 import type { InterestStatus } from "@/features/interest/types";
 import { interestListResponseSchema } from "@/features/interest/schemas/interestResponseSchema";
 
-export const interestsQueryKey = ["interests", dataSource] as const;
+export const interestsQueryKey = ["interests"] as const;
 
 const pageSize = 20;
 
@@ -18,16 +16,13 @@ export function useInterestsQuery(status?: InterestStatus) {
         initialPageParam: undefined as string | undefined,
         placeholderData: keepPreviousData,
         queryFn: async ({ pageParam }) => {
-            const response =
-                dataSource === "api"
-                    ? (
-                          await interestApi.getInterests({
-                              status,
-                              cursor: pageParam,
-                              size: pageSize,
-                          })
-                      ).data
-                    : await getInterestsMock(status);
+            const response = (
+                await interestApi.getInterests({
+                    status,
+                    cursor: pageParam,
+                    size: pageSize,
+                })
+            ).data;
             if (!response.success) {
                 throw new Error(response.message);
             }

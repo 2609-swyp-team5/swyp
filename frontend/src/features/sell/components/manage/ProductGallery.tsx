@@ -112,7 +112,9 @@ export function ProductGallery({ product, layout = "side" }: ProductGalleryProps
     return (
         <div
             className={
-                isBottomLayout ? "flex w-full flex-col gap-3" : "flex items-start gap-3 lg:gap-5"
+                isBottomLayout
+                    ? "flex w-full min-w-0 flex-col gap-3"
+                    : "flex items-start gap-3 lg:gap-5"
             }
         >
             {product.imageUrls.length > 1 && (

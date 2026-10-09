@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 import { cn } from "@/common/lib/utils";
 
 import type {
@@ -36,46 +38,35 @@ export function MarketAnalysisContent({
     analysis,
     priceTrendQuery,
     valuationForecastQuery,
-    summaryOnly = false,
 }: {
     analysis: ProductMarketAnalysis;
     priceTrendQuery: StreamingQueryState<ProductPriceTrend>;
     valuationForecastQuery: StreamingQueryState<ProductValuationForecast>;
-    summaryOnly?: boolean;
 }) {
     const isBuyerView = analysis.recommendation === "BUY" || analysis.recommendation === "WAIT";
-
-    if (summaryOnly) {
-        return (
-            <>
-                <MarketAnalysisRecommendation analysis={analysis} />
-                <div className="bg-[#fafbff] px-10 py-[30px]">
-                    <MarketAnalysisSummaryMetrics
-                        summary={analysis.summary}
-                        isBuyerView={isBuyerView}
-                    />
-                </div>
-            </>
-        );
-    }
 
     return (
         <>
             <MarketAnalysisRecommendation analysis={analysis} />
             <div className="flex flex-col gap-5 bg-[#fafbff] px-10 py-[30px]">
-                <MarketAnalysisSummaryMetrics
-                    summary={analysis.summary}
-                    isBuyerView={isBuyerView}
-                />
+                <MarketAnalysisSummaryMetrics analysis={analysis} />
                 <div className="grid gap-[30px] lg:grid-cols-2">
                     <div className="flex min-w-0 flex-col justify-center gap-10 rounded-[20px] py-5">
                         <div className="flex flex-col gap-[10px]">
-                            <div className="flex items-center gap-2 px-[10px] text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#6653fb]">
-                                <span aria-hidden="true">✦</span>
-                                <span>AI 추천 가격</span>
+                            <div className="flex items-center gap-2 px-[10px]">
+                                <Image
+                                    src="/figma/product-management/ai-recommended-price.svg"
+                                    alt=""
+                                    width={15}
+                                    height={15}
+                                    aria-hidden="true"
+                                />
+                                <span className="text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#6653fb]">
+                                    AI 추천 가격
+                                </span>
                             </div>
-                            <div className="flex items-center justify-between gap-3 bg-[#6653fb] p-[10px]">
-                                <span className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-white">
+                            <div className="flex items-center justify-between gap-3 rounded-[5px] bg-[#6653fb] p-[10px]">
+                                <span className="text-[20px] leading-[30px] font-medium tracking-[0.5px] text-white">
                                     {formatPrice(analysis.suggestedPrice)}
                                 </span>
                                 {isBuyerView ? (
@@ -92,7 +83,7 @@ export function MarketAnalysisContent({
                                 )}
                             </div>
                         </div>
-                        <div>
+                        <div className="flex flex-col gap-[10px] px-[20px]">
                             <MetricRow
                                 label={isBuyerView ? "현재 가격" : "현재 등록가"}
                                 value={formatPrice(analysis.currentPrice)}
@@ -100,7 +91,7 @@ export function MarketAnalysisContent({
                             <MetricRow
                                 label="최근 평균 거래가"
                                 value={formatPrice(analysis.averagePrice)}
-                                valueClassName="text-[#ce3838]"
+                                valueClassName="text-[20px] leading-[30px] font-medium text-[#ce3838]"
                             />
                             <MetricRow
                                 label="시세 대비"

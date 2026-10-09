@@ -28,9 +28,6 @@ export function ProductManagementStreamingSection<T>({
                 >
                     {title}
                 </h2>
-                <span className="ml-auto rounded-full bg-[#eeeefe] px-3 py-1 text-[11px] leading-4 font-semibold text-[#6653fb]">
-                    mock
-                </span>
             </div>
 
             {query.isPending ? (

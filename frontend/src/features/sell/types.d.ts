@@ -28,6 +28,12 @@ export type ProductCreateRequest = z.infer<typeof productCreateRequestSchema>;
 export type DirectProductCreateRequest = z.infer<typeof directProductCreateRequestSchema>;
 export type ProductUpdateRequest = z.infer<typeof productUpdateRequestSchema>;
 
+export interface ProductStatusUpdateRequest {
+    status: ProductStatus;
+    soldPrice?: number;
+    soldPlatform?: string;
+}
+
 export interface DirectProductCreateInput {
     images: File[];
     request: DirectProductCreateRequest;
