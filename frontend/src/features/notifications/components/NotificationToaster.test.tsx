@@ -52,6 +52,7 @@ it("처음 확인한 뒤 새로 도착한 안 읽은 알림만 토스트로 띄�
             page([notification(2, "새 구매 추천"), notification(1, "이미 있던 알림")]),
         );
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(["notification-unread-count"], { count: 1 });
     render(
         <QueryClientProvider client={client}>
             <NotificationToaster />
@@ -68,6 +69,7 @@ it("처음 확인한 뒤 새로 도착한 안 읽은 알림만 토스트로 띄�
         "href",
         "/buy/wishlist?selected=77",
     );
+    expect(client.getQueryData(["notification-unread-count"])).toEqual({ count: 2 });
 });
 
 it("푸시 알림을 끄면 알림을 확인하지 않는다", async () => {
