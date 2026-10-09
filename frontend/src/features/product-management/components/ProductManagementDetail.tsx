@@ -13,6 +13,7 @@ import { ProductSummarySkeleton } from "./product-summary/ProductSummarySkeleton
 import { SoldProductSummaryCard } from "./product-summary/SoldProductSummaryCard";
 import { SoldProductSummarySkeleton } from "./product-summary/SoldProductSummarySkeleton";
 import { SellerTargetPriceSection } from "./target-price/SellerTargetPriceSection";
+import { canSetSellerTargetPrice } from "./target-price/targetPriceAvailability";
 
 export function ProductManagementDetail({
     productId,
@@ -63,7 +64,7 @@ export function ProductManagementDetail({
                     <ProductSummaryCard product={sections.productSummary.data} />
                 ) : null
             ) : null}
-            {currentStatus !== undefined && currentStatus !== "SOLD_OUT" ? (
+            {currentStatus !== undefined && canSetSellerTargetPrice(currentStatus) ? (
                 <SellerTargetPriceSection productId={productId} />
             ) : null}
             {currentStatus === "SOLD_OUT" && showSoldDetails && sections.productSummary.data ? (

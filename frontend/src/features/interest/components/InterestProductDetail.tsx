@@ -8,6 +8,7 @@ import { ProductCompetitionSection } from "@/features/product-management/compone
 import { ProductSummaryCard } from "@/features/product-management/components/product-summary/ProductSummaryCard";
 import { ProductSummarySkeleton } from "@/features/product-management/components/product-summary/ProductSummarySkeleton";
 import { TargetPriceCard } from "@/features/product-management/components/target-price/TargetPriceCard";
+import { canSetInterestTargetPrice } from "@/features/product-management/components/target-price/targetPriceAvailability";
 import { formatPrice } from "@/features/product-management/components/analysis/market-analysis/formatters";
 import { useDeleteInterestMutation } from "../hooks/mutations/useDeleteInterestMutation";
 import { useSetInterestTargetPriceMutation } from "../hooks/mutations/useSetInterestTargetPriceMutation";
@@ -67,24 +68,26 @@ export function InterestProductDetail({ interest }: { interest: InterestListItem
                 </p>
             ) : null}
 
-            <TargetPriceCard
-                key={`${interest.interestId}-${targetPrice ?? "none"}`}
-                title="목표 구매가"
-                description="상품 가격이 이 금액 이하가 되면 알려드려요."
-                targetPrice={targetPrice}
-                compareLabel="현재 가격"
-                comparePrice={price}
-                reached={targetPrice !== null && price <= targetPrice}
-                reachedText="현재 가격이 목표 구매가 이하예요."
-                waitingText={
-                    targetPrice === null
-                        ? ""
-                        : `목표 구매가까지 ${formatPrice(price - targetPrice)} 남았어요.`
-                }
-                isSaving={targetPriceMutation.isPending}
-                error={targetPriceMutation.error}
-                onSave={(value) => targetPriceMutation.mutate(value)}
-            />
+            {canSetInterestTargetPrice(interest.interestStatus) ? (
+                <TargetPriceCard
+                    key={`${interest.interestId}-${targetPrice ?? "none"}`}
+                    title="목표 구매가"
+                    description="상품 가격이 이 금액 이하가 되면 알려드려요."
+                    targetPrice={targetPrice}
+                    compareLabel="현재 가격"
+                    comparePrice={price}
+                    reached={targetPrice !== null && price <= targetPrice}
+                    reachedText="현재 가격이 목표 구매가 이하예요."
+                    waitingText={
+                        targetPrice === null
+                            ? ""
+                            : `목표 구매가까지 ${formatPrice(price - targetPrice)} 남았어요.`
+                    }
+                    isSaving={targetPriceMutation.isPending}
+                    error={targetPriceMutation.error}
+                    onSave={(value) => targetPriceMutation.mutate(value)}
+                />
+            ) : null}
 
             <MarketAnalysisSection
                 result={sections.productAnalysis.data}

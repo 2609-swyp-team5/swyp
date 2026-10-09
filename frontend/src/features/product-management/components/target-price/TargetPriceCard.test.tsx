@@ -30,7 +30,7 @@ describe("TargetPriceCard", () => {
         const user = userEvent.setup();
         const onSave = renderCard();
 
-        expect(screen.getByText("설정 안 함")).toBeInTheDocument();
+        expect(screen.getAllByText("미설정")).toHaveLength(2);
         expect(screen.getByText("320,000원")).toBeInTheDocument();
 
         const input = screen.getByLabelText("목표 판매가 입력");
