@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -22,18 +23,20 @@ import com.swyp.team5.common.common.ApiResponse;
 import com.swyp.team5.common.passport.PrincipalMember;
 import com.swyp.team5.platform.bunjang.dto.BunjangConnectRequest;
 import com.swyp.team5.platform.bunjang.dto.BunjangConnectionResponse;
-import com.swyp.team5.platform.bunjang.dto.BunjangVerificationConfirmRequest;
-import com.swyp.team5.platform.bunjang.dto.BunjangVerificationConfirmResponse;
-import com.swyp.team5.platform.bunjang.dto.BunjangVerificationRequest;
-import com.swyp.team5.platform.bunjang.dto.BunjangVerificationResponse;
 import com.swyp.team5.platform.bunjang.dto.PlatformConnectionResponse;
 import com.swyp.team5.platform.bunjang.dto.ProductPlatformLinkRequest;
 import com.swyp.team5.platform.bunjang.dto.ProductPlatformResponse;
 import com.swyp.team5.platform.bunjang.service.BunjangConnectionService;
 import com.swyp.team5.platform.bunjang.service.BunjangProductLinkService;
 import com.swyp.team5.platform.bunjang.service.BunjangProductPublishService;
-import com.swyp.team5.platform.bunjang.service.BunjangVerificationService;
 import com.swyp.team5.platform.entity.PlatformType;
+import com.swyp.team5.platform.error.UnsupportedPlatformException;
+import com.swyp.team5.platform.joongna.service.JoongnaConnectionService;
+import com.swyp.team5.platform.verification.PlatformVerificationService;
+import com.swyp.team5.platform.verification.dto.PlatformVerificationConfirmRequest;
+import com.swyp.team5.platform.verification.dto.PlatformVerificationConfirmResponse;
+import com.swyp.team5.platform.verification.dto.PlatformVerificationRequest;
+import com.swyp.team5.platform.verification.dto.PlatformVerificationResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
@@ -52,7 +55,11 @@ public class BunjangController {
     private final BunjangConnectionService bunjangConnectionService;
     private final BunjangProductLinkService bunjangProductLinkService;
     private final BunjangProductPublishService bunjangProductPublishService;
-    private final BunjangVerificationService bunjangVerificationService;
+    private final PlatformVerificationService platformVerificationService;
+    private final JoongnaConnectionService joongnaConnectionService;
+
+    @Value("${platform.listed-platforms:BUNJANG}")
+    private List<String> listedPlatforms = List.of(PlatformType.BUNJANG.name());
 
     @Operation(summary = "플랫폼 세션 연동/재연동")
     @PostMapping("/platforms/{platform}/connect")
@@ -60,6 +67,7 @@ public class BunjangController {
             @AuthenticationPrincipal PrincipalMember currentMember,
             @PathVariable PlatformType platform,
             @Valid @RequestBody BunjangConnectRequest request) {
+        requireBunjang(platform);
         BunjangConnectionResponse response =
                 bunjangConnectionService.connect(currentMember.memberId(), request.cookie());
         return ResponseEntity.ok(ApiResponse.success(response));
@@ -67,23 +75,24 @@ public class BunjangController {
 
     @Operation(summary = "본인인증으로 플랫폼 연동 - 인증 문자 요청")
     @PostMapping("/platforms/{platform}/verification")
-    public ResponseEntity<ApiResponse<BunjangVerificationResponse>> requestVerification(
+    public ResponseEntity<ApiResponse<PlatformVerificationResponse>> requestVerification(
             @AuthenticationPrincipal PrincipalMember currentMember,
             @PathVariable PlatformType platform,
-            @Valid @RequestBody BunjangVerificationRequest request) {
-        BunjangVerificationResponse response = bunjangVerificationService.request(currentMember.memberId(), request);
+            @Valid @RequestBody PlatformVerificationRequest request) {
+        PlatformVerificationResponse response =
+                platformVerificationService.request(currentMember.memberId(), platform, request);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @Operation(summary = "본인인증으로 플랫폼 연동 - 인증번호 확인")
     @PostMapping("/platforms/{platform}/verification/{verificationId}/confirm")
-    public ResponseEntity<ApiResponse<BunjangVerificationConfirmResponse>> confirmVerification(
+    public ResponseEntity<ApiResponse<PlatformVerificationConfirmResponse>> confirmVerification(
             @AuthenticationPrincipal PrincipalMember currentMember,
             @PathVariable PlatformType platform,
             @PathVariable String verificationId,
-            @Valid @RequestBody BunjangVerificationConfirmRequest request) {
-        BunjangVerificationConfirmResponse response =
-                bunjangVerificationService.confirm(currentMember.memberId(), verificationId, request.otp());
+            @Valid @RequestBody PlatformVerificationConfirmRequest request) {
+        PlatformVerificationConfirmResponse response =
+                platformVerificationService.confirm(currentMember.memberId(), platform, verificationId, request.otp());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
@@ -92,6 +101,7 @@ public class BunjangController {
     public ResponseEntity<ApiResponse<List<PlatformConnectionResponse>>> getConnections(
             @AuthenticationPrincipal PrincipalMember currentMember) {
         List<PlatformConnectionResponse> response = Arrays.stream(PlatformType.values())
+                .filter(platform -> listedPlatforms.contains(platform.name()))
                 .map(platform -> PlatformConnectionResponse.of(platform, statusOf(platform, currentMember.memberId())))
                 .toList();
         return ResponseEntity.ok(ApiResponse.success(response));
@@ -101,14 +111,17 @@ public class BunjangController {
     @GetMapping("/platforms/{platform}")
     public ResponseEntity<ApiResponse<BunjangConnectionResponse>> getStatus(
             @AuthenticationPrincipal PrincipalMember currentMember, @PathVariable PlatformType platform) {
-        return ResponseEntity.ok(ApiResponse.success(bunjangConnectionService.getStatus(currentMember.memberId())));
+        return ResponseEntity.ok(ApiResponse.success(statusOf(platform, currentMember.memberId())));
     }
 
     @Operation(summary = "플랫폼 연동 해제")
     @DeleteMapping("/platforms/{platform}")
     public ResponseEntity<ApiResponse<Void>> disconnect(
             @AuthenticationPrincipal PrincipalMember currentMember, @PathVariable PlatformType platform) {
-        bunjangConnectionService.disconnect(currentMember.memberId());
+        switch (platform) {
+            case BUNJANG -> bunjangConnectionService.disconnect(currentMember.memberId());
+            case JOONGNA -> joongnaConnectionService.disconnect(currentMember.memberId());
+        }
         return ResponseEntity.ok(ApiResponse.<Void>success(null));
     }
 
@@ -118,6 +131,7 @@ public class BunjangController {
             @AuthenticationPrincipal PrincipalMember currentMember,
             @PathVariable Long productId,
             @PathVariable PlatformType platform) {
+        requireBunjang(platform);
         ProductPlatformResponse response = bunjangProductPublishService.publish(currentMember.memberId(), productId);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
     }
@@ -129,6 +143,7 @@ public class BunjangController {
             @PathVariable Long productId,
             @PathVariable PlatformType platform,
             @Valid @RequestBody ProductPlatformLinkRequest request) {
+        requireBunjang(platform);
         ProductPlatformResponse response =
                 bunjangProductLinkService.link(currentMember.memberId(), productId, request.productUrl());
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
@@ -140,6 +155,7 @@ public class BunjangController {
             @AuthenticationPrincipal PrincipalMember currentMember,
             @PathVariable Long productId,
             @PathVariable PlatformType platform) {
+        requireBunjang(platform);
         ProductPlatformResponse response = bunjangProductLinkService.syncStatus(currentMember.memberId(), productId);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -148,6 +164,13 @@ public class BunjangController {
     private BunjangConnectionResponse statusOf(PlatformType platform, Long memberId) {
         return switch (platform) {
             case BUNJANG -> bunjangConnectionService.getStatus(memberId);
+            case JOONGNA -> joongnaConnectionService.getStatus(memberId);
         };
+    }
+
+    private static void requireBunjang(PlatformType platform) {
+        if (platform != PlatformType.BUNJANG) {
+            throw new UnsupportedPlatformException(platform.name());
+        }
     }
 }

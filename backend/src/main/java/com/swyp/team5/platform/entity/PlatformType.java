@@ -15,7 +15,8 @@ import com.swyp.team5.platform.error.UnsupportedPlatformException;
 @Getter
 @RequiredArgsConstructor
 public enum PlatformType {
-    BUNJANG("번개장터");
+    BUNJANG("번개장터"),
+    JOONGNA("중고나라");
 
     private final String platformName;
 

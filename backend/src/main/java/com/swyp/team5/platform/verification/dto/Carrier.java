@@ -1,11 +1,11 @@
-package com.swyp.team5.platform.bunjang.dto;
+package com.swyp.team5.platform.verification.dto;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public enum BunjangCarrier {
+public enum Carrier {
     SKT("SKT"),
     KT("KT"),
     LG_U_PLUS("LG U+"),

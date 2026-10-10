@@ -25,8 +25,9 @@ import com.swyp.team5.platform.bunjang.dto.BunjangConnectionResponse;
 import com.swyp.team5.platform.bunjang.service.BunjangConnectionService;
 import com.swyp.team5.platform.bunjang.service.BunjangProductLinkService;
 import com.swyp.team5.platform.bunjang.service.BunjangProductPublishService;
-import com.swyp.team5.platform.bunjang.service.BunjangVerificationService;
 import com.swyp.team5.platform.entity.MemberPlatformStatus;
+import com.swyp.team5.platform.joongna.service.JoongnaConnectionService;
+import com.swyp.team5.platform.verification.PlatformVerificationService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -48,7 +49,10 @@ class BunjangControllerTest {
     private BunjangProductPublishService bunjangProductPublishService;
 
     @Mock
-    private BunjangVerificationService bunjangVerificationService;
+    private PlatformVerificationService platformVerificationService;
+
+    @Mock
+    private JoongnaConnectionService joongnaConnectionService;
 
     private MockMvc mockMvc;
 
@@ -60,7 +64,8 @@ class BunjangControllerTest {
                         bunjangConnectionService,
                         bunjangProductLinkService,
                         bunjangProductPublishService,
-                        bunjangVerificationService))
+                        platformVerificationService,
+                        joongnaConnectionService))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setConversionService(conversionService)
                 .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())

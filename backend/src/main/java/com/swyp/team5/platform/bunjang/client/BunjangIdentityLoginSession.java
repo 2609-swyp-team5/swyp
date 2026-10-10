@@ -19,14 +19,15 @@ import com.microsoft.playwright.options.AriaRole;
 import com.microsoft.playwright.options.Cookie;
 import com.microsoft.playwright.options.WaitUntilState;
 import com.swyp.team5.common.common.ErrorDetail;
-import com.swyp.team5.platform.bunjang.dto.BunjangIdentityLoginResult;
-import com.swyp.team5.platform.bunjang.dto.BunjangVerificationRequest;
-import com.swyp.team5.platform.error.BunjangVerificationException;
+import com.swyp.team5.platform.error.PlatformVerificationException;
+import com.swyp.team5.platform.verification.IdentityLoginSession;
+import com.swyp.team5.platform.verification.dto.IdentityLoginResult;
+import com.swyp.team5.platform.verification.dto.PlatformVerificationRequest;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 @Slf4j
-public class BunjangIdentityLoginSession implements AutoCloseable {
+public class BunjangIdentityLoginSession implements IdentityLoginSession {
 
     private static final String LOGIN_URL = "https://m.bunjang.co.kr/login?header=true";
     private static final String VALIDATION_PATH = "/api/ums/v2/ident/request-validation";
@@ -70,12 +71,12 @@ public class BunjangIdentityLoginSession implements AutoCloseable {
             if (playwright != null) {
                 playwright.close();
             }
-            throw BunjangVerificationException.failed(
+            throw PlatformVerificationException.failed(
                     "브라우저 실행 실패. " + e.getClass().getSimpleName());
         }
     }
 
-    public void requestOtp(BunjangVerificationRequest request) {
+    public void requestOtp(PlatformVerificationRequest request) {
         try {
             openIdentityForm();
             fillIdentityForm(request);
@@ -85,10 +86,10 @@ public class BunjangIdentityLoginSession implements AutoCloseable {
         }
     }
 
-    public BunjangIdentityLoginResult confirm(String otp) {
+    public IdentityLoginResult confirm(String otp) {
         try {
             if (!page.url().contains("/signup/otp")) {
-                throw BunjangVerificationException.failed("인증번호 화면이 아님. url=" + path(page.url()));
+                throw PlatformVerificationException.failed("인증번호 화면이 아님. url=" + path(page.url()));
             }
             Locator input = page.locator("input[name='otp']");
             input.fill("");
@@ -104,7 +105,7 @@ public class BunjangIdentityLoginSession implements AutoCloseable {
                             RESPONSE_TIMEOUT_MS,
                             () -> confirmButton.click(new Locator.ClickOptions().setTimeout(BUTTON_ENABLE_TIMEOUT_MS)))
                     .path("data");
-            return new BunjangIdentityLoginResult(
+            return new IdentityLoginResult(
                     waitForSessionToken(), data.path("isJoined").asBoolean(false));
         } catch (PlaywrightException e) {
             throw failed("confirm", e);
@@ -126,7 +127,7 @@ public class BunjangIdentityLoginSession implements AutoCloseable {
         page.waitForURL(url -> url.contains("/signup"), new Page.WaitForURLOptions().setTimeout(RESPONSE_TIMEOUT_MS));
     }
 
-    private void fillIdentityForm(BunjangVerificationRequest request) {
+    private void fillIdentityForm(PlatformVerificationRequest request) {
         type(page.locator("input[placeholder='홍길동']"), request.name());
         type(page.locator("input[placeholder='YYMMDD']"), request.birthDate());
         type(page.locator("#genderDigit"), request.genderDigit());
@@ -153,7 +154,7 @@ public class BunjangIdentityLoginSession implements AutoCloseable {
                 AriaRole.BUTTON, new Page.GetByRoleOptions().setName("다음").setExact(true));
         if (poll((long) BUTTON_ENABLE_TIMEOUT_MS, () -> Optional.of(next).filter(Locator::isEnabled))
                 .isEmpty()) {
-            throw BunjangVerificationException.rejected(
+            throw PlatformVerificationException.rejected(
                     INVALID_INPUT_MESSAGE, "다음 버튼이 활성화되지 않음. url=" + path(page.url()));
         }
 
@@ -178,9 +179,9 @@ public class BunjangIdentityLoginSession implements AutoCloseable {
         String logDetail =
                 "step=" + step + ", status=" + response.status() + ", errorCode=" + text(body.path("errorCode"));
         if (response.status() / 100 == 4) {
-            throw BunjangVerificationException.rejected(text(body.path("reason")), logDetail);
+            throw PlatformVerificationException.rejected(text(body.path("reason")), logDetail);
         }
-        throw BunjangVerificationException.failed(logDetail);
+        throw PlatformVerificationException.failed(logDetail);
     }
 
     private void rejectInvalidInput(JsonNode data) {
@@ -192,7 +193,7 @@ public class BunjangIdentityLoginSession implements AutoCloseable {
                 .map(field -> new ErrorDetail(field.getValue(), text(data.path(field.getKey()))))
                 .filter(detail -> !detail.content().isEmpty())
                 .toList();
-        throw BunjangVerificationException.rejected(INVALID_INPUT_MESSAGE, details, "step=request-validation");
+        throw PlatformVerificationException.rejected(INVALID_INPUT_MESSAGE, details, "step=request-validation");
     }
 
     private String waitForSessionToken() {
@@ -200,7 +201,7 @@ public class BunjangIdentityLoginSession implements AutoCloseable {
                         .filter(cookie ->
                                 SESSION_COOKIE.equals(cookie.name) && cookie.value != null && !cookie.value.isBlank())
                         .findFirst())
-                .orElseThrow(() -> BunjangVerificationException.failed("로그인 후 세션 쿠키 없음. url=" + path(page.url())));
+                .orElseThrow(() -> PlatformVerificationException.failed("로그인 후 세션 쿠키 없음. url=" + path(page.url())));
         logExpiry(session);
         return session.value;
     }
@@ -215,8 +216,8 @@ public class BunjangIdentityLoginSession implements AutoCloseable {
         return value;
     }
 
-    private BunjangVerificationException failed(String step, PlaywrightException e) {
-        return BunjangVerificationException.failed(
+    private PlatformVerificationException failed(String step, PlaywrightException e) {
+        return PlatformVerificationException.failed(
                 "step=" + step + ", " + e.getClass().getSimpleName() + ", url=" + path(page.url()));
     }
 

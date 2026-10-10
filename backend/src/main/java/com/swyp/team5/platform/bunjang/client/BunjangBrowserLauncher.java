@@ -76,10 +76,14 @@ public class BunjangBrowserLauncher {
     }
 
     public BrowserContext newContext(Browser browser) {
+        return newContext(browser, 1280, 1600);
+    }
+
+    public BrowserContext newContext(Browser browser, int width, int height) {
         BrowserContext context = browser.newContext(new Browser.NewContextOptions()
                 .setLocale("ko-KR")
                 .setUserAgent(USER_AGENT)
-                .setViewportSize(1280, 1600));
+                .setViewportSize(width, height));
         context.addInitScript("Object.defineProperty(navigator, 'webdriver', {get: () => undefined});");
         return context;
     }
