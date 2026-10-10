@@ -211,8 +211,8 @@ public class ProductAnalysisService {
      * 분석되므로 그 밖의 매물은 분석 이력이 없다. 분석 이력이 없으면(배치가 아직 안 돌았거나 비교 매물 부족으로 건너뛴 경우) 상품
      * ID·현재 가격만 채우고 나머지 필드는 null인 응답을 반환한다.
      *
-     * <p>가격 분포는 분석 때 고른 매물을 저장하지 않아 조회 시점에 같은 1단계 기준(키워드 후보·이상치 제외, AI 선별 없음)으로 다시
-     * 고른 매물 중 분석의 최저~최고가 안에 드는 것만 센다.
+     * <p>가격 분포는 분석 때 통계에 쓴 비교 매물 가격으로 센다(화면·조회 시점마다 달라지지 않음). 그 가격을 저장하기 전의 스냅샷만
+     * 조회 시점에 같은 1단계 기준(키워드 후보·이상치 제외, AI 선별 없음)으로 다시 고른 매물 중 분석의 최저~최고가 안에 드는 것을 센다.
      *
      * @param perspective 조회 관점 — 구매자(BUY)면 우리 상품도 구매자 추천(BUY/WAIT)과 그 근거를 {@code recommendation}에 담는다
      * @throws ProductNotFoundException 존재하지 않는 상품(외부 매물 포함)인 경우
@@ -272,8 +272,18 @@ public class ProductAnalysisService {
                 waitPeriodDays, changeRate, confidenceRate == null ? 0 : confidenceRate);
     }
 
-    /** 조회 시점 비교 매물(1단계 기준) 중 분석의 최저~최고가 안에 드는 가격을 같은 폭 구간으로 센다. */
+    /**
+     * 분석 때 통계에 쓴 비교 매물 가격을 같은 폭 구간으로 센다. 그 가격이 없는 이전 스냅샷은 조회 시점 비교 매물(1단계 기준) 중 분석의
+     * 최저~최고가 안에 드는 가격으로 센다.
+     */
     private List<ProductAnalysisResponse.PriceBucket> priceDistribution(Item item, ProductAnalysis analysis) {
+        if (analysis.getListingPrices() != null) {
+            return ProductAnalysisResponse.PriceBucket.distribute(
+                    analysis.getListingPrices(),
+                    analysis.getMinPrice(),
+                    analysis.getMaxPrice(),
+                    PRICE_DISTRIBUTION_BUCKETS);
+        }
         List<PlatformListing> others = freshSellingListings(item.getCategory().getId()).stream()
                 .filter(listing -> !listing.getId().equals(item.getId()))
                 .toList();
@@ -696,6 +706,7 @@ public class ProductAnalysisService {
                         : RecommendationRule.buyerReason(
                                 buyerRecommendation, product.getPrice(), averagePrice, monthlyRate));
         analysis.assignConfidence(prices.size(), ConfidenceRule.grade(prices, properties.confidence()));
+        analysis.assignListingPrices(prices);
 
         // 감가 예측(1M/3M/6M)과, 판매자 추천에 붙는 1개월 가격 전망(SELL=감가 예측, HOLD=시세 추세)
         List<DepreciationForecaster.Forecast> forecasts = forecastWithOutlook(
@@ -788,6 +799,7 @@ public class ProductAnalysisService {
                         : RecommendationRule.buyerReason(recommendation, listing.getPrice(), averagePrice, monthlyRate),
                 analyzedAt);
         analysis.assignConfidence(prices.size(), ConfidenceRule.grade(prices, properties.confidence()));
+        analysis.assignListingPrices(prices);
 
         // 감가 예측(1M/3M/6M)과 1개월 가격 전망 — 우리 상품과 같은 규칙. 전망은 시세 추세로 갈리므로(오르는 중이면 상승 전망,
         // 아니면 감가 예측 1M) 판매자 규칙을 추세 판단에만 쓰고, 저장하는 추천은 구매자 관점 그대로 둔다
