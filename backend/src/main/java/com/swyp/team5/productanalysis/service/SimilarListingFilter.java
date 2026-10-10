@@ -2,6 +2,7 @@ package com.swyp.team5.productanalysis.service;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -118,6 +119,26 @@ final class SimilarListingFilter {
         return listings.stream()
                 .filter(listing -> listing.getPrice() >= min && listing.getPrice() <= max)
                 .toList();
+    }
+
+    /**
+     * 같은 글을 여러 번 올린 중복 매물을 하나만 남긴다(순서 유지). 판매자 정보는 수집하지 않아 정규화한 제목과 가격이 같으면 같은
+     * 글로 본다. 같은 판매자가 같은 글을 반복 등록하면 비교 매물 수가 부풀고 가격 변동이 0이 되어 신뢰도가 실제보다 높게 나온다.
+     */
+    static List<PlatformListing> removeDuplicates(List<PlatformListing> listings) {
+        Set<String> seen = new HashSet<>();
+        return listings.stream()
+                .filter(listing -> seen.add(duplicateKey(listing)))
+                .toList();
+    }
+
+    /** 두 매물이 같은 글(정규화한 제목·가격이 같음)인지 — {@link #removeDuplicates}와 같은 기준. */
+    static boolean isDuplicate(PlatformListing a, PlatformListing b) {
+        return duplicateKey(a).equals(duplicateKey(b));
+    }
+
+    private static String duplicateKey(PlatformListing listing) {
+        return normalize(listing.getTitle()) + ":" + listing.getPrice();
     }
 
     private static long quartile(List<Long> sorted, double fraction) {
