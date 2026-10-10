@@ -92,6 +92,29 @@ class PriceForecastTest extends IntegrationTest {
         memberRepository.delete(member);
     }
 
+    // 비교 매물 가격을 bigint[]로 저장·조회하고, 분석 조회 응답의 가격 분포를 그 가격으로 셈
+    @Test
+    void savesListingPricesAndReturnsDistributionFromThem() throws Exception {
+        analysis.assignListingPrices(List.of(900_000L, 950_000L, 1_000_000L, 1_000_000L, 1_100_000L));
+        productAnalysisRepository.save(analysis);
+
+        assertThat(productAnalysisRepository
+                        .findById(analysis.getId())
+                        .orElseThrow()
+                        .getListingPrices())
+                .containsExactly(900_000L, 950_000L, 1_000_000L, 1_000_000L, 1_100_000L);
+
+        String token = jwtTokenProvider.createAccessToken(member.getId(), MemberRole.USER);
+        mockMvc.perform(get("/products/{productId}/analysis", product.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.priceDistribution.length()").value(5))
+                .andExpect(jsonPath("$.data.priceDistribution[0].count").value(1))
+                .andExpect(jsonPath("$.data.priceDistribution[1].count").value(1))
+                .andExpect(jsonPath("$.data.priceDistribution[2].count").value(2))
+                .andExpect(jsonPath("$.data.priceDistribution[4].count").value(1));
+    }
+
     // 1M/3M/6M을 DB enum으로 저장·조회하고, 분석 조회 응답에 기간 순으로 포함
     @Test
     void savesForecastsAndReturnsThemInAnalysisResponse() throws Exception {

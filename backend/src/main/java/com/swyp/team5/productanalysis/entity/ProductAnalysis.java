@@ -2,6 +2,7 @@ package com.swyp.team5.productanalysis.entity;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
@@ -78,6 +79,11 @@ public class ProductAnalysis {
     @Column(name = "listing_count")
     private Integer listingCount; // 통계에 쓴 비교 매물 수(AI 선별·이상치 제거 후), 신뢰도 도입 이전 스냅샷은 null
 
+    // 통계(최저·평균·최고가)에 쓴 비교 매물 가격 — 가격 분포를 분석 당시 매물로 계산하려고 저장, 도입 이전 스냅샷은 null
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "listing_prices", columnDefinition = "bigint[]")
+    private List<Long> listingPrices;
+
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(columnDefinition = "analysis_confidence")
@@ -149,6 +155,11 @@ public class ProductAnalysis {
     public void assignConfidence(int listingCount, AnalysisConfidence confidence) {
         this.listingCount = listingCount;
         this.confidence = confidence;
+    }
+
+    /** 통계에 쓴 비교 매물 가격 목록을 붙인다(가격 분포 계산용). */
+    public void assignListingPrices(List<Long> listingPrices) {
+        this.listingPrices = List.copyOf(listingPrices);
     }
 
     /** 우리 상품 분석에 1개월 가격 전망(대기 기간은 HOLD일 때만)을 붙인다. */

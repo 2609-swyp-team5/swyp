@@ -403,6 +403,8 @@ class ProductAnalysisServiceTest {
         assertThat(captor.getValue().getAveragePrice()).isEqualTo(2500L);
         assertThat(captor.getValue().getMaxPrice()).isEqualTo(4000L);
         assertThat(captor.getValue().getListingCount()).isEqualTo(4);
+        // 가격 분포용으로 통계에 쓴 가격을 함께 저장
+        assertThat(captor.getValue().getListingPrices()).containsExactlyInAnyOrder(1000L, 2000L, 3000L, 4000L);
         verify(listingSearchService, times(1)).searchAndSave(anyString(), any(), anyInt());
     }
 
@@ -492,6 +494,7 @@ class ProductAnalysisServiceTest {
         assertThat(captor.getValue().getMinPrice()).isEqualTo(1000L);
         assertThat(captor.getValue().getMaxPrice()).isEqualTo(3000L);
         assertThat(captor.getValue().getListingCount()).isEqualTo(3);
+        assertThat(captor.getValue().getListingPrices()).containsExactlyInAnyOrder(1000L, 2000L, 3000L);
     }
 
     // 분석 건너뜀 - 비교 매물이 최소 기준(3건)보다 적음
@@ -1279,7 +1282,40 @@ class ProductAnalysisServiceTest {
         assertThat(buyer.description()).isEmpty();
     }
 
-    // 조회 성공 - 가격 분포는 조회 시점 비교 매물(다른 물건·이상치 제외) 중 분석 최저~최고가 안의 가격을 5구간으로 셈
+    // 조회 성공 - 가격 분포는 분석 때 저장한 비교 매물 가격으로 셈(조회 시점 매물은 보지 않음 — 화면마다 같은 분포)
+    @Test
+    void getLatestAnalysisReturnsPriceDistributionFromStoredListingPrices() {
+        Product product = product(1L, 10L, 500_000L);
+        ProductAnalysis analysis = ProductAnalysis.create(
+                product,
+                400_000L,
+                450_000L,
+                500_000L,
+                null,
+                AnalysisRecommendation.SELL,
+                450_000L,
+                "설명",
+                LocalDateTime.now());
+        analysis.assignListingPrices(List.of(400_000L, 430_000L, 450_000L, 470_000L, 500_000L));
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.of(analysis));
+
+        ProductAnalysisResponse response = service().getLatestAnalysis(1L, AnalysisPerspective.SELL);
+
+        assertThat(response.priceDistribution())
+                .containsExactly(
+                        new ProductAnalysisResponse.PriceBucket(400_000L, 420_000L, 1),
+                        new ProductAnalysisResponse.PriceBucket(420_000L, 440_000L, 1),
+                        new ProductAnalysisResponse.PriceBucket(440_000L, 460_000L, 1),
+                        new ProductAnalysisResponse.PriceBucket(460_000L, 480_000L, 1),
+                        new ProductAnalysisResponse.PriceBucket(480_000L, 500_000L, 1));
+        verify(platformListingRepository, never())
+                .findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(any(), any(), any());
+    }
+
+    // 조회 성공 - 가격을 저장하기 전 스냅샷의 가격 분포는 조회 시점 비교 매물(다른 물건·이상치 제외) 중 분석 최저~최고가 안의 가격을
+    // 5구간으로 셈
     @Test
     void getLatestAnalysisReturnsPriceDistribution() {
         Product product = product(1L, 10L, 500_000L);
