@@ -168,6 +168,11 @@ crawl:
       stale-after-hours: ${CRAWL_BUNJANG_RECONCILE_STALE_AFTER_HOURS:20} # 이 시간 넘게 갱신 안 된 SELLING 매물을 재확인 대상으로 삼음
       batch-size: ${CRAWL_BUNJANG_RECONCILE_BATCH_SIZE:300} # 한 사이클에 재확인할 최대 매물 수
       call-interval-ms: ${CRAWL_BUNJANG_RECONCILE_CALL_INTERVAL_MS:500} # 개별 호출 간 최소 대기 시간
+  joongna:
+    enabled: ${CRAWL_JOONGNA_ENABLED:false} # 중고나라 시세 수집(검증 후 운영에서 켬)
+    cron: ${CRAWL_JOONGNA_CRON:0 30 * * * *} # 매 시간 30분(번개장터 수집과 겹치지 않게)
+    page-limit: ${CRAWL_JOONGNA_PAGE_LIMIT:3} # 카테고리마다 가져올 페이지 수(40건 * 페이지)
+    reconcile-cron: ${CRAWL_JOONGNA_RECONCILE_CRON:0 45 5 * * *} # 매일 새벽 5시 45분 판매 상태 재확인(대상·간격은 crawl.bunjang.reconcile 값 공용)
 
 # 상품 단계별 스트리밍 등록·수정(SSE) 설정
 product:

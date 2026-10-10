@@ -49,7 +49,9 @@ class CategoryTest extends IntegrationTest {
     @Test
     @Transactional
     void seedMatchesBunjangCategoryTree() {
-        List<CategoryPlatform> mappings = categoryPlatformRepository.findAll();
+        List<CategoryPlatform> mappings = categoryPlatformRepository.findAll().stream()
+                .filter(m -> m.getPlatform().getName().equals("번개장터"))
+                .toList();
         List<Category> seeded =
                 mappings.stream().map(CategoryPlatform::getCategory).toList();
 

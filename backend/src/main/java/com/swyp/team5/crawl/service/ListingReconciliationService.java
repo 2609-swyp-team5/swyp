@@ -15,6 +15,7 @@ import com.swyp.team5.crawl.client.BunjangProductClient;
 import com.swyp.team5.crawl.config.ListingReconciliationProperties;
 import com.swyp.team5.crawl.dto.BunjangProductDetail;
 import com.swyp.team5.platform.entity.PlatformListing;
+import com.swyp.team5.platform.entity.PlatformType;
 import com.swyp.team5.platform.repository.PlatformListingRepository;
 
 /**
@@ -37,7 +38,8 @@ public class ListingReconciliationService {
     public void reconcile() {
         LocalDateTime staleBefore = LocalDateTime.now().minusHours(properties.staleAfterHours());
         List<PlatformListing> candidates =
-                platformListingRepository.findByStatusInAndLastSeenAtBeforeOrderByLastSeenAtAsc(
+                platformListingRepository.findByPlatform_NameAndStatusInAndLastSeenAtBeforeOrderByLastSeenAtAsc(
+                        PlatformType.BUNJANG.getPlatformName(),
                         ACTIVE_STATUSES,
                         staleBefore,
                         PageRequest.of(
