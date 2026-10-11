@@ -1,6 +1,11 @@
 "use client";
 
-import { useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query";
+import {
+    useMutation,
+    useQueryClient,
+    type InfiniteData,
+    type QueryKey,
+} from "@tanstack/react-query";
 
 import { notificationApi } from "../../api/notificationApi";
 import type { NotificationPage, NotificationUnreadCount } from "../../schemas/notificationSchema";
@@ -8,9 +13,10 @@ import { notificationsQueryKey } from "../queries/useNotificationsQuery";
 import { notificationUnreadCountQueryKey } from "../queries/useUnreadNotificationCountQuery";
 
 type NotificationsQueryData = InfiniteData<NotificationPage, string | undefined>;
+type NotificationsQuerySnapshot = Array<[QueryKey, NotificationsQueryData | undefined]>;
 
 type DeleteNotificationContext = {
-    notifications: NotificationsQueryData | undefined;
+    notifications: NotificationsQuerySnapshot;
     unreadCount: NotificationUnreadCount | undefined;
 };
 
@@ -28,32 +34,36 @@ export function useDeleteNotificationMutation() {
                 queryClient.cancelQueries({ queryKey: notificationUnreadCountQueryKey }),
             ]);
 
-            const previousNotifications =
-                queryClient.getQueryData<NotificationsQueryData>(notificationsQueryKey);
+            const previousNotifications = queryClient.getQueriesData<NotificationsQueryData>({
+                queryKey: notificationsQueryKey,
+            });
             const previousUnreadCount = queryClient.getQueryData<NotificationUnreadCount>(
                 notificationUnreadCountQueryKey,
             );
-            const deletedNotification = previousNotifications?.pages
-                .flatMap((page) => page.content)
+            const deletedNotification = previousNotifications
+                .flatMap(([, data]) => data?.pages.flatMap((page) => page.content) ?? [])
                 .find((notification) => notification.notificationId === notificationId);
 
-            queryClient.setQueryData<NotificationsQueryData>(notificationsQueryKey, (current) => {
-                if (!current) return current;
+            queryClient.setQueriesData<NotificationsQueryData>(
+                { queryKey: notificationsQueryKey },
+                (current) => {
+                    if (!current) return current;
 
-                return {
-                    ...current,
-                    pages: current.pages.map((page, index) => ({
-                        ...page,
-                        content: page.content.filter(
-                            (notification) => notification.notificationId !== notificationId,
-                        ),
-                        totalCount:
-                            index === 0 && page.totalCount !== null
-                                ? Math.max(0, page.totalCount - 1)
-                                : page.totalCount,
-                    })),
-                };
-            });
+                    return {
+                        ...current,
+                        pages: current.pages.map((page, index) => ({
+                            ...page,
+                            content: page.content.filter(
+                                (notification) => notification.notificationId !== notificationId,
+                            ),
+                            totalCount:
+                                index === 0 && page.totalCount !== null
+                                    ? Math.max(0, page.totalCount - 1)
+                                    : page.totalCount,
+                        })),
+                    };
+                },
+            );
 
             if (deletedNotification && !deletedNotification.isRead) {
                 queryClient.setQueryData<NotificationUnreadCount>(
@@ -69,7 +79,9 @@ export function useDeleteNotificationMutation() {
         },
         onError: (_error, _notificationId, context) => {
             if (!context) return;
-            queryClient.setQueryData(notificationsQueryKey, context.notifications);
+            context.notifications.forEach(([queryKey, data]) => {
+                queryClient.setQueryData(queryKey, data);
+            });
             queryClient.setQueryData(notificationUnreadCountQueryKey, context.unreadCount);
         },
         onSettled: () => {

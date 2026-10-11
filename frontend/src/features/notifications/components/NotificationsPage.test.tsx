@@ -96,31 +96,26 @@ it("탭마다 서버에서 해당 알림만 받아 보여주고, 탭 숫자는 �
         { category: undefined, cursor: undefined, size: 20 },
         expect.anything(),
     );
-    expect(screen.getByRole("button", { name: /전체/ })).toHaveTextContent("40");
-    expect(screen.getByRole("button", { name: /판매추천/ })).toHaveTextContent("25");
-    expect(screen.getByRole("button", { name: /공지/ })).toHaveTextContent("12");
+    expect(screen.getByRole("tab", { name: /전체/ })).toHaveTextContent("40");
+    expect(screen.getByRole("tab", { name: /판매추천/ })).toHaveTextContent("25");
+    expect(screen.getByRole("tab", { name: /구매추천/ })).toHaveTextContent("0");
     expect(screen.getByRole("link", { name: "판매 분석 보기" })).toHaveAttribute(
         "href",
         "/sell/manage?selected=10",
     );
-    expect(screen.getByRole("button", { name: "전체2" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "판매추천" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /판매추천/ })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /공지/ }));
+    await user.click(screen.getByRole("tab", { name: /구매추천/ }));
     await waitFor(() =>
         expect(screen.queryByText("아이폰 13, 지금 판매를 추천해요")).not.toBeInTheDocument(),
     );
-    expect(await screen.findByText("서비스 점검 안내")).toBeInTheDocument();
+    expect(await screen.findByText("해당하는 알림이 없습니다.")).toBeInTheDocument();
     expect(getNotifications).toHaveBeenLastCalledWith(
-        { category: "NOTICE", cursor: undefined, size: 20 },
+        { category: "BUY", cursor: undefined, size: 20 },
         expect.anything(),
     );
 
-    await user.click(screen.getByRole("button", { name: /구매추천/ }));
-    expect(await screen.findByText("해당하는 알림이 없습니다.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /판매추천/ })).toHaveTextContent("25");
-
-    await user.click(screen.getByRole("button", { name: /전체/ }));
+    await user.click(screen.getByRole("tab", { name: /전체/ }));
     await user.click(await screen.findByRole("button", { name: "읽음 처리" }));
     await waitFor(() => expect(markRead).toHaveBeenCalledWith(2));
 

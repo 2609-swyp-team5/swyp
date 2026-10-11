@@ -177,10 +177,10 @@ test("notifications filter their preview list and keep navigation working", asyn
     await expect(page.getByRole("heading", { name: "알림", exact: true })).toBeVisible();
     const main = page.getByRole("main");
     await expect(main.locator('[data-slot="card"]')).toHaveCount(5);
-    await main.getByRole("button", { name: "구매추천 2", exact: true }).click();
+    await main.getByRole("tab", { name: "구매추천 2", exact: true }).click();
     await expect(main.locator('[data-slot="card"]')).toHaveCount(2);
     await expect(main.getByRole("heading", { name: "다이슨 에어랩 시세 하락 중" })).toBeVisible();
-    await main.getByRole("button", { name: "전체 5", exact: true }).click();
+    await main.getByRole("tab", { name: "전체 5", exact: true }).click();
     await page.screenshot({
         path: testInfo.outputPath("notifications-desktop.png"),
         fullPage: true,
@@ -193,12 +193,11 @@ test("notifications filter their preview list and keep navigation working", asyn
         path: testInfo.outputPath("notifications-mobile.png"),
         fullPage: true,
     });
-    await main.getByRole("button", { name: "판매추천 2", exact: true }).click();
+    await main.getByRole("tab", { name: "판매추천 2", exact: true }).click();
     await expect(main.locator('[data-slot="card"]')).toHaveCount(2);
     await expect(
         main.getByRole("link", { name: "판매 분석 보기", exact: true }).first(),
     ).toHaveAttribute("href", "/sell/manage?selected=10");
-    await main.getByRole("button", { name: "공지 1", exact: true }).click();
-    await expect(main.locator('[data-slot="card"]')).toHaveCount(1);
+    await main.getByRole("tab", { name: "전체 5", exact: true }).click();
     await expect(main.getByRole("heading", { name: "서비스 점검 안내" })).toBeVisible();
 });

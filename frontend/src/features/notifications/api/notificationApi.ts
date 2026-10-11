@@ -5,6 +5,7 @@ import type {
     NotificationCategoryParam,
     NotificationPage,
     NotificationSettings,
+    NotificationUnreadCount,
 } from "../schemas/notificationSchema";
 
 const getNotifications = (

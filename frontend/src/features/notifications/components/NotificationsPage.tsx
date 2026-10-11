@@ -189,6 +189,7 @@ export function NotificationsPage() {
     const [filter, setFilter] = useState<"all" | NotificationCategory>("all");
     const query = useNotificationsQuery(filter === "all" ? undefined : toCategoryParam(filter));
     const readMutation = useReadNotificationMutation();
+    const deleteMutation = useDeleteNotificationMutation();
     const pages = query.data?.pages ?? [];
     // 탭을 바꾸는 동안은 이전 탭 목록(placeholder)을 감추고 탭 숫자만 유지한다
     const visible = query.isPlaceholderData ? [] : pages.flatMap((page) => page.content);
@@ -200,49 +201,60 @@ export function NotificationsPage() {
 
     return (
         <main className="flex-1 bg-white">
-            <div className="layout-container space-y-[50px] pt-[60px] pb-20">
-                <div>
-                    <p className="text-base leading-[30px] font-semibold tracking-[0.5px] text-[#83889e] md:text-[20px]">
-                        AI 시세 분석 결과와 중요 업데이트
-                    </p>
-                    <h1 className="text-[40px] leading-[55px] font-bold tracking-[0.5px] text-[#363636] lg:text-[50px] lg:leading-[64px]">
-                        알림
-                    </h1>
+            <div className="layout-container flex flex-col gap-12 pt-16 pb-24">
+                <div className="flex flex-col items-start justify-between gap-8 md:flex-row md:items-end">
+                    <div className="flex flex-col gap-1">
+                        <p className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#6b6c7b]">
+                            AI 시세 분석 결과와 중요 업데이트
+                        </p>
+                        <h1 className="text-[40px] leading-[55px] font-bold tracking-[0.5px] text-[#363636] lg:text-[50px] lg:leading-[64px]">
+                            알림
+                        </h1>
+                    </div>
                 </div>
                 <div className="space-y-6">
-                    <div
-                        role="group"
-                        aria-label="알림 필터"
-                        className="flex h-10 gap-5 overflow-x-auto border-b border-[#dee5ed] lg:gap-[39px]"
-                    >
-                        {notificationFilters.map((item) => {
-                            const count = countOf(item.value);
-                            return (
-                                <Button
-                                    key={item.value}
-                                    type="button"
-                                    variant="ghost"
-                                    aria-pressed={filter === item.value}
-                                    onClick={() => setFilter(item.value)}
-                                    className={cn(
-                                        "h-full shrink-0 gap-2 rounded-none border-x-0 border-t-0 border-b-2 px-0 pt-0 pb-2 text-base leading-[25px] font-normal hover:bg-transparent",
-                                        filter === item.value
-                                            ? "border-[#363636] text-[#363636]"
-                                            : "border-transparent text-[#6b6c7b]",
-                                        item.value === "all"
-                                            ? "text-[20px] leading-[30px] font-semibold"
-                                            : "min-w-[100px]",
-                                    )}
-                                >
-                                    {item.label}
-                                    {item.value === "all" && (
-                                        <span className="flex size-[30px] items-center justify-center rounded-full bg-[#363636] text-white">
-                                            {totalCount}
-                                        </span>
-                                    )}
-                                </Button>
-                            );
-                        })}
+                    <div className="overflow-x-auto border-b border-[#dee5ed]">
+                        <div
+                            role="tablist"
+                            aria-label="알림 필터"
+                            className="flex min-w-max items-stretch gap-[39px]"
+                        >
+                            {notificationFilters.map((item) => {
+                                const count = countOf(item.value);
+                                const isActive = filter === item.value;
+
+                                return (
+                                    <button
+                                        key={item.value}
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={isActive}
+                                        onClick={() => setFilter(item.value)}
+                                        className={cn(
+                                            "flex h-[46px] w-[100px] shrink-0 items-center justify-center border-b-2 whitespace-nowrap transition-colors",
+                                            isActive
+                                                ? "border-[#363636] text-[#363636]"
+                                                : "border-transparent text-[#83889e] hover:text-[#363636]",
+                                        )}
+                                    >
+                                        {isActive ? (
+                                            <span className="flex items-center gap-1 tracking-[0.5px]">
+                                                <span className="text-[20px] leading-[30px] font-semibold">
+                                                    {item.label}
+                                                </span>
+                                                <span className="inline-flex size-[30px] items-center justify-center rounded-full bg-[#363636] text-[20px] leading-[30px] font-semibold text-white">
+                                                    {count}
+                                                </span>
+                                            </span>
+                                        ) : (
+                                            <span className="text-[16px] leading-[25px] font-normal">
+                                                {item.label} {count}
+                                            </span>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
                     {deleteMutation.isError && (
                         <p role="alert" className="text-sm font-medium text-[#d65353]">
@@ -251,9 +263,7 @@ export function NotificationsPage() {
                     )}
                     <div className="max-w-[976px] space-y-6">
                         {query.isPending || query.isPlaceholderData ? (
-                            <p role="status" className="py-10 text-center text-[#83889e]">
-                                알림을 불러오는 중입니다.
-                            </p>
+                            <NotificationListSkeleton />
                         ) : query.isError ? (
                             <div className="flex flex-col items-center gap-3 py-10">
                                 <p role="alert" className="text-destructive text-sm">
