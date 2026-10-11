@@ -232,7 +232,7 @@ export function AiRegisterPage() {
                         <p className="typography-heading-02 col-start-1 row-start-1 self-start text-[#363636]">
                             AI로 빠르게
                         </p>
-                        <h1 className="col-start-1 row-start-1 mt-[52px] self-start text-[60px] leading-[75px] font-bold tracking-[0.5px] text-[#6653fb]">
+                        <h1 className="col-start-1 row-start-1 mt-[52px] self-start text-[50px] leading-[64px] font-bold tracking-[0.5px] text-[#6653fb]">
                             {isUploadStep ? "상품 사진을 올려주세요" : "조금만 더 알려주세요"}
                         </h1>
                     </div>

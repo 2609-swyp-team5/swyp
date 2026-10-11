@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles } from "lucide-react";
+import { CircleAlert } from "lucide-react";
 import { Button } from "@/common/components/ui/Button";
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { useMyPlatformsQuery } from "@/features/my/hooks/queries/useMyPlatformsQuery";
@@ -66,6 +66,19 @@ export function MyPlatformsPage() {
             eyebrowClassName="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#83889e]"
             titleClassName="text-[#363636]"
         >
+            <section className="mb-5 rounded-r-[10px] border-l-[3px] border-[#6653fb] bg-[#fafbff] px-5 py-4">
+                <h2 className="flex items-center gap-[6px] text-[14px] leading-[21px] font-semibold tracking-[-0.5px] text-[#464646]">
+                    <CircleAlert
+                        className="size-4 shrink-0 fill-[#464646] text-[#fafbff]"
+                        aria-hidden="true"
+                    />
+                    플랫폼 연동 안내
+                </h2>
+                <ul className="mt-[6px] list-disc pl-5 text-[12px] leading-[20px] tracking-[-0.5px] text-[#464646]">
+                    <li>연결이 만료되면 일부 연동 기능이 제한될 수 있어요</li>
+                    <li>지금이니?에서 연결을 해제해도 외부 플랫폼의 판매글은 삭제되지 않아요</li>
+                </ul>
+            </section>
             {isPending ? (
                 <p role="status" className="text-[#83889e]">
                     연동 목록을 불러오는 중입니다.
@@ -81,18 +94,6 @@ export function MyPlatformsPage() {
                     </Button>
                 </div>
             )}
-            <div className="flex items-start gap-3 rounded-xl border border-[#d3d3d3] bg-[#fafbff] px-5 py-4">
-                <Sparkles className="mt-0.5 size-4 shrink-0 text-[#363636]" aria-hidden="true" />
-                <div>
-                    <h2 className="text-[15px] leading-[22px] font-semibold tracking-[-0.5px] text-[#363636]">
-                        연동하면 AI 시세 분석이 더 정확해져요
-                    </h2>
-                    <p className="text-[13px] leading-[19px] tracking-[-0.5px] text-[#83889e]">
-                        판매 중인 물건의 상태를 자동으로 동기화하고 최적의 판매 타이밍을
-                        알려드립니다.
-                    </p>
-                </div>
-            </div>
             <div className="mt-[30px] grid gap-[10px] md:grid-cols-2 xl:grid-cols-3">
                 {platforms.map((item) => (
                     <PlatformCard

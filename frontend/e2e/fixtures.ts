@@ -44,6 +44,27 @@ export const test = base.extend({
                     },
                 }),
         );
+        // 로그인 상태에서 알림 토스트가 목록을 조회한다. 막지 않으면 로컬에 띄운 백엔드가 401을 돌려줘 로그아웃되므로 빈 목록으로 응답한다.
+        await context.route(
+            (url) => url.pathname === "/notifications" && !url.searchParams.has("_rsc"),
+            (route) =>
+                // 같은 경로의 프론트 페이지(/notifications) 문서·RSC 요청은 그대로 보낸다
+                route.request().method() === "GET" &&
+                ["fetch", "xhr"].includes(route.request().resourceType())
+                    ? route.fulfill({
+                          json: {
+                              success: true,
+                              data: {
+                                  content: [],
+                                  nextCursor: null,
+                                  hasNext: false,
+                                  totalCount: 0,
+                              },
+                              error: null,
+                          },
+                      })
+                    : route.fallback(),
+        );
         await context.route("**/products/me?*", (route) =>
             route.fulfill({
                 json: {

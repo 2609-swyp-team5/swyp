@@ -192,14 +192,14 @@ test("AI search uses the returned first page and conditions for pagination and s
     await expect(conditions).toContainText("500,000원 이하");
     await expect(conditions).toContainText("하자 없음");
     await expect(summary.getByRole("button", { name: "조건 수정" })).toHaveCount(0);
-    await expect(page.getByText("검색결과 2개 표시", { exact: true })).toBeVisible();
+    await expect(page.getByText("검색결과 2개", { exact: true })).toBeVisible();
     await expect(page.getByRole("spinbutton", { name: "최대 가격" })).toHaveValue("500000");
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await expect
         .poll(() => requests.some((url) => url.searchParams.get("cursor") === "ai-cursor"))
         .toBe(true);
     await expect(page.getByText("AI 검색 아이폰 다음 상품", { exact: true })).toBeVisible();
-    await expect(page.getByText("검색결과 2개 표시", { exact: true })).toBeVisible();
+    await expect(page.getByText("검색결과 2개", { exact: true })).toBeVisible();
     expect(aiRequests).toHaveLength(1);
     expect(aiRequests[0].searchParams.get("query")).toBe(
         "아이폰 50만원 이하 하자 없는 거 싼 순으로",

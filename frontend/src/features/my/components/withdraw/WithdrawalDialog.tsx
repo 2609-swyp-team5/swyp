@@ -17,7 +17,6 @@ const buttonFocusClassName =
 
 type WithdrawalDialogProps = {
     open: boolean;
-    agreed: boolean;
     isPending: boolean;
     isSuccess: boolean;
     confirming: boolean;
@@ -27,7 +26,6 @@ type WithdrawalDialogProps = {
 };
 export function WithdrawalDialog({
     open,
-    agreed,
     isPending,
     isSuccess,
     confirming,
@@ -76,7 +74,7 @@ export function WithdrawalDialog({
                         <div className="mt-[30px] flex w-full flex-row justify-center gap-3">
                             <AlertDialogAction
                                 className={`h-[35px] w-[120px] rounded-full !bg-[#d3d3d3] px-8 text-[16px] font-semibold tracking-[0.5px] !text-white hover:!bg-[#c6c6c6] dark:hover:!bg-[#c6c6c6] ${buttonFocusClassName}`}
-                                disabled={!agreed || isPending}
+                                disabled={isPending}
                                 onClick={(event) => {
                                     event.preventDefault();
                                     onConfirm();

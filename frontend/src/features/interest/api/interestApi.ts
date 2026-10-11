@@ -11,13 +11,17 @@ import type {
 import { interestRegisterInputSchema } from "../schemas/interestRequestSchema";
 import { startFastNotificationPolling } from "@/features/notifications/lib/fastPolling";
 
-const getInterests = (params?: { status?: InterestStatus; cursor?: string; size?: number }) =>
+const getInterests = (
+    params?: { status?: InterestStatus; cursor?: string; size?: number },
+    signal?: AbortSignal,
+) =>
     api.get<ApiResponse<InterestListResponse>>("/interests", {
         params: {
             status: params?.status,
             cursor: params?.cursor,
             size: params?.size ?? 20,
         },
+        signal,
     });
 
 // 등록 직후 분석이 돌아 추천 알림이 곧 올 수 있어 토스트 조회를 잠시 앞당긴다

@@ -64,5 +64,10 @@ export const searchProductDetailSchema = z.object({
     platformName: z.string().nullable(),
     externalUrl: z.string().nullable(),
     marketAveragePrice: z.number().nullable(),
+    condition: productConditionSchema.nullable(),
+    defectStatus: defectStatusSchema.nullable(),
+    tradeMethod: productResponseSchema.shape.tradeMethod.nullable(),
+    preferredTradeRegion: z.string().nullable(),
+    createdAt: z.string(),
     updatedAt: z.string(),
 });

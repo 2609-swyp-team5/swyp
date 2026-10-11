@@ -567,7 +567,7 @@ test("platform connection verifies identity and updates API-backed status counts
     ]);
 });
 
-test("withdrawal requires consent and cancellation sends no request", async ({ page }) => {
+test("withdrawal asks for confirmation and cancellation sends no request", async ({ page }) => {
     const writes: string[] = [];
     page.on("request", (request) => {
         if (
@@ -577,11 +577,9 @@ test("withdrawal requires consent and cancellation sends no request", async ({ p
             writes.push(request.url());
     });
     await page.goto("/my/withdraw");
+    await expect(page.getByText("탈퇴 후에는 기록을 복구할 수 없어요.")).toBeVisible();
     const next = page.getByRole("button", { name: "탈퇴 요청", exact: true });
-    await expect(next).toBeDisabled();
-    await page.getByRole("checkbox", { name: /위 안내 사항을 모두 확인/ }).check();
-    await expect(next).toBeDisabled();
-    await page.getByRole("checkbox", { name: /개인 정보 및 서비스 이용 기록/ }).check();
+    await expect(next).toBeEnabled();
     await next.click();
     await expect(page.getByRole("alertdialog")).toBeVisible();
     await page
@@ -609,8 +607,6 @@ test("withdrawal disables repeat submissions and redirects after success", async
         });
     });
     await page.goto("/my/withdraw");
-    await page.getByRole("checkbox", { name: /위 안내 사항을 모두 확인/ }).check();
-    await page.getByRole("checkbox", { name: /개인 정보 및 서비스 이용 기록/ }).check();
     await page.getByRole("button", { name: "탈퇴 요청", exact: true }).click();
     const dialog = page.getByRole("alertdialog");
     await dialog.getByRole("button", { name: "탈퇴하기", exact: true }).click();
@@ -642,8 +638,6 @@ test("withdrawal failure keeps the dialog and authenticated session", async ({ p
         });
     });
     await page.goto("/my/withdraw");
-    await page.getByRole("checkbox", { name: /위 안내 사항을 모두 확인/ }).check();
-    await page.getByRole("checkbox", { name: /개인 정보 및 서비스 이용 기록/ }).check();
     await page.getByRole("button", { name: "탈퇴 요청", exact: true }).click();
     const dialog = page.getByRole("alertdialog");
     await dialog.getByRole("button", { name: "탈퇴하기", exact: true }).click();

@@ -131,7 +131,7 @@ export function HomeProductCarousel({
                                                   }))
                                         }
                                         className={cn(
-                                            "absolute top-3 right-3 z-20 size-8 rounded-full bg-white shadow-sm hover:bg-[#fafbff]",
+                                            "absolute top-3 right-3 z-20 size-8 rounded-full bg-white shadow-sm transition-[color,scale] hover:bg-[#fafbff] motion-safe:active:scale-90",
                                             liked[id]
                                                 ? "text-[#fa503d] hover:text-[#fa503d]"
                                                 : "text-black",

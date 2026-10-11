@@ -13,7 +13,7 @@ import { AiSearchSummary } from "@/features/search/components/AiSearchSummary";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { useSearchQuery } from "@/features/search/hooks/queries/useSearchQuery";
 import type { SearchParams, SearchSort } from "@/features/search/types";
-import { useInterestToggle } from "@/features/search/hooks/useInterestToggle";
+import { useInterestToggle } from "@/features/interest/hooks/useInterestToggle";
 import { Button } from "@/common/components/ui/Button";
 import { LoginRequiredDialog } from "@/features/auth/components/LoginRequiredDialog";
 import { useAiSearchMutation } from "@/features/search/hooks/mutations/useAiSearchMutation";
@@ -49,6 +49,7 @@ export function SearchPage() {
         isFetchingNextPage,
         isFetching,
         isFetchNextPageError,
+        isPlaceholderData,
         fetchNextPage,
         refetch,
     } = useSearchQuery(
@@ -120,7 +121,15 @@ export function SearchPage() {
 
     useEffect(() => {
         const target = loadMoreRef.current;
-        if (!target || !hasNextPage || isFetching || isError || aiSearch.isPending) return;
+        if (
+            !target ||
+            !hasNextPage ||
+            isPlaceholderData ||
+            isFetching ||
+            isError ||
+            aiSearch.isPending
+        )
+            return;
 
         const observer = new IntersectionObserver(
             ([entry]) => {
@@ -130,7 +139,7 @@ export function SearchPage() {
         );
         observer.observe(target);
         return () => observer.disconnect();
-    }, [hasNextPage, isFetching, isError, fetchNextPage, aiSearch.isPending]);
+    }, [hasNextPage, isPlaceholderData, isFetching, isError, fetchNextPage, aiSearch.isPending]);
     return (
         <main className="flex-1 bg-white font-normal tracking-normal">
             <LoginRequiredDialog
@@ -204,10 +213,11 @@ export function SearchPage() {
                         isLoading={
                             !isInitialized || (canLoadProducts && isPending) || aiSearch.isPending
                         }
+                        isRefreshing={isPlaceholderData}
                         error={isError ? error : null}
                         onRetry={() => void (isFetchNextPageError ? fetchNextPage() : refetch())}
                         isFetchingNextPage={isFetchingNextPage}
-                        hasNextPage={Boolean(hasNextPage)}
+                        hasNextPage={Boolean(hasNextPage) && !isPlaceholderData}
                         loadMoreRef={loadMoreRef}
                     />
                 </div>

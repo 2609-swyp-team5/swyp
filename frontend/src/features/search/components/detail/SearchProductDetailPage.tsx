@@ -8,12 +8,14 @@ import { ExternalLink, Heart, Info } from "lucide-react";
 import { Badge } from "@/common/components/ui/Badge";
 import { Button } from "@/common/components/ui/Button";
 import { cn } from "@/common/lib/utils";
-import { useInterestToggle } from "@/features/search/hooks/useInterestToggle";
+import { useInterestToggle } from "@/features/interest/hooks/useInterestToggle";
 import { LoginRequiredDialog } from "@/features/auth/components/LoginRequiredDialog";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { useSearchProductDetailQuery } from "@/features/search/hooks/queries/useSearchProductDetailQuery";
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { formatRelativeCreatedAt } from "@/features/search/utils/formatRelativeCreatedAt";
+import { formatConditionText, formatTradeInfoText } from "@/features/search/utils/productMetaText";
+import { SearchProductDetailSkeleton } from "@/features/search/components/detail/SearchProductDetailSkeleton";
 import { MarketAnalysisSection } from "@/features/product-management/components/analysis/market-analysis/MarketAnalysisSection";
 import { useProductManagementSectionsQuery } from "@/features/product-management/hooks/useProductManagementSectionsQuery";
 import { useProductAnalysisQuery } from "@/features/product-management/hooks/useProductAnalysisQuery";
@@ -66,6 +68,16 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
               : difference < 0
                 ? `↓ 평균보다 ${Math.abs(difference)}% 낮아요`
                 : `↑ 평균보다 ${difference}% 높아요`;
+    // 목록(ProductListItemResponse.deliveryAvailable)과 같은 기준: 외부 매물은 택배 가능 고정, 우리 상품은 거래 방식이 택배일 때만
+    const deliveryAvailable =
+        product?.source === "EXTERNAL"
+            ? true
+            : product?.tradeMethod
+              ? product.tradeMethod === "DELIVERY"
+              : null;
+    const tradeInfo = product
+        ? formatTradeInfoText(product.preferredTradeRegion, deliveryAvailable)
+        : "";
     const platform =
         product?.source === "OUR" ? "지금이니?!" : (product?.platformName ?? "외부 매물");
     const status =
@@ -91,11 +103,7 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                     ← 이전 페이지
                 </Link>
 
-                {isPending && (
-                    <p role="status" className="text-[#83889e]">
-                        상품 정보를 불러오는 중입니다.
-                    </p>
-                )}
+                {isPending && <SearchProductDetailSkeleton />}
                 {error && (
                     <div role="alert" className="text-destructive flex items-center gap-3 text-sm">
                         <p>{getApiErrorMessage(error)}</p>
@@ -217,6 +225,20 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                                                     {comparison}
                                                 </Badge>
                                             </div>
+                                            <p className="text-[14px] leading-[22px] text-[#464646]">
+                                                {formatConditionText(
+                                                    product.condition,
+                                                    product.defectStatus,
+                                                ).map((text) => `${text} · `)}
+                                                <time dateTime={product.createdAt}>
+                                                    {formatRelativeCreatedAt(product.createdAt)}
+                                                </time>
+                                            </p>
+                                            {tradeInfo && (
+                                                <p className="text-[14px] leading-[22px] break-words text-[#464646]">
+                                                    {tradeInfo}
+                                                </p>
+                                            )}
                                         </div>
                                         <Button
                                             type="button"
@@ -256,56 +278,58 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                                         )}
                                     </div>
 
-                                    <p className="text-sm text-[#83889e]">
-                                        {product.category.name}
-                                    </p>
-                                    {product.description && (
-                                        <p className="text-sm leading-6 break-words whitespace-pre-wrap">
-                                            {product.description}
+                                    <div className="flex flex-col gap-2">
+                                        <p className="text-sm text-[#83889e]">
+                                            {product.category.name}
                                         </p>
-                                    )}
-                                    {product.source === "EXTERNAL" && (
-                                        <div className="flex flex-col gap-5 rounded-xl border border-[#fafbff] bg-[#fafbff] px-[30px] py-4 text-[#83889e]">
-                                            <div className="flex flex-col gap-2.5">
-                                                <h2 className="flex items-center gap-2 text-[16px] leading-[25px] font-semibold tracking-[0.5px]">
-                                                    <ExternalLink
-                                                        aria-hidden="true"
-                                                        strokeWidth={1.5}
-                                                        className="size-6 shrink-0"
-                                                    />
-                                                    {platform} 판매글 이동
-                                                </h2>
-                                                <p className="text-[16px] leading-[25px] tracking-normal">
-                                                    외부 사이트에서 판매자의 상세 설명과
-                                                    <br className="hidden sm:block" /> 구매 조건을
-                                                    확인할 수 있습니다.
-                                                </p>
-                                            </div>
-                                            {product.externalUrl ? (
-                                                <Button
-                                                    asChild
-                                                    className="h-[52px] w-full rounded-md bg-[#83889e] text-[16px] leading-6 font-semibold text-white"
-                                                >
-                                                    <a
-                                                        href={product.externalUrl}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
+                                        {product.description && (
+                                            <p className="text-sm leading-6 break-words whitespace-pre-wrap">
+                                                {product.description}
+                                            </p>
+                                        )}
+                                        {product.source === "EXTERNAL" && (
+                                            <div className="mt-2 flex flex-col gap-5 rounded-xl border border-[#fafbff] bg-[#fafbff] px-[30px] py-4 text-[#83889e]">
+                                                <div className="flex flex-col gap-2.5">
+                                                    <h2 className="flex items-center gap-2 text-[16px] leading-[25px] font-semibold tracking-[0.5px]">
+                                                        <ExternalLink
+                                                            aria-hidden="true"
+                                                            strokeWidth={1.5}
+                                                            className="size-6 shrink-0"
+                                                        />
+                                                        {platform} 판매글 이동
+                                                    </h2>
+                                                    <p className="text-[16px] leading-[25px] tracking-normal">
+                                                        외부 사이트에서 판매자의 상세 설명과
+                                                        <br className="hidden sm:block" /> 구매
+                                                        조건을 확인할 수 있습니다.
+                                                    </p>
+                                                </div>
+                                                {product.externalUrl ? (
+                                                    <Button
+                                                        asChild
+                                                        className="h-[52px] w-full rounded-md bg-[#83889e] text-[16px] leading-6 font-semibold text-white"
+                                                    >
+                                                        <a
+                                                            href={product.externalUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                        >
+                                                            판매글 바로가기
+                                                        </a>
+                                                    </Button>
+                                                ) : (
+                                                    <Button
+                                                        type="button"
+                                                        disabled
+                                                        title="판매글 링크가 없습니다."
+                                                        className="h-[52px] w-full rounded-md bg-[#83889e] text-[16px] leading-6 font-semibold text-white disabled:opacity-100"
                                                     >
                                                         판매글 바로가기
-                                                    </a>
-                                                </Button>
-                                            ) : (
-                                                <Button
-                                                    type="button"
-                                                    disabled
-                                                    title="판매글 링크가 없습니다."
-                                                    className="h-[52px] w-full rounded-md bg-[#83889e] text-[16px] leading-6 font-semibold text-white disabled:opacity-100"
-                                                >
-                                                    판매글 바로가기
-                                                </Button>
-                                            )}
-                                        </div>
-                                    )}
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
                                 </section>
                             </div>
                         </div>
