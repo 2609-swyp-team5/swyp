@@ -2,13 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Bell, Trash2 } from "lucide-react";
 
 import { Button } from "@/common/components/ui/Button";
 import { Card, CardContent } from "@/common/components/ui/Card";
+import { Skeleton } from "@/common/components/ui/Skeleton";
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { cn } from "@/common/lib/utils";
 
 import { useReadNotificationMutation } from "../hooks/mutations/useReadNotificationMutation";
+import { useDeleteNotificationMutation } from "../hooks/mutations/useDeleteNotificationMutation";
 import { useNotificationsQuery } from "../hooks/queries/useNotificationsQuery";
 import type { NotificationItem } from "../schemas/notificationSchema";
 import { NotificationTypeIcon } from "./NotificationTypeIcon";
@@ -26,10 +29,12 @@ function NotificationCard({
     notification,
     today,
     onRead,
+    onDelete,
 }: {
     notification: NotificationItem;
     today: boolean;
     onRead: (notificationId: number) => void;
+    onDelete: (notificationId: number) => void;
 }) {
     const category = getNotificationCategory(notification.type);
     const link = getNotificationLink(notification);
@@ -67,20 +72,35 @@ function NotificationCard({
                         >
                             {notification.title}
                         </h3>
-                        <span
-                            className={cn(
-                                "flex shrink-0 items-center gap-1 text-xs leading-5 text-[#9b9fb1]",
-                                today && "text-[13px] font-semibold",
-                            )}
-                        >
-                            {unread && (
-                                <span
-                                    className="size-1.5 rounded-full bg-[#6653fb]"
-                                    aria-label="읽지 않음"
-                                />
-                            )}
-                            {formatNotificationTime(notification.createdAt)}
-                        </span>
+                        <div className="flex shrink-0 items-center gap-1">
+                            <span
+                                className={cn(
+                                    "flex items-center gap-1 text-xs leading-5 text-[#9b9fb1]",
+                                    today && "text-[13px] font-semibold",
+                                )}
+                            >
+                                {unread && (
+                                    <span
+                                        className="size-1.5 rounded-full bg-[#6653fb]"
+                                        aria-label="읽지 않음"
+                                    />
+                                )}
+                                <time dateTime={notification.createdAt}>
+                                    {formatNotificationTime(notification.createdAt)}
+                                </time>
+                            </span>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="알림 삭제"
+                                title="알림 삭제"
+                                className="text-[#9b9fb1] hover:bg-[#f0edff] hover:text-[#6653fb] focus-visible:border-[#6653fb] focus-visible:ring-[#6653fb]/30"
+                                onClick={() => onDelete(notification.notificationId)}
+                            >
+                                <Trash2 aria-hidden="true" />
+                            </Button>
+                        </div>
                     </div>
                     <p className="text-xs leading-5 tracking-[-0.5px] text-[#83889e]">
                         {notification.message}
@@ -90,7 +110,7 @@ function NotificationCard({
                             {link && (
                                 <Button
                                     asChild
-                                    className="h-auto rounded-full bg-[#6653fb] px-4 py-1.5 text-[13px] leading-5 font-semibold text-white"
+                                    className="h-auto rounded-full bg-[#6653fb] px-4 py-1.5 text-[13px] leading-5 font-semibold text-white hover:bg-[#5745e7] focus-visible:border-[#6653fb] focus-visible:ring-[#6653fb]/30"
                                 >
                                     <Link
                                         href={link.href}
@@ -106,7 +126,7 @@ function NotificationCard({
                                 <Button
                                     type="button"
                                     variant="link"
-                                    className="h-auto px-0 py-0 text-[13px] leading-5 font-semibold text-[#6653fb] underline"
+                                    className="h-auto px-0 py-0 text-[13px] leading-5 font-semibold text-[#6653fb] underline hover:text-[#5745e7] focus-visible:border-[#6653fb] focus-visible:ring-[#6653fb]/30"
                                     onClick={() => onRead(notification.notificationId)}
                                 >
                                     읽음 처리
@@ -120,10 +140,56 @@ function NotificationCard({
     );
 }
 
+function NotificationListSkeleton() {
+    return (
+        <div role="status" aria-label="알림 불러오는 중" className="space-y-3">
+            {Array.from({ length: 3 }, (_, index) => (
+                <Card
+                    key={index}
+                    aria-hidden="true"
+                    className="gap-0 rounded-xl border border-[#eef0f5] bg-white px-5 py-4 ring-0"
+                >
+                    <CardContent className="flex items-start gap-3 p-0">
+                        <Skeleton className="mt-0.5 size-5 shrink-0 rounded-full bg-[#f0edff]" />
+                        <div className="min-w-0 flex-1 space-y-2">
+                            <div className="flex items-center justify-between gap-3">
+                                <Skeleton className="h-4 w-40 bg-[#eef0f5]" />
+                                <Skeleton className="h-3 w-14 bg-[#eef0f5]" />
+                            </div>
+                            <Skeleton className="h-4 w-4/5 bg-[#eef0f5]" />
+                            <Skeleton className="h-8 w-28 rounded-full bg-[#f0edff]" />
+                        </div>
+                    </CardContent>
+                </Card>
+            ))}
+        </div>
+    );
+}
+
+function NotificationEmptyState({ filtered }: { filtered: boolean }) {
+    return (
+        <div className="flex flex-col items-center justify-center rounded-[20px] border border-dashed border-[#dcd8ff] bg-[#fafbff] px-6 py-16 text-center">
+            <Bell aria-hidden="true" className="mb-4 size-9 text-[#b8b2ff]" />
+            <p className="text-sm leading-6 font-medium text-[#83889e]">
+                {filtered ? "해당하는 알림이 없습니다." : "아직 받은 알림이 없습니다."}
+            </p>
+            {!filtered && (
+                <Button
+                    asChild
+                    className="mt-5 rounded-full bg-[#6653fb] px-5 font-semibold text-white hover:bg-[#5745e7] focus-visible:border-[#6653fb] focus-visible:ring-[#6653fb]/30"
+                >
+                    <Link href="/my/notifications">알림 설정 확인</Link>
+                </Button>
+            )}
+        </div>
+    );
+}
+
 export function NotificationsPage() {
     const [filter, setFilter] = useState<"all" | NotificationCategory>("all");
     const query = useNotificationsQuery(filter === "all" ? undefined : toCategoryParam(filter));
     const readMutation = useReadNotificationMutation();
+    const deleteMutation = useDeleteNotificationMutation();
     const pages = query.data?.pages ?? [];
     // 탭을 바꾸는 동안은 이전 탭 목록(placeholder)을 감추고 탭 숫자만 유지한다
     const visible = query.isPlaceholderData ? [] : pages.flatMap((page) => page.content);
@@ -135,58 +201,69 @@ export function NotificationsPage() {
 
     return (
         <main className="flex-1 bg-white">
-            <div className="layout-container space-y-[50px] pt-[60px] pb-20">
-                <div>
-                    <p className="text-base leading-[30px] font-semibold tracking-[0.5px] text-[#83889e] md:text-[20px]">
-                        AI 시세 분석 결과와 중요 업데이트
-                    </p>
-                    <h1 className="text-[40px] leading-[55px] font-bold tracking-[0.5px] text-[#363636] lg:text-[50px] lg:leading-[64px]">
-                        알림
-                    </h1>
+            <div className="layout-container flex flex-col gap-12 pt-16 pb-24">
+                <div className="flex flex-col items-start justify-between gap-8 md:flex-row md:items-end">
+                    <div className="flex flex-col gap-1">
+                        <p className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#6b6c7b]">
+                            AI 시세 분석 결과와 중요 업데이트
+                        </p>
+                        <h1 className="text-[40px] leading-[55px] font-bold tracking-[0.5px] text-[#363636] lg:text-[50px] lg:leading-[64px]">
+                            알림
+                        </h1>
+                    </div>
                 </div>
                 <div className="space-y-6">
-                    <div
-                        role="group"
-                        aria-label="알림 필터"
-                        className="flex h-10 gap-5 overflow-x-auto border-b border-[#dee5ed] lg:gap-[39px]"
-                    >
-                        {notificationFilters.map((item) => {
-                            const count = countOf(item.value);
-                            return (
-                                <Button
-                                    key={item.value}
-                                    type="button"
-                                    variant="ghost"
-                                    aria-pressed={filter === item.value}
-                                    onClick={() => setFilter(item.value)}
-                                    className={cn(
-                                        "h-full shrink-0 gap-2 rounded-none border-x-0 border-t-0 border-b-2 px-0 pt-0 pb-2 text-base leading-[25px] font-normal hover:bg-transparent",
-                                        filter === item.value
-                                            ? "border-[#363636] text-[#363636]"
-                                            : "border-transparent text-[#6b6c7b]",
-                                        item.value === "all"
-                                            ? "text-[20px] leading-[30px] font-semibold"
-                                            : "min-w-[100px]",
-                                    )}
-                                >
-                                    {item.label}
-                                    <span
+                    <div className="overflow-x-auto border-b border-[#dee5ed]">
+                        <div
+                            role="tablist"
+                            aria-label="알림 필터"
+                            className="flex min-w-max items-stretch gap-[39px]"
+                        >
+                            {notificationFilters.map((item) => {
+                                const count = countOf(item.value);
+                                const isActive = filter === item.value;
+
+                                return (
+                                    <button
+                                        key={item.value}
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={isActive}
+                                        onClick={() => setFilter(item.value)}
                                         className={cn(
-                                            item.value === "all" &&
-                                                "flex size-[30px] items-center justify-center rounded-full bg-[#363636] text-white",
+                                            "flex h-[46px] w-[100px] shrink-0 items-center justify-center border-b-2 whitespace-nowrap transition-colors",
+                                            isActive
+                                                ? "border-[#363636] text-[#363636]"
+                                                : "border-transparent text-[#83889e] hover:text-[#363636]",
                                         )}
                                     >
-                                        {count}
-                                    </span>
-                                </Button>
-                            );
-                        })}
+                                        {isActive ? (
+                                            <span className="flex items-center gap-1 tracking-[0.5px]">
+                                                <span className="text-[20px] leading-[30px] font-semibold">
+                                                    {item.label}
+                                                </span>
+                                                <span className="inline-flex size-[30px] items-center justify-center rounded-full bg-[#363636] text-[20px] leading-[30px] font-semibold text-white">
+                                                    {count}
+                                                </span>
+                                            </span>
+                                        ) : (
+                                            <span className="text-[16px] leading-[25px] font-normal">
+                                                {item.label} {count}
+                                            </span>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
+                    {deleteMutation.isError && (
+                        <p role="alert" className="text-sm font-medium text-[#d65353]">
+                            알림을 삭제하지 못했습니다. {getApiErrorMessage(deleteMutation.error)}
+                        </p>
+                    )}
                     <div className="max-w-[976px] space-y-6">
                         {query.isPending || query.isPlaceholderData ? (
-                            <p role="status" className="py-10 text-center text-[#83889e]">
-                                알림을 불러오는 중입니다.
-                            </p>
+                            <NotificationListSkeleton />
                         ) : query.isError ? (
                             <div className="flex flex-col items-center gap-3 py-10">
                                 <p role="alert" className="text-destructive text-sm">
@@ -201,11 +278,7 @@ export function NotificationsPage() {
                                 </Button>
                             </div>
                         ) : visible.length === 0 ? (
-                            <p className="py-10 text-center text-[#83889e]">
-                                {filter === "all"
-                                    ? "아직 받은 알림이 없습니다."
-                                    : "해당하는 알림이 없습니다."}
-                            </p>
+                            <NotificationEmptyState filtered={filter !== "all"} />
                         ) : (
                             [true, false].map((today) => {
                                 const items = visible.filter(
@@ -227,6 +300,7 @@ export function NotificationsPage() {
                                                 notification={item}
                                                 today={today}
                                                 onRead={(id) => readMutation.mutate(id)}
+                                                onDelete={(id) => deleteMutation.mutate(id)}
                                             />
                                         ))}
                                     </section>

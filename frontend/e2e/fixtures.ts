@@ -65,6 +65,13 @@ export const test = base.extend({
                       })
                     : route.fallback(),
         );
+        await context.route(
+            (url) => url.pathname === "/notifications/unread",
+            (route) =>
+                route.fulfill({
+                    json: { success: true, data: { count: 0 }, error: null },
+                }),
+        );
         await context.route("**/products/me?*", (route) =>
             route.fulfill({
                 json: {
