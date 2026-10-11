@@ -29,11 +29,11 @@ describe("notificationDisplay", () => {
         expect(getNotificationCategory("NOTICE")).toBe("notice");
     });
 
-    it("판매 추천은 판매 관리, 구매 쪽은 상품 상세로 연결하고 대상이 없으면 링크가 없다", () => {
+    it("판매 추천은 판매 관리, 구매 쪽은 관심 상품으로 연결하고 대상이 없으면 링크가 없다", () => {
         expect(getNotificationLink(base)?.href).toBe("/sell/manage?selected=10");
         expect(
             getNotificationLink({ ...base, type: "BUY", productId: null, listingId: 77 })?.href,
-        ).toBe("/search/77");
+        ).toBe("/buy/wishlist?selected=77");
         expect(
             getNotificationLink({ ...base, type: "NOTICE", productId: null, listingId: null }),
         ).toBeNull();
@@ -45,16 +45,20 @@ describe("notificationDisplay", () => {
                 listingId: null,
             }),
         ).toEqual({ label: "다시 연결", href: "/my/platforms" });
-        // 시세 변동 — 내 상품은 판매 관리, 관심상품(우리 상품·외부 매물)은 상품 상세
+        // 시세 변동 — 내 상품은 판매 관리, 관심상품(우리 상품·외부 매물)은 관심 상품
         expect(getNotificationLink({ ...base, type: "SELL_PRICE_CHANGE" })?.href).toBe(
             "/sell/manage?selected=10",
         );
-        expect(getNotificationLink({ ...base, type: "BUY_PRICE_CHANGE" })?.href).toBe("/search/10");
-        // 목표가 — 판매자 목표 판매가는 판매 관리, 관심상품 목표가는 상품 상세
+        expect(getNotificationLink({ ...base, type: "BUY_PRICE_CHANGE" })?.href).toBe(
+            "/buy/wishlist?selected=10",
+        );
+        // 목표가 — 판매자 목표 판매가는 판매 관리, 관심상품 목표가는 관심 상품
         expect(getNotificationLink({ ...base, type: "SELL_TARGET_PRICE" })?.href).toBe(
             "/sell/manage?selected=10",
         );
-        expect(getNotificationLink({ ...base, type: "TARGET_PRICE" })?.href).toBe("/search/10");
+        expect(getNotificationLink({ ...base, type: "TARGET_PRICE" })?.href).toBe(
+            "/buy/wishlist?selected=10",
+        );
         expect(
             getNotificationLink({
                 ...base,
@@ -62,7 +66,7 @@ describe("notificationDisplay", () => {
                 productId: null,
                 listingId: 77,
             })?.href,
-        ).toBe("/search/77");
+        ).toBe("/buy/wishlist?selected=77");
     });
 
     it("오늘은 상대 시간, 어제는 '어제', 그 전은 날짜로 표시한다", () => {

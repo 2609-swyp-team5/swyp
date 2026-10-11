@@ -160,7 +160,7 @@ test("detail loads buyer analysis only on click and retries failed analysis", as
             json: { success: true, data: { accessToken: "analysis-token" }, error: null },
         }),
     );
-    await page.goto("/buy/wishlist?selected=1001");
+    await page.goto(`/buy/wishlist?selected=${productId}`);
     await expect(page.getByRole("region", { name: "AI 시세 분석", exact: true })).toContainText(
         result.description,
     );
