@@ -1,6 +1,5 @@
 package com.swyp.team5.crawl.client;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -18,47 +17,30 @@ import tools.jackson.databind.ObjectMapper;
 @RequiredArgsConstructor
 public class JoongnaCategoryClient {
 
-    private static final String SEARCH_PATH = "/v3/category/search";
-    private static final String CATEGORY_PATH = "/category";
+    private static final String PATH = "/v3/category/search";
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private final RestClient joongnaSearchRestClient;
-    private final RestClient joongnaProductRestClient;
 
-    public JoongnaCategoryPage fetchPage(String categorySeq, int categoryDepth, int page) {
-        Map<String, Object> body = Map.of(
-                "page",
-                page,
-                "sort",
-                "RECENT_SORT",
-                "saleYn",
-                "SALE_N",
-                "categoryFilter",
-                List.of(Map.of("categoryDepth", categoryDepth, "categorySeq", Long.parseLong(categorySeq))));
+    public JoongnaCategoryPage fetchPage(String joongnaCategoryId, int categoryDepth, int page) {
         JsonNode root = joongnaSearchRestClient
                 .post()
-                .uri(SEARCH_PATH)
+                .uri(PATH)
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(body)
+                .body(buildBody(joongnaCategoryId, categoryDepth, page))
                 .retrieve()
                 .body(JsonNode.class);
         return JoongnaCategoryPage.from(root, page, objectMapper);
     }
 
-    public Map<String, Integer> fetchCategoryDepths() {
-        JsonNode root = joongnaProductRestClient
-                .get()
-                .uri(uriBuilder ->
-                        uriBuilder.path(CATEGORY_PATH).queryParam("type", "ALL").build())
-                .retrieve()
-                .body(JsonNode.class);
-        Map<String, Integer> depths = new HashMap<>();
-        for (JsonNode category : root.path("data").path("categoryList")) {
-            depths.put(
-                    category.path("categorySeq").asString(),
-                    category.path("categoryLevel").asInt());
-        }
-        return depths;
+    private static Map<String, Object> buildBody(String joongnaCategoryId, int categoryDepth, int page) {
+        Map<String, Object> categoryFilter =
+                Map.of("categoryDepth", categoryDepth, "categorySeq", Long.parseLong(joongnaCategoryId));
+        return Map.ofEntries(
+                Map.entry("page", page),
+                Map.entry("sort", "RECENT_SORT"),
+                Map.entry("saleYn", "SALE_N"),
+                Map.entry("categoryFilter", List.of(categoryFilter)));
     }
 }

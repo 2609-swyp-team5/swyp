@@ -1,5 +1,6 @@
 package com.swyp.team5.crawl.client;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import tools.jackson.databind.JsonNode;
 public class JoongnaProductClient {
 
     private static final String PATH = "/basic/{productSeq}";
+    private static final String CATEGORY_PATH = "/category";
     private static final String DELETED_STATUS = "DELETED";
     private static final Map<Integer, String> STATUS_BY_CODE = Map.of(
             0, "SELLING",
@@ -51,5 +53,21 @@ public class JoongnaProductClient {
             }
             throw e;
         }
+    }
+
+    public Map<String, Integer> fetchCategoryDepths() {
+        JsonNode root = joongnaProductRestClient
+                .get()
+                .uri(uriBuilder ->
+                        uriBuilder.path(CATEGORY_PATH).queryParam("type", "ALL").build())
+                .retrieve()
+                .body(JsonNode.class);
+        Map<String, Integer> depths = new HashMap<>();
+        for (JsonNode category : root.path("data").path("categoryList")) {
+            depths.put(
+                    category.path("categorySeq").asString(),
+                    category.path("categoryLevel").asInt());
+        }
+        return depths;
     }
 }

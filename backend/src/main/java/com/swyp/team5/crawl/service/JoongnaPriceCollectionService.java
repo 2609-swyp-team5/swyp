@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import com.swyp.team5.crawl.client.JoongnaCategoryClient;
+import com.swyp.team5.crawl.client.JoongnaProductClient;
 import com.swyp.team5.crawl.config.JoongnaCrawlProperties;
 import com.swyp.team5.crawl.dto.JoongnaCategoryPage;
 import com.swyp.team5.crawl.dto.JoongnaProductItem;
@@ -30,6 +31,7 @@ public class JoongnaPriceCollectionService {
     private static final int DEFAULT_CATEGORY_DEPTH = 2;
 
     private final JoongnaCategoryClient joongnaCategoryClient;
+    private final JoongnaProductClient joongnaProductClient;
     private final CategoryPlatformRepository categoryPlatformRepository;
     private final PlatformListingUpserter platformListingUpserter;
     private final JoongnaCrawlProperties properties;
@@ -41,7 +43,7 @@ public class JoongnaPriceCollectionService {
             log.info("시세 분석 대상 상품이 있는 중고나라 매핑 카테고리가 없어 시세 수집을 건너뜁니다.");
             return;
         }
-        Map<String, Integer> depths = joongnaCategoryClient.fetchCategoryDepths();
+        Map<String, Integer> depths = joongnaProductClient.fetchCategoryDepths();
         Map<String, CategoryPlatform> targets = mappings.stream()
                 .sorted(Comparator.comparing(mapping -> mapping.getCategory().getId()))
                 .collect(Collectors.toMap(
