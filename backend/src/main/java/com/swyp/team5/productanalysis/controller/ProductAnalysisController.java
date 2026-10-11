@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.swyp.team5.common.common.ApiResponse;
+import com.swyp.team5.common.passport.PrincipalMember;
 import com.swyp.team5.productanalysis.dto.AnalysisPerspective;
 import com.swyp.team5.productanalysis.dto.AnalysisRequestResponse;
 import com.swyp.team5.productanalysis.dto.AnalysisStatus;
@@ -53,15 +55,20 @@ public class ProductAnalysisController {
 
     /**
      * 상품(외부 매물 포함)의 시세 분석을 요청한다. 분석은 별도로 돌고 결과는 {@link #getAnalysis}로 확인한다. 이미 분석 중이거나, 최근에
-     * 분석했거나 비교 매물 부족으로 건너뛰었거나, 분석 대상 상태가 아니면 분석하지 않고 현재 상태만 돌려준다.
+     * 분석했거나 비교 매물 부족으로 건너뛰었거나, 분석 대상 상태가 아니면 분석하지 않고 현재 상태만 돌려준다. {@code force=true}면
+     * 판매자 본인 상품만 최근 분석 여부와 관계없이 다시 분석한다("AI 분석 재시도", 최소 간격 {@code analysis.force-retry-minutes}분).
      *
      * @param productId 분석할 상품 ID(외부 매물 ID 포함)
+     * @param force 판매자의 강제 재분석 여부(기본 false, 본인 상품이 아니면 403)
      * @return 202 Accepted(분석 대기열에 넣음 — {@code analysisStatus}가 ANALYZING) 또는 200 OK(그 밖의 상태)
      */
     @Operation(summary = "상품 시세 분석 요청")
     @PostMapping
-    public ResponseEntity<ApiResponse<AnalysisRequestResponse>> requestAnalysis(@PathVariable Long productId) {
-        AnalysisRequestResponse response = analysisRequestService.request(productId);
+    public ResponseEntity<ApiResponse<AnalysisRequestResponse>> requestAnalysis(
+            @AuthenticationPrincipal PrincipalMember currentMember,
+            @PathVariable Long productId,
+            @RequestParam(defaultValue = "false") boolean force) {
+        AnalysisRequestResponse response = analysisRequestService.request(productId, currentMember.memberId(), force);
         HttpStatus status = response.analysisStatus() == AnalysisStatus.ANALYZING ? HttpStatus.ACCEPTED : HttpStatus.OK;
         return ResponseEntity.status(status).body(ApiResponse.success(response));
     }
