@@ -48,6 +48,7 @@ import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.product.service.ProductTargetPriceService;
 import com.swyp.team5.productanalysis.config.ProductAnalysisProperties;
 import com.swyp.team5.productanalysis.dto.AnalysisPerspective;
+import com.swyp.team5.productanalysis.dto.AnalysisStatus;
 import com.swyp.team5.productanalysis.dto.CompetitionLevel;
 import com.swyp.team5.productanalysis.dto.MarketAnalysisResult;
 import com.swyp.team5.productanalysis.dto.PriceTrendResponse;
@@ -243,9 +244,41 @@ public class ProductAnalysisService {
                                     item,
                                     analysis,
                                     ProductAnalysisResponse.viewRecommendation(analysis, buyerView),
-                                    confidenceRate));
+                                    confidenceRate),
+                            analysisStatus(item, true));
                 })
-                .orElseGet(() -> ProductAnalysisResponse.empty(item));
+                .orElseGet(() -> ProductAnalysisResponse.empty(item, analysisStatus(item, false)));
+    }
+
+    /**
+     * 대상의 분석 상태. 분석 중(대기열 포함)이면 이전 결과가 있어도 ANALYZING이고, 그다음 결과 유무, 분석 대상 상태 여부, 건너뛴
+     * 기록 순으로 정한다.
+     *
+     * @param analyzed 분석 결과(스냅샷)가 있는지
+     */
+    public AnalysisStatus analysisStatus(Item item, boolean analyzed) {
+        if (progressTracker.isInProgress(item.getId())) {
+            return AnalysisStatus.ANALYZING;
+        }
+        if (analyzed) {
+            return AnalysisStatus.ANALYZED;
+        }
+        if (!isAnalysisTarget(item)) {
+            return AnalysisStatus.UNAVAILABLE;
+        }
+        return item.getAnalysisSkipReason() == null ? AnalysisStatus.NOT_ANALYZED : AnalysisStatus.SKIPPED;
+    }
+
+    /** 분석 대상 상태인지(우리 상품은 {@link ProductStatus#ANALYSIS_TARGETS}, 외부 매물은 판매중·예약중). */
+    public static boolean isAnalysisTarget(Item item) {
+        Object target = Hibernate.unproxy(item);
+        // List.of는 null 포함 여부를 물으면 예외라 상태가 없으면 대상 아님으로 본다
+        if (target instanceof Product product) {
+            return product.getStatus() != null && ProductStatus.ANALYSIS_TARGETS.contains(product.getStatus());
+        }
+        return target instanceof PlatformListing listing
+                && listing.getStatus() != null
+                && ProductStatus.EXTERNAL_ANALYSIS_TARGETS.contains(listing.getStatus());
     }
 
     /** 판매 추천(SELL)이면 판매 현황, 그 밖에는 대기 추천 지표. */
@@ -661,6 +694,7 @@ public class ProductAnalysisService {
                 minListings,
                 product.getTitle(),
                 product.getBrand(),
+                product.getCategory().getId(),
                 null,
                 freshSellingListings(product.getCategory().getId()),
                 candidates -> requestAiAnalysis(product, candidates, trend));
@@ -762,6 +796,7 @@ public class ProductAnalysisService {
                 properties.interestMinListings(),
                 listing.getTitle(),
                 null,
+                listing.getCategory().getId(),
                 listing,
                 freshSellingListings(listing.getCategory().getId()),
                 candidates -> requestListingAiAnalysis(listing, candidates, trend));
@@ -973,6 +1008,7 @@ public class ProductAnalysisService {
             int minListings,
             String title,
             String brand,
+            Long categoryId,
             PlatformListing self,
             List<PlatformListing> listings,
             Function<List<PlatformListing>, MarketAnalysisResult> ai) {
@@ -983,7 +1019,7 @@ public class ProductAnalysisService {
 
         // 1) 키워드 후보부터 부족하면 AI 호출 전에 검색으로 보탠다
         if (candidates.size() < minListings) {
-            List<PlatformListing> found = searchListings(title, brand, self, pool);
+            List<PlatformListing> found = searchListings(title, brand, categoryId, self, pool);
             if (found.isEmpty()) {
                 log.info(
                         "{}: 같은 카테고리 매물 {}건 중 키워드가 겹치는 후보가 {}건뿐이고 상품명 검색에서도 새 매물을 찾지 못해 분석을 건너뜁니다(최소 {}건 필요).",
@@ -1016,7 +1052,7 @@ public class ProductAnalysisService {
         // 3) 같은 물건이 부족하고 아직 검색 전이면, 검색으로 새 후보를 보태 확인된 매물과 함께 AI에 한 번 더 묻는다
         if (prices.size() < minListings && !searched) {
             // 새 후보는 검색 결과에서만 고른다(searchListings가 기존 풀에 있던 매물은 이미 뺌)
-            List<PlatformListing> found = searchListings(title, brand, self, pool);
+            List<PlatformListing> found = searchListings(title, brand, categoryId, self, pool);
             List<PlatformListing> newCandidates = SimilarListingFilter.selectCandidates(
                     title, brand, found, Math.max(sampleSize - similar.size(), 0));
             if (newCandidates.isEmpty()) {
@@ -1057,7 +1093,7 @@ public class ProductAnalysisService {
      * 꺼져 있으면 빈 목록.
      */
     private List<PlatformListing> searchListings(
-            String title, String brand, PlatformListing self, List<PlatformListing> pool) {
+            String title, String brand, Long categoryId, PlatformListing self, List<PlatformListing> pool) {
         ProductAnalysisProperties.SearchFallback searchFallback = properties.searchFallback();
         if (!searchFallback.enabled()) {
             return List.of();
@@ -1067,7 +1103,7 @@ public class ProductAnalysisService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
         List<PlatformListing> found =
-                excludeSelf(listingSearchService.searchAndSave(title, brand, searchFallback.size()), self).stream()
+                excludeSelf(listingSearchService.searchAndSave(title, brand, categoryId), self).stream()
                         .filter(listing -> listing.getId() == null || !poolIds.contains(listing.getId()))
                         .filter(listing ->
                                 pool.stream().noneMatch(other -> SimilarListingFilter.isDuplicate(listing, other)))

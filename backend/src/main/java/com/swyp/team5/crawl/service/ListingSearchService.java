@@ -6,8 +6,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -17,7 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import com.swyp.team5.crawl.client.BunjangSearchClient;
-import com.swyp.team5.crawl.dto.BunjangSearchItem;
+import com.swyp.team5.crawl.dto.BunjangProductItem;
 import com.swyp.team5.platform.entity.CategoryPlatform;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.platform.repository.CategoryPlatformRepository;
@@ -33,6 +33,8 @@ import com.swyp.team5.platform.repository.CategoryPlatformRepository;
 public class ListingSearchService {
 
     private static final String PLATFORM_NAME = "번개장터"; // 현재는 번개장터만 검색하므로 상수로 고정
+
+    private static final String SELLING = "SELLING";
 
     /** 괄호로 감싼 판매 문구("[국내당일]", "(배송비포함)" 등) — 검색어를 흐리므로 뺀다. */
     private static final Pattern BRACKETED = Pattern.compile("\\[[^]]*]|\\([^)]*\\)|\\{[^}]*}|<[^>]*>");
@@ -59,49 +61,44 @@ public class ListingSearchService {
     private final PlatformListingUpserter platformListingUpserter;
 
     /**
-     * 상품명(+브랜드)으로 검색해 판매중·비광고 매물 중 우리 카테고리에 매핑되는 것만 저장하고 돌려준다. 판매중 결과가
-     * {@link #ENOUGH_RESULTS}건보다 적으면 {@link #queriesToTry} 순서(브랜드 뺀 상품명 → 앞 3·2·1단어)로 줄여 다시 검색해
-     * 합친다. 검색이 실패하면 분석을 막지 않도록 그때까지 찾은 것만 쓴다(로그만 남김).
+     * 상품명(+브랜드)으로 분석 대상과 같은 카테고리(번개장터 매핑 카테고리, 하위 포함) 안을 검색해 판매중·비광고 매물을 그 카테고리로
+     * 저장하고 돌려준다. 판매중 결과가 {@link #ENOUGH_RESULTS}건보다 적으면 {@link #queriesToTry} 순서(브랜드 뺀 상품명 → 앞
+     * 3·2·1단어)로 줄여 다시 검색해 합친다. 카테고리 매핑이 없거나 검색이 실패하면 분석을 막지 않도록 그때까지 찾은 것만 쓴다(로그만
+     * 남김).
      *
      * @param brand 브랜드(없으면 null — 상품명에 이미 있으면 붙이지 않음)
-     * @param size 검색해 올 건수
+     * @param categoryId 분석 대상의 우리 카테고리 ID(비교 매물 풀과 같은 카테고리)
      */
-    public List<PlatformListing> searchAndSave(String title, String brand, int size) {
+    public List<PlatformListing> searchAndSave(String title, String brand, Long categoryId) {
         List<String> queries = queriesToTry(title, brand);
         if (queries.isEmpty()) {
             return List.of();
         }
         String query = queries.getFirst();
         try {
-            List<BunjangSearchItem> items = searchSelling(queries, size);
+            Optional<CategoryPlatform> mapping =
+                    categoryPlatformRepository.findByPlatformNameAndCategoryId(PLATFORM_NAME, categoryId);
+            if (mapping.isEmpty()) {
+                log.info("번개장터 검색 \"{}\": 카테고리 {}의 번개장터 매핑이 없어 검색하지 않습니다.", query, categoryId);
+                return List.of();
+            }
+            CategoryPlatform target = mapping.get();
+            List<BunjangProductItem> items = searchSelling(queries, target.getExternalCategoryId());
             if (items.isEmpty()) {
                 log.info("번개장터 검색 \"{}\": 판매중 매물을 찾지 못했습니다(시도한 검색어: {}).", query, queries);
                 return List.of();
             }
-            Map<String, CategoryPlatform> mappings = categoryPlatformRepository
-                    .findByPlatformNameAndExternalCategoryIds(
-                            PLATFORM_NAME,
-                            items.stream()
-                                    .map(BunjangSearchItem::bunjangCategoryId)
-                                    .collect(Collectors.toSet()))
-                    .stream()
-                    .collect(Collectors.toMap(
-                            CategoryPlatform::getExternalCategoryId, Function.identity(), (first, second) -> first));
             List<PlatformListing> saved = items.stream()
-                    .filter(item -> mappings.containsKey(item.bunjangCategoryId()))
-                    .map(item -> {
-                        CategoryPlatform mapping = mappings.get(item.bunjangCategoryId());
-                        return platformListingUpserter.upsertKeepingCategory(
-                                mapping.getPlatform(),
-                                mapping.getCategory(),
-                                item.pid(),
-                                item.name(),
-                                item.price(),
-                                item.status(),
-                                item.productImage());
-                    })
+                    .map(item -> platformListingUpserter.upsertKeepingCategory(
+                            target.getPlatform(),
+                            target.getCategory(),
+                            item.pid(),
+                            item.name(),
+                            item.price(),
+                            item.status(),
+                            item.productImage()))
                     .toList();
-            log.info("번개장터 검색 \"{}\": 판매중 {}건 중 {}건 저장", query, items.size(), saved.size());
+            log.info("번개장터 검색 \"{}\": 판매중 {}건 저장", query, saved.size());
             return saved;
         } catch (Exception e) {
             log.warn("번개장터 검색 \"{}\" 결과 저장 중 오류가 발생해 검색 결과 없이 진행합니다. 원인: {}", query, e.toString());
@@ -110,13 +107,15 @@ public class ListingSearchService {
     }
 
     /** 검색어를 차례로 검색해 판매중·비광고 매물을 모은다(pid 중복 제거, 충분하면 멈춤). */
-    private List<BunjangSearchItem> searchSelling(List<String> queries, int size) {
-        Map<Long, BunjangSearchItem> found = new LinkedHashMap<>();
+    private List<BunjangProductItem> searchSelling(List<String> queries, String bunjangCategoryId) {
+        Map<Long, BunjangProductItem> found = new LinkedHashMap<>();
         for (int i = 0; i < queries.size(); i++) {
             String attempt = queries.get(i);
             try {
-                bunjangSearchClient.search(attempt, size).stream()
-                        .filter(item -> item.isSelling() && !item.ad())
+                bunjangSearchClient.search(attempt, bunjangCategoryId).stream()
+                        // pid가 없는 항목(외부 광고 블록)은 0으로 파싱된다
+                        .filter(item -> item.pid() > 0 && item.name() != null)
+                        .filter(item -> SELLING.equals(item.status()) && !item.ad())
                         .forEach(item -> found.putIfAbsent(item.pid(), item));
             } catch (Exception e) {
                 log.warn("번개장터 검색 \"{}\" 중 오류가 발생했습니다. 원인: {}", attempt, e.toString());
