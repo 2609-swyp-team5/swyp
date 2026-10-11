@@ -52,8 +52,13 @@ function setup() {
     });
     const allKey = [...notificationsQueryKey, "ALL"] as const;
     const sellKey = [...notificationsQueryKey, "SELL"] as const;
+    const buyKey = [...notificationsQueryKey, "BUY"] as const;
     client.setQueryData(allKey, createData());
     client.setQueryData(sellKey, createData());
+    client.setQueryData(buyKey, {
+        ...createData(),
+        pages: [{ ...createData().pages[0], content: [], totalCount: 5 }],
+    });
 
     const hook = renderHook(() => useDeleteNotificationMutation(), {
         wrapper: ({ children }: { children: ReactNode }) => (
@@ -61,7 +66,7 @@ function setup() {
         ),
     });
 
-    return { ...hook, client, allKey, sellKey };
+    return { ...hook, client, allKey, sellKey, buyKey };
 }
 
 beforeEach(() => {
@@ -72,18 +77,31 @@ it("removes the notification from every loaded tab cache optimistically", async 
     deleteNotification.mockResolvedValue({
         data: { success: true, message: "", data: null },
     });
-    const { result, client, allKey, sellKey } = setup();
+    const { result, client, allKey, sellKey, buyKey } = setup();
 
     act(() => result.current.mutate(7));
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(client.getQueryData<NotificationsQueryData>(allKey)?.pages[0].content).toEqual([]);
     expect(client.getQueryData<NotificationsQueryData>(sellKey)?.pages[0].content).toEqual([]);
+    expect(client.getQueryData<NotificationsQueryData>(allKey)?.pages[0].totalCount).toBe(0);
+    expect(client.getQueryData<NotificationsQueryData>(sellKey)?.pages[0].totalCount).toBe(0);
+    expect(client.getQueryData<NotificationsQueryData>(buyKey)?.pages[0].content).toEqual([]);
+    expect(client.getQueryData<NotificationsQueryData>(buyKey)?.pages[0].totalCount).toBe(5);
+    expect(client.getQueryData<NotificationsQueryData>(allKey)?.pages[0].statusCounts).toEqual({
+        SELL: 0,
+    });
+    expect(client.getQueryData<NotificationsQueryData>(sellKey)?.pages[0].statusCounts).toEqual({
+        SELL: 0,
+    });
+    expect(client.getQueryData<NotificationsQueryData>(buyKey)?.pages[0].statusCounts).toEqual({
+        SELL: 0,
+    });
 });
 
 it("restores every tab cache when deletion fails", async () => {
     deleteNotification.mockRejectedValue(new Error("네트워크 오류"));
-    const { result, client, allKey, sellKey } = setup();
+    const { result, client, allKey, sellKey, buyKey } = setup();
 
     act(() => result.current.mutate(7));
 
@@ -94,4 +112,10 @@ it("restores every tab cache when deletion fails", async () => {
     expect(client.getQueryData<NotificationsQueryData>(sellKey)?.pages[0].content).toEqual([
         notification,
     ]);
+    expect(client.getQueryData<NotificationsQueryData>(allKey)?.pages[0].totalCount).toBe(1);
+    expect(client.getQueryData<NotificationsQueryData>(sellKey)?.pages[0].totalCount).toBe(1);
+    expect(client.getQueryData<NotificationsQueryData>(buyKey)?.pages[0].totalCount).toBe(5);
+    expect(client.getQueryData<NotificationsQueryData>(allKey)?.pages[0].statusCounts).toEqual({
+        SELL: 1,
+    });
 });

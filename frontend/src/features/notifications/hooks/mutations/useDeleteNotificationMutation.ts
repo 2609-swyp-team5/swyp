@@ -9,6 +9,7 @@ import {
 
 import { notificationApi } from "../../api/notificationApi";
 import type { NotificationPage, NotificationUnreadCount } from "../../schemas/notificationSchema";
+import { getNotificationCategory, toCategoryParam } from "../../utils/notificationDisplay";
 import { notificationsQueryKey } from "../queries/useNotificationsQuery";
 import { notificationUnreadCountQueryKey } from "../queries/useUnreadNotificationCountQuery";
 
@@ -19,6 +20,11 @@ type DeleteNotificationContext = {
     notifications: NotificationsQuerySnapshot;
     unreadCount: NotificationUnreadCount | undefined;
 };
+
+function getQueryCategory(queryKey: QueryKey) {
+    const category = queryKey[notificationsQueryKey.length];
+    return typeof category === "string" ? category : undefined;
+}
 
 export function useDeleteNotificationMutation() {
     const queryClient = useQueryClient();
@@ -43,27 +49,42 @@ export function useDeleteNotificationMutation() {
             const deletedNotification = previousNotifications
                 .flatMap(([, data]) => data?.pages.flatMap((page) => page.content) ?? [])
                 .find((notification) => notification.notificationId === notificationId);
+            const deletedCategory = deletedNotification
+                ? toCategoryParam(getNotificationCategory(deletedNotification.type))
+                : undefined;
 
-            queryClient.setQueriesData<NotificationsQueryData>(
-                { queryKey: notificationsQueryKey },
-                (current) => {
-                    if (!current) return current;
+            previousNotifications.forEach(([queryKey, current]) => {
+                if (!current) return;
 
-                    return {
-                        ...current,
-                        pages: current.pages.map((page, index) => ({
-                            ...page,
-                            content: page.content.filter(
-                                (notification) => notification.notificationId !== notificationId,
-                            ),
-                            totalCount:
-                                index === 0 && page.totalCount !== null
-                                    ? Math.max(0, page.totalCount - 1)
-                                    : page.totalCount,
-                        })),
-                    };
-                },
-            );
+                const queryCategory = getQueryCategory(queryKey);
+                const affectsFilteredTotalCount =
+                    deletedCategory !== undefined &&
+                    (queryCategory === "ALL" || queryCategory === deletedCategory);
+
+                queryClient.setQueryData<NotificationsQueryData>(queryKey, {
+                    ...current,
+                    pages: current.pages.map((page, index) => ({
+                        ...page,
+                        content: page.content.filter(
+                            (notification) => notification.notificationId !== notificationId,
+                        ),
+                        totalCount:
+                            index === 0 && affectsFilteredTotalCount && page.totalCount !== null
+                                ? Math.max(0, page.totalCount - 1)
+                                : page.totalCount,
+                        statusCounts:
+                            deletedCategory && page.statusCounts
+                                ? {
+                                      ...page.statusCounts,
+                                      [deletedCategory]: Math.max(
+                                          0,
+                                          (page.statusCounts[deletedCategory] ?? 0) - 1,
+                                      ),
+                                  }
+                                : page.statusCounts,
+                    })),
+                });
+            });
 
             if (deletedNotification && !deletedNotification.isRead) {
                 queryClient.setQueryData<NotificationUnreadCount>(
