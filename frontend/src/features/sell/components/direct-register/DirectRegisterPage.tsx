@@ -262,7 +262,7 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
                         <p className="typography-heading-02 col-start-1 row-start-1 self-start text-[#363636]">
                             직접입력으로
                         </p>
-                        <h1 className="col-start-1 row-start-1 mt-[52px] self-start text-[50px] leading-[64px] font-bold tracking-[0.5px] text-[#6653fb]">
+                        <h1 className="col-start-1 row-start-1 mt-[52px] self-start text-[48px] leading-[60px] font-bold tracking-[0.5px] text-[#6653fb]">
                             상품 등록
                         </h1>
                     </div>

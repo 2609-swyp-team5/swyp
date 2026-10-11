@@ -67,6 +67,7 @@ export const searchProductDetailSchema = z.object({
     condition: productConditionSchema.nullable(),
     defectStatus: defectStatusSchema.nullable(),
     tradeMethod: productResponseSchema.shape.tradeMethod.nullable(),
+    includedItems: z.array(z.string()),
     preferredTradeRegion: z.string().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),

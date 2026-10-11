@@ -37,7 +37,14 @@ export function useInterestToggle() {
               : null,
         canRetry: Boolean(queryError),
         retry: () => void (member.error ? member.refetch() : interests.refetch()),
-        toggle: (target: InterestTarget) => {
+        /**
+         * onAdd는 새로 등록할 때 하트 변경과 함께 바로 호출되고(해제 시 호출 안 함),
+         * 그 등록이 서버에서 실패하면 onAddFailed가 호출된다(캐시는 mutation이 되돌린다).
+         */
+        toggle: (
+            target: InterestTarget,
+            options?: { onAdd?: () => void; onAddFailed?: () => void },
+        ) => {
             if (!isLoggedIn) {
                 setLoginNoticeOpen(true);
                 return;
@@ -51,12 +58,16 @@ export function useInterestToggle() {
             )
                 return;
             const interest = interests.data?.find((item) => targetKey(item) === key);
+            const isAdding = interest === undefined;
             pendingTargets.current.add(key);
+            if (isAdding) options?.onAdd?.();
             // mutate의 호출별 콜백은 연속 호출 시 마지막 호출에만 실행되므로 호출마다 끝나는 Promise로 해제한다.
             // 실패는 mutation.error와 캐시 롤백으로 처리하므로 여기서는 삼킨다.
             void mutation
                 .mutateAsync({ ...target, interestId: interest?.interestId })
-                .catch(() => undefined)
+                .catch(() => {
+                    if (isAdding) options?.onAddFailed?.();
+                })
                 .finally(() => pendingTargets.current.delete(key));
         },
     };

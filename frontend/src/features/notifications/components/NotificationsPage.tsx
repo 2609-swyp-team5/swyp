@@ -207,7 +207,7 @@ export function NotificationsPage() {
                         <p className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#6b6c7b]">
                             AI 시세 분석 결과와 중요 업데이트
                         </p>
-                        <h1 className="text-[40px] leading-[55px] font-bold tracking-[0.5px] text-[#363636] lg:text-[50px] lg:leading-[64px]">
+                        <h1 className="text-[40px] leading-[55px] font-bold tracking-[0.5px] text-[#363636] lg:text-[48px] lg:leading-[64px]">
                             알림
                         </h1>
                     </div>
