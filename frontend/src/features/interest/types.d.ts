@@ -12,6 +12,10 @@ import type {
     interestListResponseSchema,
     interestTargetPriceResponseSchema,
 } from "./schemas/interestResponseSchema";
+import type {
+    interestTargetSchema,
+    interestToggleItemSchema,
+} from "./schemas/interestToggleSchema";
 
 export type InterestSource = z.infer<typeof interestSourceSchema>;
 export type InterestRecommendation = z.infer<typeof interestRecommendationSchema>;
@@ -22,3 +26,5 @@ export type InterestListResponse = z.infer<typeof interestListResponseSchema>;
 export type InterestRegisterInput = z.infer<typeof interestRegisterInputSchema>;
 export type InterestCreateResponse = z.infer<typeof interestCreateResponseSchema>;
 export type InterestTargetPriceResponse = z.infer<typeof interestTargetPriceResponseSchema>;
+export type InterestToggleItem = z.infer<typeof interestToggleItemSchema>;
+export type InterestTarget = z.infer<typeof interestTargetSchema>;

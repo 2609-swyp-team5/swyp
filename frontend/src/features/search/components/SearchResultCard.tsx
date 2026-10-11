@@ -9,10 +9,7 @@ import { Button } from "@/common/components/ui/Button";
 import { Card, CardContent } from "@/common/components/ui/Card";
 import { cn } from "@/common/lib/utils";
 import { formatRelativeCreatedAt } from "@/features/search/utils/formatRelativeCreatedAt";
-import {
-    conditionLabels,
-    defectLabels,
-} from "@/features/sell/components/manage/productReviewUtils";
+import { formatConditionText, formatTradeInfoText } from "@/features/search/utils/productMetaText";
 import type { SearchResultItem } from "@/features/search/types";
 
 const statusLabels: Record<string, string> = {
@@ -38,16 +35,7 @@ export function SearchResultCard({
 }) {
     const status = statusLabels[product.status] ?? product.status;
     const sold = product.status === "SOLD_OUT";
-    const tradeInfo = [
-        product.tradeRegion,
-        product.deliveryAvailable === true
-            ? "택배 가능"
-            : product.deliveryAvailable === false
-              ? "택배 불가"
-              : null,
-    ]
-        .filter(Boolean)
-        .join(" · ");
+    const tradeInfo = formatTradeInfoText(product.tradeRegion, product.deliveryAvailable);
     const platform =
         product.source === "OUR" ? "지금이니?!" : (product.platformName ?? "외부 매물");
     const platformClass =
@@ -106,7 +94,7 @@ export function SearchResultCard({
                     onClick={onLike}
                     disabled={likeDisabled}
                     className={cn(
-                        "absolute top-3 right-3 z-20 rounded-full bg-white shadow-sm hover:bg-[#fafbff]",
+                        "absolute top-3 right-3 z-20 rounded-full bg-white shadow-sm transition-[color,scale] hover:bg-[#fafbff] motion-safe:active:scale-90",
                         liked
                             ? "text-[#fa503d] hover:text-[#fa503d]"
                             : "text-[#363636] hover:text-[#363636]",
@@ -161,8 +149,9 @@ export function SearchResultCard({
                     {comparison}
                 </Badge>
                 <p className="text-xs leading-[18px] text-[#464646]">
-                    {product.condition ? `${conditionLabels[product.condition]} · ` : ""}
-                    {product.defectStatus ? `${defectLabels[product.defectStatus]} · ` : ""}
+                    {formatConditionText(product.condition, product.defectStatus).map(
+                        (text) => `${text} · `,
+                    )}
                     <time dateTime={product.createdAt}>
                         {formatRelativeCreatedAt(product.createdAt, now)}
                     </time>

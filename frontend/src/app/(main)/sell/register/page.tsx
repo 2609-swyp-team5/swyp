@@ -36,7 +36,10 @@ export default function SellRegisterPage() {
             >
                 <header className="flex flex-col gap-2.5">
                     <p className="typography-heading-02 text-[#363636]">판매할 상품을</p>
-                    <h1 id="register-page-title" className="typography-heading-01 text-[#6653fb]">
+                    <h1
+                        id="register-page-title"
+                        className="typography-heading-01 text-[50px] leading-[64px] text-[#6653fb]"
+                    >
                         어떻게 등록할까요?
                     </h1>
                 </header>

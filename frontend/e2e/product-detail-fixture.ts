@@ -15,5 +15,10 @@ export const detailProduct: SearchProductDetail = {
     platformName: "번개장터",
     externalUrl: "https://example.com/product/1",
     marketAveragePrice: 363000,
+    condition: null,
+    defectStatus: null,
+    tradeMethod: null,
+    preferredTradeRegion: null,
+    createdAt: "2026-10-01T10:00:00",
     updatedAt: "2026-10-03T10:00:00",
 };

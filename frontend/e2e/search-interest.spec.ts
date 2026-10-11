@@ -136,7 +136,10 @@ test("restores all interest pages, uses source-specific IDs and shares state wit
     await expect(external).toHaveAttribute("aria-pressed", "false");
     fail = false;
     await external.click();
-    await expect(external).toBeDisabled();
+    // 응답 전에 하트가 먼저 켜지고(낙관적 업데이트), 요청 중 다시 눌러도 추가 요청은 보내지 않는다
+    await expect(external).toHaveAttribute("aria-pressed", "true");
+    await external.click();
+    await expect(external).toHaveAttribute("aria-pressed", "true");
     release();
     await expect(external).toHaveAttribute("aria-pressed", "true");
     await expect(external.locator("svg")).toHaveAttribute("fill", "currentColor");
