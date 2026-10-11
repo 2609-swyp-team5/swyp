@@ -28,6 +28,12 @@ class SimilarListingFilterTest {
         return listing;
     }
 
+    private static PlatformListing listing(String title, long price) {
+        PlatformListing listing = listing(title);
+        lenient().when(listing.getPrice()).thenReturn(price);
+        return listing;
+    }
+
     private static List<String> titles(List<PlatformListing> listings) {
         return listings.stream().map(PlatformListing::getTitle).toList();
     }
@@ -97,5 +103,26 @@ class SimilarListingFilterTest {
     void removeOutliersKeepsAllWhenFewerThanFour() {
         assertThat(SimilarListingFilter.removeOutliers(List.of(3L, 1L, 1_000_000L)))
                 .containsExactly(1L, 3L, 1_000_000L);
+    }
+
+    // 중복 매물 - 정규화한 제목(띄어쓰기·기호·대소문자 무시)과 가격이 같으면 첫 매물만 남김, 가격이 다르면 별개
+    @Test
+    void removeDuplicatesKeepsFirstOfSameTitleAndPrice() {
+        PlatformListing first = listing("갤럭시 와이드8 블랙(4164)", 164_000L);
+        PlatformListing otherPrice = listing("갤럭시 와이드8 블랙(4164)", 150_000L);
+        List<PlatformListing> listings = List.of(
+                first,
+                listing("갤럭시 와이드8 블랙(4164)", 164_000L),
+                listing("갤럭시와이드8 블랙 4164", 164_000L),
+                otherPrice,
+                listing("GALAXY 와이드8", 164_000L),
+                listing("galaxy 와이드8!", 164_000L));
+
+        List<PlatformListing> result = SimilarListingFilter.removeDuplicates(listings);
+
+        assertThat(result).hasSize(3);
+        assertThat(result.get(0)).isSameAs(first);
+        assertThat(result.get(1)).isSameAs(otherPrice);
+        assertThat(titles(result).get(2)).isEqualTo("GALAXY 와이드8");
     }
 }

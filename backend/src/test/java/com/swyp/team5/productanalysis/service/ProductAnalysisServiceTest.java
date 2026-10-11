@@ -340,6 +340,32 @@ class ProductAnalysisServiceTest {
         assertThat(captor.getValue().getMaxPrice()).isEqualTo(4000L);
     }
 
+    // 분석 - 같은 글을 반복 등록한 중복 매물(정규화한 제목·가격이 같음)은 하나로 세어 AI 후보·통계에 넣음
+    @Test
+    void analyzeProductCountsDuplicateListingsOnce() {
+        Product product = product(1L, 10L, 800_000L);
+        givenListings(
+                10L,
+                List.of(
+                        listing("아이패드 프로 매물1", 2000L),
+                        listing("아이패드 프로 매물2", 2200L),
+                        listing("아이패드 프로 매물2", 2200L),
+                        listing("아이패드  프로 매물2!", 2200L),
+                        listing("아이패드 프로 매물2", 2500L),
+                        listing("아이패드 프로 매물3", 2800L)));
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.empty());
+        givenAiResult(new MarketAnalysisResult(List.of(1, 2, 3, 4), AnalysisRecommendation.HOLD, 2000L, "설명"));
+
+        service().analyzeProduct(product);
+
+        ArgumentCaptor<ProductAnalysis> captor = ArgumentCaptor.forClass(ProductAnalysis.class);
+        verify(productAnalysisRepository).save(captor.capture());
+        // 매물2 2,200원 3건은 1건으로, 가격이 다른 매물2 2,500원은 별개 매물
+        assertThat(captor.getValue().getListingCount()).isEqualTo(4);
+        assertThat(captor.getValue().getListingPrices()).containsExactly(2000L, 2200L, 2500L, 2800L);
+    }
+
     // 분석 - 이전 6개월 스냅샷의 월별 평균가 추이를 AI 프롬프트에 넣음
     @Test
     void analyzeProductIncludesPreviousTrendInPrompt() {
@@ -798,6 +824,31 @@ class ProductAnalysisServiceTest {
         // 외부 매물은 우리 상품 제안가 갱신 대상이 아님
         verify(notificationService)
                 .notifyListingRecommendationChanged(target, AnalysisRecommendation.WAIT, AnalysisRecommendation.BUY);
+    }
+
+    // 관심 외부 매물 분석 - 자신과 같은 글(같은 제목·가격으로 반복 등록한 매물)도 비교 매물에서 뺌
+    @Test
+    void analyzeListingExcludesListingsDuplicatingItself() {
+        PlatformListing target = listing(100L, 10L, "아이패드 프로 급처", 900L);
+        List<PlatformListing> listings = List.of(
+                listing(101L, 10L, "아이패드 프로 급처", 900L),
+                target,
+                listing(102L, 10L, "아이패드 프로 급처", 900L),
+                listing(1L, 10L, "아이패드 프로 매물1", 1000L),
+                listing(2L, 10L, "아이패드 프로 매물2", 2000L),
+                listing(3L, 10L, "아이패드 프로 매물3", 3000L));
+        when(platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
+                        eq(10L), eq("SELLING"), any()))
+                .thenReturn(listings);
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(100L))
+                .thenReturn(Optional.empty());
+        givenAiResult(new MarketAnalysisResult(List.of(1, 2, 3), AnalysisRecommendation.BUY, 1900L, "설명"));
+
+        service().analyzeListing(target);
+
+        ArgumentCaptor<ProductAnalysis> captor = ArgumentCaptor.forClass(ProductAnalysis.class);
+        verify(productAnalysisRepository).save(captor.capture());
+        assertThat(captor.getValue().getListingPrices()).containsExactly(1000L, 2000L, 3000L);
     }
 
     // 관심 외부 매물 분석 - 최소 유사 매물은 interest-min-listings라 1이면 같은 물건 1건만 있어도 신뢰도 LOW로 저장하고 건너뛴 사유를 비움
@@ -1384,7 +1435,7 @@ class ProductAnalysisServiceTest {
 
     private static List<PlatformListing> competitors(int count, long price) {
         return LongStream.rangeClosed(101, 100 + count)
-                .mapToObj(id -> competitor(id, "아이패드 프로", price, id))
+                .mapToObj(id -> competitor(id, "아이패드 프로 " + id, price, id)) // 제목이 같으면 중복 매물로 하나만 셈
                 .toList();
     }
 

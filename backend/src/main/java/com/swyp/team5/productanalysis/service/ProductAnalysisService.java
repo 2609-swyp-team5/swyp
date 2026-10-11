@@ -762,7 +762,7 @@ public class ProductAnalysisService {
                 properties.interestMinListings(),
                 listing.getTitle(),
                 null,
-                listing.getId(),
+                listing,
                 freshSellingListings(listing.getCategory().getId()),
                 candidates -> requestListingAiAnalysis(listing, candidates, trend));
         if (selection.isEmpty()) {
@@ -915,11 +915,15 @@ public class ProductAnalysisService {
                 .toList();
     }
 
-    /** 같은 카테고리에서 최근 {@code freshness-hours} 안에 확인된 판매중 매물(가격 오름차순). */
+    /**
+     * 같은 카테고리에서 최근 {@code freshness-hours} 안에 확인된 판매중 매물(가격 오름차순). 같은 글을 반복 등록한 중복 매물은 하나만
+     * 남긴다({@link SimilarListingFilter#removeDuplicates}).
+     */
     private List<PlatformListing> freshSellingListings(Long categoryId) {
         LocalDateTime freshAfter = LocalDateTime.now().minusHours(properties.freshnessHours());
-        return platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
-                categoryId, SELLING_STATUS, freshAfter);
+        return SimilarListingFilter.removeDuplicates(
+                platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
+                        categoryId, SELLING_STATUS, freshAfter));
     }
 
     /** AI 프롬프트용 후보 목록("1. 제목: 가격원"). 번호는 {@link #similarListings}에서 다시 매물로 바꾼다. */
@@ -958,7 +962,7 @@ public class ProductAnalysisService {
      * @param label 로그용 대상 이름(예: "상품 1")
      * @param itemId 분석 대상 ID(건너뛴 사유를 기록)
      * @param minListings 분석에 필요한 최소 유사 매물 수
-     * @param selfId 비교 매물에서 뺄 분석 대상 매물 ID(우리 상품이면 null)
+     * @param self 비교 매물에서 뺄 분석 대상 매물(자신과 같은 글로 반복 등록된 매물도 뺌, 우리 상품이면 null)
      * @param listings 같은 카테고리의 최근 판매중 매물
      * @param ai 후보 목록을 주고 AI 분석을 요청하는 함수
      * @return 같은 물건이 부족해 건너뛰면 빈 값(건너뛴 사유는 {@link ItemRepository#recordAnalysisSkip}로 기록)
@@ -969,17 +973,17 @@ public class ProductAnalysisService {
             int minListings,
             String title,
             String brand,
-            Long selfId,
+            PlatformListing self,
             List<PlatformListing> listings,
             Function<List<PlatformListing>, MarketAnalysisResult> ai) {
         int sampleSize = properties.sampleSize();
-        List<PlatformListing> pool = excludeSelf(listings, selfId);
+        List<PlatformListing> pool = excludeSelf(listings, self);
         List<PlatformListing> candidates = SimilarListingFilter.selectCandidates(title, brand, pool, sampleSize);
         boolean searched = false;
 
         // 1) 키워드 후보부터 부족하면 AI 호출 전에 검색으로 보탠다
         if (candidates.size() < minListings) {
-            List<PlatformListing> found = searchListings(title, brand, selfId, pool);
+            List<PlatformListing> found = searchListings(title, brand, self, pool);
             if (found.isEmpty()) {
                 log.info(
                         "{}: 같은 카테고리 매물 {}건 중 키워드가 겹치는 후보가 {}건뿐이고 상품명 검색에서도 새 매물을 찾지 못해 분석을 건너뜁니다(최소 {}건 필요).",
@@ -1012,7 +1016,7 @@ public class ProductAnalysisService {
         // 3) 같은 물건이 부족하고 아직 검색 전이면, 검색으로 새 후보를 보태 확인된 매물과 함께 AI에 한 번 더 묻는다
         if (prices.size() < minListings && !searched) {
             // 새 후보는 검색 결과에서만 고른다(searchListings가 기존 풀에 있던 매물은 이미 뺌)
-            List<PlatformListing> found = searchListings(title, brand, selfId, pool);
+            List<PlatformListing> found = searchListings(title, brand, self, pool);
             List<PlatformListing> newCandidates = SimilarListingFilter.selectCandidates(
                     title, brand, found, Math.max(sampleSize - similar.size(), 0));
             if (newCandidates.isEmpty()) {
@@ -1048,8 +1052,12 @@ public class ProductAnalysisService {
         return Optional.empty();
     }
 
-    /** 상품명 검색 결과 중 기존 후보 풀에 없는 판매중 매물(분석 대상 자신 제외). 검색이 꺼져 있으면 빈 목록. */
-    private List<PlatformListing> searchListings(String title, String brand, Long selfId, List<PlatformListing> pool) {
+    /**
+     * 상품명 검색 결과 중 기존 후보 풀에 없는 판매중 매물(분석 대상 자신·중복 매물 제외 — 풀에 있는 매물과 같은 글도 뺌). 검색이
+     * 꺼져 있으면 빈 목록.
+     */
+    private List<PlatformListing> searchListings(
+            String title, String brand, PlatformListing self, List<PlatformListing> pool) {
         ProductAnalysisProperties.SearchFallback searchFallback = properties.searchFallback();
         if (!searchFallback.enabled()) {
             return List.of();
@@ -1058,17 +1066,23 @@ public class ProductAnalysisService {
                 .map(PlatformListing::getId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
-        return excludeSelf(listingSearchService.searchAndSave(title, brand, searchFallback.size()), selfId).stream()
-                .filter(listing -> listing.getId() == null || !poolIds.contains(listing.getId()))
-                .toList();
+        List<PlatformListing> found =
+                excludeSelf(listingSearchService.searchAndSave(title, brand, searchFallback.size()), self).stream()
+                        .filter(listing -> listing.getId() == null || !poolIds.contains(listing.getId()))
+                        .filter(listing ->
+                                pool.stream().noneMatch(other -> SimilarListingFilter.isDuplicate(listing, other)))
+                        .toList();
+        return SimilarListingFilter.removeDuplicates(found);
     }
 
-    private static List<PlatformListing> excludeSelf(List<PlatformListing> listings, Long selfId) {
-        if (selfId == null) {
+    /** 분석 대상 매물 자신과, 자신과 같은 글(같은 판매자의 반복 등록으로 보이는 매물)을 뺀다. */
+    private static List<PlatformListing> excludeSelf(List<PlatformListing> listings, PlatformListing self) {
+        if (self == null) {
             return listings;
         }
         return listings.stream()
-                .filter(listing -> !Objects.equals(listing.getId(), selfId))
+                .filter(listing -> !Objects.equals(listing.getId(), self.getId()))
+                .filter(listing -> !SimilarListingFilter.isDuplicate(listing, self))
                 .toList();
     }
 
