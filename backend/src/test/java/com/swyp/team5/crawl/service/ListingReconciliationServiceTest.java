@@ -57,8 +57,8 @@ class ListingReconciliationServiceTest {
     // 재확인 대상이 없으면 API를 호출하지 않음
     @Test
     void reconcileDoesNothingWhenNoCandidates() {
-        when(platformListingRepository.findByStatusInAndLastSeenAtBeforeOrderByLastSeenAtAsc(
-                        anyCollection(), any(), any()))
+        when(platformListingRepository.findByPlatform_NameAndStatusInAndLastSeenAtBeforeOrderByLastSeenAtAsc(
+                        anyString(), anyCollection(), any(), any()))
                 .thenReturn(List.of());
 
         service().reconcile();
@@ -69,23 +69,23 @@ class ListingReconciliationServiceTest {
     // 판매중뿐 아니라 예약중 매물도 재확인(예약중은 수집에서 빠져 재확인으로만 판매 완료를 알 수 있음)
     @Test
     void reconcileTargetsSellingAndReservedListings() {
-        when(platformListingRepository.findByStatusInAndLastSeenAtBeforeOrderByLastSeenAtAsc(
-                        anyCollection(), any(), any()))
+        when(platformListingRepository.findByPlatform_NameAndStatusInAndLastSeenAtBeforeOrderByLastSeenAtAsc(
+                        anyString(), anyCollection(), any(), any()))
                 .thenReturn(List.of());
 
         service().reconcile();
 
         verify(platformListingRepository)
-                .findByStatusInAndLastSeenAtBeforeOrderByLastSeenAtAsc(
-                        eq(List.of("SELLING", "RESERVED")), any(), any());
+                .findByPlatform_NameAndStatusInAndLastSeenAtBeforeOrderByLastSeenAtAsc(
+                        eq("번개장터"), eq(List.of("SELLING", "RESERVED")), any(), any());
     }
 
     // 여전히 판매중이면 관측값을 갱신(=last_seen_at 되살림)
     @Test
     void reconcileRefreshesListingWhenStillSelling() {
         PlatformListing listing = listing("1");
-        when(platformListingRepository.findByStatusInAndLastSeenAtBeforeOrderByLastSeenAtAsc(
-                        anyCollection(), any(), any()))
+        when(platformListingRepository.findByPlatform_NameAndStatusInAndLastSeenAtBeforeOrderByLastSeenAtAsc(
+                        anyString(), anyCollection(), any(), any()))
                 .thenReturn(List.of(listing));
         when(bunjangProductClient.fetchDetail("1"))
                 .thenReturn(new BunjangProductDetail(1L, "SELLING", 5000L, "새 제목", null));
@@ -101,8 +101,8 @@ class ListingReconciliationServiceTest {
     @Test
     void reconcileRecordsErrorCodeWhenProductDeleted() {
         PlatformListing listing = listing("2");
-        when(platformListingRepository.findByStatusInAndLastSeenAtBeforeOrderByLastSeenAtAsc(
-                        anyCollection(), any(), any()))
+        when(platformListingRepository.findByPlatform_NameAndStatusInAndLastSeenAtBeforeOrderByLastSeenAtAsc(
+                        anyString(), anyCollection(), any(), any()))
                 .thenReturn(List.of(listing));
         when(bunjangProductClient.fetchDetail("2"))
                 .thenReturn(new BunjangProductDetail(2L, null, null, null, "ERR_DELETED_PRODUCT"));
@@ -120,8 +120,8 @@ class ListingReconciliationServiceTest {
     void reconcileContinuesOtherListingsWhenOneFails() {
         PlatformListing failing = listing("3");
         PlatformListing ok = listing("4");
-        when(platformListingRepository.findByStatusInAndLastSeenAtBeforeOrderByLastSeenAtAsc(
-                        anyCollection(), any(), any()))
+        when(platformListingRepository.findByPlatform_NameAndStatusInAndLastSeenAtBeforeOrderByLastSeenAtAsc(
+                        anyString(), anyCollection(), any(), any()))
                 .thenReturn(List.of(failing, ok));
         when(bunjangProductClient.fetchDetail("3")).thenThrow(new RuntimeException("네트워크 오류"));
         when(bunjangProductClient.fetchDetail("4"))

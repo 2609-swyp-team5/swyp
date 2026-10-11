@@ -32,6 +32,18 @@ public class PlatformListingUpserter {
         return upsert(platform, category, pid, name, price, status, imageUrl, true);
     }
 
+    public PlatformListing upsert(
+            Platform platform,
+            Category category,
+            String externalItemId,
+            String listingUrl,
+            String name,
+            long price,
+            String status,
+            String imageUrl) {
+        return upsert(platform, category, externalItemId, listingUrl, name, price, status, imageUrl, true);
+    }
+
     /**
      * {@link #upsert}와 같되, 이미 있는 매물의 카테고리는 바꾸지 않는다(새 매물만 {@code category}로 저장). 키워드 검색 API는 카테고리
      * 수집과 다른(더 세분된) 카테고리 ID를 주므로, 수집이 정한 카테고리를 검색이 덮어써 둘이 번갈아 바꾸지 않도록 한다.
@@ -50,9 +62,28 @@ public class PlatformListingUpserter {
             String status,
             String imageUrl,
             boolean overwriteCategory) {
-        String externalItemId = String.valueOf(pid);
-        String listingUrl = LISTING_URL_TEMPLATE.formatted(pid);
+        return upsert(
+                platform,
+                category,
+                String.valueOf(pid),
+                LISTING_URL_TEMPLATE.formatted(pid),
+                name,
+                price,
+                status,
+                imageUrl,
+                overwriteCategory);
+    }
 
+    private PlatformListing upsert(
+            Platform platform,
+            Category category,
+            String externalItemId,
+            String listingUrl,
+            String name,
+            long price,
+            String status,
+            String imageUrl,
+            boolean overwriteCategory) {
         PlatformListing listing = platformListingRepository
                 .findByPlatformAndExternalItemId(platform, externalItemId)
                 .orElseGet(() -> PlatformListing.create(
