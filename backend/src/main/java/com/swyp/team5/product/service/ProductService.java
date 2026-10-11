@@ -62,6 +62,7 @@ import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.event.ProductRegisteredEvent;
 import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.product.repository.ProductSearchRepository;
+import com.swyp.team5.productanalysis.dto.CompetitionSortType;
 import com.swyp.team5.productanalysis.dto.ProductCompetitionResponse;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
@@ -354,11 +355,12 @@ public class ProductService {
      * 수집한 외부 매물 중 기준 상품과 같은 유형의 판매 중 매물(경쟁 상품)을 조회한다. 상품명 키워드로 고르며 AI는 호출하지
      * 않는다 — 시세 분석과 같은 매물 필터를 쓰므로 계산은 {@link ProductAnalysisService#getCompetition}에 맡긴다.
      *
+     * @param sort 목록 정렬(기본 최신 등록 순)
      * @throws ProductNotFoundException 존재하지 않는 상품(외부 매물 포함)인 경우
      */
     @Transactional(readOnly = true)
-    public ProductCompetitionResponse getCompetition(Long productId) {
-        return productAnalysisService.getCompetition(productId);
+    public ProductCompetitionResponse getCompetition(Long productId, CompetitionSortType sort) {
+        return productAnalysisService.getCompetition(productId, sort);
     }
 
     private Long calculateMarketAveragePrice(Product product) {
@@ -667,6 +669,27 @@ public class ProductService {
         validateRegisteredBy(product, memberId);
 
         product.changeStatus(status, soldPrice, soldPlatform);
+
+        return ProductResponse.from(product);
+    }
+
+    /**
+     * 상품의 판매 희망가만 변경한다. 본인이 등록한 상품만 변경할 수 있다. 외부 플랫폼에 게시된 글의 가격은 바꾸지 않고(상품 수정과
+     * 같음), 시세 대비 차이({@code marketPriceDiffRate})는 조회할 때 새 가격으로 다시 계산된다.
+     *
+     * @param memberId 요청한 회원 ID
+     * @param productId 가격을 변경할 상품 ID
+     * @param price 변경할 판매 희망가(0원 이상)
+     * @return 변경된 상품
+     * @throws ProductNotFoundException 존재하지 않는 상품인 경우
+     * @throws ProductAccessDeniedException 본인이 등록한 상품이 아닌 경우
+     */
+    @Transactional
+    public ProductResponse updatePrice(Long memberId, Long productId, Long price) {
+        Product product = getProductOrThrow(productId);
+        validateRegisteredBy(product, memberId);
+
+        product.changePrice(price);
 
         return ProductResponse.from(product);
     }

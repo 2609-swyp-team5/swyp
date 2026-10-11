@@ -49,6 +49,7 @@ import com.swyp.team5.productanalysis.config.ProductAnalysisProperties;
 import com.swyp.team5.productanalysis.dto.AnalysisPerspective;
 import com.swyp.team5.productanalysis.dto.AnalysisStatus;
 import com.swyp.team5.productanalysis.dto.CompetitionLevel;
+import com.swyp.team5.productanalysis.dto.CompetitionSortType;
 import com.swyp.team5.productanalysis.dto.MarketAnalysisResult;
 import com.swyp.team5.productanalysis.dto.PriceForecastResponse;
 import com.swyp.team5.productanalysis.dto.PriceTrendResponse;
@@ -1448,7 +1449,7 @@ class ProductAnalysisServiceTest {
                 competitor(18L, "아이패드 프로 11", 3_000_000L, 0)); // 가격 이상치
         givenListings(10L, sameCategory);
 
-        ProductCompetitionResponse response = service().getCompetition(1L);
+        ProductCompetitionResponse response = service().getCompetition(1L, CompetitionSortType.LATEST);
 
         assertThat(response.productId()).isEqualTo(1L);
         ProductCompetitionResponse.Competition competition = response.competition();
@@ -1471,6 +1472,34 @@ class ProductAnalysisServiceTest {
         verify(productAnalysisRepository, never()).findFirstByItemIdOrderByAnalyzedAtDesc(any());
     }
 
+    // 경쟁 상품 정렬 - 낮은/높은 가격순, 같은 가격이면 최신 등록 순(개수·평균 시세는 정렬과 무관)
+    @Test
+    void getCompetitionSortsItemsByPrice() {
+        Product product = product(1L, 10L, 500_000L);
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
+        givenListings(
+                10L,
+                List.of(
+                        competitor(11L, "아이패드 프로 11", 480_000L, 50),
+                        competitor(12L, "아이패드 프로 11 와이파이", 480_000L, 3), // 11과 같은 가격, 더 최근
+                        competitor(13L, "아이패드 프로 11", 530_000L, 1),
+                        competitor(14L, "아이패드 프로 11", 490_000L, 10),
+                        competitor(15L, "아이패드 프로 11", 520_000L, 2)));
+
+        ProductCompetitionResponse.Competition low =
+                service().getCompetition(1L, CompetitionSortType.PRICE_LOW).competition();
+        ProductCompetitionResponse.Competition high =
+                service().getCompetition(1L, CompetitionSortType.PRICE_HIGH).competition();
+
+        assertThat(low.items())
+                .extracting(ProductCompetitionResponse.Item::productId)
+                .containsExactly("12", "11", "14");
+        assertThat(high.items())
+                .extracting(ProductCompetitionResponse.Item::productId)
+                .containsExactly("13", "15", "14");
+        assertThat(low.count()).isEqualTo(high.count()).isEqualTo(5);
+    }
+
     // 경쟁 상품 - 같은 유형이 3건 미만이면 평균 시세·차이율은 null
     @Test
     void getCompetitionLeavesAverageNullWhenTooFewListings() {
@@ -1481,7 +1510,7 @@ class ProductAnalysisServiceTest {
         givenListings(10L, two);
 
         ProductCompetitionResponse.Competition competition =
-                service().getCompetition(1L).competition();
+                service().getCompetition(1L, CompetitionSortType.LATEST).competition();
 
         assertThat(competition.count()).isEqualTo(2);
         assertThat(competition.level()).isEqualTo(CompetitionLevel.LOW);
@@ -1507,7 +1536,7 @@ class ProductAnalysisServiceTest {
             givenListings(10L, listings);
 
             ProductCompetitionResponse.Competition competition =
-                    service().getCompetition(1L).competition();
+                    service().getCompetition(1L, CompetitionSortType.LATEST).competition();
 
             assertThat(competition.count()).isEqualTo(expected[0]);
             assertThat(competition.level()).isEqualTo(expected[1]);
@@ -1523,7 +1552,7 @@ class ProductAnalysisServiceTest {
         givenListings(10L, List.of());
 
         ProductCompetitionResponse.Competition competition =
-                service().getCompetition(1L).competition();
+                service().getCompetition(1L, CompetitionSortType.LATEST).competition();
 
         assertThat(competition.count()).isZero();
         assertThat(competition.level()).isEqualTo(CompetitionLevel.NONE);
@@ -1541,7 +1570,7 @@ class ProductAnalysisServiceTest {
         givenListings(10L, sameCategory);
 
         ProductCompetitionResponse.Competition competition =
-                service().getCompetition(100L).competition();
+                service().getCompetition(100L, CompetitionSortType.LATEST).competition();
 
         assertThat(competition.count()).isEqualTo(2);
         assertThat(competition.items())
@@ -1554,7 +1583,8 @@ class ProductAnalysisServiceTest {
     void getCompetitionThrowsWhenProductNotFound() {
         when(itemRepository.findById(999L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service().getCompetition(999L)).isInstanceOf(ProductNotFoundException.class);
+        assertThatThrownBy(() -> service().getCompetition(999L, CompetitionSortType.LATEST))
+                .isInstanceOf(ProductNotFoundException.class);
     }
 
     // 가격 추이 조회 실패 - 존재하지 않는 상품
