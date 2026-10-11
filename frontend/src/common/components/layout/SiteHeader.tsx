@@ -12,6 +12,33 @@ import { HEADER_LINKS } from "@/constants/routes";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { ProfileAvatar } from "@/features/member/components/ProfileAvatar";
 import { useMeQuery } from "@/features/member/hooks/queries/useMeQuery";
+import { useUnreadNotificationCountQuery } from "@/features/notifications/hooks/queries/useUnreadNotificationCountQuery";
+
+function HeaderLinkLabel({
+    href,
+    label,
+    unreadCount,
+}: {
+    href: string;
+    label: string;
+    unreadCount: number;
+}) {
+    const showNotificationCount = href === "/notifications" && unreadCount > 0;
+
+    return (
+        <span className="inline-flex items-center gap-1.5">
+            {label}
+            {showNotificationCount ? (
+                <span
+                    aria-label={`${unreadCount}개 읽지 않은 알림`}
+                    className="inline-flex min-w-5 items-center justify-center rounded-full bg-[#6653fb] px-1.5 text-[11px] leading-5 font-bold text-white"
+                >
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+            ) : null}
+        </span>
+    );
+}
 
 function isRouteActive(pathname: string, href: string) {
     return pathname === href || pathname.startsWith(`${href}/`);
@@ -26,6 +53,8 @@ export function SiteHeader() {
     const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
     const isInitialized = useAuthStore((state) => state.isInitialized);
     const { data: member, isPending } = useMeQuery();
+    const { data: unreadNotification } = useUnreadNotificationCountQuery();
+    const unreadNotificationCount = unreadNotification?.count ?? 0;
     const isAuthPage =
         pathname === "/login" || pathname === "/signup" || pathname === "/account/reset-password";
     const hideMenus = pathname === "/" || isAuthPage;
@@ -64,7 +93,11 @@ export function SiteHeader() {
                                 }`}
                             >
                                 <Link href={link.href} aria-current={isActive ? "page" : undefined}>
-                                    {link.label}
+                                    <HeaderLinkLabel
+                                        href={link.href}
+                                        label={link.label}
+                                        unreadCount={unreadNotificationCount}
+                                    />
                                 </Link>
                             </Button>
                         );
@@ -154,7 +187,11 @@ export function SiteHeader() {
                                     aria-current={isActive ? "page" : undefined}
                                     onClick={() => setIsMenuOpen(false)}
                                 >
-                                    {link.label}
+                                    <HeaderLinkLabel
+                                        href={link.href}
+                                        label={link.label}
+                                        unreadCount={unreadNotificationCount}
+                                    />
                                 </Link>
                             </Button>
                         );

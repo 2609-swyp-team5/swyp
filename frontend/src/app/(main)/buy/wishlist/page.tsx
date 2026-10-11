@@ -94,7 +94,7 @@ export default function WishlistPage() {
                           : "WAIT";
 
                 return {
-                    id: String(interest.interestId),
+                    id: String(interest.targetId),
                     title: interest.title,
                     price: interest.price,
                     categoryName: interest.categoryName,
@@ -122,7 +122,7 @@ export default function WishlistPage() {
             listTitle="전체 상품 목록"
             detailRenderer={(item) => {
                 const interest = interests.find(
-                    (candidate) => String(candidate.interestId) === item.id,
+                    (candidate) => String(candidate.targetId) === item.id,
                 );
 
                 return interest ? <InterestProductDetail interest={interest} /> : null;
