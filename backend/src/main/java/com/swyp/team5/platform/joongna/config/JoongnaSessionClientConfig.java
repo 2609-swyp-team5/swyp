@@ -15,6 +15,7 @@ public class JoongnaSessionClientConfig {
 
     private static final String API_BASE_URL = "https://api.joongna.com";
     private static final String MAIN_API_BASE_URL = "https://main-api.joongna.com";
+    private static final String PRODUCT_API_BASE_URL = "https://product-api.joongna.com";
     private static final String USER_AGENT = "Jigeumini/1.0";
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
     private static final Duration READ_TIMEOUT = Duration.ofSeconds(10);
@@ -27,6 +28,11 @@ public class JoongnaSessionClientConfig {
     @Bean
     public RestClient joongnaMainApiRestClient() {
         return restClient(MAIN_API_BASE_URL);
+    }
+
+    @Bean
+    public RestClient joongnaPublishRestClient() {
+        return restClient(PRODUCT_API_BASE_URL);
     }
 
     private static RestClient restClient(String baseUrl) {

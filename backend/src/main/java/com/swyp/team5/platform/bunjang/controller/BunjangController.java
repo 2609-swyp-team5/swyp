@@ -32,6 +32,8 @@ import com.swyp.team5.platform.bunjang.service.BunjangProductPublishService;
 import com.swyp.team5.platform.entity.PlatformType;
 import com.swyp.team5.platform.error.UnsupportedPlatformException;
 import com.swyp.team5.platform.joongna.service.JoongnaConnectionService;
+import com.swyp.team5.platform.joongna.service.JoongnaProductLinkService;
+import com.swyp.team5.platform.joongna.service.JoongnaProductPublishService;
 import com.swyp.team5.platform.verification.PlatformVerificationService;
 import com.swyp.team5.platform.verification.dto.PlatformVerificationConfirmRequest;
 import com.swyp.team5.platform.verification.dto.PlatformVerificationConfirmResponse;
@@ -57,6 +59,8 @@ public class BunjangController {
     private final BunjangProductPublishService bunjangProductPublishService;
     private final PlatformVerificationService platformVerificationService;
     private final JoongnaConnectionService joongnaConnectionService;
+    private final JoongnaProductPublishService joongnaProductPublishService;
+    private final JoongnaProductLinkService joongnaProductLinkService;
 
     @Value("${platform.listed-platforms:BUNJANG}")
     private List<String> listedPlatforms = List.of(PlatformType.BUNJANG.name());
@@ -131,8 +135,11 @@ public class BunjangController {
             @AuthenticationPrincipal PrincipalMember currentMember,
             @PathVariable Long productId,
             @PathVariable PlatformType platform) {
-        requireBunjang(platform);
-        ProductPlatformResponse response = bunjangProductPublishService.publish(currentMember.memberId(), productId);
+        ProductPlatformResponse response =
+                switch (platform) {
+                    case BUNJANG -> bunjangProductPublishService.publish(currentMember.memberId(), productId);
+                    case JOONGNA -> joongnaProductPublishService.publish(currentMember.memberId(), productId);
+                };
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
     }
 
@@ -143,9 +150,13 @@ public class BunjangController {
             @PathVariable Long productId,
             @PathVariable PlatformType platform,
             @Valid @RequestBody ProductPlatformLinkRequest request) {
-        requireBunjang(platform);
         ProductPlatformResponse response =
-                bunjangProductLinkService.link(currentMember.memberId(), productId, request.productUrl());
+                switch (platform) {
+                    case BUNJANG -> bunjangProductLinkService.link(
+                            currentMember.memberId(), productId, request.productUrl());
+                    case JOONGNA -> joongnaProductLinkService.link(
+                            currentMember.memberId(), productId, request.productUrl());
+                };
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
     }
 
@@ -155,8 +166,24 @@ public class BunjangController {
             @AuthenticationPrincipal PrincipalMember currentMember,
             @PathVariable Long productId,
             @PathVariable PlatformType platform) {
-        requireBunjang(platform);
-        ProductPlatformResponse response = bunjangProductLinkService.syncStatus(currentMember.memberId(), productId);
+        ProductPlatformResponse response =
+                switch (platform) {
+                    case BUNJANG -> bunjangProductLinkService.syncStatus(currentMember.memberId(), productId);
+                    case JOONGNA -> joongnaProductLinkService.syncStatus(currentMember.memberId(), productId);
+                };
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @Operation(summary = "플랫폼에 게시한 매물 삭제")
+    @DeleteMapping("/products/{productId}/platforms/{platform}")
+    public ResponseEntity<ApiResponse<ProductPlatformResponse>> removeListing(
+            @AuthenticationPrincipal PrincipalMember currentMember,
+            @PathVariable Long productId,
+            @PathVariable PlatformType platform) {
+        if (platform != PlatformType.JOONGNA) {
+            throw new UnsupportedPlatformException(platform.name());
+        }
+        ProductPlatformResponse response = joongnaProductLinkService.remove(currentMember.memberId(), productId);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
