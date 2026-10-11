@@ -9,8 +9,9 @@ export function MyHomePage() {
     const { data: member, isError, isFetching, refetch } = useMeQuery();
 
     return (
-        <main className="min-w-0 flex-1 bg-white text-[#464646]">
-            <div className="bg-gradient-to-b from-[#ededfd] to-white px-6 pt-12 pb-[50px] sm:px-10 xl:px-[100px] xl:pt-[70px]">
+        // Figma 1854-15372: 흰 배경, 다른 마이페이지와 같은 본문 여백·최대 너비
+        <main className="min-w-0 flex-1 bg-white px-6 py-12 text-[#464646] sm:px-10 lg:py-[60px] xl:px-[min(7vw,var(--grid-margin))]">
+            <div className="mx-auto w-full max-w-[960px]">
                 <MyHomeHeader
                     nickname={member?.nickname}
                     isError={isError}

@@ -13,29 +13,29 @@ type MyHomeHeaderProps = {
 export function MyHomeHeader({ nickname, isError, isFetching, onRetry }: MyHomeHeaderProps) {
     return (
         <>
-            <header className="flex flex-col-reverse items-center gap-[30px] px-[10px] text-center sm:flex-row sm:items-end sm:text-left">
-                <div className="min-w-0 break-keep">
-                    <p className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#83889e]">
+            <header className="flex flex-col-reverse items-center gap-5 text-center sm:flex-row sm:justify-between sm:text-left">
+                <div className="flex min-w-0 flex-col gap-[10px] tracking-[0.5px] break-keep">
+                    <p className="text-[20px] leading-[30px] font-medium text-[#83889e]">
                         AI와 함께하는 똑똑한 중고거래
                     </p>
-                    <h1 className="mt-[10px] text-[44px] leading-[52px] font-bold tracking-[0.5px] text-[#464646]">
+                    <h1 className="text-[44px] leading-[52px] font-bold text-[#464646] sm:leading-[75px]">
                         {nickname !== undefined ? `안녕하세요, ${nickname}님` : "안녕하세요"}
                     </h1>
                 </div>
-                <div className="relative h-[199px] w-[235px] shrink-0 overflow-hidden">
+                <div className="relative h-[188px] w-[212px] shrink-0 sm:h-[282px] sm:w-[318px]">
                     <Image
                         src="/my/home/mascot.png"
                         alt=""
-                        width={248}
-                        height={248}
+                        fill
+                        sizes="318px"
                         priority
-                        className="absolute -top-[14px] -left-[13px] max-w-none -scale-x-100"
+                        className="-scale-x-100 object-cover"
                     />
                 </div>
             </header>
 
             {isError ? (
-                <div className="mt-6 flex items-center gap-3 px-[10px]">
+                <div className="mt-6 flex items-center gap-3">
                     <p role="alert" className="text-[13px] text-[#6b7395]">
                         회원정보를 불러오지 못했습니다.
                     </p>

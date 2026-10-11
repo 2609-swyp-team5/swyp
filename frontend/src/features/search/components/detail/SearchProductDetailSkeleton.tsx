@@ -19,7 +19,7 @@ export function SearchProductDetailSkeleton() {
                         ))}
                     </div>
                 </div>
-                <div className="flex min-w-0 flex-col gap-[50px] lg:min-h-[523px]">
+                <div className="flex min-w-0 flex-col gap-10 lg:min-h-[523px]">
                     <div className="flex flex-col gap-[30px]">
                         <div className="flex gap-2">
                             <Skeleton className="h-7 w-20 rounded-full" />
@@ -31,16 +31,23 @@ export function SearchProductDetailSkeleton() {
                                 <Skeleton className="h-[42px] w-44" />
                                 <Skeleton className="h-[26px] w-32 rounded-full" />
                             </div>
-                            <Skeleton className="h-[22px] w-56" />
-                            <Skeleton className="h-[22px] w-40" />
                         </div>
-                        <Skeleton className="h-12 w-full max-w-[295px] rounded-[50px]" />
                     </div>
-                    <div className="flex flex-col gap-2">
-                        <Skeleton className="h-5 w-20" />
-                        <Skeleton className="h-6 w-full" />
-                        <Skeleton className="h-6 w-5/6" />
-                        <Skeleton className="h-6 w-2/3" />
+                    <div className="flex flex-col gap-[15px]">
+                        <div className="grid grid-cols-1 gap-x-[30px] gap-y-2.5 sm:grid-cols-[max-content_max-content]">
+                            {[0, 1, 2, 3, 4].map((index) => (
+                                <Skeleton key={index} className="h-[22px] w-40" />
+                            ))}
+                        </div>
+                        <div className="flex flex-col gap-[5px] border-t border-[#d3d3d3] py-2.5">
+                            <Skeleton className="h-[22px] w-16" />
+                            <Skeleton className="h-[22px] w-full" />
+                            <Skeleton className="h-[22px] w-2/3" />
+                        </div>
+                    </div>
+                    <div className="flex gap-2.5">
+                        <Skeleton className="h-[45px] flex-1 rounded-[5px]" />
+                        <Skeleton className="h-[45px] flex-1 rounded-[5px]" />
                     </div>
                 </div>
             </div>

@@ -530,7 +530,12 @@ test("platform connection verifies identity and updates API-backed status counts
     });
     await page.goto("/my/platforms");
     const summary = (label: string) =>
-        page.getByText(label, { exact: true }).locator("..").locator("p").first();
+        page
+            .getByRole("region", { name: "연동 상태 요약" })
+            .getByText(label, { exact: true })
+            .locator("..")
+            .locator("p")
+            .first();
     await expect(summary("연결됨")).toHaveText("0");
     await expect(summary("만료됨")).toHaveText("1");
     const connect = page.getByRole("button", { name: "번개장터 다시 연결", exact: true });
@@ -579,6 +584,9 @@ test("withdrawal asks for confirmation and cancellation sends no request", async
     await page.goto("/my/withdraw");
     await expect(page.getByText("탈퇴 후에는 기록을 복구할 수 없어요.")).toBeVisible();
     const next = page.getByRole("button", { name: "탈퇴 요청", exact: true });
+    // 동의 체크 전에는 탈퇴 요청을 할 수 없다
+    await expect(next).toBeDisabled();
+    await page.getByLabel("위 안내 사항을 모두 확인하였으며, 계정 탈퇴에 동의합니다.").check();
     await expect(next).toBeEnabled();
     await next.click();
     await expect(page.getByRole("alertdialog")).toBeVisible();
@@ -607,6 +615,7 @@ test("withdrawal disables repeat submissions and redirects after success", async
         });
     });
     await page.goto("/my/withdraw");
+    await page.getByLabel("위 안내 사항을 모두 확인하였으며, 계정 탈퇴에 동의합니다.").check();
     await page.getByRole("button", { name: "탈퇴 요청", exact: true }).click();
     const dialog = page.getByRole("alertdialog");
     await dialog.getByRole("button", { name: "탈퇴하기", exact: true }).click();
@@ -638,6 +647,7 @@ test("withdrawal failure keeps the dialog and authenticated session", async ({ p
         });
     });
     await page.goto("/my/withdraw");
+    await page.getByLabel("위 안내 사항을 모두 확인하였으며, 계정 탈퇴에 동의합니다.").check();
     await page.getByRole("button", { name: "탈퇴 요청", exact: true }).click();
     const dialog = page.getByRole("alertdialog");
     await dialog.getByRole("button", { name: "탈퇴하기", exact: true }).click();

@@ -144,13 +144,14 @@ test("restores all interest pages, uses source-specific IDs and shares state wit
     await expect(external).toHaveAttribute("aria-pressed", "true");
     await expect(external.locator("svg")).toHaveAttribute("fill", "currentColor");
     await page.getByRole("link", { name: "EXTERNAL 상품 상세보기" }).click();
-    const detail = page.getByRole("button", { name: "관심상품에 추가됨", exact: true });
+    const detail = page.getByRole("button", { name: "관심상품 추가됨", exact: true });
     await expect(detail).toBeEnabled();
     await expect(detail).toHaveAttribute("aria-pressed", "true");
     await detail.click();
-    await expect(
-        page.getByRole("button", { name: "관심상품에 추가", exact: true }),
-    ).toHaveAttribute("aria-pressed", "false");
+    await expect(page.getByRole("button", { name: "관심상품 추가", exact: true })).toHaveAttribute(
+        "aria-pressed",
+        "false",
+    );
     await page.getByRole("link", { name: "← 이전 페이지" }).click();
     await expect(external).toHaveAttribute("aria-pressed", "false");
     await page.reload();
@@ -261,7 +262,7 @@ test("guests can search but interest buttons require login without API writes", 
     await expect(page).toHaveURL(/\/login$/);
     await page.goto("/search/42");
     await expect(dialog).toHaveCount(0);
-    await page.getByRole("button", { name: "관심상품에 추가", exact: true }).click();
+    await page.getByRole("button", { name: "관심상품 추가", exact: true }).click();
     await expect(dialog).toContainText("로그인 후 사용해 주세요.");
     await dialog.getByRole("button", { name: "확인", exact: true }).click();
     await expect(page).toHaveURL(/\/login$/);

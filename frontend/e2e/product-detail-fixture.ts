@@ -18,6 +18,7 @@ export const detailProduct: SearchProductDetail = {
     condition: null,
     defectStatus: null,
     tradeMethod: null,
+    includedItems: [],
     preferredTradeRegion: null,
     createdAt: "2026-10-01T10:00:00",
     updatedAt: "2026-10-03T10:00:00",

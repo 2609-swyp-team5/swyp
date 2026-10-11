@@ -95,7 +95,7 @@ export function ProductListShell({
                         <p className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#6b6c7b]">
                             {eyebrow}
                         </p>
-                        <h1 className="text-[40px] leading-[52px] font-bold tracking-[0.5px] text-[#363636] md:text-[50px] md:leading-[64px]">
+                        <h1 className="text-[40px] leading-[52px] font-bold tracking-[0.5px] text-[#363636] md:text-[48px] md:leading-[60px]">
                             {title}
                         </h1>
                     </div>
