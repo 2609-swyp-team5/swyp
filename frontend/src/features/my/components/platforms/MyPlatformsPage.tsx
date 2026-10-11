@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CircleAlert } from "lucide-react";
+import Image from "next/image";
 import { Button } from "@/common/components/ui/Button";
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { useMyPlatformsQuery } from "@/features/my/hooks/queries/useMyPlatformsQuery";
@@ -38,7 +38,7 @@ export function MyPlatformsPage() {
     const platforms: PlatformConnection[] = (data ?? []).map((item) => ({
         id: item.platform,
         ...getPlatformDefinition(item.platform, item.platformName),
-        updated: item.updatedAt?.replace("T", " ").slice(0, 16) ?? "연동 이력 없음",
+        updatedAt: item.updatedAt ?? null,
     }));
     const statuses: Record<string, ConnectionStatus> = Object.fromEntries(
         (data ?? []).map((item) => [item.platform, connectionStatuses[item.status]]),
@@ -66,15 +66,12 @@ export function MyPlatformsPage() {
             eyebrowClassName="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#83889e]"
             titleClassName="text-[#363636]"
         >
-            <section className="mb-5 rounded-r-[10px] border-l-[3px] border-[#6653fb] bg-[#fafbff] px-5 py-4">
-                <h2 className="flex items-center gap-[6px] text-[14px] leading-[21px] font-semibold tracking-[-0.5px] text-[#464646]">
-                    <CircleAlert
-                        className="size-4 shrink-0 fill-[#464646] text-[#fafbff]"
-                        aria-hidden="true"
-                    />
+            <section className="mb-5 border-l-3 border-[#6653fb] bg-[#fafbff] px-5 py-[15px]">
+                <h2 className="flex items-center gap-[5px] text-[13px] leading-[20px] font-semibold tracking-[-0.5px] text-[#6b6c7b]">
+                    <Image src="/figma/platforms/info.svg" alt="" width={15} height={15} />
                     플랫폼 연동 안내
                 </h2>
-                <ul className="mt-[6px] list-disc pl-5 text-[12px] leading-[20px] tracking-[-0.5px] text-[#464646]">
+                <ul className="mt-[5px] list-disc ps-[18px] text-[12px] leading-[20px] tracking-[-0.5px] text-[#6b6c7b]">
                     <li>연결이 만료되면 일부 연동 기능이 제한될 수 있어요</li>
                     <li>지금이니?에서 연결을 해제해도 외부 플랫폼의 판매글은 삭제되지 않아요</li>
                 </ul>
@@ -94,27 +91,39 @@ export function MyPlatformsPage() {
                     </Button>
                 </div>
             )}
-            <div className="mt-[30px] grid gap-[10px] md:grid-cols-2 xl:grid-cols-3">
-                {platforms.map((item) => (
-                    <PlatformCard
-                        key={`${item.id}:${statuses[item.id]}`}
-                        item={item}
-                        status={statuses[item.id]}
-                        isPending={isMutationPending}
-                        onSelect={() => {
-                            if (statuses[item.id] === "connected") {
-                                disconnectMutation.reset();
-                                setSelected(item);
-                                return;
-                            }
-                            verificationMutation.request.reset();
-                            verificationMutation.confirm.reset();
-                            setVerification(null);
-                            setVerificationTarget(item);
-                        }}
-                    />
-                ))}
-            </div>
+            {data && (
+                <section className="mt-10 flex flex-col gap-[15px]">
+                    <h2 className="flex items-center gap-[10px]">
+                        <span className="text-[22px] leading-[30px] font-semibold tracking-[0.5px] text-[#545d82]">
+                            플랫폼 연결
+                        </span>
+                        <span className="text-[16px] leading-[25px] text-[#b1a9ef]">
+                            {platforms.length}건
+                        </span>
+                    </h2>
+                    <ul className="flex flex-col gap-[10px]">
+                        {platforms.map((item) => (
+                            <PlatformCard
+                                key={`${item.id}:${statuses[item.id]}`}
+                                item={item}
+                                status={statuses[item.id]}
+                                isPending={isMutationPending}
+                                onSelect={() => {
+                                    if (statuses[item.id] === "connected") {
+                                        disconnectMutation.reset();
+                                        setSelected(item);
+                                        return;
+                                    }
+                                    verificationMutation.request.reset();
+                                    verificationMutation.confirm.reset();
+                                    setVerification(null);
+                                    setVerificationTarget(item);
+                                }}
+                            />
+                        ))}
+                    </ul>
+                </section>
+            )}
             <PlatformDialog
                 selected={selected}
                 onOpenChange={(open) => {

@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, Sparkles, Plus } from "lucide-react";
+import { Search, Plus } from "lucide-react";
 import { Button } from "@/common/components/ui/Button";
 import { Card, CardContent } from "@/common/components/ui/Card";
 import { Input } from "@/common/components/ui/Input";
@@ -65,7 +65,7 @@ export function HomePage() {
         search(keyword);
     };
     const headingClass =
-        "text-[32px] leading-[44px] font-bold break-keep lg:text-[50px] lg:leading-[64px]";
+        "text-[32px] leading-[44px] font-bold break-keep lg:text-[48px] lg:leading-[60px]";
 
     return (
         <main className="font-brand flex-1 bg-white font-normal tracking-[0.5px]">
@@ -87,7 +87,7 @@ export function HomePage() {
                                 AI와 함께하는 똑똑한 중고거래
                             </p>
                             {isPending ? (
-                                <Skeleton className="h-[44px] w-2/3 lg:h-[64px]" />
+                                <Skeleton className="h-[44px] w-2/3 lg:h-[60px]" />
                             ) : (
                                 <h1 className={cn(headingClass, "text-[#363636]")}>
                                     안녕하세요, {member?.name ?? member?.nickname ?? "회원"}님
@@ -149,41 +149,42 @@ export function HomePage() {
                     aria-labelledby="home-search-heading"
                     className="flex min-h-[480px] flex-col items-center gap-16 pt-[60px] pb-10 lg:min-h-0 lg:gap-20 lg:pb-[60px]"
                 >
+                    {/* Figma 1989-14199: AI 검색이 왼쪽, 선택된 쪽만 채운 pill(AI 보라·일반 검정) */}
                     <div
                         role="group"
                         aria-label="검색 방식"
-                        className="flex h-[55px] w-[264px] rounded-full border border-[#464646] bg-[#6b6c7b] p-px text-[20px] leading-5"
+                        className="flex h-[51px] w-[226px] rounded-full border border-[#d3d3d3] bg-white p-[3px]"
                     >
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            aria-pressed={searchMode === "general"}
-                            onClick={() => setSearchMode("general")}
-                            className={cn(
-                                "h-full flex-1 gap-1 rounded-full px-3 text-[20px] font-medium",
-                                searchMode === "general"
-                                    ? "border border-[#6b6c7b] bg-[#fafbff] text-[#464646] hover:bg-[#fafbff]"
-                                    : "text-white hover:bg-white/10 hover:text-white",
-                            )}
-                        >
-                            <Search className="size-[22px]" />
-                            일반검색
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            aria-pressed={searchMode === "ai"}
-                            onClick={() => setSearchMode("ai")}
-                            className={cn(
-                                "h-full flex-1 gap-1 rounded-full px-3 text-[20px] font-medium",
-                                searchMode === "ai"
-                                    ? "border border-[#6653fb] bg-[#6653fb] text-white hover:bg-[#5745e7] hover:text-white"
-                                    : "text-white hover:bg-white/10 hover:text-white",
-                            )}
-                        >
-                            <Sparkles className="size-[22px]" />
-                            AI 검색
-                        </Button>
+                        {(
+                            [
+                                {
+                                    mode: "ai",
+                                    label: "AI 검색",
+                                    activeClass: "bg-[#6653fb] hover:bg-[#5745e7]",
+                                },
+                                {
+                                    mode: "general",
+                                    label: "일반 검색",
+                                    activeClass: "bg-[#272727] hover:bg-[#363636]",
+                                },
+                            ] as const
+                        ).map(({ mode, label, activeClass }) => (
+                            <Button
+                                key={mode}
+                                type="button"
+                                variant="ghost"
+                                aria-pressed={searchMode === mode}
+                                onClick={() => setSearchMode(mode)}
+                                className={cn(
+                                    "h-full w-[110px] rounded-full px-0 text-[16px] leading-[normal] font-semibold transition-colors duration-200 motion-reduce:transition-none",
+                                    searchMode === mode
+                                        ? cn(activeClass, "text-white hover:text-white")
+                                        : "text-[#d3d3d3] hover:bg-[#fafbff] hover:text-[#83889e]",
+                                )}
+                            >
+                                {label}
+                            </Button>
+                        ))}
                     </div>
                     <div className="w-full space-y-10">
                         <div className="space-y-2.5 text-center">

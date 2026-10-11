@@ -14,15 +14,25 @@ import { useAuthStore } from "@/features/auth/store/authStore";
 import { useSearchProductDetailQuery } from "@/features/search/hooks/queries/useSearchProductDetailQuery";
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { formatRelativeCreatedAt } from "@/features/search/utils/formatRelativeCreatedAt";
-import { formatConditionText, formatTradeInfoText } from "@/features/search/utils/productMetaText";
+import { formatConditionText } from "@/features/search/utils/productMetaText";
 import { SearchProductDetailSkeleton } from "@/features/search/components/detail/SearchProductDetailSkeleton";
+import { ExternalListingDialog } from "@/features/search/components/detail/ExternalListingDialog";
+import { InterestAddedDialog } from "@/features/search/components/detail/InterestAddedDialog";
+import { useCategoriesQuery } from "@/features/sell/hooks/queries/useCategoriesQuery";
+import { tradeMethodLabels } from "@/features/sell/components/manage/productReviewUtils";
 import { MarketAnalysisSection } from "@/features/product-management/components/analysis/market-analysis/MarketAnalysisSection";
 import { useProductManagementSectionsQuery } from "@/features/product-management/hooks/useProductManagementSectionsQuery";
 import { useProductAnalysisQuery } from "@/features/product-management/hooks/useProductAnalysisQuery";
 import { ProductCompetitionSection } from "@/features/product-management/components/competition/ProductCompetitionSection";
 
+// Figma LinkCard: 판매글 바로가기·관심상품 추가를 같은 너비로 나란히 둔다
+const detailActionClass =
+    "h-[45px] min-w-0 flex-1 gap-2 rounded-[5px] border border-[#d3d3d3] bg-[#fafbff] px-5 py-2.5 text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#83889e] hover:bg-[#f1f2f8] hover:text-[#83889e] disabled:opacity-100";
+
 export function SearchProductDetailPage({ targetId }: { targetId: number }) {
     const [selectedImage, setSelectedImage] = useState(0);
+    const [externalDialogOpen, setExternalDialogOpen] = useState(false);
+    const [interestDialogOpen, setInterestDialogOpen] = useState(false);
     const [analysisProductId, setAnalysisProductId] = useState<number | null>(null);
     const interests = useInterestToggle();
     const {
@@ -75,9 +85,34 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
             : product?.tradeMethod
               ? product.tradeMethod === "DELIVERY"
               : null;
-    const tradeInfo = product
-        ? formatTradeInfoText(product.preferredTradeRegion, deliveryAvailable)
-        : "";
+    // 상세 응답의 카테고리에는 상위 이름이 없어 공개 카테고리 목록(10분 캐시)에서 찾는다
+    const categories = useCategoriesQuery();
+    const parentCategoryName = categories.data?.find(
+        (category) => category.id === product?.category.parentId,
+    )?.name;
+    const tradeMethodLabel = product?.tradeMethod
+        ? tradeMethodLabels[product.tradeMethod]
+        : deliveryAvailable
+          ? tradeMethodLabels.DELIVERY
+          : null;
+    // Figma 정보 표: 2열 그리드가 행 순서로 채워지므로 [상품상태, 카테고리], [구성품, 거래방식], [등록일] 순서로 둔다.
+    // 가격 아래 요약 줄은 두지 않고 하자 상태·거래 지역·등록 시간도 이 표에 합친다.
+    const productInfoRows: [string, string][] = product
+        ? [
+              [
+                  "상품상태",
+                  formatConditionText(product.condition, product.defectStatus).join(" · ") || "-",
+              ],
+              ["카테고리", [parentCategoryName, product.category.name].filter(Boolean).join(" · ")],
+              ["구성품", product.includedItems.join(" · ") || "-"],
+              [
+                  "거래방식",
+                  [tradeMethodLabel, product.preferredTradeRegion].filter(Boolean).join(" · ") ||
+                      "-",
+              ],
+              ["등록일", formatRelativeCreatedAt(product.createdAt)],
+          ]
+        : [];
     const platform =
         product?.source === "OUR" ? "지금이니?!" : (product?.platformName ?? "외부 매물");
     const status =
@@ -118,6 +153,21 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                 )}
                 {product && (
                     <>
+                        {product.externalUrl && (
+                            <ExternalListingDialog
+                                open={externalDialogOpen}
+                                onOpenChange={setExternalDialogOpen}
+                                platformName={platform}
+                                url={product.externalUrl}
+                                checkedAt={formatRelativeCreatedAt(product.updatedAt)}
+                                statusLabel={status}
+                            />
+                        )}
+                        <InterestAddedDialog
+                            open={interestDialogOpen}
+                            onOpenChange={setInterestDialogOpen}
+                            price={product.price}
+                        />
                         <div>
                             {product.source === "EXTERNAL" && (
                                 <p className="mb-6 flex items-start gap-[5px] text-[12px] leading-5 tracking-[-0.5px] text-[#272727]">
@@ -193,7 +243,7 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
 
                                 <section
                                     aria-label="상품 정보"
-                                    className="flex min-w-0 flex-col gap-[50px] lg:min-h-[523px]"
+                                    className="flex min-w-0 flex-col gap-10 lg:min-h-[523px]"
                                 >
                                     <div className="flex flex-col gap-[30px]">
                                         <div className="flex gap-2">
@@ -225,41 +275,99 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                                                     {comparison}
                                                 </Badge>
                                             </div>
-                                            <p className="text-[14px] leading-[22px] text-[#464646]">
-                                                {formatConditionText(
-                                                    product.condition,
-                                                    product.defectStatus,
-                                                ).map((text) => `${text} · `)}
-                                                <time dateTime={product.createdAt}>
-                                                    {formatRelativeCreatedAt(product.createdAt)}
-                                                </time>
-                                            </p>
-                                            {tradeInfo && (
-                                                <p className="text-[14px] leading-[22px] break-words text-[#464646]">
-                                                    {tradeInfo}
-                                                </p>
-                                            )}
                                         </div>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            aria-pressed={liked}
-                                            onClick={() =>
-                                                interests.toggle({
-                                                    source: product.source,
-                                                    targetId: product.id,
-                                                })
-                                            }
-                                            disabled={interests.disabled}
-                                            className="font-brand h-12 w-full max-w-[295px] rounded-[50px] border-[1.5px] border-[#d3d3d3] bg-white text-[16px] leading-6 font-semibold text-[#363636] hover:bg-[#fafbff]"
-                                        >
-                                            <Heart
-                                                aria-hidden="true"
-                                                className={cn("size-4", liked && "text-[#fa503d]")}
-                                                fill={liked ? "currentColor" : "none"}
-                                            />
-                                            {liked ? "관심상품에 추가됨" : "관심상품에 추가"}
-                                        </Button>
+                                    </div>
+
+                                    <div className="flex flex-col gap-[15px]">
+                                        <dl className="grid grid-cols-1 gap-x-[30px] gap-y-2.5 text-[14px] leading-[22px] sm:grid-cols-[max-content_max-content]">
+                                            {productInfoRows.map(([label, value]) => (
+                                                <div key={label} className="flex min-w-0 gap-2.5">
+                                                    <dt className="shrink-0 text-[#83889e]">
+                                                        {label}
+                                                    </dt>
+                                                    <dd className="min-w-0 break-words text-[#464646]">
+                                                        {value}
+                                                    </dd>
+                                                </div>
+                                            ))}
+                                        </dl>
+                                        <div className="flex flex-col gap-[5px] border-t border-[#d3d3d3] py-2.5 text-[14px] leading-[22px]">
+                                            <h2 className="text-[#6b6c7b]">상품 설명</h2>
+                                            <p className="break-words whitespace-pre-wrap text-[#464646]">
+                                                {product.description?.trim() ||
+                                                    "판매자의 상세 설명과 구매 조건은 판매글에서 확인할 수 있습니다."}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-col gap-3">
+                                        <div className="flex gap-2.5">
+                                            {product.source === "EXTERNAL" &&
+                                                (product.externalUrl ? (
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        aria-haspopup="dialog"
+                                                        onClick={() => setExternalDialogOpen(true)}
+                                                        className={detailActionClass}
+                                                    >
+                                                        <ExternalLink
+                                                            aria-hidden="true"
+                                                            strokeWidth={1.5}
+                                                            className="size-6 shrink-0"
+                                                        />
+                                                        판매글 바로가기
+                                                    </Button>
+                                                ) : (
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        disabled
+                                                        title="판매글 링크가 없습니다."
+                                                        className={detailActionClass}
+                                                    >
+                                                        <ExternalLink
+                                                            aria-hidden="true"
+                                                            strokeWidth={1.5}
+                                                            className="size-6 shrink-0"
+                                                        />
+                                                        판매글 바로가기
+                                                    </Button>
+                                                ))}
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                aria-pressed={liked}
+                                                onClick={() =>
+                                                    interests.toggle(
+                                                        {
+                                                            source: product.source,
+                                                            targetId: product.id,
+                                                        },
+                                                        {
+                                                            // 하트와 함께 바로 띄우고, 등록이 실패하면 닫는다(오류는 아래 alert로 표시)
+                                                            onAdd: () =>
+                                                                setInterestDialogOpen(true),
+                                                            onAddFailed: () =>
+                                                                setInterestDialogOpen(false),
+                                                        },
+                                                    )
+                                                }
+                                                disabled={interests.disabled}
+                                                className={detailActionClass}
+                                            >
+                                                <Heart
+                                                    aria-hidden="true"
+                                                    strokeWidth={1.5}
+                                                    className={cn(
+                                                        "size-5 shrink-0",
+                                                        liked && "text-[#fa503d]",
+                                                    )}
+                                                    fill={liked ? "currentColor" : "none"}
+                                                />
+                                                {liked ? "관심상품 추가됨" : "관심상품 추가"}
+                                            </Button>
+                                        </div>
                                         {interests.errorMessage && (
                                             <div
                                                 role="alert"
@@ -272,59 +380,6 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                                                         onClick={interests.retry}
                                                     >
                                                         관심상품 다시 조회
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="flex flex-col gap-2">
-                                        <p className="text-sm text-[#83889e]">
-                                            {product.category.name}
-                                        </p>
-                                        {product.description && (
-                                            <p className="text-sm leading-6 break-words whitespace-pre-wrap">
-                                                {product.description}
-                                            </p>
-                                        )}
-                                        {product.source === "EXTERNAL" && (
-                                            <div className="mt-2 flex flex-col gap-5 rounded-xl border border-[#fafbff] bg-[#fafbff] px-[30px] py-4 text-[#83889e]">
-                                                <div className="flex flex-col gap-2.5">
-                                                    <h2 className="flex items-center gap-2 text-[16px] leading-[25px] font-semibold tracking-[0.5px]">
-                                                        <ExternalLink
-                                                            aria-hidden="true"
-                                                            strokeWidth={1.5}
-                                                            className="size-6 shrink-0"
-                                                        />
-                                                        {platform} 판매글 이동
-                                                    </h2>
-                                                    <p className="text-[16px] leading-[25px] tracking-normal">
-                                                        외부 사이트에서 판매자의 상세 설명과
-                                                        <br className="hidden sm:block" /> 구매
-                                                        조건을 확인할 수 있습니다.
-                                                    </p>
-                                                </div>
-                                                {product.externalUrl ? (
-                                                    <Button
-                                                        asChild
-                                                        className="h-[52px] w-full rounded-md bg-[#83889e] text-[16px] leading-6 font-semibold text-white"
-                                                    >
-                                                        <a
-                                                            href={product.externalUrl}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                        >
-                                                            판매글 바로가기
-                                                        </a>
-                                                    </Button>
-                                                ) : (
-                                                    <Button
-                                                        type="button"
-                                                        disabled
-                                                        title="판매글 링크가 없습니다."
-                                                        className="h-[52px] w-full rounded-md bg-[#83889e] text-[16px] leading-6 font-semibold text-white disabled:opacity-100"
-                                                    >
-                                                        판매글 바로가기
                                                     </Button>
                                                 )}
                                             </div>
