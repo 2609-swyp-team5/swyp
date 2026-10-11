@@ -53,6 +53,7 @@ it("처음 확인한 뒤 새로 도착한 안 읽은 알림만 토스트로 띄�
         );
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     client.setQueryData(["notification-unread-count"], { count: 1 });
+    client.setQueryData(["notifications", "ALL"], { pages: [], pageParams: [] });
     render(
         <QueryClientProvider client={client}>
             <NotificationToaster />
@@ -70,6 +71,7 @@ it("처음 확인한 뒤 새로 도착한 안 읽은 알림만 토스트로 띄�
         "/buy/wishlist?selected=77",
     );
     expect(client.getQueryData(["notification-unread-count"])).toEqual({ count: 2 });
+    expect(client.getQueryState(["notifications", "ALL"])?.isInvalidated).toBe(true);
 });
 
 it("푸시 알림을 끄면 알림을 확인하지 않는다", async () => {
@@ -146,4 +148,29 @@ it("푸시 알림을 끈 상태에서는 빠른 조회가 시작돼도 확인하
 
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(getNotifications).not.toHaveBeenCalled();
+});
+
+it("푸시 알림을 끄면 이미 표시 중인 토스트를 초기화한다", async () => {
+    getNotifications
+        .mockResolvedValueOnce(page([]))
+        .mockResolvedValueOnce(page([notification(4, "새 알림")]));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { rerender } = render(
+        <QueryClientProvider client={client}>
+            <NotificationToaster />
+        </QueryClientProvider>,
+    );
+
+    await vi.waitFor(() => expect(client.getQueryData(["notification-toaster"])).toBe(0));
+    await act(() => client.refetchQueries({ queryKey: ["notification-toaster"] }));
+    expect(await screen.findByText("새 알림")).toBeInTheDocument();
+
+    act(() => setPushEnabled(false));
+    rerender(
+        <QueryClientProvider client={client}>
+            <NotificationToaster />
+        </QueryClientProvider>,
+    );
+
+    expect(screen.queryByText("새 알림")).not.toBeInTheDocument();
 });

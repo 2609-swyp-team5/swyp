@@ -10,6 +10,7 @@ import { useAuthStore } from "@/features/auth/store/authStore";
 
 import { notificationApi } from "../api/notificationApi";
 import { useReadNotificationMutation } from "../hooks/mutations/useReadNotificationMutation";
+import { notificationsQueryKey } from "../hooks/queries/useNotificationsQuery";
 import { notificationUnreadCountQueryKey } from "../hooks/queries/useUnreadNotificationCountQuery";
 import { isFastNotificationPolling, onFastNotificationPollingStart } from "../lib/fastPolling";
 import { usePushEnabled } from "../lib/pushPreference";
@@ -28,13 +29,19 @@ export function NotificationToaster() {
     const isInitialized = useAuthStore((state) => state.isInitialized);
     const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
     const pushEnabled = usePushEnabled();
+
+    if (!isInitialized || !isLoggedIn || !pushEnabled) return null;
+
+    return <NotificationToasterContent />;
+}
+
+function NotificationToasterContent() {
     const readMutation = useReadNotificationMutation();
     const queryClient = useQueryClient();
     const [toasts, setToasts] = useState<NotificationItem[]>([]);
     // 처음 확인한 시점의 최신 알림 ID — 그 이후에 도착한 알림만 띄운다
     const lastSeenIdRef = useRef<number | null>(null);
 
-    const enabled = isInitialized && isLoggedIn && pushEnabled;
     const { refetch } = useQuery({
         queryKey: ["notification-toaster"],
         queryFn: async ({ signal }) => {
@@ -57,11 +64,11 @@ export function NotificationToaster() {
                     void queryClient.invalidateQueries({
                         queryKey: notificationUnreadCountQueryKey,
                     });
+                    void queryClient.invalidateQueries({ queryKey: notificationsQueryKey });
                 }
             }
             return latestId;
         },
-        enabled,
         refetchInterval: () => (isFastNotificationPolling() ? fastPollIntervalMs : pollIntervalMs),
         refetchIntervalInBackground: false,
         retry: false,
@@ -69,9 +76,8 @@ export function NotificationToaster() {
 
     // 빠른 조회가 시작되면 30초를 기다리지 않고 바로 확인한 뒤, 그 뒤로는 짧은 간격으로 확인한다
     useEffect(() => {
-        if (!enabled) return;
         return onFastNotificationPollingStart(() => void refetch());
-    }, [enabled, refetch]);
+    }, [refetch]);
 
     const dismiss = useCallback(
         (notificationId: number) =>
@@ -80,8 +86,6 @@ export function NotificationToaster() {
             ),
         [],
     );
-
-    if (!isLoggedIn || !pushEnabled) return null;
 
     return (
         <div
