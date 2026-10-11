@@ -25,6 +25,6 @@ public interface PlatformListingRepository
      * 재확인(reconciliation) 대상 조회 — 여전히 지정 상태(판매중·예약중)로 기록돼 있지만 한동안 재관측되지 않은(=
      * page-limit 캡에 밀려났거나 예약중이라 수집에서 빠진) 매물을 오래된 순으로 최대 {@code pageable} 크기만큼 반환한다.
      */
-    List<PlatformListing> findByStatusInAndLastSeenAtBeforeOrderByLastSeenAtAsc(
-            Collection<String> statuses, LocalDateTime lastSeenAtBefore, Pageable pageable);
+    List<PlatformListing> findByPlatform_NameAndStatusInAndLastSeenAtBeforeOrderByLastSeenAtAsc(
+            String platformName, Collection<String> statuses, LocalDateTime lastSeenAtBefore, Pageable pageable);
 }
