@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -48,6 +47,7 @@ import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.product.service.ProductTargetPriceService;
 import com.swyp.team5.productanalysis.config.ProductAnalysisProperties;
 import com.swyp.team5.productanalysis.dto.AnalysisPerspective;
+import com.swyp.team5.productanalysis.dto.AnalysisStatus;
 import com.swyp.team5.productanalysis.dto.CompetitionLevel;
 import com.swyp.team5.productanalysis.dto.MarketAnalysisResult;
 import com.swyp.team5.productanalysis.dto.PriceForecastResponse;
@@ -416,7 +416,7 @@ class ProductAnalysisServiceTest {
                 listing(11L, 99L, "아이패드 프로 검색1", 2000L),
                 listing(12L, 99L, "아이패드 프로 검색2", 3000L),
                 listing(13L, 99L, "아이패드 프로 검색3", 4000L));
-        when(listingSearchService.searchAndSave("아이패드 프로", null, 100)).thenReturn(searched);
+        when(listingSearchService.searchAndSave("아이패드 프로", null, 10L)).thenReturn(searched);
         when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.empty());
         givenAiResult(new MarketAnalysisResult(List.of(1, 2, 3, 4), AnalysisRecommendation.HOLD, 2500L, "설명"));
@@ -431,7 +431,7 @@ class ProductAnalysisServiceTest {
         assertThat(captor.getValue().getListingCount()).isEqualTo(4);
         // 가격 분포용으로 통계에 쓴 가격을 함께 저장
         assertThat(captor.getValue().getListingPrices()).containsExactlyInAnyOrder(1000L, 2000L, 3000L, 4000L);
-        verify(listingSearchService, times(1)).searchAndSave(anyString(), any(), anyInt());
+        verify(listingSearchService, times(1)).searchAndSave(anyString(), any(), anyLong());
     }
 
     // 검색 보탬 - AI가 고른 같은 물건이 3건 미만이면 검색 결과에서만 새 후보를 골라 확인된 매물과 함께 AI에 한 번 더 묻고(최대
@@ -448,7 +448,7 @@ class ProductAnalysisServiceTest {
                         listing("아이패드 프로 매물4", 9000L)));
         List<PlatformListing> searched =
                 List.of(listing(11L, 99L, "아이패드 프로 검색1", 1100L), listing(12L, 99L, "아이패드 프로 검색2", 1200L));
-        when(listingSearchService.searchAndSave("아이패드 프로", null, 100)).thenReturn(searched);
+        when(listingSearchService.searchAndSave("아이패드 프로", null, 10L)).thenReturn(searched);
         when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.empty());
         // 1차: 매물1만 같은 물건 → 2차 후보 = [매물1(확인됨), 검색1, 검색2] 중 전부 같은 물건
@@ -481,16 +481,7 @@ class ProductAnalysisServiceTest {
         givenListings(10L, List.of(listing("아이패드 프로 매물1", 1000L)));
 
         service(new ProductAnalysisProperties(
-                        3,
-                        24,
-                        30,
-                        0L,
-                        null,
-                        null,
-                        null,
-                        new ProductAnalysisProperties.SearchFallback(false, 100),
-                        3,
-                        null))
+                        3, 24, 30, 0L, null, null, null, new ProductAnalysisProperties.SearchFallback(false), 3, null))
                 .analyzeProduct(product);
 
         verifyNoInteractions(listingSearchService);
@@ -507,7 +498,7 @@ class ProductAnalysisServiceTest {
                 .thenReturn(List.of(target, existing));
         List<PlatformListing> searched = List.of(
                 target, existing, listing(11L, 99L, "아이패드 프로 검색1", 2000L), listing(12L, 99L, "아이패드 프로 검색2", 3000L));
-        when(listingSearchService.searchAndSave("아이패드 프로", null, 100)).thenReturn(searched);
+        when(listingSearchService.searchAndSave("아이패드 프로", null, 10L)).thenReturn(searched);
         when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(100L))
                 .thenReturn(Optional.empty());
         // 후보 = [매물1, 검색1, 검색2] — 자신(900원)과 중복(매물1 두 번째)이 들어가면 4번이 생겨 결과가 달라짐
@@ -1114,6 +1105,7 @@ class ProductAnalysisServiceTest {
     @Test
     void getLatestAnalysisReturnsEmptyResponseWhenNoSnapshotExists() {
         Product product = product(1L, 10L, 800_000L);
+        when(product.getStatus()).thenReturn(ProductStatus.ON_SALE);
         when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
         when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.empty());
@@ -1130,6 +1122,7 @@ class ProductAnalysisServiceTest {
         assertThat(response.marketExpectedPrice()).isNull();
         assertThat(response.priceDistribution()).isEmpty();
         assertThat(response.summary()).isNull();
+        assertThat(response.analysisStatus()).isEqualTo(AnalysisStatus.NOT_ANALYZED);
     }
 
     // 조회 성공 - 가장 최근 스냅샷 반환
@@ -1711,5 +1704,33 @@ class ProductAnalysisServiceTest {
         ProductAnalysis analysis = snapshot(product, minPrice, averagePrice, maxPrice, analyzedAt);
         analysis.assignConfidence(listingCount, AnalysisConfidence.LOW);
         return analysis;
+    }
+
+    // 분석 상태 - 분석 중이면 결과가 있어도 ANALYZING, 그다음 결과 유무·분석 대상 상태·건너뛴 기록 순
+    @Test
+    void analysisStatusFollowsProgressResultTargetAndSkipOrder() {
+        Product product = product(1L, 10L, 800_000L);
+        when(product.getStatus()).thenReturn(ProductStatus.ON_SALE);
+        ProductAnalysisService service = service();
+
+        assertThat(service.analysisStatus(product, false)).isEqualTo(AnalysisStatus.NOT_ANALYZED);
+        assertThat(service.analysisStatus(product, true)).isEqualTo(AnalysisStatus.ANALYZED);
+
+        when(product.getAnalysisSkipReason()).thenReturn(AnalysisSkipReason.NOT_ENOUGH_SIMILAR);
+        assertThat(service.analysisStatus(product, false)).isEqualTo(AnalysisStatus.SKIPPED);
+
+        progressTracker.start(1L);
+        assertThat(service.analysisStatus(product, true)).isEqualTo(AnalysisStatus.ANALYZING);
+        progressTracker.finish(1L);
+
+        when(product.getStatus()).thenReturn(ProductStatus.SOLD_OUT);
+        assertThat(service.analysisStatus(product, false)).isEqualTo(AnalysisStatus.UNAVAILABLE);
+
+        PlatformListing selling = listing("아이패드 프로", 1000L);
+        when(selling.getStatus()).thenReturn("SELLING");
+        PlatformListing sold = listing("아이패드 프로", 1000L);
+        when(sold.getStatus()).thenReturn("SOLD_OUT");
+        assertThat(service.analysisStatus(selling, false)).isEqualTo(AnalysisStatus.NOT_ANALYZED);
+        assertThat(service.analysisStatus(sold, false)).isEqualTo(AnalysisStatus.UNAVAILABLE);
     }
 }

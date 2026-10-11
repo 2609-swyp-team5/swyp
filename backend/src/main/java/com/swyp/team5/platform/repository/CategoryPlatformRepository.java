@@ -28,18 +28,17 @@ public interface CategoryPlatformRepository extends JpaRepository<CategoryPlatfo
             @Param("platformName") String platformName,
             @Param("productStatuses") Collection<ProductStatus> productStatuses);
 
-    /** 플랫폼 자체 카테고리 ID 목록에 해당하는 매핑(키워드 검색 결과 매물을 우리 카테고리로 저장할 때 사용). */
+    /** 우리 카테고리의 플랫폼 매핑(키워드 검색을 그 플랫폼 카테고리로 좁히고 결과 매물을 우리 카테고리로 저장할 때 사용). */
     @Query(
             """
             select cp from CategoryPlatform cp
-            join fetch cp.category
+            join fetch cp.category c
             join fetch cp.platform p
             where p.name = :platformName
-              and cp.externalCategoryId in :externalCategoryIds
+              and c.id = :categoryId
             """)
-    List<CategoryPlatform> findByPlatformNameAndExternalCategoryIds(
-            @Param("platformName") String platformName,
-            @Param("externalCategoryIds") Collection<String> externalCategoryIds);
+    Optional<CategoryPlatform> findByPlatformNameAndCategoryId(
+            @Param("platformName") String platformName, @Param("categoryId") Long categoryId);
 
     Optional<CategoryPlatform> findByCategory_IdAndPlatform_Name(Long categoryId, String platformName);
 }

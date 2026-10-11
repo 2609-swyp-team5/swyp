@@ -1,13 +1,13 @@
 package com.swyp.team5.crawl.dto;
 
+import java.util.ArrayList;
 import java.util.List;
 
-import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * 번개장터 카테고리 목록 API 응답페이지.
+ * 번개장터 카테고리 목록·키워드 검색 API 응답페이지(두 API의 응답 형식이 같음).
  */
 public record BunjangCategoryPage(List<BunjangProductItem> items, String nextCursor, boolean hasNext) {
 
@@ -21,10 +21,19 @@ public record BunjangCategoryPage(List<BunjangProductItem> items, String nextCur
         }
 
         JsonNode searchResponse = mainGrid.path("searchResponse");
-        List<BunjangProductItem> items =
-                objectMapper.convertValue(searchResponse.path("data"), new TypeReference<>() {});
+        // 상품이 아닌 항목(키워드 검색의 외부 광고 EXT_AD 등)은 pid·가격이 null이라 변환하면 실패하므로 뺀다
+        List<BunjangProductItem> items = new ArrayList<>();
+        for (JsonNode node : searchResponse.path("data")) {
+            if (isProduct(node)) {
+                items.add(objectMapper.convertValue(node, BunjangProductItem.class));
+            }
+        }
         String nextCursor = textOrNull(searchResponse.path("nextCursor"));
         return new BunjangCategoryPage(items, nextCursor, nextCursor != null);
+    }
+
+    private static boolean isProduct(JsonNode node) {
+        return node.hasNonNull("pid") && node.hasNonNull("price");
     }
 
     private static JsonNode findBlock(JsonNode root, String blockId) {

@@ -196,6 +196,7 @@ analysis:
   analyze-on-interest: ${PRICE_ANALYSIS_ON_INTEREST:true} # 관심 등록 직후 대상 시세 분석 1회 실행(최근 interest-skip-hours 안에 분석했으면 건너뜀)
   interest-concurrency: ${PRICE_ANALYSIS_INTEREST_CONCURRENCY:3} # 관심 등록 직후 분석을 동시에 처리할 수(AI 호출 제한에 걸리면 줄임)
   interest-skip-hours: ${PRICE_ANALYSIS_INTEREST_SKIP_HOURS:6} # 관심 등록 직후 분석을 건너뛸 최근 분석 기준 시간(0이면 항상 분석 — 개발용)
+  request-retry-hours: ${PRICE_ANALYSIS_REQUEST_RETRY_HOURS:6} # 화면에서 분석 요청 시, 비교 매물 부족으로 건너뛴 지 이 시간 안이면 다시 분석하지 않음(0이면 항상 다시 시도)
   interest-min-listings: ${PRICE_ANALYSIS_INTEREST_MIN_LISTINGS:1} # 관심 등록 대상(관심 등록 직후 분석·외부 매물 분석)의 최소 유사 매물 수 — 적으면 신뢰도 LOW
   recovery: # 등록·관심 등록 직후 분석이 재시작·오류로 사라진 대상을 다시 대기열에 넣음(분석 결과·건너뛴 기록 둘 다 없는 대상)
     enabled: ${PRICE_ANALYSIS_RECOVERY_ENABLED:true}
@@ -215,7 +216,6 @@ analysis:
     item-limit: 3 # 목록 최대 건수
   search-fallback: # 같은 물건 비교 매물이 min-listings보다 적으면 상품명으로 번개장터를 검색해 판매중 매물을 저장하고 비교 매물에 보탬
     enabled: ${PRICE_ANALYSIS_SEARCH_FALLBACK_ENABLED:true}
-    size: ${PRICE_ANALYSIS_SEARCH_FALLBACK_SIZE:100} # 한 번에 검색해 올 건수
 
 # 스웨거 설정
 springdoc:

@@ -30,6 +30,11 @@ public class AnalysisProgressTracker {
         inProgress.computeIfPresent(itemId, (id, count) -> count > 1 ? count - 1 : null);
     }
 
+    /** 대상의 분석이 대기 중이거나 진행 중인지. */
+    public boolean isInProgress(Long itemId) {
+        return inProgress.containsKey(itemId);
+    }
+
     /** 주어진 대상 중 분석이 대기 중이거나 진행 중인 것의 ID. */
     public Set<Long> inProgressAmong(Collection<Long> itemIds) {
         return itemIds.stream().filter(inProgress::containsKey).collect(Collectors.toSet());
