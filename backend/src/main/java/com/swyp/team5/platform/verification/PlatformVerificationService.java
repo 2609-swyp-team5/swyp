@@ -1,6 +1,8 @@
-package com.swyp.team5.platform.bunjang.service;
+package com.swyp.team5.platform.verification;
 
 import java.time.Duration;
+import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -24,31 +26,28 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import com.swyp.team5.platform.bunjang.client.BunjangBrowserLauncher;
-import com.swyp.team5.platform.bunjang.client.BunjangIdentityLoginSession;
-import com.swyp.team5.platform.bunjang.dto.BunjangConnectionResponse;
-import com.swyp.team5.platform.bunjang.dto.BunjangIdentityLoginResult;
-import com.swyp.team5.platform.bunjang.dto.BunjangVerificationConfirmResponse;
-import com.swyp.team5.platform.bunjang.dto.BunjangVerificationRequest;
-import com.swyp.team5.platform.bunjang.dto.BunjangVerificationResponse;
-import com.swyp.team5.platform.error.BunjangVerificationException;
-import com.swyp.team5.platform.error.BunjangVerificationException.Reason;
-import com.swyp.team5.platform.error.InvalidPlatformSessionException;
+import com.swyp.team5.platform.entity.PlatformType;
+import com.swyp.team5.platform.error.PlatformVerificationException;
+import com.swyp.team5.platform.error.PlatformVerificationException.Reason;
+import com.swyp.team5.platform.error.UnsupportedPlatformException;
+import com.swyp.team5.platform.verification.dto.IdentityLoginResult;
+import com.swyp.team5.platform.verification.dto.PlatformVerificationConfirmResponse;
+import com.swyp.team5.platform.verification.dto.PlatformVerificationRequest;
+import com.swyp.team5.platform.verification.dto.PlatformVerificationResponse;
 
 @Slf4j
 @Service
-public class BunjangVerificationService {
+public class PlatformVerificationService {
 
     private static final int OTP_VALID_SECONDS = 180;
     private static final int MAX_OTP_ATTEMPTS = 5;
     private static final long STEP_TIMEOUT_SECONDS = 90;
     private static final Duration REQUEST_WINDOW = Duration.ofHours(1);
-    private static final String REQUEST_COUNT_KEY_PREFIX = "bunjangVerification:requests:";
+    private static final String REQUEST_COUNT_KEY_PREFIX = "platformVerification:requests:";
     private static final ThreadFactory WORKER_THREADS =
-            Thread.ofPlatform().name("bunjang-verification-", 1).daemon().factory();
+            Thread.ofPlatform().name("platform-verification-", 1).daemon().factory();
 
-    private final BunjangBrowserLauncher browserLauncher;
-    private final BunjangConnectionService connectionService;
+    private final Map<PlatformType, PlatformIdentityConnector> connectors = new EnumMap<>(PlatformType.class);
     private final StringRedisTemplate redisTemplate;
     private final long verificationTimeoutSeconds;
     private final int maxRequestsPerHour;
@@ -56,24 +55,24 @@ public class BunjangVerificationService {
     private final Map<Long, PendingVerification> pendings = new ConcurrentHashMap<>();
     private final Set<Long> requestingMembers = ConcurrentHashMap.newKeySet();
 
-    public BunjangVerificationService(
-            BunjangBrowserLauncher browserLauncher,
-            BunjangConnectionService connectionService,
+    public PlatformVerificationService(
+            List<PlatformIdentityConnector> connectors,
             StringRedisTemplate redisTemplate,
             @Value("${platform.bunjang.verification.max-concurrency:2}") int maxConcurrency,
             @Value("${platform.bunjang.verification.timeout-seconds:200}") long verificationTimeoutSeconds,
             @Value("${platform.bunjang.verification.max-requests-per-hour:10}") int maxRequestsPerHour) {
-        this.browserLauncher = browserLauncher;
-        this.connectionService = connectionService;
+        connectors.forEach(connector -> this.connectors.put(connector.platform(), connector));
         this.redisTemplate = redisTemplate;
         this.verificationTimeoutSeconds = verificationTimeoutSeconds;
         this.maxRequestsPerHour = maxRequestsPerHour;
         this.browserSlots = new Semaphore(maxConcurrency);
     }
 
-    public BunjangVerificationResponse request(Long memberId, BunjangVerificationRequest request) {
+    public PlatformVerificationResponse request(
+            Long memberId, PlatformType platform, PlatformVerificationRequest request) {
+        PlatformIdentityConnector connector = connector(platform);
         if (!requestingMembers.add(memberId)) {
-            throw BunjangVerificationException.inProgress(memberId);
+            throw PlatformVerificationException.inProgress(memberId);
         }
         try {
             checkRequestLimit(memberId);
@@ -82,14 +81,14 @@ public class BunjangVerificationService {
                 close(previous);
             }
             if (!browserSlots.tryAcquire()) {
-                throw BunjangVerificationException.busy();
+                throw PlatformVerificationException.busy();
             }
 
             PendingVerification pending =
-                    new PendingVerification(UUID.randomUUID().toString(), memberId, newWorker());
+                    new PendingVerification(UUID.randomUUID().toString(), memberId, connector, newWorker());
             try {
                 run(pending, () -> {
-                    pending.session = BunjangIdentityLoginSession.open(browserLauncher);
+                    pending.session = connector.open();
                     pending.session.requestOtp(request);
                     return null;
                 });
@@ -99,30 +98,35 @@ public class BunjangVerificationService {
             }
             pendings.put(memberId, pending);
             pending.worker.schedule(() -> expire(pending), verificationTimeoutSeconds, TimeUnit.SECONDS);
-            log.info("번개장터 본인인증 문자 요청 완료. memberId={}, verificationId={}", memberId, pending.id);
-            return new BunjangVerificationResponse(pending.id, OTP_VALID_SECONDS);
+            log.info(
+                    "{} 본인인증 문자 요청 완료. memberId={}, verificationId={}",
+                    platform.getPlatformName(),
+                    memberId,
+                    pending.id);
+            return new PlatformVerificationResponse(pending.id, OTP_VALID_SECONDS);
         } finally {
             requestingMembers.remove(memberId);
         }
     }
 
-    public BunjangVerificationConfirmResponse confirm(Long memberId, String verificationId, String otp) {
+    public PlatformVerificationConfirmResponse confirm(
+            Long memberId, PlatformType platform, String verificationId, String otp) {
         PendingVerification pending = pendings.get(memberId);
-        if (pending == null || !pending.id.equals(verificationId)) {
-            throw BunjangVerificationException.notFound(memberId, verificationId);
+        if (pending == null || !pending.id.equals(verificationId) || pending.connector.platform() != platform) {
+            throw PlatformVerificationException.notFound(memberId, verificationId);
         }
 
-        BunjangIdentityLoginResult result;
+        IdentityLoginResult result;
         synchronized (pending) {
             boolean retryable = false;
             try {
                 result = run(pending, () -> {
                     if (pending.closed.get()) {
-                        throw BunjangVerificationException.notFound(memberId, verificationId);
+                        throw PlatformVerificationException.notFound(memberId, verificationId);
                     }
                     return pending.session.confirm(otp);
                 });
-            } catch (BunjangVerificationException e) {
+            } catch (PlatformVerificationException e) {
                 retryable = e.getReason() == Reason.REJECTED && ++pending.attempts < MAX_OTP_ATTEMPTS;
                 throw e;
             } finally {
@@ -131,12 +135,24 @@ public class BunjangVerificationService {
                 }
             }
         }
-        return BunjangVerificationConfirmResponse.of(saveConnection(memberId, result), result.newAccount());
+        PlatformVerificationConfirmResponse response = PlatformVerificationConfirmResponse.of(
+                pending.connector.connect(memberId, result.sessionToken()), result.newAccount());
+        log.info(
+                "{} 본인인증 연결 완료. memberId={}, newAccount={}", platform.getPlatformName(), memberId, result.newAccount());
+        return response;
     }
 
     @PreDestroy
     void shutdown() {
         pendings.values().forEach(this::close);
+    }
+
+    private PlatformIdentityConnector connector(PlatformType platform) {
+        PlatformIdentityConnector connector = connectors.get(platform);
+        if (connector == null) {
+            throw new UnsupportedPlatformException(platform.name());
+        }
+        return connector;
     }
 
     private void checkRequestLimit(Long memberId) {
@@ -152,21 +168,11 @@ public class BunjangVerificationService {
                 ttlSeconds = REQUEST_WINDOW.toSeconds();
             }
         } catch (RuntimeException e) {
-            log.warn("번개장터 본인인증 요청 횟수 확인 실패 — 제한 없이 진행합니다. memberId={}", memberId, e);
+            log.warn("본인인증 요청 횟수 확인 실패 — 제한 없이 진행합니다. memberId={}", memberId, e);
             return;
         }
         if (count > maxRequestsPerHour) {
-            throw BunjangVerificationException.limitExceeded(memberId, Math.max(1, Math.ceilDiv(ttlSeconds, 60)));
-        }
-    }
-
-    private BunjangConnectionResponse saveConnection(Long memberId, BunjangIdentityLoginResult result) {
-        try {
-            BunjangConnectionResponse connection = connectionService.connect(memberId, result.sessionToken());
-            log.info("번개장터 본인인증 연결 완료. memberId={}, newBunjangAccount={}", memberId, result.newAccount());
-            return connection;
-        } catch (InvalidPlatformSessionException e) {
-            throw BunjangVerificationException.failed("로그인 직후 세션 확인 실패. memberId=" + memberId);
+            throw PlatformVerificationException.limitExceeded(memberId, Math.max(1, Math.ceilDiv(ttlSeconds, 60)));
         }
     }
 
@@ -174,24 +180,24 @@ public class BunjangVerificationService {
         try {
             return pending.worker.submit(task).get(STEP_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (RejectedExecutionException e) {
-            throw BunjangVerificationException.notFound(pending.memberId, pending.id);
+            throw PlatformVerificationException.notFound(pending.memberId, pending.id);
         } catch (ExecutionException e) {
             if (e.getCause() instanceof RuntimeException cause) {
                 throw cause;
             }
-            throw BunjangVerificationException.failed("verificationId=" + pending.id + ", "
+            throw PlatformVerificationException.failed("verificationId=" + pending.id + ", "
                     + e.getCause().getClass().getSimpleName());
         } catch (TimeoutException e) {
-            throw BunjangVerificationException.failed("번개장터 응답 대기 시간 초과. verificationId=" + pending.id);
+            throw PlatformVerificationException.failed("응답 대기 시간 초과. verificationId=" + pending.id);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw BunjangVerificationException.failed("본인인증 처리 중단. verificationId=" + pending.id);
+            throw PlatformVerificationException.failed("본인인증 처리 중단. verificationId=" + pending.id);
         }
     }
 
     private void expire(PendingVerification pending) {
         if (close(pending)) {
-            log.info("번개장터 본인인증 대기 시간 만료. memberId={}, verificationId={}", pending.memberId, pending.id);
+            log.info("본인인증 대기 시간 만료. memberId={}, verificationId={}", pending.memberId, pending.id);
         }
     }
 
@@ -224,9 +230,10 @@ public class BunjangVerificationService {
 
         private final String id;
         private final Long memberId;
+        private final PlatformIdentityConnector connector;
         private final ScheduledThreadPoolExecutor worker;
         private final AtomicBoolean closed = new AtomicBoolean();
         private int attempts;
-        private BunjangIdentityLoginSession session;
+        private IdentityLoginSession session;
     }
 }
