@@ -53,6 +53,7 @@ export function MyProductsPage() {
                 products={products}
                 isLoading={isPending || isPlaceholderData}
                 isError={isError}
+                isFetchingNextPage={isFetchingNextPage}
             />
             {hasNextPage && !isError && !isPlaceholderData && (
                 <Button

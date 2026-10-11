@@ -11,9 +11,12 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/common/components/ui/Select";
-import { Skeleton } from "@/common/components/ui/Skeleton";
+import { Loader2 } from "lucide-react";
+
 import { getApiErrorMessage } from "@/common/lib/api/error";
+import { cn } from "@/common/lib/utils";
 import { SearchResultCard } from "@/features/search/components/SearchResultCard";
+import { SearchResultCardSkeleton } from "@/features/search/components/SearchResultCardSkeleton";
 import type { SearchResultItem, SearchSort } from "@/features/search/types";
 
 export function SearchResults({
@@ -26,6 +29,7 @@ export function SearchResults({
     onLike,
     likeDisabled,
     isLoading,
+    isRefreshing = false,
     error,
     onRetry,
     isFetchingNextPage,
@@ -41,6 +45,8 @@ export function SearchResults({
     onLike: (product: SearchResultItem) => void;
     likeDisabled: boolean;
     isLoading: boolean;
+    /** 정렬·필터 변경으로 이전 결과를 보여주며 새 결과를 불러오는 중 */
+    isRefreshing?: boolean;
     error: unknown;
     onRetry: () => void;
     isFetchingNextPage: boolean;
@@ -68,39 +74,63 @@ export function SearchResults({
                         {keyword ? "'" + keyword + "'" : "전체 상품"}
                     </h1>
                     <p className="text-[#6b7395]">
-                        {isLoading
+                        {isLoading || isRefreshing
                             ? "상품 검색"
                             : totalCount === null
                               ? "검색결과"
-                              : `검색결과 ${totalCount}개 표시`}
+                              : `검색결과 ${totalCount}개`}
                     </p>
                 </div>
-                <Select value={sort} onValueChange={(value) => onSortChange(value as SearchSort)}>
-                    <SelectTrigger
-                        aria-label="정렬 기준"
-                        className="w-[126px] shrink-0 border-[#dedee6] bg-white text-[13px] font-semibold tracking-[-0.5px] text-[#83889e]"
+                <div className="flex shrink-0 items-center gap-2">
+                    {isRefreshing && (
+                        <Loader2
+                            className="size-4 animate-spin text-[#83889e]"
+                            aria-hidden="true"
+                        />
+                    )}
+                    <Select
+                        value={sort}
+                        onValueChange={(value) => onSortChange(value as SearchSort)}
                     >
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent align="end">
-                        <SelectItem value="LATEST">최신순</SelectItem>
-                        <SelectItem value="RECOMMENDED">추천순</SelectItem>
-                        <SelectItem value="INTEREST">관심순</SelectItem>
-                        <SelectItem value="PRICE_HIGH">높은 가격순</SelectItem>
-                        <SelectItem value="PRICE_LOW">낮은 가격순</SelectItem>
-                    </SelectContent>
-                </Select>
+                        <SelectTrigger
+                            aria-label="정렬 기준"
+                            className="w-[126px] shrink-0 border-[#dedee6] bg-white text-[13px] font-semibold tracking-[-0.5px] text-[#83889e]"
+                        >
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent align="end">
+                            <SelectItem value="LATEST">최신순</SelectItem>
+                            <SelectItem value="RECOMMENDED">추천순</SelectItem>
+                            <SelectItem value="INTEREST">관심순</SelectItem>
+                            <SelectItem value="PRICE_HIGH">높은 가격순</SelectItem>
+                            <SelectItem value="PRICE_LOW">낮은 가격순</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
             </div>
             {isLoading ? (
-                <p role="status" className="text-base text-[#83889e]">
-                    상품을 불러오는 중입니다.
-                </p>
+                <>
+                    <p role="status" className="sr-only">
+                        상품을 불러오는 중입니다.
+                    </p>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {Array.from({ length: 6 }, (_, index) => (
+                            <SearchResultCardSkeleton key={index} />
+                        ))}
+                    </div>
+                </>
             ) : !error && products.length === 0 ? (
                 <p role="status" className="text-base text-[#83889e]">
                     검색 결과가 없습니다.
                 </p>
             ) : products.length > 0 ? (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div
+                    aria-busy={isRefreshing}
+                    className={cn(
+                        "relative grid grid-cols-1 gap-4 transition-opacity sm:grid-cols-2 lg:grid-cols-3",
+                        isRefreshing && "pointer-events-none opacity-50",
+                    )}
+                >
                     {products.map((product) => {
                         const key = `${product.source}:${product.id}`;
                         return (
@@ -116,21 +146,7 @@ export function SearchResults({
                     })}
                     {isFetchingNextPage &&
                         Array.from({ length: 3 }, (_, index) => (
-                            <div
-                                key={`loading-${index}`}
-                                aria-hidden="true"
-                                className="overflow-hidden rounded-xl border border-[#f1f1f1] bg-white"
-                            >
-                                <Skeleton className="h-[180px] w-full rounded-none bg-[#dfdfdf]" />
-                                <div className="flex flex-col gap-2.5 p-4">
-                                    <Skeleton className="h-[21px] w-16" />
-                                    <Skeleton className="h-[22px] w-3/4" />
-                                    <Skeleton className="h-[30px] w-1/2" />
-                                    <Skeleton className="h-[26px] w-full rounded-full" />
-                                    <Skeleton className="h-[18px] w-4/5" />
-                                    <Skeleton className="h-[18px] w-1/3" />
-                                </div>
-                            </div>
+                            <SearchResultCardSkeleton key={`loading-${index}`} />
                         ))}
                 </div>
             ) : null}

@@ -11,7 +11,6 @@ import type { SearchParams, SearchPlatform, SearchStatus } from "@/features/sear
 const statusOptions = [
     { label: "임시저장", value: "DRAFT" },
     { label: "판매중", value: "ON_SALE" },
-    { label: "예약중", value: "RESERVED" },
     { label: "판매완료", value: "SOLD_OUT" },
 ] as const;
 const conditionOptions = [
@@ -111,7 +110,7 @@ export function SearchFilters({
     return (
         <aside
             aria-label="검색 필터"
-            className="w-full min-w-0 shrink-0 rounded-xl border border-[#dee5ed] bg-[#fafbff] text-[#545d82] xl:w-[260px] xl:rounded-none xl:border-0"
+            className="w-full min-w-0 shrink-0 rounded-xl border border-[#dee5ed] bg-[#fafbff] text-[#545d82] xl:-mt-[30px] xl:w-[260px] xl:rounded-none xl:border-0"
         >
             <Button
                 type="button"

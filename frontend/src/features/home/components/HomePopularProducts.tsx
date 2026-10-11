@@ -3,7 +3,7 @@
 import { Button } from "@/common/components/ui/Button";
 import { Skeleton } from "@/common/components/ui/Skeleton";
 import { LoginRequiredDialog } from "@/features/auth/components/LoginRequiredDialog";
-import { useInterestToggle } from "../hooks/useInterestToggle";
+import { useInterestToggle } from "@/features/interest/hooks/useInterestToggle";
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { usePopularProductsQuery } from "../hooks/queries/usePopularProductsQuery";
 import { HomeProductCarousel } from "./HomeProductCarousel";

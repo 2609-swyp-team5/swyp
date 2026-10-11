@@ -65,7 +65,7 @@ export function HomePage() {
         search(keyword);
     };
     const headingClass =
-        "text-[32px] leading-[44px] font-bold break-keep lg:text-[60px] lg:leading-[76px]";
+        "text-[32px] leading-[44px] font-bold break-keep lg:text-[50px] lg:leading-[64px]";
 
     return (
         <main className="font-brand flex-1 bg-white font-normal tracking-[0.5px]">
@@ -87,7 +87,7 @@ export function HomePage() {
                                 AI와 함께하는 똑똑한 중고거래
                             </p>
                             {isPending ? (
-                                <Skeleton className="h-[76px] w-2/3" />
+                                <Skeleton className="h-[44px] w-2/3 lg:h-[64px]" />
                             ) : (
                                 <h1 className={cn(headingClass, "text-[#363636]")}>
                                     안녕하세요, {member?.name ?? member?.nickname ?? "회원"}님

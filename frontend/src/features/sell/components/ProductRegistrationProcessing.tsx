@@ -233,7 +233,7 @@ function ResultContent({
                     className="size-[72px] animate-spin rounded-full border-4 border-[#dedee6] border-t-[#6653fb]"
                 />
                 <div className="flex flex-col gap-2 text-center">
-                    <h1 className="text-[60px] leading-[75px] font-bold tracking-[0.5px] text-[#6653fb]">
+                    <h1 className="text-[50px] leading-[64px] font-bold tracking-[0.5px] text-[#6653fb]">
                         {kind === "edit"
                             ? "상품을 수정하고 있어요"
                             : kind === "ai"
@@ -261,7 +261,7 @@ function ResultContent({
     return (
         <div className="flex flex-col gap-2 text-center">
             <h1
-                className={`text-[60px] leading-[75px] font-bold tracking-[0.5px] ${
+                className={`text-[50px] leading-[64px] font-bold tracking-[0.5px] ${
                     isSuccess || isTimeout ? "text-[#6653fb]" : "text-[#fa503d]"
                 }`}
             >
