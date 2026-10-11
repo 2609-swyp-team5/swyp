@@ -18,7 +18,9 @@ import org.springframework.beans.factory.ObjectProvider;
 
 import com.swyp.team5.item.entity.AnalysisSkipReason;
 import com.swyp.team5.item.repository.ItemRepository;
+import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.product.entity.Product;
+import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.productanalysis.config.ProductAnalysisProperties;
 import com.swyp.team5.productanalysis.dto.AnalysisRequestResponse;
@@ -33,6 +35,7 @@ import org.junit.jupiter.api.Test;
 class AnalysisRequestServiceTest {
 
     private static final long ITEM_ID = 7L;
+    private static final long MEMBER_ID = 3L;
 
     private final ItemRepository itemRepository = mock(ItemRepository.class);
     private final ProductAnalysisRepository productAnalysisRepository = mock(ProductAnalysisRepository.class);
@@ -58,7 +61,7 @@ class AnalysisRequestServiceTest {
         ObjectProvider<InterestRegisteredAnalysisListener> provider = mock(ObjectProvider.class);
         when(provider.getIfAvailable()).thenReturn(availableQueue);
         return new AnalysisRequestService(
-                itemRepository, productAnalysisRepository, productAnalysisService, properties, provider, 6);
+                itemRepository, productAnalysisRepository, productAnalysisService, properties, provider, 6, 10);
     }
 
     private void givenStatus(AnalysisStatus status) {
@@ -74,7 +77,7 @@ class AnalysisRequestServiceTest {
         AnalysisRequestResponse response = service(queue).request(ITEM_ID);
 
         assertThat(response.analysisStatus()).isEqualTo(AnalysisStatus.ANALYZING);
-        verify(queue).enqueue(ITEM_ID);
+        verify(queue).enqueue(ITEM_ID, false);
     }
 
     // 이미 분석 중이거나 분석 대상 상태가 아니면 대기열에 넣지 않음
@@ -86,7 +89,7 @@ class AnalysisRequestServiceTest {
         givenStatus(AnalysisStatus.UNAVAILABLE);
         assertThat(service(queue).request(ITEM_ID).analysisStatus()).isEqualTo(AnalysisStatus.UNAVAILABLE);
 
-        verify(queue, never()).enqueue(anyLong());
+        verify(queue, never()).enqueue(anyLong(), anyBoolean());
     }
 
     // 최근(interest-skip-hours 안) 분석 결과가 있으면 다시 분석하지 않고, 오래됐으면 다시 분석
@@ -99,11 +102,11 @@ class AnalysisRequestServiceTest {
         when(productAnalysisService.analysisStatus(product, true)).thenReturn(AnalysisStatus.ANALYZED);
 
         assertThat(service(queue).request(ITEM_ID).analysisStatus()).isEqualTo(AnalysisStatus.ANALYZED);
-        verify(queue, never()).enqueue(anyLong());
+        verify(queue, never()).enqueue(anyLong(), anyBoolean());
 
         when(recent.getAnalyzedAt()).thenReturn(LocalDateTime.now().minusHours(7));
         assertThat(service(queue).request(ITEM_ID).analysisStatus()).isEqualTo(AnalysisStatus.ANALYZING);
-        verify(queue).enqueue(ITEM_ID);
+        verify(queue).enqueue(ITEM_ID, false);
     }
 
     // 최근(request-retry-hours 안) 비교 매물 부족으로 건너뛰었으면 사유와 함께 SKIPPED, 오래됐으면 다시 분석
@@ -118,14 +121,14 @@ class AnalysisRequestServiceTest {
         assertThat(skipped.analysisStatus()).isEqualTo(AnalysisStatus.SKIPPED);
         assertThat(skipped.analysisSkipReason()).isEqualTo(AnalysisSkipReason.NOT_ENOUGH_CANDIDATES);
         assertThat(skipped.analysisSkipMessage()).isEqualTo(AnalysisSkipReason.NOT_ENOUGH_CANDIDATES.getMessage());
-        verify(queue, never()).enqueue(anyLong());
+        verify(queue, never()).enqueue(anyLong(), anyBoolean());
 
         when(product.getAnalysisSkippedAt()).thenReturn(LocalDateTime.now().minusHours(7));
         AnalysisRequestResponse retried = service(queue).request(ITEM_ID);
 
         assertThat(retried.analysisStatus()).isEqualTo(AnalysisStatus.ANALYZING);
         assertThat(retried.analysisSkipReason()).isNull();
-        verify(queue).enqueue(ITEM_ID);
+        verify(queue).enqueue(ITEM_ID, false);
     }
 
     // 분석 대기열(관심 등록 직후 분석)이 꺼져 있으면 현재 상태만 돌려줌
@@ -143,5 +146,54 @@ class AnalysisRequestServiceTest {
 
         assertThatThrownBy(() -> service(queue).request(99L)).isInstanceOf(ProductNotFoundException.class);
         verify(productAnalysisService, never()).analysisStatus(any(), anyBoolean());
+    }
+
+    // 판매자의 강제 재분석은 6시간 안 결과가 있어도 다시 분석하고, force-retry-minutes(10분) 안이면 막음
+    @Test
+    void forceReanalyzesOwnProductUnlessAnalyzedWithinMinutes() {
+        when(product.isRegisteredBy(MEMBER_ID)).thenReturn(true);
+        ProductAnalysis latest = mock(ProductAnalysis.class);
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(ITEM_ID))
+                .thenReturn(Optional.of(latest));
+        when(productAnalysisService.analysisStatus(product, true)).thenReturn(AnalysisStatus.ANALYZED);
+
+        when(latest.getAnalyzedAt()).thenReturn(LocalDateTime.now().minusMinutes(5));
+        assertThat(service(queue).request(ITEM_ID, MEMBER_ID, true).analysisStatus())
+                .isEqualTo(AnalysisStatus.ANALYZED);
+        verify(queue, never()).enqueue(anyLong(), anyBoolean());
+
+        when(latest.getAnalyzedAt()).thenReturn(LocalDateTime.now().minusHours(1));
+        assertThat(service(queue).request(ITEM_ID, MEMBER_ID, true).analysisStatus())
+                .isEqualTo(AnalysisStatus.ANALYZING);
+        verify(queue).enqueue(ITEM_ID, true);
+    }
+
+    // 강제 재분석은 건너뛴 지 request-retry-hours 안이어도 force-retry-minutes가 지났으면 다시 분석
+    @Test
+    void forceRetriesSkippedProductAfterMinutes() {
+        when(product.isRegisteredBy(MEMBER_ID)).thenReturn(true);
+        givenStatus(AnalysisStatus.SKIPPED);
+        when(product.getAnalysisSkippedAt()).thenReturn(LocalDateTime.now().minusMinutes(5));
+        assertThat(service(queue).request(ITEM_ID, MEMBER_ID, true).analysisStatus())
+                .isEqualTo(AnalysisStatus.SKIPPED);
+
+        when(product.getAnalysisSkippedAt()).thenReturn(LocalDateTime.now().minusHours(1));
+        assertThat(service(queue).request(ITEM_ID, MEMBER_ID, true).analysisStatus())
+                .isEqualTo(AnalysisStatus.ANALYZING);
+        verify(queue).enqueue(ITEM_ID, true);
+    }
+
+    // 강제 재분석은 판매자 본인 상품만 — 남의 상품·외부 매물이면 403 예외
+    @Test
+    void forceRejectsOtherMembersProductAndExternalListing() {
+        when(product.isRegisteredBy(MEMBER_ID)).thenReturn(false);
+        assertThatThrownBy(() -> service(queue).request(ITEM_ID, MEMBER_ID, true))
+                .isInstanceOf(ProductAccessDeniedException.class);
+
+        PlatformListing listing = mock(PlatformListing.class);
+        when(itemRepository.findById(8L)).thenReturn(Optional.of(listing));
+        assertThatThrownBy(() -> service(queue).request(8L, MEMBER_ID, true))
+                .isInstanceOf(ProductAccessDeniedException.class);
+        verify(queue, never()).enqueue(anyLong(), anyBoolean());
     }
 }

@@ -1,6 +1,7 @@
 package com.swyp.team5.productanalysis.listener;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -28,7 +29,7 @@ class InterestRegisteredAnalysisListenerTest {
 
         listener.onInterestRegistered(new InterestRegisteredEvent(7L));
 
-        verify(service, timeout(1000)).analyzeInterestedItemById(7L);
+        verify(service, timeout(1000)).analyzeInterestedItemById(7L, false);
         listener.shutdown();
     }
 
@@ -38,7 +39,7 @@ class InterestRegisteredAnalysisListenerTest {
         ProductAnalysisService service = mock(ProductAnalysisService.class);
         AnalysisProgressTracker tracker = new AnalysisProgressTracker();
         CountDownLatch release = new CountDownLatch(1);
-        doAnswer(invocation -> release.await(1, TimeUnit.SECONDS)).when(service).analyzeInterestedItemById(7L);
+        doAnswer(invocation -> release.await(1, TimeUnit.SECONDS)).when(service).analyzeInterestedItemById(7L, false);
         InterestRegisteredAnalysisListener listener = new InterestRegisteredAnalysisListener(service, tracker, 3);
 
         listener.onInterestRegistered(new InterestRegisteredEvent(7L));
@@ -65,7 +66,7 @@ class InterestRegisteredAnalysisListenerTest {
                     return release.await(2, TimeUnit.SECONDS);
                 })
                 .when(service)
-                .analyzeInterestedItemById(anyLong());
+                .analyzeInterestedItemById(anyLong(), anyBoolean());
         InterestRegisteredAnalysisListener listener =
                 new InterestRegisteredAnalysisListener(service, new AnalysisProgressTracker(), 3);
 
@@ -85,20 +86,20 @@ class InterestRegisteredAnalysisListenerTest {
         ProductAnalysisService service = mock(ProductAnalysisService.class);
         AnalysisProgressTracker tracker = new AnalysisProgressTracker();
         CountDownLatch release = new CountDownLatch(1);
-        doAnswer(invocation -> release.await(1, TimeUnit.SECONDS)).when(service).analyzeInterestedItemById(7L);
+        doAnswer(invocation -> release.await(1, TimeUnit.SECONDS)).when(service).analyzeInterestedItemById(7L, false);
         InterestRegisteredAnalysisListener listener = new InterestRegisteredAnalysisListener(service, tracker, 3);
 
         listener.onInterestRegistered(new InterestRegisteredEvent(7L));
         listener.onInterestRegistered(new InterestRegisteredEvent(7L));
         release.countDown();
-        verify(service, timeout(1000).times(1)).analyzeInterestedItemById(7L);
+        verify(service, timeout(1000).times(1)).analyzeInterestedItemById(7L, false);
         long deadline = System.currentTimeMillis() + 1000;
         while (!tracker.inProgressAmong(List.of(7L)).isEmpty() && System.currentTimeMillis() < deadline) {
             Thread.sleep(10);
         }
 
         listener.onInterestRegistered(new InterestRegisteredEvent(7L));
-        verify(service, timeout(1000).times(2)).analyzeInterestedItemById(7L);
+        verify(service, timeout(1000).times(2)).analyzeInterestedItemById(7L, false);
         listener.shutdown();
     }
 }
