@@ -44,6 +44,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.jayway.jsonpath.JsonPath;
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.passport.JwtTokenProvider;
@@ -1051,6 +1052,70 @@ class ProductTest extends IntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("SOLD_OUT"))
                 .andExpect(jsonPath("$.data.soldPrice").doesNotExist());
+    }
+
+    // 가격만 변경 - 본인은 가격만 바뀌고(제목 등 유지) 상세에 반영, 다른 회원 403, 음수·누락 400, 없는 상품 404, 비로그인 401
+    @Test
+    void updatePriceChangesOnlyPriceForOwner() throws Exception {
+        Long productId = createProduct();
+        String title = JsonPath.read(
+                mockMvc.perform(get("/products/{productId}", productId))
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString(),
+                "$.data.title");
+
+        mockMvc.perform(patch("/products/{productId}/price", productId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"price\": 469000}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.price").value(469_000))
+                .andExpect(jsonPath("$.data.title").value(title));
+        mockMvc.perform(get("/products/{productId}", productId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.price").value(469_000));
+
+        mockMvc.perform(patch("/products/{productId}/price", productId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + createOtherMemberToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"price\": 1000}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(patch("/products/{productId}/price", productId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"price\": -1}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(patch("/products/{productId}/price", productId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(patch("/products/{productId}/price", 999_999_999L)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"price\": 1000}"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(patch("/products/{productId}/price", productId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"price\": 1000}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    // 경쟁 상품 정렬 파라미터 - 허용 값만(LATEST/PRICE_LOW/PRICE_HIGH), 그 밖은 400
+    @Test
+    void getCompetitionAcceptsOnlyKnownSort() throws Exception {
+        Long productId = createProduct();
+
+        mockMvc.perform(get("/products/{productId}/competition", productId)
+                        .param("sort", "PRICE_LOW")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.competition.items").isArray());
+        mockMvc.perform(get("/products/{productId}/competition", productId)
+                        .param("sort", "CHEAPEST")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isBadRequest());
     }
 
     // 상품 상태 변경 - 판매 완료와 함께 보낸 최종 판매 가격·플랫폼명(앞뒤 공백 제거)이 판매자 본인의 상세·상세 요약·내 상품 목록에만 보이고,

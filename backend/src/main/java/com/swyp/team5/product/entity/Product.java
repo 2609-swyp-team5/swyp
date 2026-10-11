@@ -261,6 +261,11 @@ public class Product extends Item {
         this.preferredTradeRegion = preferredTradeRegion;
     }
 
+    /** 판매 희망가만 변경한다(판매 관리 화면의 "추천 가격으로 변경" 등). 나머지 정보는 그대로 둔다. */
+    public void changePrice(Long price) {
+        changeItemInfo(getCategory(), getTitle(), price);
+    }
+
     /**
      * 구매 일시로부터 오늘까지 경과한 개월 수를 계산한다(응답용, 조회할 때마다 다시 계산).
      *

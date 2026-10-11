@@ -49,6 +49,7 @@ import com.swyp.team5.product.service.ProductTargetPriceService;
 import com.swyp.team5.productanalysis.config.ProductAnalysisProperties;
 import com.swyp.team5.productanalysis.dto.AnalysisPerspective;
 import com.swyp.team5.productanalysis.dto.CompetitionLevel;
+import com.swyp.team5.productanalysis.dto.CompetitionSortType;
 import com.swyp.team5.productanalysis.dto.MarketAnalysisResult;
 import com.swyp.team5.productanalysis.dto.PriceTrendResponse;
 import com.swyp.team5.productanalysis.dto.ProductAnalysisResponse;
@@ -387,13 +388,14 @@ public class ProductAnalysisService {
      * <ul>
      *   <li>경쟁 정도: 같은 유형 매물 수로 {@code analysis.competition.*} 기준에 따라 LOW/MEDIUM/HIGH
      *   <li>상품군 평균 시세: 이번에 고른 같은 유형 매물의 평균(최소 {@code min-listings}건, 미만이면 null)
-     *   <li>목록: 최신 등록 순(최초 수집 일시)으로 최대 {@code item-limit}건
+     *   <li>목록: {@code sort} 순(기본 최신 등록 순 — 최초 수집 일시)으로 최대 {@code item-limit}건
      * </ul>
      *
+     * @param sort 목록 정렬(같은 값끼리는 최신 등록 순)
      * @throws ProductNotFoundException 존재하지 않는 상품(외부 매물 포함)인 경우
      */
     @Transactional(readOnly = true)
-    public ProductCompetitionResponse getCompetition(Long productId) {
+    public ProductCompetitionResponse getCompetition(Long productId, CompetitionSortType sort) {
         Item item = getItemOrThrow(productId);
         List<PlatformListing> others = freshSellingListings(item.getCategory().getId()).stream()
                 .filter(listing -> !listing.getId().equals(item.getId()))
@@ -411,8 +413,7 @@ public class ProductAnalysisService {
 
         ProductAnalysisProperties.Competition criteria = properties.competition();
         List<ProductCompetitionResponse.Item> items = sameType.stream()
-                .sorted(Comparator.comparing(PlatformListing::getCreatedAt, Comparator.reverseOrder())
-                        .thenComparing(PlatformListing::getId, Comparator.reverseOrder()))
+                .sorted(competitionOrder(sort))
                 .limit(criteria.itemLimit())
                 .map(listing -> ProductCompetitionResponse.Item.of(listing, marketAveragePrice))
                 .toList();
@@ -420,6 +421,19 @@ public class ProductAnalysisService {
                 item.getId(),
                 ProductCompetitionResponse.Competition.of(
                         sameType.size(), competitionLevel(sameType.size(), criteria), items));
+    }
+
+    /** 경쟁 상품 목록 정렬 — 가격순이면 가격으로 먼저 정렬하고, 같은 값끼리는 최신 등록 순. */
+    private static Comparator<PlatformListing> competitionOrder(CompetitionSortType sort) {
+        Comparator<PlatformListing> latest = Comparator.comparing(
+                        PlatformListing::getCreatedAt, Comparator.reverseOrder())
+                .thenComparing(PlatformListing::getId, Comparator.reverseOrder());
+        return switch (sort) {
+            case PRICE_LOW -> Comparator.comparing(PlatformListing::getPrice).thenComparing(latest);
+            case PRICE_HIGH -> Comparator.comparing(PlatformListing::getPrice, Comparator.reverseOrder())
+                    .thenComparing(latest);
+            case LATEST -> latest;
+        };
     }
 
     private static CompetitionLevel competitionLevel(int count, ProductAnalysisProperties.Competition criteria) {
