@@ -68,4 +68,28 @@ describe("ProductListShell", () => {
         expect(new URLSearchParams(window.location.search).get("selected")).toBeNull();
         expect(screen.getByText("상품을 선택해 주세요")).toBeInTheDocument();
     });
+
+    it("분석 대기 상태는 텍스트 대신 점 세 개 아이콘을 보여준다", () => {
+        render(
+            <ProductListShell
+                eyebrow="등록한 상품을 한눈에"
+                title="판매 상품 관리"
+                tabs={tabs}
+                items={[
+                    {
+                        ...items[0],
+                        badgeLabel: "PENDING",
+                        badgeTone: "muted",
+                    },
+                ]}
+                isLoading={false}
+                emptyMessage="등록된 상품이 없습니다."
+                listTitle="전체 상품 목록"
+                detailRenderer={(item) => <div>{item.title}</div>}
+            />,
+        );
+
+        expect(screen.getByAltText("분석 대기")).toBeInTheDocument();
+        expect(screen.queryByText("PENDING")).not.toBeInTheDocument();
+    });
 });

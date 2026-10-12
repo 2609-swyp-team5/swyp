@@ -73,13 +73,15 @@ export function PlatformShortcutDialog({
                     <span
                         className={cn(
                             "flex items-center justify-center",
-                            compact || isManagementVariant
+                            compact
                                 ? "size-5"
-                                : "size-10 rounded-full bg-[#eaeafd]",
+                                : isManagementVariant
+                                  ? "size-[25px]"
+                                  : "size-10 rounded-full bg-[#eaeafd]",
                         )}
                     >
                         {isManagementVariant ? (
-                            <Image src="/sell/actions/shortcut.svg" alt="" width={20} height={20} />
+                            <Image src="/sell/actions/shortcut.svg" alt="" width={25} height={25} />
                         ) : (
                             <ExternalLink
                                 aria-hidden="true"

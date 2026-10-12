@@ -80,7 +80,7 @@ export function MarketAnalysisContent({
                                     analysis={analysis}
                                     variant="management"
                                 />
-                                {!isBuyerView && canChangeRecommendedPrice ? (
+                                {analysis.recommendation === "SELL" && canChangeRecommendedPrice ? (
                                     <Button
                                         type="button"
                                         variant="ghost"

@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 import { cn } from "@/common/lib/utils";
 import type { ProductListItemData } from "./productListTypes";
 
@@ -37,7 +39,21 @@ export function ProductListItem({ item, isSelected, onSelect }: ProductListItemP
                 </p>
             </div>
             <div className="flex w-14 shrink-0 flex-col items-center gap-[5px]">
-                {item.badgeLabel ? (
+                {item.badgeLabel === "PENDING" ? (
+                    <span
+                        className={cn(
+                            "inline-flex h-5 w-14 items-center justify-center rounded-full",
+                            badgeToneClassNames[item.badgeTone],
+                        )}
+                    >
+                        <Image
+                            src="/sell/actions/pending.svg"
+                            alt="분석 대기"
+                            width={22}
+                            height={5}
+                        />
+                    </span>
+                ) : item.badgeLabel ? (
                     <span
                         className={cn(
                             "inline-flex h-5 w-14 items-center justify-center rounded-full leading-5 font-semibold tracking-[-0.5px]",

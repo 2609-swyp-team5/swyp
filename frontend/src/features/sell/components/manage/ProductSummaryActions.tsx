@@ -145,8 +145,8 @@ export function ProductSummaryActions({
                             <Image
                                 src={managementActionIconPaths.sold}
                                 alt=""
-                                width={20}
-                                height={20}
+                                width={25}
+                                height={25}
                             />
                         ) : (
                             <Image src="/sell/sold-out.svg" alt="" width={40} height={40} />
@@ -179,15 +179,15 @@ export function ProductSummaryActions({
                             <Image
                                 src={managementActionIconPaths.details}
                                 alt=""
-                                width={20}
-                                height={20}
+                                width={25}
+                                height={25}
                             />
                         ) : (
                             <Image
                                 src={actionIconSrc}
                                 alt=""
-                                width={isManagementVariant ? 20 : 40}
-                                height={isManagementVariant ? 20 : 40}
+                                width={isManagementVariant ? 25 : 40}
+                                height={isManagementVariant ? 25 : 40}
                             />
                         )}
                         <span
@@ -213,8 +213,8 @@ export function ProductSummaryActions({
                         <Image
                             src={managementActionIconPaths.delete}
                             alt=""
-                            width={20}
-                            height={20}
+                            width={25}
+                            height={25}
                         />
                         <span className="text-[11px] leading-[16px] font-normal tracking-[-0.5px]">
                             삭제하기

@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import { Heart } from "lucide-react";
 
 import { Button } from "@/common/components/ui/Button";
 import { Separator } from "@/common/components/ui/Separator";
@@ -108,7 +107,7 @@ function InterestExternalLinkButton({ href, label }: { href: string; label: stri
             className="h-[52px] w-[52px] flex-col gap-[5px] rounded-none p-[5px] text-[#83889e] hover:bg-transparent hover:text-[#6653fb]"
         >
             <a href={href} target="_blank" rel="noreferrer">
-                <Image src="/sell/actions/shortcut.svg" alt="" width={20} height={20} />
+                <Image src="/sell/actions/shortcut.svg" alt="" width={25} height={25} />
                 <span className="text-[11px] leading-[16px] font-normal tracking-[-0.5px]">
                     {label}
                 </span>
@@ -270,11 +269,12 @@ function ProductSummaryCardFrame({
                                     className="h-[52px] w-[52px] flex-col gap-[5px] rounded-none p-[5px] text-[#83889e] hover:bg-transparent hover:text-[#6653fb] disabled:cursor-wait disabled:opacity-50"
                                     onClick={interest.onDelete}
                                 >
-                                    <Heart
-                                        aria-hidden="true"
-                                        strokeWidth={1.5}
-                                        className="size-5 shrink-0 text-[#6653fb]"
-                                        fill="currentColor"
+                                    <Image
+                                        src="/sell/actions/interest.svg"
+                                        alt=""
+                                        width={25}
+                                        height={25}
+                                        className="size-[25px] shrink-0"
                                     />
                                     <span className="text-[11px] leading-[16px] font-normal tracking-[-0.5px]">
                                         관심 해제

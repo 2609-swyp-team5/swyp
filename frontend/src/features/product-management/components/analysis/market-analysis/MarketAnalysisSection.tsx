@@ -15,6 +15,7 @@ import type { StreamingQueryState } from "../../shared/streaming/productManageme
 import { MarketAnalysisContent } from "./MarketAnalysisContent";
 import { MarketAnalysisManagementSkeleton } from "./MarketAnalysisManagementSkeleton";
 import { MarketAnalysisSkeleton } from "./MarketAnalysisSkeleton";
+import { formatPrice } from "./formatters";
 
 type MarketAnalysisSectionProps = {
     result: ProductMarketAnalysis | null | undefined;
@@ -123,6 +124,7 @@ export function MarketAnalysisSection({
     const [priceChangeFeedback, setPriceChangeFeedback] = useState<{
         type: "success" | "error";
         message: string;
+        recommendedPrice?: number | null;
     } | null>(null);
     const isManagementVariant = variant === "management";
     const isSoldVariant = variant === "sold";
@@ -145,6 +147,7 @@ export function MarketAnalysisSection({
             setPriceChangeFeedback({
                 type: "success",
                 message: "추천 가격으로 변경했습니다!",
+                recommendedPrice: result?.suggestedPrice ?? null,
             });
         } catch (error) {
             setPriceChangeFeedback({
@@ -227,13 +230,23 @@ export function MarketAnalysisSection({
             }
         >
             {priceChangeFeedback.type === "success" ? (
-                <div className="flex w-full max-w-[354px] flex-col items-center text-center">
-                    <p className="text-[20px] leading-[30px] font-bold text-[#545d82]">
-                        {priceChangeFeedback.message}
-                    </p>
-                    <p className="pt-1 text-[14px] leading-[21px] text-[#6b7395]">
-                        AI가 가격 변화를 추적하고 좋은 시점에 알려드릴게요.
-                    </p>
+                <div className="flex w-full max-w-[354px] flex-col items-center gap-[35px] text-center">
+                    <div className="flex w-full flex-col items-center">
+                        <p className="text-[20px] leading-[30px] font-bold text-[#545d82]">
+                            {priceChangeFeedback.message}
+                        </p>
+                        <p className="pt-1 text-[14px] leading-[21px] text-[#6b7395]">
+                            AI가 가격 변화를 추적하고 좋은 시점에 알려드릴게요.
+                        </p>
+                    </div>
+                    <div className="flex w-full flex-col items-center justify-center bg-[#fafbff] py-2.5 text-[#6653fb]">
+                        <span className="text-[16px] leading-[25px] font-semibold tracking-[0.5px]">
+                            추천 가격
+                        </span>
+                        <strong className="text-[22px] leading-[30px] font-semibold tracking-[0.5px]">
+                            {formatPrice(priceChangeFeedback.recommendedPrice ?? null)}
+                        </strong>
+                    </div>
                 </div>
             ) : (
                 priceChangeFeedback.message

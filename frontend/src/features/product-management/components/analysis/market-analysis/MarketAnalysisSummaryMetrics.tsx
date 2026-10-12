@@ -10,21 +10,46 @@ type MarketAnalysisSummaryMetricsProps = {
     variant?: "default" | "management";
 };
 
+type ManagementMetric = {
+    label: string;
+    value: string;
+    valueClassName?: string;
+    supportingText?: string;
+};
+
 export function MarketAnalysisSummaryMetrics({
     analysis,
     variant = "default",
 }: MarketAnalysisSummaryMetricsProps) {
+    const isBuyerView = analysis.recommendation === "BUY" || analysis.recommendation === "WAIT";
+    const isWaitingRecommendation =
+        analysis.recommendation === "HOLD" || analysis.recommendation === "WAIT";
+
     if (variant === "management") {
-        const metrics = [
-            {
-                label: "AI 추천 판매가",
-                value: formatPrice(analysis.suggestedPrice),
-                valueClassName: "text-[#6653fb]",
-                supportingText: `시세 대비 ${formatSignedPercent(analysis.marketPriceDiffRate)}`,
-            },
-            { label: "현재 판매가", value: formatPrice(analysis.currentPrice) },
-            { label: "최근 평균 등록가", value: formatPrice(analysis.averagePrice) },
-        ];
+        const metrics: ManagementMetric[] =
+            isWaitingRecommendation && analysis.summary.type === "WAIT_RECOMMENDATION"
+                ? [
+                      {
+                          label: isBuyerView ? "구매 대기 기간" : "추천 대기 기간",
+                          value: `${Math.ceil(analysis.summary.waitPeriodDays / 7)}주`,
+                          valueClassName: "text-[#6653fb]",
+                      },
+                      {
+                          label: "예상 가격 변화",
+                          value: formatSignedPercent(analysis.summary.expectedPriceChangeRate),
+                      },
+                      { label: "신뢰도", value: `${analysis.summary.confidenceScore}%` },
+                  ]
+                : [
+                      {
+                          label: "AI 추천 판매가",
+                          value: formatPrice(analysis.suggestedPrice),
+                          valueClassName: "text-[#6653fb]",
+                          supportingText: `시세 대비 ${formatSignedPercent(analysis.marketPriceDiffRate)}`,
+                      },
+                      { label: "현재 판매가", value: formatPrice(analysis.currentPrice) },
+                      { label: "최근 평균 등록가", value: formatPrice(analysis.averagePrice) },
+                  ];
 
         return (
             <div className="flex min-h-[101px] w-full items-center rounded-[10px] border border-[#d3d3d3] bg-white px-[10px] py-5">
@@ -56,7 +81,6 @@ export function MarketAnalysisSummaryMetrics({
         );
     }
 
-    const isBuyerView = analysis.recommendation === "BUY" || analysis.recommendation === "WAIT";
     const metrics =
         analysis.summary.type === "SALE_STATS"
             ? [

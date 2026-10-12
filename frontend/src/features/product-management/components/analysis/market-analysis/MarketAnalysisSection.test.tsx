@@ -111,6 +111,51 @@ it("관리 화면은 접힌 추천 카드와 3열 가격 metric을 먼저 보여
     expect(screen.queryByText("거래 가격 분포")).not.toBeInTheDocument();
 });
 
+it.each([
+    ["HOLD", "추천 대기 기간", "SELL"],
+    ["WAIT", "구매 대기 기간", "BUY"],
+] as const)(
+    "관리 화면의 %s 추천은 대기 metric을 보여준다",
+    (recommendation, waitLabel, perspective) => {
+        const analysis = createProductMarketAnalysisMock(1, perspective, recommendation);
+
+        render(
+            <MarketAnalysisSection
+                result={analysis}
+                error={null}
+                isPending={false}
+                priceTrendQuery={idleQuery}
+                valuationForecastQuery={idleQuery}
+                variant="management"
+            />,
+        );
+
+        expect(screen.getByText(waitLabel)).toHaveClass("text-[#6653fb]");
+        expect(screen.getByText("예상 가격 변화")).toBeInTheDocument();
+        expect(screen.getByText("신뢰도")).toBeInTheDocument();
+        expect(screen.queryByText("AI 추천 판매가")).not.toBeInTheDocument();
+    },
+);
+
+it("관리 화면의 HOLD 추천에는 추천 가격 변경 액션을 표시하지 않는다", () => {
+    const analysis = createProductMarketAnalysisMock(1, "SELL", "HOLD");
+
+    render(
+        <MarketAnalysisSection
+            result={analysis}
+            error={null}
+            isPending={false}
+            priceTrendQuery={idleQuery}
+            valuationForecastQuery={idleQuery}
+            variant="management"
+            canChangeRecommendedPrice
+            onRecommendedPriceChange={vi.fn().mockResolvedValue(undefined)}
+        />,
+    );
+
+    expect(screen.queryByRole("button", { name: "추천 가격으로 변경" })).not.toBeInTheDocument();
+});
+
 it("관리형 구매 분석에는 구매 고려 가격 액션을 표시하지 않는다", () => {
     const analysis = createProductMarketAnalysisMock(1, "BUY", "BUY");
 
@@ -249,5 +294,7 @@ it("추천 가격 변경이 완료되면 임시 toast를 보여준다", async ()
     expect(
         screen.getByText("AI가 가격 변화를 추적하고 좋은 시점에 알려드릴게요."),
     ).toBeInTheDocument();
+    expect(await screen.findByRole("status")).toHaveTextContent("추천 가격");
+    expect(await screen.findByRole("status")).toHaveTextContent("468,000원");
     expect(screen.queryByRole("button", { name: "확인" })).not.toBeInTheDocument();
 });
