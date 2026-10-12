@@ -30,6 +30,7 @@ type InterestSummaryActions = {
 type ProductSummaryCardProps = {
     product: ProductDetailSummaryResponse;
     interest?: InterestSummaryActions;
+    variant?: "default" | "sold";
 };
 
 const detailStatusLabels: Record<string, string> = {
@@ -42,11 +43,35 @@ const detailStatusClassNames: Record<string, string> = {
     SOLD_OUT: "bg-[#a9adbd] text-white",
 };
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+function DetailRow({
+    label,
+    value,
+    className,
+    labelClassName,
+    valueClassName,
+}: {
+    label: string;
+    value: string;
+    className?: string;
+    labelClassName?: string;
+    valueClassName?: string;
+}) {
     return (
-        <div className="flex min-w-0 items-baseline gap-4">
-            <dt className="shrink-0 text-[13px] leading-5 font-normal text-[#9aa0b0]">{label}</dt>
-            <dd className="min-w-0 truncate text-[13px] leading-5 font-normal text-[#464646]">
+        <div className={cn("flex min-w-0 items-baseline gap-4", className)}>
+            <dt
+                className={cn(
+                    "shrink-0 text-[13px] leading-5 font-normal text-[#9aa0b0]",
+                    labelClassName,
+                )}
+            >
+                {label}
+            </dt>
+            <dd
+                className={cn(
+                    "min-w-0 truncate text-[13px] leading-5 font-normal text-[#464646]",
+                    valueClassName,
+                )}
+            >
                 {value}
             </dd>
         </div>
@@ -92,11 +117,14 @@ function InterestExternalLinkButton({ href, label }: { href: string; label: stri
 function ProductSummaryCardFrame({
     product,
     interest,
+    variant = "default",
 }: {
     product: ProductDetailSummaryResponse;
     interest?: InterestSummaryActions;
+    variant?: "default" | "sold";
 }) {
     const titleId = `product-summary-detail-title-${product.id}`;
+    const isSoldVariant = variant === "sold";
     const description = product.description?.trim() || "등록된 상세 설명이 없습니다.";
     const includedItems = product.includedItems.length ? product.includedItems.join(" · ") : "없음";
     const daysOnSale = product.daysOnSale === null ? "-" : `${product.daysOnSale}일째`;
@@ -162,31 +190,59 @@ function ProductSummaryCardFrame({
                         {priceFormatter.format(product.price)}원
                     </p>
 
-                    <dl className="mt-[30px] grid grid-cols-2 gap-x-[30px] gap-y-[10px]">
-                        <DetailRow
-                            label="상품상태"
-                            value={
-                                product.condition ? conditionLabels[product.condition] : "미설정"
-                            }
-                        />
-                        <DetailRow label="카테고리" value={product.category.name} />
-                        <DetailRow label="구성품" value={includedItems} />
-                        <DetailRow
-                            label="거래방식"
-                            value={formatTradeMethod(product.tradeMethod)}
-                        />
-                    </dl>
+                    {isSoldVariant ? (
+                        <dl className="mt-[30px] flex flex-col text-[16px] leading-[25px]">
+                            <DetailRow
+                                label="팔린 플랫폼"
+                                value={product.soldPlatform ?? "정보 없음"}
+                                className="justify-between py-2.5"
+                                labelClassName="text-[16px] leading-[25px] text-[#374151]"
+                                valueClassName="font-semibold tracking-[-0.5px] text-[#111827]"
+                            />
+                            <Separator className="bg-[#d3d3d3]" />
+                            <DetailRow
+                                label="최종판매가격"
+                                value={
+                                    product.soldPrice === null || product.soldPrice === undefined
+                                        ? "정보 없음"
+                                        : `${priceFormatter.format(product.soldPrice)}원`
+                                }
+                                className="justify-between py-2.5"
+                                labelClassName="text-[16px] leading-[25px] text-[#374151]"
+                                valueClassName="font-semibold tracking-[-0.5px] text-[#111827]"
+                            />
+                        </dl>
+                    ) : (
+                        <>
+                            <dl className="mt-[30px] grid grid-cols-2 gap-x-[30px] gap-y-[10px]">
+                                <DetailRow
+                                    label="상품상태"
+                                    value={
+                                        product.condition
+                                            ? conditionLabels[product.condition]
+                                            : "미설정"
+                                    }
+                                />
+                                <DetailRow label="카테고리" value={product.category.name} />
+                                <DetailRow label="구성품" value={includedItems} />
+                                <DetailRow
+                                    label="거래방식"
+                                    value={formatTradeMethod(product.tradeMethod)}
+                                />
+                            </dl>
 
-                    <Separator className="my-5" />
+                            <Separator className="my-5" />
 
-                    <div className="min-h-0">
-                        <p className="text-[13px] leading-5 font-normal text-[#9aa0b0]">
-                            상품 설명
-                        </p>
-                        <p className="mt-2 line-clamp-2 text-[13px] leading-5 font-normal break-keep text-[#464646]">
-                            {description}
-                        </p>
-                    </div>
+                            <div className="min-h-0">
+                                <p className="text-[13px] leading-5 font-normal text-[#9aa0b0]">
+                                    상품 설명
+                                </p>
+                                <p className="mt-2 line-clamp-2 text-[13px] leading-5 font-normal break-keep text-[#464646]">
+                                    {description}
+                                </p>
+                            </div>
+                        </>
+                    )}
 
                     <div className="mt-auto flex w-full items-end justify-end gap-5 pt-4">
                         {interest ? (
@@ -227,6 +283,7 @@ function ProductSummaryCardFrame({
                                     actionHref={`/sell/manage/${product.id}`}
                                     actionLabel="자세히 보기"
                                     canMarkAsSold={product.status === "ON_SALE"}
+                                    showDetails={!isSoldVariant}
                                     variant="management"
                                 />
                                 {product.status === "ON_SALE" || product.status === "SOLD_OUT" ? (
@@ -242,18 +299,25 @@ function ProductSummaryCardFrame({
                 </div>
             </div>
 
-            <Separator className="bg-[#d3d3d3]" />
-            <div className="grid h-[96px] grid-cols-[1fr_1px_1fr_1px_1fr] bg-[#fafbff]">
-                <SummaryStat label="판매 시작" value={daysOnSale} />
-                <Separator orientation="vertical" className="h-[54px] self-center" />
-                <SummaryStat label="조회" value={viewCount} />
-                <Separator orientation="vertical" className="h-[54px] self-center" />
-                <SummaryStat label="관심" value={product.interestCount.toLocaleString("ko-KR")} />
-            </div>
+            {!isSoldVariant ? (
+                <>
+                    <Separator className="bg-[#d3d3d3]" />
+                    <div className="grid h-[96px] grid-cols-[1fr_1px_1fr_1px_1fr] bg-[#fafbff]">
+                        <SummaryStat label="판매 시작" value={daysOnSale} />
+                        <Separator orientation="vertical" className="h-[54px] self-center" />
+                        <SummaryStat label="조회" value={viewCount} />
+                        <Separator orientation="vertical" className="h-[54px] self-center" />
+                        <SummaryStat
+                            label="관심"
+                            value={product.interestCount.toLocaleString("ko-KR")}
+                        />
+                    </div>
+                </>
+            ) : null}
         </section>
     );
 }
 
-export function ProductSummaryCard({ product, interest }: ProductSummaryCardProps) {
-    return <ProductSummaryCardFrame product={product} interest={interest} />;
+export function ProductSummaryCard({ product, interest, variant }: ProductSummaryCardProps) {
+    return <ProductSummaryCardFrame product={product} interest={interest} variant={variant} />;
 }

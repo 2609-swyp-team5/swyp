@@ -55,7 +55,7 @@ export function MarketAnalysisContent({
     competitionQuery?: StreamingQueryState<ProductCompetition>;
     priceTrendQuery: StreamingQueryState<ProductPriceTrend>;
     valuationForecastQuery: StreamingQueryState<ProductValuationForecast>;
-    variant?: "default" | "management";
+    variant?: "default" | "management" | "sold";
     isDetailsOpen?: boolean;
     onDetailsOpenChange?: (open: boolean) => void;
     onRecommendedPriceChange?: () => void;
@@ -65,40 +65,52 @@ export function MarketAnalysisContent({
     const isBuyerView = analysis.recommendation === "BUY" || analysis.recommendation === "WAIT";
     const priceDistribution = toPriceDistributionViewModel(analysis);
 
-    if (variant === "management") {
+    if (variant === "management" || variant === "sold") {
         return (
             <div className="flex flex-col bg-white">
-                <div className="px-[30px] pb-5">
-                    <div className="rounded-[10px] bg-[#fafbff] px-[30px] py-5">
-                        <MarketAnalysisRecommendation analysis={analysis} variant="management" />
-                        <div className="mt-5 flex flex-col items-end gap-[10px]">
-                            <MarketAnalysisSummaryMetrics
+                {variant === "management" ? (
+                    <div className="px-[30px] pb-5">
+                        <div className="rounded-[10px] bg-[#fafbff] px-[30px] py-5">
+                            <MarketAnalysisRecommendation
                                 analysis={analysis}
                                 variant="management"
                             />
-                            {!isBuyerView && canChangeRecommendedPrice ? (
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    disabled={
-                                        !onRecommendedPriceChange ||
-                                        isRecommendedPriceChanging ||
-                                        analysis.suggestedPrice === null
-                                    }
-                                    onClick={onRecommendedPriceChange}
-                                    className="h-auto gap-1 rounded-none p-0 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6653fb] hover:bg-transparent hover:text-[#6653fb]"
-                                >
-                                    {isRecommendedPriceChanging
-                                        ? "변경 중..."
-                                        : "추천 가격으로 변경"}
-                                    <ArrowRight aria-hidden="true" className="size-4" />
-                                </Button>
-                            ) : null}
+                            <div className="mt-5 flex flex-col items-end gap-[10px]">
+                                <MarketAnalysisSummaryMetrics
+                                    analysis={analysis}
+                                    variant="management"
+                                />
+                                {!isBuyerView && canChangeRecommendedPrice ? (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        disabled={
+                                            !onRecommendedPriceChange ||
+                                            isRecommendedPriceChanging ||
+                                            analysis.suggestedPrice === null
+                                        }
+                                        onClick={onRecommendedPriceChange}
+                                        className="h-auto gap-1 rounded-none p-0 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6653fb] hover:bg-transparent hover:text-[#6653fb]"
+                                    >
+                                        {isRecommendedPriceChanging
+                                            ? "변경 중..."
+                                            : "추천 가격으로 변경"}
+                                        <ArrowRight aria-hidden="true" className="size-4" />
+                                    </Button>
+                                ) : null}
+                            </div>
                         </div>
                     </div>
-                </div>
+                ) : null}
 
-                <div className="border-t border-[#d3d3d3] bg-white px-[50px] py-[30px]">
+                <div
+                    className={cn(
+                        "bg-white",
+                        variant === "management"
+                            ? "border-t border-[#d3d3d3] px-[50px] py-[30px]"
+                            : "px-[20px] py-[30px]",
+                    )}
+                >
                     <button
                         type="button"
                         aria-expanded={isDetailsOpen}
@@ -126,11 +138,18 @@ export function MarketAnalysisContent({
                 </div>
 
                 {isDetailsOpen ? (
-                    <div className="flex flex-col gap-5 px-[30px] pb-[30px]">
+                    <div
+                        className={cn(
+                            "flex flex-col",
+                            variant === "management"
+                                ? "gap-5 px-[30px] pb-[30px]"
+                                : "gap-5 px-[20px] pb-[20px]",
+                        )}
+                    >
                         <MarketAnalysisPriceDistribution data={priceDistribution} />
                         <ProductPriceTrendSection query={priceTrendQuery} />
                         <ProductValuationForecastSection query={valuationForecastQuery} />
-                        {competitionQuery ? (
+                        {variant !== "sold" && competitionQuery ? (
                             <ProductCompetitionSection
                                 query={competitionQuery}
                                 variant="management"

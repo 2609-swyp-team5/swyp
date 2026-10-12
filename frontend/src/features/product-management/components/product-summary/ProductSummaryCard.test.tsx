@@ -7,13 +7,15 @@ vi.mock("@/features/sell/components/manage/ProductSummaryActions", () => ({
     ProductSummaryActions: ({
         actionLabel,
         canMarkAsSold,
+        showDetails = true,
     }: {
         actionLabel?: string;
         canMarkAsSold?: boolean;
+        showDetails?: boolean;
     }) => (
         <div>
             {canMarkAsSold ? <button type="button">판매완료</button> : null}
-            <button type="button">{actionLabel ?? "수정하기"}</button>
+            {showDetails ? <button type="button">{actionLabel ?? "수정하기"}</button> : null}
             <button type="button">삭제하기</button>
         </div>
     ),
@@ -60,9 +62,21 @@ describe("ProductSummaryCard", () => {
         expect(screen.getByText("판매 시작")).toBeInTheDocument();
         expect(screen.getByText("조회")).toBeInTheDocument();
         expect(screen.getByText("관심")).toBeInTheDocument();
-        expect(screen.queryByText("팔린 플랫폼")).not.toBeInTheDocument();
-        expect(screen.queryByText("최종판매가격")).not.toBeInTheDocument();
-        expect(screen.queryByRole("button", { name: "판매완료" })).not.toBeInTheDocument();
+    });
+
+    it("판매완료 variant는 기존 카드 구조에서 거래 정보 영역만 변경한다", () => {
+        render(<ProductSummaryCard product={soldProduct} variant="sold" />);
+
+        expect(screen.getByText("팔린 플랫폼")).toBeInTheDocument();
+        expect(screen.getByText("중고나라")).toBeInTheDocument();
+        expect(screen.getByText("최종판매가격")).toBeInTheDocument();
+        expect(screen.getByText("450,000원")).toBeInTheDocument();
+        expect(screen.queryByText("판매 시작")).not.toBeInTheDocument();
+        expect(screen.queryByText("조회")).not.toBeInTheDocument();
+        expect(screen.queryByText("관심")).not.toBeInTheDocument();
+        expect(screen.queryByText("상품상태")).not.toBeInTheDocument();
+        expect(screen.queryByText("상품 설명")).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "자세히 보기" })).not.toBeInTheDocument();
     });
 
     it("임시저장 상태는 연한 빨간색 상태 뱃지를 보여준다", () => {

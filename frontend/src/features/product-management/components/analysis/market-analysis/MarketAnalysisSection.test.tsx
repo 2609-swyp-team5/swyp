@@ -148,6 +148,38 @@ it("판매 완료 상품에는 추천 가격 변경 액션을 표시하지 않�
     expect(screen.queryByRole("button", { name: /추천 가격으로 변경/ })).not.toBeInTheDocument();
 });
 
+it("판매완료 상품은 추천 요약 없이 상세 시세 분석을 접어 보여준다", () => {
+    const analysis = createProductMarketAnalysisMock(1, "SELL", "SELL");
+    const competitionQuery = {
+        data: createProductCompetitionMock(1),
+        error: null,
+        isPending: false,
+        isFetching: false,
+        refetch: vi.fn(),
+    } as never;
+
+    render(
+        <MarketAnalysisSection
+            result={analysis}
+            error={null}
+            isPending={false}
+            priceTrendQuery={idleQuery}
+            valuationForecastQuery={idleQuery}
+            variant="sold"
+            competitionQuery={competitionQuery}
+        />,
+    );
+
+    expect(screen.getByRole("button", { name: /상세 시세 분석 보기/ })).toBeInTheDocument();
+    expect(screen.queryByText("AI 추천 판매가")).not.toBeInTheDocument();
+    expect(screen.queryByText("거래 가격 분포")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /상세 시세 분석 보기/ }));
+
+    expect(screen.getByText("거래 가격 분포")).toBeInTheDocument();
+    expect(screen.queryByText("경쟁 상품 수")).not.toBeInTheDocument();
+});
+
 it("관리 화면의 로딩·결과 없음·오류 상태를 구분하고 재시도한다", () => {
     const refetch = vi.fn().mockResolvedValue(undefined);
     const { rerender } = render(

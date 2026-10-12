@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ChevronRight, Sparkles } from "lucide-react";
 
 import { getApiErrorMessage } from "@/common/lib/api/error";
 
@@ -22,7 +23,7 @@ type MarketAnalysisSectionProps = {
     isPending: boolean;
     priceTrendQuery: StreamingQueryState<ProductPriceTrend>;
     valuationForecastQuery: StreamingQueryState<ProductValuationForecast>;
-    variant?: "default" | "management";
+    variant?: "default" | "management" | "sold";
     isDetailsOpen?: boolean;
     onDetailsOpenChange?: (open: boolean) => void;
     onRecommendedPriceChange?: () => Promise<unknown>;
@@ -77,6 +78,32 @@ function RetryButton({
     );
 }
 
+function SoldAnalysisTrigger({ onClick }: { onClick: () => void }) {
+    return (
+        <div className="bg-white px-[20px] py-[30px]">
+            <button
+                type="button"
+                className="flex w-full items-start justify-between gap-5 text-left"
+                onClick={onClick}
+            >
+                <span className="flex min-w-0 flex-col gap-2.5">
+                    <span className="flex items-center gap-2.5 text-[22px] leading-[30px] font-semibold tracking-[0.5px] text-[#363636]">
+                        <Sparkles aria-hidden="true" className="size-5 fill-[#363636]" />
+                        상세 시세 분석 보기
+                    </span>
+                    <span className="text-[16px] leading-[25px] text-[#464646]">
+                        최근 30일 거래 데이터를 종합해 타이밍을 분석합니다.
+                    </span>
+                </span>
+                <span className="flex shrink-0 items-center gap-[3px] text-[16px] leading-[25px] text-[#83889e]">
+                    더보기
+                    <ChevronRight aria-hidden="true" className="size-4" />
+                </span>
+            </button>
+        </div>
+    );
+}
+
 export function MarketAnalysisSection({
     result,
     competitionQuery,
@@ -98,9 +125,11 @@ export function MarketAnalysisSection({
         message: string;
     } | null>(null);
     const isManagementVariant = variant === "management";
-    const isDetailsOpen = isManagementVariant
-        ? (controlledIsDetailsOpen ?? uncontrolledIsDetailsOpen)
-        : true;
+    const isSoldVariant = variant === "sold";
+    const isDetailsOpen =
+        isManagementVariant || isSoldVariant
+            ? (controlledIsDetailsOpen ?? uncontrolledIsDetailsOpen)
+            : true;
     const handleDetailsOpenChange = (open: boolean) => {
         setUncontrolledIsDetailsOpen(open);
         onDetailsOpenChange?.(open);
@@ -212,6 +241,17 @@ export function MarketAnalysisSection({
         </div>
     ) : null;
 
+    if (isSoldVariant && !isDetailsOpen && (isPending || (!result && !error))) {
+        return (
+            <section
+                aria-label="판매완료 상품 시세 분석"
+                className="w-full overflow-hidden rounded-[16px] border border-[#dedee6] bg-white"
+            >
+                <SoldAnalysisTrigger onClick={() => handleDetailsOpenChange(true)} />
+            </section>
+        );
+    }
+
     if (isManagementVariant) {
         return (
             <>
@@ -226,6 +266,17 @@ export function MarketAnalysisSection({
                     {analysisBody}
                 </section>
             </>
+        );
+    }
+
+    if (isSoldVariant) {
+        return (
+            <section
+                aria-label="판매완료 상품 시세 분석"
+                className="w-full overflow-hidden rounded-[16px] border border-[#dedee6] bg-white"
+            >
+                {analysisBody}
+            </section>
         );
     }
 

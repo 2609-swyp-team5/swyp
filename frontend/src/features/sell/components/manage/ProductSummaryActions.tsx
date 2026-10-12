@@ -29,6 +29,7 @@ type ProductSummaryActionsProps = {
     actionIconSrc?: string;
     onDeleted?: () => void;
     canMarkAsSold?: boolean;
+    showDetails?: boolean;
     variant?: "default" | "management";
 };
 
@@ -59,6 +60,7 @@ export function ProductSummaryActions({
     actionIconSrc = "/sell/pencil.svg",
     onDeleted,
     canMarkAsSold = false,
+    showDetails = true,
     variant = "default",
 }: ProductSummaryActionsProps) {
     const router = useRouter();
@@ -117,7 +119,7 @@ export function ProductSummaryActions({
             <div
                 className={
                     isManagementVariant
-                        ? "flex w-[178px] shrink-0 items-end justify-end gap-5"
+                        ? `flex shrink-0 items-end justify-end gap-5 ${showDetails ? "w-[178px]" : "w-auto"}`
                         : "flex items-center justify-end gap-[30px]"
                 }
             >
@@ -148,34 +150,36 @@ export function ProductSummaryActions({
                             {isManagementVariant ? "판매 완료" : "판매완료"}
                         </span>
                     </Button>
-                ) : isManagementVariant ? (
+                ) : isManagementVariant && showDetails ? (
                     <span className="h-[46px] w-[46px] shrink-0" aria-hidden="true" />
                 ) : null}
-                <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => router.push(actionHref)}
-                    className={
-                        isManagementVariant
-                            ? "h-auto min-w-[46px] flex-col gap-1 rounded-xl px-0 py-0 text-[#83889e] hover:bg-transparent hover:text-[#6653fb]"
-                            : "h-auto flex-col gap-2 rounded-xl p-2.5 text-[#83889e] hover:bg-[#f5f3ff] hover:text-[#6653fb]"
-                    }
-                >
-                    {isManagementVariant ? (
-                        <Pencil aria-hidden="true" className="size-5" />
-                    ) : (
-                        <Image src={actionIconSrc} alt="" width={40} height={40} />
-                    )}
-                    <span
+                {showDetails ? (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => router.push(actionHref)}
                         className={
                             isManagementVariant
-                                ? "text-[12px] leading-[18px] font-normal"
-                                : "text-[16px] leading-[25px] font-normal"
+                                ? "h-auto min-w-[46px] flex-col gap-1 rounded-xl px-0 py-0 text-[#83889e] hover:bg-transparent hover:text-[#6653fb]"
+                                : "h-auto flex-col gap-2 rounded-xl p-2.5 text-[#83889e] hover:bg-[#f5f3ff] hover:text-[#6653fb]"
                         }
                     >
-                        {isManagementVariant ? "자세히 보기" : actionLabel}
-                    </span>
-                </Button>
+                        {isManagementVariant ? (
+                            <Pencil aria-hidden="true" className="size-5" />
+                        ) : (
+                            <Image src={actionIconSrc} alt="" width={40} height={40} />
+                        )}
+                        <span
+                            className={
+                                isManagementVariant
+                                    ? "text-[12px] leading-[18px] font-normal"
+                                    : "text-[16px] leading-[25px] font-normal"
+                            }
+                        >
+                            {isManagementVariant ? "자세히 보기" : actionLabel}
+                        </span>
+                    </Button>
+                ) : null}
                 {isManagementVariant ? (
                     <Button
                         type="button"
