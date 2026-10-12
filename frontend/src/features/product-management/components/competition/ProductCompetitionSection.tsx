@@ -17,6 +17,8 @@ export function ProductCompetitionSection({
     variant?: "default" | "management";
 }) {
     const isError = Boolean(query.error);
+    const hasCompetitionItems = Boolean(query.data?.competition.items.length);
+    const shouldShowCompetitionMeta = (showCompetitionMeta ?? true) && hasCompetitionItems;
 
     return (
         <section aria-labelledby="product-competition-title" className="overflow-hidden">
@@ -30,7 +32,7 @@ export function ProductCompetitionSection({
                 <ProductCompetitionContent
                     competition={query.data.competition}
                     heading={heading}
-                    showCompetitionMeta={showCompetitionMeta}
+                    showCompetitionMeta={shouldShowCompetitionMeta}
                     variant={variant}
                 />
             ) : null}
