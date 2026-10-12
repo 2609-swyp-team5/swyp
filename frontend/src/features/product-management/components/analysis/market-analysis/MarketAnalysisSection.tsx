@@ -12,6 +12,7 @@ import type {
 } from "../../../types";
 import type { StreamingQueryState } from "../../shared/streaming/productManagementStreamingTypes";
 import { MarketAnalysisContent } from "./MarketAnalysisContent";
+import { MarketAnalysisManagementSkeleton } from "./MarketAnalysisManagementSkeleton";
 import { MarketAnalysisSkeleton } from "./MarketAnalysisSkeleton";
 
 type MarketAnalysisSectionProps = {
@@ -97,15 +98,7 @@ export function MarketAnalysisSection({
 
     const analysisBody = isPending ? (
         isManagementVariant ? (
-            <div
-                aria-label="AI 시세 분석을 불러오는 중"
-                className="flex min-h-[260px] flex-col items-center justify-center gap-3 bg-white px-6 py-16 text-center"
-            >
-                <p className="text-[16px] leading-6 font-semibold text-[#6653fb]">
-                    AI 시세 분석 대기 중이에요.
-                </p>
-                <p className="text-[13px] leading-5 text-[#83889e]">잠시만 기다려 주세요.</p>
-            </div>
+            <MarketAnalysisManagementSkeleton />
         ) : (
             <MarketAnalysisSkeleton
                 priceTrendQuery={priceTrendQuery}

@@ -125,7 +125,7 @@ it("관리 화면의 로딩·결과 없음·오류 상태를 구분하고 재시
         />,
     );
 
-    expect(screen.getByText("AI 시세 분석 대기 중이에요.")).toBeInTheDocument();
+    expect(screen.getByLabelText("AI 시세 분석을 불러오는 중")).toBeInTheDocument();
 
     rerender(
         <MarketAnalysisSection

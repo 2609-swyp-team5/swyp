@@ -6,7 +6,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/common/components/ui/Button";
 import { cn } from "@/common/lib/utils";
-import { persistSelectedProductId, useSelectedProductId } from "../../hooks/useSelectedProductId";
+import {
+    clearSelectedProductId,
+    persistSelectedProductId,
+    useSelectedProductId,
+} from "../../hooks/useSelectedProductId";
 import { ProductListItem } from "./ProductListItem";
 import { ProductListSkeleton } from "./ProductListSkeleton";
 import type { ProductListShellProps } from "./productListTypes";
@@ -135,6 +139,9 @@ export function ProductListShell({
                                             : "border-transparent text-[#83889e] hover:text-[#363636]",
                                     )}
                                     onClick={() => {
+                                        if (tab.key !== activeTabKey) {
+                                            clearSelectedProductId();
+                                        }
                                         setUncontrolledActiveTabKey(tab.key);
                                         onTabChange?.(tab.key);
                                     }}
