@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { Button } from "@/common/components/ui/Button";
@@ -10,6 +10,7 @@ import { MarketAnalysisSection } from "@/features/product-management/components/
 import { ProductSummaryCard } from "@/features/product-management/components/product-summary/ProductSummaryCard";
 import { ProductSummarySkeleton } from "@/features/product-management/components/product-summary/ProductSummarySkeleton";
 import { TargetPriceCard } from "@/features/product-management/components/target-price/TargetPriceCard";
+import { TargetPriceSaveToast } from "@/features/product-management/components/target-price/TargetPriceSaveToast";
 import { canSetInterestTargetPrice } from "@/features/product-management/components/target-price/targetPriceAvailability";
 import { formatPrice } from "@/features/product-management/components/analysis/market-analysis/formatters";
 import { useDeleteInterestMutation } from "../hooks/mutations/useDeleteInterestMutation";
@@ -25,6 +26,7 @@ const statusLabels: Record<string, string> = {
 
 export function InterestProductDetail({ interest }: { interest: InterestListItem }) {
     const [showAnalysisDetails, setShowAnalysisDetails] = useState(false);
+    const [savedTargetPrice, setSavedTargetPrice] = useState<number | null>(null);
     const deleteMutation = useDeleteInterestMutation();
     const targetPriceMutation = useSetInterestTargetPriceMutation(interest.interestId);
     const { targetPrice, price } = interest;
@@ -47,8 +49,29 @@ export function InterestProductDetail({ interest }: { interest: InterestListItem
 
     const summaryProduct = sections.productSummary.data;
 
+    useEffect(() => {
+        if (savedTargetPrice === null) {
+            return;
+        }
+
+        const timer = window.setTimeout(() => setSavedTargetPrice(null), 2500);
+        return () => window.clearTimeout(timer);
+    }, [savedTargetPrice]);
+
+    const handleTargetPriceSave = (value: number | null) => {
+        targetPriceMutation.mutate(value, {
+            onSuccess: (data) => setSavedTargetPrice(data.targetPrice),
+        });
+    };
+
     return (
         <div className="flex min-w-0 flex-col gap-6">
+            {savedTargetPrice !== null ? (
+                <TargetPriceSaveToast
+                    targetPrice={savedTargetPrice}
+                    description="상품 가격이 목표가 이하가 되면 알려드릴게요."
+                />
+            ) : null}
             {sections.productSummary.isPending ? <ProductSummarySkeleton /> : null}
             {summaryProduct ? (
                 <ProductSummaryCard
@@ -99,7 +122,10 @@ export function InterestProductDetail({ interest }: { interest: InterestListItem
                     }
                     isSaving={targetPriceMutation.isPending}
                     error={targetPriceMutation.error}
-                    onSave={(value) => targetPriceMutation.mutate(value)}
+                    onSave={handleTargetPriceSave}
+                    variant="interest"
+                    recommendedPrice={sections.productAnalysis.data?.suggestedPrice ?? null}
+                    marketPriceDiffRate={sections.productAnalysis.data?.marketPriceDiffRate ?? null}
                 />
             ) : null}
 

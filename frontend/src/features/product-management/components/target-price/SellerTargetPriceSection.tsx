@@ -1,11 +1,14 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import { formatPrice } from "../analysis/market-analysis/formatters";
 import {
     useProductTargetPriceQuery,
     useSetProductTargetPriceMutation,
 } from "../../hooks/useProductTargetPrice";
 import { TargetPriceCard } from "./TargetPriceCard";
+import { TargetPriceSaveToast } from "./TargetPriceSaveToast";
 
 function waitingText(targetPrice: number | null, averagePrice: number | null) {
     if (targetPrice === null) return "";
@@ -17,6 +20,16 @@ function waitingText(targetPrice: number | null, averagePrice: number | null) {
 export function SellerTargetPriceSection({ productId }: { productId: number }) {
     const query = useProductTargetPriceQuery(productId);
     const mutation = useSetProductTargetPriceMutation(productId);
+    const [savedTargetPrice, setSavedTargetPrice] = useState<number | null>(null);
+
+    useEffect(() => {
+        if (savedTargetPrice === null) {
+            return;
+        }
+
+        const timer = window.setTimeout(() => setSavedTargetPrice(null), 2500);
+        return () => window.clearTimeout(timer);
+    }, [savedTargetPrice]);
 
     if (query.isPending) {
         return (
@@ -32,19 +45,29 @@ export function SellerTargetPriceSection({ productId }: { productId: number }) {
 
     const { targetPrice, averagePrice, reached } = query.data;
     return (
-        <TargetPriceCard
-            key={`${productId}-${targetPrice ?? "none"}`}
-            title="목표 판매가"
-            description="AI 시세 분석의 평균 시세가 이 금액 이상이 되면 알려드려요."
-            targetPrice={targetPrice}
-            compareLabel="최근 평균 시세"
-            comparePrice={averagePrice}
-            reached={reached}
-            reachedText="평균 시세가 목표 판매가 이상이에요. 지금 판매를 고려해 보세요."
-            waitingText={waitingText(targetPrice, averagePrice)}
-            isSaving={mutation.isPending}
-            error={mutation.error}
-            onSave={(value) => mutation.mutate(value)}
-        />
+        <>
+            {savedTargetPrice !== null ? (
+                <TargetPriceSaveToast targetPrice={savedTargetPrice} />
+            ) : null}
+            <TargetPriceCard
+                key={`${productId}-${targetPrice ?? "none"}`}
+                title="목표 판매가"
+                description="AI 시세 분석의 평균 시세가 이 금액 이상이 되면 알려드려요."
+                targetPrice={targetPrice}
+                compareLabel="최근 평균 시세"
+                comparePrice={averagePrice}
+                reached={reached}
+                reachedText="평균 시세가 목표 판매가 이상이에요. 지금 판매를 고려해 보세요."
+                waitingText={waitingText(targetPrice, averagePrice)}
+                isSaving={mutation.isPending}
+                error={mutation.error}
+                onSave={(value) =>
+                    mutation.mutate(value, {
+                        onSuccess: (data) => setSavedTargetPrice(data.targetPrice),
+                    })
+                }
+                variant="management"
+            />
+        </>
     );
 }

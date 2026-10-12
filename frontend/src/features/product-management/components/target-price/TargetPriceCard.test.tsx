@@ -64,4 +64,45 @@ describe("TargetPriceCard", () => {
         await user.click(screen.getByRole("button", { name: "해제" }));
         expect(onSave).toHaveBeenCalledWith(null);
     });
+
+    it("관심 상품은 목표 구매가 전용 카드로 추천가와 목표 등록가를 보여 준다", () => {
+        renderCard({
+            title: "목표 구매가",
+            description: "상품 가격이 이 금액 이하가 되면 알려드려요.",
+            targetPrice: 450000,
+            recommendedPrice: 469000,
+            marketPriceDiffRate: 4.9,
+            variant: "interest",
+        });
+
+        expect(screen.getByText("알림 활성화")).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: "알림 활성화 설정으로 이동" })).toHaveAttribute(
+            "href",
+            "/my/notifications",
+        );
+        expect(screen.getByText("현재 AI 추천 판매가")).toBeInTheDocument();
+        expect(screen.getByText("469,000원")).toBeInTheDocument();
+        expect(screen.getByText("시세 대비 +4.9%")).toBeInTheDocument();
+        expect(screen.getByText("목표 등록가")).toBeInTheDocument();
+        expect(screen.getByText("450,000원")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "삭제하기" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "저장하기" })).toBeDisabled();
+    });
+
+    it("판매 상품 관리도 같은 목표가 카드 구조를 사용한다", () => {
+        renderCard({
+            title: "목표 판매가",
+            compareLabel: "최근 평균 시세",
+            comparePrice: 320000,
+            targetPrice: 450000,
+            variant: "management",
+        });
+
+        expect(screen.getByText("최근 평균 시세")).toBeInTheDocument();
+        expect(screen.getByText("320,000원")).toBeInTheDocument();
+        expect(screen.getByText("목표 등록가")).toBeInTheDocument();
+        expect(screen.getByText("450,000원")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "삭제하기" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "저장하기" })).toBeInTheDocument();
+    });
 });
