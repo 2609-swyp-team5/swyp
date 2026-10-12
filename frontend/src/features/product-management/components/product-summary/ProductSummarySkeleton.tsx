@@ -1,4 +1,4 @@
-export function ProductSummarySkeleton() {
+function ManagementProductSummarySkeleton() {
     return (
         <section
             aria-label="상품 정보를 불러오는 중"
@@ -66,4 +66,8 @@ export function ProductSummarySkeleton() {
             </div>
         </section>
     );
+}
+
+export function ProductSummarySkeleton() {
+    return <ManagementProductSummarySkeleton />;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { getApiErrorMessage } from "@/common/lib/api/error";
+import { Button } from "@/common/components/ui/Button";
 import { clearSelectedProductId } from "@/features/product-management/hooks/useSelectedProductId";
 import { useProductManagementSectionsQuery } from "@/features/product-management/hooks/useProductManagementSectionsQuery";
 import { MarketAnalysisSection } from "@/features/product-management/components/analysis/market-analysis/MarketAnalysisSection";
@@ -63,9 +64,18 @@ export function InterestProductDetail({ interest }: { interest: InterestListItem
                 </p>
             ) : null}
             {sections.productSummary.error ? (
-                <p className="-mt-4 text-right text-[13px] leading-5 text-[#d65353]">
-                    {getApiErrorMessage(sections.productSummary.error)}
-                </p>
+                <section className="flex min-h-[539px] flex-col items-center justify-center gap-4 rounded-[20px] border border-[#d3d3d3] bg-white p-6 text-center">
+                    <p role="alert" className="text-[14px] leading-6 text-[#d65353]">
+                        {getApiErrorMessage(sections.productSummary.error)}
+                    </p>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => void sections.productSummary.refetch()}
+                    >
+                        다시 시도
+                    </Button>
+                </section>
             ) : null}
 
             {canSetInterestTargetPrice(interest.interestStatus) ? (

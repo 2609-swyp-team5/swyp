@@ -66,12 +66,50 @@ function formatTradeMethod(tradeMethod: TradeMethod | null | undefined) {
     return tradeMethod ? tradeMethodLabels[tradeMethod] : "미설정";
 }
 
-function ManagementSummaryCard({ product }: { product: ProductDetailSummaryResponse }) {
+function InterestPlatformBadge({ platformName }: { platformName: string }) {
+    return (
+        <span className="inline-flex h-6 items-center rounded-full bg-[#fff4f4] px-2.5 text-[13px] leading-5 font-semibold text-[#fa503d]">
+            {platformName}
+        </span>
+    );
+}
+
+function InterestExternalLinkButton({ href, label }: { href: string; label: string }) {
+    return (
+        <Button
+            asChild
+            variant="ghost"
+            className="h-auto min-w-[46px] flex-col gap-1 rounded-xl px-0 py-0 text-[#83889e] hover:bg-transparent hover:text-[#6653fb]"
+        >
+            <a href={href} target="_blank" rel="noreferrer">
+                <ExternalLink aria-hidden="true" className="size-5" />
+                <span className="text-[12px] leading-[18px] font-normal">{label}</span>
+            </a>
+        </Button>
+    );
+}
+
+function ProductSummaryCardFrame({
+    product,
+    interest,
+}: {
+    product: ProductDetailSummaryResponse;
+    interest?: InterestSummaryActions;
+}) {
     const titleId = `product-summary-detail-title-${product.id}`;
     const description = product.description?.trim() || "등록된 상세 설명이 없습니다.";
     const includedItems = product.includedItems.length ? product.includedItems.join(" · ") : "없음";
     const daysOnSale = product.daysOnSale === null ? "-" : `${product.daysOnSale}일째`;
     const viewCount = product.viewCount === null ? "-" : product.viewCount.toLocaleString("ko-KR");
+    const interestPlatformNames = interest?.platformName
+        ? [interest.platformName]
+        : Array.from(
+              new Set(
+                  product.platforms
+                      .map((platform) => platform.platformName || platform.platform)
+                      .filter(Boolean),
+              ),
+          );
 
     return (
         <section
@@ -88,14 +126,28 @@ function ManagementSummaryCard({ product }: { product: ProductDetailSummaryRespo
 
                 <div className="flex min-w-0 flex-col">
                     <div className="flex items-center gap-3">
-                        <span
-                            className={cn(
-                                "inline-flex h-6 items-center rounded-full px-2.5 text-[13px] leading-5 font-semibold",
-                                detailStatusClassNames[product.status] ?? "bg-[#fa503d] text-white",
-                            )}
-                        >
-                            {detailStatusLabels[product.status]}
-                        </span>
+                        {interest ? (
+                            interestPlatformNames.length > 0 ? (
+                                interestPlatformNames.map((platformName) => (
+                                    <InterestPlatformBadge
+                                        key={platformName}
+                                        platformName={platformName}
+                                    />
+                                ))
+                            ) : (
+                                <InterestPlatformBadge platformName={interest.detailLabel} />
+                            )
+                        ) : (
+                            <span
+                                className={cn(
+                                    "inline-flex h-6 items-center rounded-full px-2.5 text-[13px] leading-5 font-semibold",
+                                    detailStatusClassNames[product.status] ??
+                                        "bg-[#fa503d] text-white",
+                                )}
+                            >
+                                {detailStatusLabels[product.status]}
+                            </span>
+                        )}
                         <span className="text-[11px] leading-4 font-normal text-[#6b6c7b]">
                             {formatRegisteredAt(product.createdAt)}
                         </span>
@@ -137,20 +189,55 @@ function ManagementSummaryCard({ product }: { product: ProductDetailSummaryRespo
                     </div>
 
                     <div className="mt-auto flex w-full items-end justify-end gap-5 pt-4">
-                        <ProductSummaryActions
-                            product={product}
-                            actionHref={`/sell/manage/${product.id}`}
-                            actionLabel="자세히 보기"
-                            canMarkAsSold={product.status === "ON_SALE"}
-                            variant="management"
-                        />
-                        {product.status === "ON_SALE" || product.status === "SOLD_OUT" ? (
-                            <PlatformShortcutDialog
-                                product={product}
-                                label="바로가기"
-                                variant="management"
-                            />
-                        ) : null}
+                        {interest ? (
+                            <>
+                                {interest.externalUrl ? (
+                                    <InterestExternalLinkButton
+                                        href={interest.externalUrl}
+                                        label="판매글 바로가기"
+                                    />
+                                ) : product.status === "ON_SALE" && product.platforms.length > 0 ? (
+                                    <PlatformShortcutDialog
+                                        product={product}
+                                        label="판매글 바로가기"
+                                        variant="management"
+                                    />
+                                ) : null}
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    aria-label="관심 상품 삭제"
+                                    disabled={interest.deletePending}
+                                    className="h-auto min-w-[46px] flex-col gap-1 rounded-xl px-0 py-0 text-[#83889e] hover:bg-transparent hover:text-[#6653fb] disabled:cursor-wait disabled:opacity-50"
+                                    onClick={interest.onDelete}
+                                >
+                                    <Heart
+                                        aria-hidden="true"
+                                        className="size-5 fill-[#6653fb] text-[#6653fb]"
+                                    />
+                                    <span className="text-[12px] leading-[18px] font-normal">
+                                        관심 해제
+                                    </span>
+                                </Button>
+                            </>
+                        ) : (
+                            <>
+                                <ProductSummaryActions
+                                    product={product}
+                                    actionHref={`/sell/manage/${product.id}`}
+                                    actionLabel="자세히 보기"
+                                    canMarkAsSold={product.status === "ON_SALE"}
+                                    variant="management"
+                                />
+                                {product.status === "ON_SALE" || product.status === "SOLD_OUT" ? (
+                                    <PlatformShortcutDialog
+                                        product={product}
+                                        label="바로가기"
+                                        variant="management"
+                                    />
+                                ) : null}
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
@@ -167,120 +254,6 @@ function ManagementSummaryCard({ product }: { product: ProductDetailSummaryRespo
     );
 }
 
-function InterestSummaryCard({
-    product,
-    interest,
-}: {
-    product: ProductDetailSummaryResponse;
-    interest: InterestSummaryActions;
-}) {
-    const interestPlatformNames = interest.platformName
-        ? [interest.platformName]
-        : Array.from(
-              new Set(
-                  product.platforms
-                      .map((platform) => platform.platformName || platform.platform)
-                      .filter(Boolean),
-              ),
-          );
-
-    return (
-        <section
-            aria-labelledby="product-summary-detail-title"
-            className="rounded-[16px] border border-[#dee5ed] bg-white p-5"
-        >
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-                <ProductGallery key={product.id} product={product} layout="bottom" />
-
-                <div className="flex h-full min-w-0 flex-col py-1">
-                    <div className="flex items-center justify-between gap-3">
-                        <div className="flex flex-wrap items-center gap-3">
-                            {interestPlatformNames.length > 0 ? (
-                                interestPlatformNames.map((platformName) => (
-                                    <span
-                                        key={platformName}
-                                        className="rounded-full bg-[#fff4f4] px-4 py-1 text-[13px] leading-5 font-semibold text-[#fa503d]"
-                                    >
-                                        {platformName}
-                                    </span>
-                                ))
-                            ) : (
-                                <span className="rounded-full bg-[#fff4f4] px-4 py-1 text-[13px] leading-5 font-semibold text-[#fa503d]">
-                                    {interest.detailLabel}
-                                </span>
-                            )}
-                            <span className="text-[11px] leading-4 text-[#6b6c7b]">
-                                {formatRegisteredAt(product.createdAt)}
-                            </span>
-                        </div>
-                        {interest.externalUrl ? (
-                            <Button
-                                asChild
-                                variant="ghost"
-                                className="h-auto gap-1.5 rounded-[10px] border border-[#d3d3d3] bg-white text-[13px] text-[#6653fb] hover:border-[#6653fb] hover:bg-[#fafbff]"
-                            >
-                                <a href={interest.externalUrl} target="_blank" rel="noreferrer">
-                                    <ExternalLink
-                                        aria-hidden="true"
-                                        className="size-[18px] text-[#6653fb]"
-                                    />
-                                    판매글 바로가기
-                                </a>
-                            </Button>
-                        ) : product.status === "ON_SALE" && product.platforms.length > 0 ? (
-                            <PlatformShortcutDialog
-                                product={product}
-                                label="판매글 바로가기"
-                                compact
-                            />
-                        ) : null}
-                    </div>
-                    <h2
-                        id="product-summary-detail-title"
-                        className="mt-4 text-[24px] leading-9 font-bold break-keep text-[#363636]"
-                    >
-                        {product.title}
-                    </h2>
-                    <p className="mt-1 text-[26px] leading-9 font-bold text-[#6653fb]">
-                        {priceFormatter.format(product.price)}원
-                    </p>
-                    <div className="mt-5 flex flex-wrap gap-2.5">
-                        <span className="rounded-full border border-[#d3d3d3] bg-[#fafbff] px-4 py-2 text-[13px] leading-5 font-semibold text-[#83889e]">
-                            {product.category.name}
-                        </span>
-                        {product.condition ? (
-                            <span className="rounded-full border border-[#d3d3d3] bg-[#fafbff] px-4 py-2 text-[13px] leading-5 font-semibold text-[#6653fb]">
-                                {conditionLabels[product.condition]}
-                            </span>
-                        ) : null}
-                    </div>
-                    <div className="mt-auto flex items-end justify-end gap-[30px] pt-6">
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            aria-label="관심 상품 삭제"
-                            disabled={interest.deletePending}
-                            className="h-auto flex-col gap-2 rounded-xl p-2.5 text-[#83889e] hover:bg-[#f5f3ff] hover:text-[#6653fb] disabled:cursor-wait disabled:opacity-50"
-                            onClick={interest.onDelete}
-                        >
-                            <span className="flex size-10 items-center justify-center rounded-full bg-[#eaeafd]">
-                                <Heart
-                                    aria-hidden="true"
-                                    className="size-[22px] fill-[#6653fb] text-[#6653fb]"
-                                />
-                            </span>
-                        </Button>
-                    </div>
-                </div>
-            </div>
-        </section>
-    );
-}
-
 export function ProductSummaryCard({ product, interest }: ProductSummaryCardProps) {
-    return interest ? (
-        <InterestSummaryCard product={product} interest={interest} />
-    ) : (
-        <ManagementSummaryCard product={product} />
-    );
+    return <ProductSummaryCardFrame product={product} interest={interest} />;
 }

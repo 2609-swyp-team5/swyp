@@ -71,7 +71,7 @@ describe("ProductSummaryCard", () => {
         expect(screen.getByText("임시저장")).toHaveClass("bg-[#fff4f4]", "text-[#fa503d]");
     });
 
-    it("관심 상품은 상단에 판매글 바로가기를 표시하고 관심 액션을 하단으로 이동한다", () => {
+    it("관심 상품도 관리 카드 구조를 사용하고 관심 전용 액션을 유지한다", () => {
         render(
             <ProductSummaryCard
                 product={{ ...soldProduct, status: "ON_SALE", platforms: [] }}
@@ -89,6 +89,9 @@ describe("ProductSummaryCard", () => {
             "href",
             "https://example.com/product/3",
         );
+        expect(screen.getByText("상품 설명")).toBeInTheDocument();
+        expect(screen.getByText("판매 시작")).toBeInTheDocument();
+        expect(screen.getByText("관심 해제")).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "관심 상품 삭제" })).toBeInTheDocument();
         expect(screen.queryByText("바로가기")).not.toBeInTheDocument();
     });
