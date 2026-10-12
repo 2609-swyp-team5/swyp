@@ -47,6 +47,9 @@ export function MarketAnalysisContent({
     variant = "default",
     isDetailsOpen = true,
     onDetailsOpenChange,
+    onRecommendedPriceChange,
+    isRecommendedPriceChanging = false,
+    canChangeRecommendedPrice = true,
 }: {
     analysis: ProductMarketAnalysis;
     competitionQuery?: StreamingQueryState<ProductCompetition>;
@@ -55,6 +58,9 @@ export function MarketAnalysisContent({
     variant?: "default" | "management";
     isDetailsOpen?: boolean;
     onDetailsOpenChange?: (open: boolean) => void;
+    onRecommendedPriceChange?: () => void;
+    isRecommendedPriceChanging?: boolean;
+    canChangeRecommendedPrice?: boolean;
 }) {
     const isBuyerView = analysis.recommendation === "BUY" || analysis.recommendation === "WAIT";
     const priceDistribution = toPriceDistributionViewModel(analysis);
@@ -70,20 +76,24 @@ export function MarketAnalysisContent({
                                 analysis={analysis}
                                 variant="management"
                             />
-                            {isBuyerView ? (
-                                <span className="text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6653fb]">
-                                    구매 고려 가격
-                                </span>
-                            ) : (
+                            {!isBuyerView && canChangeRecommendedPrice ? (
                                 <Button
                                     type="button"
                                     variant="ghost"
+                                    disabled={
+                                        !onRecommendedPriceChange ||
+                                        isRecommendedPriceChanging ||
+                                        analysis.suggestedPrice === null
+                                    }
+                                    onClick={onRecommendedPriceChange}
                                     className="h-auto gap-1 rounded-none p-0 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6653fb] hover:bg-transparent hover:text-[#6653fb]"
                                 >
-                                    추천 가격으로 변경
+                                    {isRecommendedPriceChanging
+                                        ? "변경 중..."
+                                        : "추천 가격으로 변경"}
                                     <ArrowRight aria-hidden="true" className="size-4" />
                                 </Button>
-                            )}
+                            ) : null}
                         </div>
                     </div>
                 </div>

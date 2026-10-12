@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { getApiErrorMessage } from "@/common/lib/api/error";
 
@@ -25,6 +25,9 @@ type MarketAnalysisSectionProps = {
     variant?: "default" | "management";
     isDetailsOpen?: boolean;
     onDetailsOpenChange?: (open: boolean) => void;
+    onRecommendedPriceChange?: () => Promise<unknown>;
+    isRecommendedPriceChanging?: boolean;
+    canChangeRecommendedPrice?: boolean;
     analysisRetry?: {
         isFetching: boolean;
         refetch: () => Promise<unknown>;
@@ -84,9 +87,16 @@ export function MarketAnalysisSection({
     variant = "default",
     isDetailsOpen: controlledIsDetailsOpen,
     onDetailsOpenChange,
+    onRecommendedPriceChange,
+    isRecommendedPriceChanging = false,
+    canChangeRecommendedPrice = true,
     analysisRetry,
 }: MarketAnalysisSectionProps) {
     const [uncontrolledIsDetailsOpen, setUncontrolledIsDetailsOpen] = useState(false);
+    const [priceChangeFeedback, setPriceChangeFeedback] = useState<{
+        type: "success" | "error";
+        message: string;
+    } | null>(null);
     const isManagementVariant = variant === "management";
     const isDetailsOpen = isManagementVariant
         ? (controlledIsDetailsOpen ?? uncontrolledIsDetailsOpen)
@@ -95,6 +105,34 @@ export function MarketAnalysisSection({
         setUncontrolledIsDetailsOpen(open);
         onDetailsOpenChange?.(open);
     };
+
+    const handleRecommendedPriceChange = async () => {
+        if (!onRecommendedPriceChange) {
+            return;
+        }
+
+        try {
+            await onRecommendedPriceChange();
+            setPriceChangeFeedback({
+                type: "success",
+                message: "추천 가격으로 변경했습니다!",
+            });
+        } catch (error) {
+            setPriceChangeFeedback({
+                type: "error",
+                message: getApiErrorMessage(error),
+            });
+        }
+    };
+
+    useEffect(() => {
+        if (!priceChangeFeedback) {
+            return;
+        }
+
+        const timer = window.setTimeout(() => setPriceChangeFeedback(null), 2500);
+        return () => window.clearTimeout(timer);
+    }, [priceChangeFeedback]);
 
     const analysisBody = isPending ? (
         isManagementVariant ? (
@@ -125,6 +163,11 @@ export function MarketAnalysisSection({
             variant={variant}
             isDetailsOpen={isDetailsOpen}
             onDetailsOpenChange={handleDetailsOpenChange}
+            onRecommendedPriceChange={
+                onRecommendedPriceChange ? handleRecommendedPriceChange : undefined
+            }
+            isRecommendedPriceChanging={isRecommendedPriceChanging}
+            canChangeRecommendedPrice={canChangeRecommendedPrice}
         />
     ) : result === null ? (
         isManagementVariant ? (
@@ -144,29 +187,60 @@ export function MarketAnalysisSection({
         )
     ) : null;
 
+    const priceChangeToast = priceChangeFeedback ? (
+        <div
+            role={priceChangeFeedback.type === "error" ? "alert" : "status"}
+            aria-live="polite"
+            className={
+                priceChangeFeedback.type === "error"
+                    ? "fixed top-[calc(var(--header-height)+32px)] left-1/2 z-50 -translate-x-1/2 rounded-xl border border-[#f2b8b5] bg-[#fff4f4] px-5 py-3 text-[14px] leading-5 font-semibold text-[#d65353] shadow-[0_8px_24px_rgba(54,51,100,0.18)]"
+                    : "fixed top-[calc(var(--header-height)+32px)] left-1/2 z-50 flex w-[min(calc(100vw-32px),422px)] -translate-x-1/2 flex-col items-center justify-center rounded-[16px] border border-[#dee5ed] bg-white p-[33px] shadow-[0_8px_24px_rgba(54,51,100,0.18)]"
+            }
+        >
+            {priceChangeFeedback.type === "success" ? (
+                <div className="flex w-full max-w-[354px] flex-col items-center text-center">
+                    <p className="text-[20px] leading-[30px] font-bold text-[#545d82]">
+                        {priceChangeFeedback.message}
+                    </p>
+                    <p className="pt-1 text-[14px] leading-[21px] text-[#6b7395]">
+                        AI가 가격 변화를 추적하고 좋은 시점에 알려드릴게요.
+                    </p>
+                </div>
+            ) : (
+                priceChangeFeedback.message
+            )}
+        </div>
+    ) : null;
+
     if (isManagementVariant) {
         return (
-            <section
-                aria-labelledby="product-market-analysis-title"
-                className="w-full overflow-hidden rounded-[16px] border border-[#83889e] bg-white shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]"
-            >
-                <div className="px-[30px] pt-10 pb-5">
-                    <AnalysisHeader variant="management" />
-                </div>
-                {analysisBody}
-            </section>
+            <>
+                {priceChangeToast}
+                <section
+                    aria-labelledby="product-market-analysis-title"
+                    className="w-full overflow-hidden rounded-[16px] border border-[#83889e] bg-white shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]"
+                >
+                    <div className="px-[30px] pt-10 pb-5">
+                        <AnalysisHeader variant="management" />
+                    </div>
+                    {analysisBody}
+                </section>
+            </>
         );
     }
 
     return (
-        <div className="flex min-w-0 flex-col gap-2">
-            <AnalysisHeader variant="default" />
-            <section
-                aria-labelledby="product-market-analysis-title"
-                className="w-full overflow-hidden rounded-[16px] border border-[#83889e] bg-[#fafbff] shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]"
-            >
-                {analysisBody}
-            </section>
-        </div>
+        <>
+            {priceChangeToast}
+            <div className="flex min-w-0 flex-col gap-2">
+                <AnalysisHeader variant="default" />
+                <section
+                    aria-labelledby="product-market-analysis-title"
+                    className="w-full overflow-hidden rounded-[16px] border border-[#83889e] bg-[#fafbff] shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]"
+                >
+                    {analysisBody}
+                </section>
+            </div>
+        </>
     );
 }

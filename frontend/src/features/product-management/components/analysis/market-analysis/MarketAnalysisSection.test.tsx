@@ -111,6 +111,43 @@ it("관리 화면은 접힌 추천 카드와 3열 가격 metric을 먼저 보여
     expect(screen.queryByText("거래 가격 분포")).not.toBeInTheDocument();
 });
 
+it("관리형 구매 분석에는 구매 고려 가격 액션을 표시하지 않는다", () => {
+    const analysis = createProductMarketAnalysisMock(1, "BUY", "BUY");
+
+    render(
+        <MarketAnalysisSection
+            result={analysis}
+            error={null}
+            isPending={false}
+            priceTrendQuery={idleQuery}
+            valuationForecastQuery={idleQuery}
+            variant="management"
+        />,
+    );
+
+    expect(screen.queryByText("구매 고려 가격")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /추천 가격으로 변경/ })).not.toBeInTheDocument();
+});
+
+it("판매 완료 상품에는 추천 가격 변경 액션을 표시하지 않는다", () => {
+    const analysis = createProductMarketAnalysisMock(1, "SELL", "SELL");
+
+    render(
+        <MarketAnalysisSection
+            result={analysis}
+            error={null}
+            isPending={false}
+            priceTrendQuery={idleQuery}
+            valuationForecastQuery={idleQuery}
+            variant="management"
+            canChangeRecommendedPrice={false}
+            onRecommendedPriceChange={vi.fn().mockResolvedValue(undefined)}
+        />,
+    );
+
+    expect(screen.queryByRole("button", { name: /추천 가격으로 변경/ })).not.toBeInTheDocument();
+});
+
 it("관리 화면의 로딩·결과 없음·오류 상태를 구분하고 재시도한다", () => {
     const refetch = vi.fn().mockResolvedValue(undefined);
     const { rerender } = render(
@@ -155,4 +192,30 @@ it("관리 화면의 로딩·결과 없음·오류 상태를 구분하고 재시
     );
     expect(screen.getByText("network error")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "다시 시도" })).toBeInTheDocument();
+});
+
+it("추천 가격 변경이 완료되면 임시 toast를 보여준다", async () => {
+    const onRecommendedPriceChange = vi.fn().mockResolvedValue(undefined);
+    const analysis = createProductMarketAnalysisMock(1, "SELL", "SELL");
+
+    render(
+        <MarketAnalysisSection
+            result={analysis}
+            error={null}
+            isPending={false}
+            priceTrendQuery={idleQuery}
+            valuationForecastQuery={idleQuery}
+            variant="management"
+            onRecommendedPriceChange={onRecommendedPriceChange}
+        />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "추천 가격으로 변경" }));
+
+    expect(onRecommendedPriceChange).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole("status")).toHaveTextContent("추천 가격으로 변경했습니다!");
+    expect(
+        screen.getByText("AI가 가격 변화를 추적하고 좋은 시점에 알려드릴게요."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "확인" })).not.toBeInTheDocument();
 });

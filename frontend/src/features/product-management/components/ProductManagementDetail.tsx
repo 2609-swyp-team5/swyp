@@ -6,6 +6,7 @@ import { getApiErrorMessage } from "@/common/lib/api/error";
 import type { ProductStatus } from "@/features/sell/types";
 import { useProductManagementOverviewQuery } from "../hooks/useProductManagementOverviewQuery";
 import { useProductManagementSectionsQuery } from "../hooks/useProductManagementSectionsQuery";
+import { useUpdateProductPriceMutation } from "../hooks/useUpdateProductPriceMutation";
 import { MarketAnalysisSection } from "./analysis/market-analysis/MarketAnalysisSection";
 import { ProductSummaryCard } from "./product-summary/ProductSummaryCard";
 import { ProductSummarySkeleton } from "./product-summary/ProductSummarySkeleton";
@@ -23,6 +24,7 @@ export function ProductManagementDetail({
 }) {
     const [showSoldDetails, setShowSoldDetails] = useState(initialStatus !== "SOLD_OUT");
     const [showAnalysisDetails, setShowAnalysisDetails] = useState(false);
+    const updateProductPriceMutation = useUpdateProductPriceMutation();
 
     const isSoldOverviewMode = initialStatus === "SOLD_OUT" && !showSoldDetails;
     const shouldLoadDetailSections = !isSoldOverviewMode;
@@ -38,6 +40,17 @@ export function ProductManagementDetail({
     const activeSummaryQuery = isSoldOverviewMode ? overview : sections.productSummary;
     const { data, error, isPending } = activeSummaryQuery;
     const currentStatus = data?.status ?? (isPending ? initialStatus : undefined);
+    const handleRecommendedPriceChange = () => {
+        const suggestedPrice = sections.productAnalysis.data?.suggestedPrice;
+        if (suggestedPrice === undefined || suggestedPrice === null) {
+            return Promise.reject(new Error("추천 가격을 불러오지 못했습니다."));
+        }
+
+        return updateProductPriceMutation.mutateAsync({
+            productId,
+            price: suggestedPrice,
+        });
+    };
 
     return (
         <div className="flex w-full min-w-0 flex-col gap-6">
@@ -87,6 +100,11 @@ export function ProductManagementDetail({
                             isFetching: sections.productAnalysis.isFetching,
                             refetch: sections.productAnalysis.refetch,
                         }}
+                        onRecommendedPriceChange={handleRecommendedPriceChange}
+                        isRecommendedPriceChanging={updateProductPriceMutation.isPending}
+                        canChangeRecommendedPrice={
+                            currentStatus === "DRAFT" || currentStatus === "ON_SALE"
+                        }
                     />
                 </>
             ) : null}

@@ -76,6 +76,9 @@ const getMyProducts = (params?: { status?: ProductStatus; cursor?: string; size?
 const getProductTargetPrice = (id: number) =>
     api.get<ApiResponse<ProductTargetPriceResponse>>(`/products/${id}/target-price`);
 
+const updateProductPrice = (id: number, price: number) =>
+    api.patch<ApiResponse<ProductResponse>>(`/products/${id}/price`, { price });
+
 // null이면 목표 판매가 해제
 const setProductTargetPrice = (id: number, targetPrice: number | null) =>
     api.patch<ApiResponse<ProductTargetPriceResponse>>(`/products/${id}/target-price`, {
@@ -337,6 +340,7 @@ export const productApi = {
     getProductCompetition,
     getMyProducts,
     getProductTargetPrice,
+    updateProductPrice,
     setProductTargetPrice,
     deleteProduct,
     updateProductStatus,

@@ -17,6 +17,12 @@ vi.mock("../hooks/useProductManagementSectionsQuery", () => ({
 vi.mock("../hooks/useProductManagementOverviewQuery", () => ({
     useProductManagementOverviewQuery: overviewQueryMock,
 }));
+vi.mock("../hooks/useUpdateProductPriceMutation", () => ({
+    useUpdateProductPriceMutation: () => ({
+        isPending: false,
+        mutateAsync: vi.fn(),
+    }),
+}));
 vi.mock("./product-summary/ProductSummarySkeleton", () => ({
     ProductSummarySkeleton: () => <div data-testid="summary-skeleton" />,
 }));
