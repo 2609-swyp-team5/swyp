@@ -1,11 +1,12 @@
 "use client";
 
+import { useState } from "react";
+
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { Button } from "@/common/components/ui/Button";
 import { clearSelectedProductId } from "@/features/product-management/hooks/useSelectedProductId";
 import { useProductManagementSectionsQuery } from "@/features/product-management/hooks/useProductManagementSectionsQuery";
 import { MarketAnalysisSection } from "@/features/product-management/components/analysis/market-analysis/MarketAnalysisSection";
-import { ProductCompetitionSection } from "@/features/product-management/components/competition/ProductCompetitionSection";
 import { ProductSummaryCard } from "@/features/product-management/components/product-summary/ProductSummaryCard";
 import { ProductSummarySkeleton } from "@/features/product-management/components/product-summary/ProductSummarySkeleton";
 import { TargetPriceCard } from "@/features/product-management/components/target-price/TargetPriceCard";
@@ -23,11 +24,14 @@ const statusLabels: Record<string, string> = {
 };
 
 export function InterestProductDetail({ interest }: { interest: InterestListItem }) {
+    const [showAnalysisDetails, setShowAnalysisDetails] = useState(false);
     const deleteMutation = useDeleteInterestMutation();
     const targetPriceMutation = useSetInterestTargetPriceMutation(interest.interestId);
     const { targetPrice, price } = interest;
     const sections = useProductManagementSectionsQuery(interest.targetId, {
         perspective: "BUY",
+        analysisDetailsEnabled: showAnalysisDetails,
+        competitionEnabled: showAnalysisDetails,
     });
 
     const handleDelete = () => {
@@ -103,13 +107,16 @@ export function InterestProductDetail({ interest }: { interest: InterestListItem
                 result={sections.productAnalysis.data}
                 error={sections.productAnalysis.error}
                 isPending={sections.productAnalysis.isPending}
+                competitionQuery={sections.productCompetition}
                 priceTrendQuery={sections.productPriceTrend}
                 valuationForecastQuery={sections.productValuationForecast}
-            />
-            <ProductCompetitionSection
-                query={sections.productCompetition}
-                heading="비슷한 상품"
-                showCompetitionMeta={false}
+                variant="management"
+                isDetailsOpen={showAnalysisDetails}
+                onDetailsOpenChange={setShowAnalysisDetails}
+                analysisRetry={{
+                    isFetching: sections.productAnalysis.isFetching,
+                    refetch: sections.productAnalysis.refetch,
+                }}
             />
         </div>
     );
