@@ -42,14 +42,20 @@ describe("productDetailSummaryResponseSchema", () => {
         });
 
         expect(result).toMatchObject({
+            source: "EXTERNAL",
             id: 42,
+            description: null,
+            includedItems: [],
             status: "RESERVED",
             condition: null,
             category: {
                 id: 1,
                 name: "전자기기",
                 parentId: null,
+                leaf: true,
             },
+            tradeMethod: null,
+            deliveryType: null,
             platforms: [
                 {
                     platform: "중고나라",
@@ -62,7 +68,7 @@ describe("productDetailSummaryResponseSchema", () => {
     });
 });
 
-// 아래 응답은 백엔드 DTO(ProductAnalysisResponse 등)가 실제로 내려주는 형태 — 화면용 필드 외 추가 필드도 함께 온다.
+// 분석·추이·예측은 각각 별도 endpoint의 화면 계약으로 파싱한다.
 describe("백엔드 분석 응답 파싱", () => {
     it("시세 분석 응답(대기 추천 요약)을 파싱한다", () => {
         const result = productAnalysisResponseSchema.parse({
@@ -73,20 +79,10 @@ describe("백엔드 분석 응답 파싱", () => {
             averagePrice: 450000,
             maxPrice: 520000,
             marketPriceDiffRate: 11.1,
-            changeRate: null,
             recommendation: "HOLD",
             suggestedPrice: 470000,
             description: "시세가 오르는 중이에요.",
-            buyerRecommendation: "WAIT",
-            buyerDescription: "조금 기다려 보세요.",
             analyzedAt: "2026-10-05T06:00:00",
-            confidence: "HIGH",
-            confidenceRate: 70,
-            listingCount: 14,
-            waitPeriod: "1M",
-            expectedPrice: 468000,
-            expectedPriceChangeRate: 0.04,
-            forecasts: [{ period: "1M", expectedPrice: 440000 }],
             marketExpectedPrice: 468000,
             summary: {
                 type: "WAIT_RECOMMENDATION",
@@ -118,33 +114,21 @@ describe("백엔드 분석 응답 파싱", () => {
     it("가격 추이 응답을 파싱한다", () => {
         const result = productPriceTrendResponseSchema.parse({
             productId: 7,
-            currentPrice: 500000,
             priceTrend: {
                 period: "1M",
                 comparisonBasis: "PREVIOUS_TRADING_DAY",
                 totalTransactionCount: 11,
-                days: 30,
-                from: "2026-09-06",
-                to: "2026-10-05",
-                averagePrice: 992,
-                changeRate: -0.0803,
                 points: [
                     {
                         date: "2026-10-03",
                         averagePrice: 1033,
                         transactionCount: 7,
-                        minPrice: 800,
-                        maxPrice: 1300,
-                        analysisCount: 3,
                         change: null,
                     },
                     {
                         date: "2026-10-05",
                         averagePrice: 950,
                         transactionCount: 4,
-                        minPrice: 700,
-                        maxPrice: 1000,
-                        analysisCount: 1,
                         change: { comparedDate: "2026-10-03", amount: -83, rate: -8.03 },
                     },
                 ],
@@ -157,9 +141,6 @@ describe("백엔드 분석 응답 파싱", () => {
     it("감가 예측 응답을 파싱한다", () => {
         const result = productValuationForecastResponseSchema.parse({
             productId: 7,
-            currentPrice: 500000,
-            analysisId: 31,
-            analyzedAt: "2026-10-05T06:00:00",
             valuationForecast: {
                 baseDate: "2026-10-05",
                 baseValue: 3000,

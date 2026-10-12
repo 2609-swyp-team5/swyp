@@ -1,6 +1,12 @@
 import { z } from "zod";
 
-import { productConditionSchema, productStatusSchema } from "@/features/sell/schemas/productSchema";
+import {
+    deliveryTypeSchema,
+    productConditionSchema,
+    productPlatformStatusSchema,
+    productStatusSchema,
+    tradeMethodSchema,
+} from "@/features/sell/schemas/productSchema";
 import { productRecommendationSchema } from "@/features/sell/schemas/productResponseSchema";
 
 export const analysisRecommendationSchema = productRecommendationSchema;
@@ -134,6 +140,8 @@ export const productDetailSummaryResponseSchema = z
         tags: z.array(z.string()),
         includedItems: z.array(z.string()),
         condition: productConditionSchema.nullable(),
+        tradeMethod: tradeMethodSchema.nullable().optional(),
+        deliveryType: deliveryTypeSchema.nullable().optional(),
         status: productStatusSchema.or(z.literal("RESERVED")),
         createdAt: z.string(),
         updatedAt: z.string(),
@@ -142,49 +150,68 @@ export const productDetailSummaryResponseSchema = z
         daysOnSale: z.number().nullable(),
         platforms: z.array(
             z.object({
+                platform: z.string().optional(),
                 platformName: z.string(),
+                status: productPlatformStatusSchema.optional(),
                 productUrl: z.string().nullable(),
             }),
         ),
     })
     .transform(
         ({
+            source,
             id,
             title,
+            brand,
+            description,
+            category,
             price,
             soldPrice,
             soldPlatform,
+            imageUrls,
+            tags,
+            includedItems,
+            condition,
+            tradeMethod,
+            deliveryType,
             status,
             createdAt,
-            category,
-            condition,
-            imageUrls,
+            updatedAt,
             viewCount,
             interestCount,
             daysOnSale,
             platforms,
         }) => ({
+            source,
             id,
             title,
+            brand,
+            description,
             price,
             ...(soldPrice !== undefined ? { soldPrice } : {}),
             ...(soldPlatform !== undefined ? { soldPlatform } : {}),
             status,
             createdAt,
+            updatedAt,
             category: {
                 id: category.id,
                 name: category.name,
                 parentId: category.parentId,
+                leaf: category.leaf,
             },
+            tags,
+            includedItems,
             condition,
+            tradeMethod: tradeMethod ?? null,
+            deliveryType: deliveryType ?? null,
             imageUrls,
             viewCount,
             interestCount,
             daysOnSale,
-            platforms: platforms.map(({ platformName, productUrl }) => ({
-                platform: platformName,
+            platforms: platforms.map(({ platform, platformName, status, productUrl }) => ({
+                platform: platform ?? platformName,
                 platformName,
-                status: "POSTED" as const,
+                status: status ?? ("POSTED" as const),
                 productUrl,
             })),
         }),
