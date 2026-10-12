@@ -40,6 +40,7 @@ import com.swyp.team5.product.dto.ProductCreateRequest;
 import com.swyp.team5.product.dto.ProductDetailSummaryResponse;
 import com.swyp.team5.product.dto.ProductListItemResponse;
 import com.swyp.team5.product.dto.ProductManagementOverviewResponse;
+import com.swyp.team5.product.dto.ProductPriceUpdateRequest;
 import com.swyp.team5.product.dto.ProductResponse;
 import com.swyp.team5.product.dto.ProductSearchCondition;
 import com.swyp.team5.product.dto.ProductSearchPlatform;
@@ -56,6 +57,7 @@ import com.swyp.team5.product.service.ProductAiSearchService;
 import com.swyp.team5.product.service.ProductRegisterStreamService;
 import com.swyp.team5.product.service.ProductService;
 import com.swyp.team5.product.service.ProductTargetPriceService;
+import com.swyp.team5.productanalysis.dto.CompetitionSortType;
 import com.swyp.team5.productanalysis.dto.ProductCompetitionResponse;
 import com.swyp.team5.search.service.SearchLogService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -179,12 +181,14 @@ public class ProductController {
      * 수집한 외부 매물 중 기준 상품과 같은 유형의 판매 중 매물(경쟁 상품)을 조회한다(AI 호출 없음).
      *
      * @param productId 기준 상품 ID(외부 매물 ID 포함)
-     * @return 200 OK + 경쟁 상품 수·경쟁 정도·가격이 가까운 매물 목록(없으면 count 0, 빈 목록)
+     * @param sort 목록 정렬(기본 LATEST — LATEST/PRICE_LOW/PRICE_HIGH, 같은 값끼리는 최신 등록 순)
+     * @return 200 OK + 경쟁 상품 수·경쟁 정도·매물 목록(없으면 count 0, 빈 목록)
      */
     @Operation(summary = "경쟁 상품 조회")
     @GetMapping("/{productId}/competition")
-    public ResponseEntity<ApiResponse<ProductCompetitionResponse>> getCompetition(@PathVariable Long productId) {
-        return ResponseEntity.ok(ApiResponse.success(productService.getCompetition(productId)));
+    public ResponseEntity<ApiResponse<ProductCompetitionResponse>> getCompetition(
+            @PathVariable Long productId, @RequestParam(defaultValue = "LATEST") CompetitionSortType sort) {
+        return ResponseEntity.ok(ApiResponse.success(productService.getCompetition(productId, sort)));
     }
 
     /**
@@ -359,6 +363,25 @@ public class ProductController {
             @Valid @RequestBody ProductStatusUpdateRequest request) {
         ProductResponse response = productService.updateStatus(
                 currentMember.memberId(), productId, request.status(), request.soldPrice(), request.soldPlatform());
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    /**
+     * 상품의 판매 희망가만 변경한다(판매 관리 화면의 "추천 가격으로 변경" — 이미지·나머지 정보는 그대로). 본인이 등록한 상품만
+     * 변경할 수 있고, 외부 플랫폼에 게시된 글의 가격은 바꾸지 않는다.
+     *
+     * @param currentMember 인증된 요청자
+     * @param productId 가격을 변경할 상품 ID
+     * @param request 변경할 가격을 담은 요청 바디
+     * @return 200 OK + 변경된 상품
+     */
+    @Operation(summary = "상품 가격 변경")
+    @PatchMapping("/{productId}/price")
+    public ResponseEntity<ApiResponse<ProductResponse>> updatePrice(
+            @AuthenticationPrincipal PrincipalMember currentMember,
+            @PathVariable Long productId,
+            @Valid @RequestBody ProductPriceUpdateRequest request) {
+        ProductResponse response = productService.updatePrice(currentMember.memberId(), productId, request.price());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
