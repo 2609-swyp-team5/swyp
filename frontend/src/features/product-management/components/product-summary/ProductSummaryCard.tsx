@@ -1,6 +1,7 @@
 "use client";
 
-import { ExternalLink, Heart } from "lucide-react";
+import Image from "next/image";
+import { Heart } from "lucide-react";
 
 import { Button } from "@/common/components/ui/Button";
 import { Separator } from "@/common/components/ui/Separator";
@@ -104,11 +105,13 @@ function InterestExternalLinkButton({ href, label }: { href: string; label: stri
         <Button
             asChild
             variant="ghost"
-            className="h-auto min-w-[46px] flex-col gap-1 rounded-xl px-0 py-0 text-[#83889e] hover:bg-transparent hover:text-[#6653fb]"
+            className="h-[52px] w-[52px] flex-col gap-[5px] rounded-none p-[5px] text-[#83889e] hover:bg-transparent hover:text-[#6653fb]"
         >
             <a href={href} target="_blank" rel="noreferrer">
-                <ExternalLink aria-hidden="true" className="size-5" />
-                <span className="text-[12px] leading-[18px] font-normal">{label}</span>
+                <Image src="/sell/actions/shortcut.svg" alt="" width={20} height={20} />
+                <span className="text-[11px] leading-[16px] font-normal tracking-[-0.5px]">
+                    {label}
+                </span>
             </a>
         </Button>
     );
@@ -244,18 +247,18 @@ function ProductSummaryCardFrame({
                         </>
                     )}
 
-                    <div className="mt-auto flex w-full items-end justify-end gap-5 pt-4">
+                    <div className="mt-auto flex w-full items-end justify-end gap-[15px] pt-4">
                         {interest ? (
                             <>
                                 {interest.externalUrl ? (
                                     <InterestExternalLinkButton
                                         href={interest.externalUrl}
-                                        label="판매글 바로가기"
+                                        label="바로가기"
                                     />
                                 ) : product.status === "ON_SALE" && product.platforms.length > 0 ? (
                                     <PlatformShortcutDialog
                                         product={product}
-                                        label="판매글 바로가기"
+                                        label="바로가기"
                                         variant="management"
                                     />
                                 ) : null}
@@ -264,14 +267,16 @@ function ProductSummaryCardFrame({
                                     variant="ghost"
                                     aria-label="관심 상품 삭제"
                                     disabled={interest.deletePending}
-                                    className="h-auto min-w-[46px] flex-col gap-1 rounded-xl px-0 py-0 text-[#83889e] hover:bg-transparent hover:text-[#6653fb] disabled:cursor-wait disabled:opacity-50"
+                                    className="h-[52px] w-[52px] flex-col gap-[5px] rounded-none p-[5px] text-[#83889e] hover:bg-transparent hover:text-[#6653fb] disabled:cursor-wait disabled:opacity-50"
                                     onClick={interest.onDelete}
                                 >
                                     <Heart
                                         aria-hidden="true"
-                                        className="size-5 fill-[#6653fb] text-[#6653fb]"
+                                        strokeWidth={1.5}
+                                        className="size-5 shrink-0 text-[#6653fb]"
+                                        fill="currentColor"
                                     />
-                                    <span className="text-[12px] leading-[18px] font-normal">
+                                    <span className="text-[11px] leading-[16px] font-normal tracking-[-0.5px]">
                                         관심 해제
                                     </span>
                                 </Button>
@@ -284,15 +289,18 @@ function ProductSummaryCardFrame({
                                     actionLabel="자세히 보기"
                                     canMarkAsSold={product.status === "ON_SALE"}
                                     showDetails={!isSoldVariant}
+                                    middleAction={
+                                        product.status === "ON_SALE" ||
+                                        product.status === "SOLD_OUT" ? (
+                                            <PlatformShortcutDialog
+                                                product={product}
+                                                label="바로가기"
+                                                variant="management"
+                                            />
+                                        ) : null
+                                    }
                                     variant="management"
                                 />
-                                {product.status === "ON_SALE" || product.status === "SOLD_OUT" ? (
-                                    <PlatformShortcutDialog
-                                        product={product}
-                                        label="바로가기"
-                                        variant="management"
-                                    />
-                                ) : null}
                             </>
                         )}
                     </div>

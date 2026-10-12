@@ -1,11 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Pencil, Trash2 } from "lucide-react";
-
 import { Button } from "@/common/components/ui/Button";
 import { Input } from "@/common/components/ui/Input";
 import {
@@ -30,6 +28,7 @@ type ProductSummaryActionsProps = {
     onDeleted?: () => void;
     canMarkAsSold?: boolean;
     showDetails?: boolean;
+    middleAction?: ReactNode;
     variant?: "default" | "management";
 };
 
@@ -37,6 +36,12 @@ const soldPlatformOptions = Object.values(platformDefinitions).map((definition) 
     value: definition.name,
     label: definition.name,
 }));
+
+const managementActionIconPaths = {
+    sold: "/sell/actions/sale-complete.svg",
+    details: "/sell/actions/details.svg",
+    delete: "/sell/actions/trash.svg",
+} as const;
 
 const fieldClassName =
     "h-[50px] rounded-[8px] border border-[#d3d3d3] bg-[#fafbff] px-4 py-3 text-[16px] leading-[25px] text-[#6b6c7b] shadow-none placeholder:text-[#d3d3d3] focus-visible:border-[#6653fb] focus-visible:ring-0";
@@ -57,10 +62,11 @@ export function ProductSummaryActions({
     product,
     actionHref,
     actionLabel = "수정하기",
-    actionIconSrc = "/sell/pencil.svg",
+    actionIconSrc = "/sell/actions/pencil.svg",
     onDeleted,
     canMarkAsSold = false,
     showDetails = true,
+    middleAction,
     variant = "default",
 }: ProductSummaryActionsProps) {
     const router = useRouter();
@@ -119,7 +125,7 @@ export function ProductSummaryActions({
             <div
                 className={
                     isManagementVariant
-                        ? `flex shrink-0 items-end justify-end gap-5 ${showDetails ? "w-[178px]" : "w-auto"}`
+                        ? "flex shrink-0 items-end justify-end gap-[15px]"
                         : "flex items-center justify-end gap-[30px]"
                 }
             >
@@ -129,21 +135,26 @@ export function ProductSummaryActions({
                         variant="ghost"
                         className={
                             isManagementVariant
-                                ? "h-auto min-w-[46px] flex-col gap-1 rounded-xl px-0 py-0 text-[#83889e] hover:bg-transparent hover:text-[#6653fb]"
+                                ? "h-[52px] w-[52px] flex-col gap-[5px] rounded-none p-[5px] text-[#83889e] hover:bg-transparent hover:text-[#6653fb]"
                                 : "h-auto flex-col gap-2 rounded-xl p-2.5 text-[#83889e] hover:bg-[#f5f3ff] hover:text-[#6653fb]"
                         }
                         onClick={openSoldDialog}
                         disabled={updateProductStatusMutation.isPending}
                     >
                         {isManagementVariant ? (
-                            <CheckCircle2 aria-hidden="true" className="size-5" />
+                            <Image
+                                src={managementActionIconPaths.sold}
+                                alt=""
+                                width={20}
+                                height={20}
+                            />
                         ) : (
                             <Image src="/sell/sold-out.svg" alt="" width={40} height={40} />
                         )}
                         <span
                             className={
                                 isManagementVariant
-                                    ? "text-[12px] leading-[18px] font-normal"
+                                    ? "text-[11px] leading-[16px] font-normal tracking-[-0.5px]"
                                     : "text-[16px] leading-[25px] font-normal"
                             }
                         >
@@ -151,7 +162,7 @@ export function ProductSummaryActions({
                         </span>
                     </Button>
                 ) : isManagementVariant && showDetails ? (
-                    <span className="h-[46px] w-[46px] shrink-0" aria-hidden="true" />
+                    <span className="h-[52px] w-[52px] shrink-0" aria-hidden="true" />
                 ) : null}
                 {showDetails ? (
                     <Button
@@ -160,19 +171,29 @@ export function ProductSummaryActions({
                         onClick={() => router.push(actionHref)}
                         className={
                             isManagementVariant
-                                ? "h-auto min-w-[46px] flex-col gap-1 rounded-xl px-0 py-0 text-[#83889e] hover:bg-transparent hover:text-[#6653fb]"
+                                ? "h-[52px] w-[52px] flex-col gap-[5px] rounded-none p-[5px] text-[#83889e] hover:bg-transparent hover:text-[#6653fb]"
                                 : "h-auto flex-col gap-2 rounded-xl p-2.5 text-[#83889e] hover:bg-[#f5f3ff] hover:text-[#6653fb]"
                         }
                     >
                         {isManagementVariant ? (
-                            <Pencil aria-hidden="true" className="size-5" />
+                            <Image
+                                src={managementActionIconPaths.details}
+                                alt=""
+                                width={20}
+                                height={20}
+                            />
                         ) : (
-                            <Image src={actionIconSrc} alt="" width={40} height={40} />
+                            <Image
+                                src={actionIconSrc}
+                                alt=""
+                                width={isManagementVariant ? 20 : 40}
+                                height={isManagementVariant ? 20 : 40}
+                            />
                         )}
                         <span
                             className={
                                 isManagementVariant
-                                    ? "text-[12px] leading-[18px] font-normal"
+                                    ? "text-[11px] leading-[16px] font-normal tracking-[-0.5px]"
                                     : "text-[16px] leading-[25px] font-normal"
                             }
                         >
@@ -180,16 +201,24 @@ export function ProductSummaryActions({
                         </span>
                     </Button>
                 ) : null}
+                {middleAction}
                 {isManagementVariant ? (
                     <Button
                         type="button"
                         variant="ghost"
-                        className="h-auto min-w-[46px] flex-col gap-1 rounded-xl px-0 py-0 text-[#83889e] hover:bg-transparent hover:text-[#6653fb]"
+                        className="h-[52px] w-[52px] flex-col gap-[5px] rounded-none p-[5px] text-[#83889e] hover:bg-transparent hover:text-[#6653fb]"
                         onClick={() => setIsDeleteDialogOpen(true)}
                         disabled={deleteProductMutation.isPending}
                     >
-                        <Trash2 aria-hidden="true" className="size-5" />
-                        <span className="text-[12px] leading-[18px] font-normal">삭제하기</span>
+                        <Image
+                            src={managementActionIconPaths.delete}
+                            alt=""
+                            width={20}
+                            height={20}
+                        />
+                        <span className="text-[11px] leading-[16px] font-normal tracking-[-0.5px]">
+                            삭제하기
+                        </span>
                     </Button>
                 ) : (
                     <Button
@@ -199,7 +228,12 @@ export function ProductSummaryActions({
                         onClick={() => setIsDeleteDialogOpen(true)}
                         disabled={deleteProductMutation.isPending}
                     >
-                        <Image src="/sell/trash.svg" alt="" width={40} height={40} />
+                        <Image
+                            src={managementActionIconPaths.delete}
+                            alt=""
+                            width={40}
+                            height={40}
+                        />
                         <span className="text-[16px] leading-[25px] font-normal">삭제하기</span>
                     </Button>
                 )}

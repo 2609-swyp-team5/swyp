@@ -65,7 +65,7 @@ export function PlatformShortcutDialog({
                         compact
                             ? "h-auto gap-1.5 rounded-[10px] border border-[#d3d3d3] bg-white text-[13px] text-[#6653fb] hover:border-[#6653fb] hover:bg-[#fafbff]"
                             : isManagementVariant
-                              ? "h-auto min-w-[46px] flex-col gap-1 rounded-xl px-0 py-0 text-[#83889e] hover:bg-transparent hover:text-[#6653fb]"
+                              ? "h-[52px] w-[52px] flex-col gap-[5px] rounded-none p-[5px] text-[#83889e] hover:bg-transparent hover:text-[#6653fb]"
                               : "h-auto flex-col gap-2 rounded-xl p-2.5 text-[#83889e] hover:bg-[#f5f3ff] hover:text-[#6653fb]",
                         className,
                     )}
@@ -78,19 +78,20 @@ export function PlatformShortcutDialog({
                                 : "size-10 rounded-full bg-[#eaeafd]",
                         )}
                     >
-                        <ExternalLink
-                            aria-hidden="true"
-                            className={cn(
-                                isManagementVariant ? "text-[#83889e]" : "text-[#6653fb]",
-                                compact || isManagementVariant ? "size-5" : "size-[22px]",
-                            )}
-                        />
+                        {isManagementVariant ? (
+                            <Image src="/sell/actions/shortcut.svg" alt="" width={20} height={20} />
+                        ) : (
+                            <ExternalLink
+                                aria-hidden="true"
+                                className={cn("text-[#6653fb]", compact ? "size-5" : "size-[22px]")}
+                            />
+                        )}
                     </span>
                     <span
                         className={cn(
                             "leading-[25px] font-normal",
                             compact || isManagementVariant
-                                ? "text-[12px] leading-[18px]"
+                                ? "text-[11px] leading-[16px] tracking-[-0.5px]"
                                 : "text-[16px]",
                         )}
                     >

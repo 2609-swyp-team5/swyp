@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -8,14 +10,17 @@ vi.mock("@/features/sell/components/manage/ProductSummaryActions", () => ({
         actionLabel,
         canMarkAsSold,
         showDetails = true,
+        middleAction,
     }: {
         actionLabel?: string;
         canMarkAsSold?: boolean;
         showDetails?: boolean;
+        middleAction?: ReactNode;
     }) => (
         <div>
             {canMarkAsSold ? <button type="button">판매완료</button> : null}
             {showDetails ? <button type="button">{actionLabel ?? "수정하기"}</button> : null}
+            {middleAction}
             <button type="button">삭제하기</button>
         </div>
     ),
@@ -99,7 +104,7 @@ describe("ProductSummaryCard", () => {
             />,
         );
 
-        expect(screen.getByRole("link", { name: "판매글 바로가기" })).toHaveAttribute(
+        expect(screen.getByRole("link", { name: "바로가기" })).toHaveAttribute(
             "href",
             "https://example.com/product/3",
         );
@@ -107,6 +112,6 @@ describe("ProductSummaryCard", () => {
         expect(screen.getByText("판매 시작")).toBeInTheDocument();
         expect(screen.getByText("관심 해제")).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "관심 상품 삭제" })).toBeInTheDocument();
-        expect(screen.queryByText("바로가기")).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "바로가기" })).not.toBeInTheDocument();
     });
 });

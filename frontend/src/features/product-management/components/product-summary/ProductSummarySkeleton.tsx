@@ -39,7 +39,7 @@ function ManagementProductSummarySkeleton() {
 
                     <div className="mt-auto flex items-end justify-end gap-5 pt-4">
                         {Array.from({ length: 3 }, (_, index) => (
-                            <div key={index} className="flex w-[46px] flex-col items-center gap-1">
+                            <div key={index} className="flex w-[52px] flex-col items-center gap-1">
                                 <div className="size-5 rounded bg-[#eef0f5]" />
                                 <div className="h-[18px] w-full rounded bg-[#f4f5f8]" />
                             </div>
