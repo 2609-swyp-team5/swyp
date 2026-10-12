@@ -233,6 +233,9 @@ class PriceForecastTest extends IntegrationTest {
         soldOut = productRepository.save(soldOut);
         itemRepository.recordAnalysisSkip(skipped.getId(), AnalysisSkipReason.NOT_ENOUGH_SIMILAR, LocalDateTime.now());
         String bearer = "Bearer " + jwtTokenProvider.createAccessToken(member.getId(), MemberRole.USER);
+        Member other = memberRepository.save(Member.ofLocalSignUp(
+                "forecast-other-" + UUID.randomUUID() + "@example.com", null, "encoded-password", "회원", "other", null));
+        String otherBearer = "Bearer " + jwtTokenProvider.createAccessToken(other.getId(), MemberRole.USER);
         try {
             mockMvc.perform(get("/products/{productId}/analysis", fresh.getId())
                             .header(HttpHeaders.AUTHORIZATION, bearer))
@@ -267,6 +270,17 @@ class PriceForecastTest extends IntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.analysisStatus").value("NOT_ANALYZED"));
 
+            // 강제 재분석: 방금(10분 안) 건너뛴 본인 상품은 다시 분석하지 않고, 남의 상품이면 403
+            mockMvc.perform(post("/products/{productId}/analysis", skipped.getId())
+                            .param("force", "true")
+                            .header(HttpHeaders.AUTHORIZATION, bearer))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.analysisStatus").value("SKIPPED"));
+            mockMvc.perform(post("/products/{productId}/analysis", fresh.getId())
+                            .param("force", "true")
+                            .header(HttpHeaders.AUTHORIZATION, otherBearer))
+                    .andExpect(status().isForbidden());
+
             mockMvc.perform(post("/products/{productId}/analysis", fresh.getId()))
                     .andExpect(status().isUnauthorized());
             mockMvc.perform(post("/products/{productId}/analysis", Long.MAX_VALUE)
@@ -274,6 +288,7 @@ class PriceForecastTest extends IntegrationTest {
                     .andExpect(status().isNotFound());
         } finally {
             productRepository.deleteAll(List.of(fresh, skipped, soldOut));
+            memberRepository.delete(other);
         }
     }
 
