@@ -18,7 +18,7 @@ export function SoldProductSummaryCard({ product, onDetailsClick }: SoldProductS
         >
             <div className="flex flex-col gap-5 border-b border-[#d3d3d3] bg-white px-[30px] py-10">
                 <div className="flex flex-col gap-5">
-                    <span className="w-fit rounded-full border border-[#fa503d] bg-[#fff4f4] px-5 py-[3px] text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#fa503d]">
+                    <span className="w-fit rounded-full bg-[#a9adbd] px-2.5 py-[2px] text-[13px] leading-5 font-semibold tracking-[-0.5px] text-white">
                         판매완료
                     </span>
                     <div>

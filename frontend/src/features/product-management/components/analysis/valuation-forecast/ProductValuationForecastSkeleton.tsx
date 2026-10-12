@@ -1,7 +1,7 @@
 export function ProductValuationForecastSkeleton() {
     return (
         <section
-            className="h-[320px] min-w-0 rounded-[10px] border border-[#6653fb] bg-white p-5"
+            className="min-w-0 rounded-[10px] border border-[#6653fb] bg-white p-5"
             aria-label="감가 상각률 데이터를 불러오는 중"
         >
             <div className="animate-pulse">
@@ -12,7 +12,7 @@ export function ProductValuationForecastSkeleton() {
                     </div>
                     <div className="h-[18px] w-36 rounded bg-[#f4f5f8]" />
                 </div>
-                <div className="mt-3 flex h-[221px] items-end justify-around gap-4 px-[50px]">
+                <div className="mt-3 flex h-[281px] items-end justify-around gap-4 px-[50px]">
                     {[0, 1, 2, 3].map((index) => (
                         <div
                             key={index}

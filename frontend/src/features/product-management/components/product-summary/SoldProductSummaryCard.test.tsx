@@ -35,7 +35,7 @@ describe("SoldProductSummaryCard", () => {
 
         render(<SoldProductSummaryCard product={soldProduct} onDetailsClick={onDetailsClick} />);
 
-        expect(screen.getByText("판매완료")).toBeInTheDocument();
+        expect(screen.getByText("판매완료")).toHaveClass("bg-[#a9adbd]", "text-white");
         expect(screen.getByText("팔린 플랫폼")).toBeInTheDocument();
         expect(screen.getByText("중고나라")).toBeInTheDocument();
         expect(screen.getByText("450,000원")).toBeInTheDocument();

@@ -4,6 +4,7 @@ import { ExternalLink, Heart } from "lucide-react";
 
 import { Button } from "@/common/components/ui/Button";
 import { Separator } from "@/common/components/ui/Separator";
+import { cn } from "@/common/lib/utils";
 import { ProductGallery } from "@/features/sell/components/manage/ProductGallery";
 import { ProductSummaryActions } from "@/features/sell/components/manage/ProductSummaryActions";
 import {
@@ -34,6 +35,11 @@ type ProductSummaryCardProps = {
 const detailStatusLabels: Record<string, string> = {
     ...statusLabels,
     RESERVED: "예약중",
+};
+
+const detailStatusClassNames: Record<string, string> = {
+    DRAFT: "bg-[#fff4f4] text-[#fa503d]",
+    SOLD_OUT: "bg-[#a9adbd] text-white",
 };
 
 function DetailRow({ label, value }: { label: string; value: string }) {
@@ -82,7 +88,12 @@ function ManagementSummaryCard({ product }: { product: ProductDetailSummaryRespo
 
                 <div className="flex min-w-0 flex-col">
                     <div className="flex items-center gap-3">
-                        <span className="inline-flex h-6 items-center rounded-full bg-[#fa503d] px-2.5 text-[13px] leading-5 font-semibold text-white">
+                        <span
+                            className={cn(
+                                "inline-flex h-6 items-center rounded-full px-2.5 text-[13px] leading-5 font-semibold",
+                                detailStatusClassNames[product.status] ?? "bg-[#fa503d] text-white",
+                            )}
+                        >
                             {detailStatusLabels[product.status]}
                         </span>
                         <span className="text-[11px] leading-4 font-normal text-[#6b6c7b]">

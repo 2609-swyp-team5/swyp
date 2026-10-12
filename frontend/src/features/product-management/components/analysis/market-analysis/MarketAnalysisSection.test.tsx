@@ -32,7 +32,7 @@ it("판매자 전체 보기는 추천·가격·차트 정보를 함께 보여준
         "18만 원",
         "27.4만 원",
         "42만 원",
-        "30.8만 원",
+        "46.8만 원",
     ]) {
         expect(screen.getAllByText(visible).length).toBeGreaterThan(0);
     }
@@ -95,6 +95,8 @@ it("관리 화면은 접힌 추천 카드와 3열 가격 metric을 먼저 보여
     fireEvent.click(screen.getByRole("button", { name: /상세 시세 분석 보기/ }));
 
     expect(screen.getByText("거래 가격 분포")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /내용 접기/ }));
+    expect(screen.queryByText("거래 가격 분포")).not.toBeInTheDocument();
 });
 
 it("관리 화면의 로딩·결과 없음·오류 상태를 구분하고 재시도한다", () => {

@@ -50,7 +50,7 @@ describe("ProductSummaryCard", () => {
     it("관리 상품 상세 카드는 Figma 정보 행과 세 가지 하단 액션을 보여준다", () => {
         render(<ProductSummaryCard product={soldProduct} />);
 
-        expect(screen.getByText("판매완료")).toBeInTheDocument();
+        expect(screen.getByText("판매완료")).toHaveClass("bg-[#a9adbd]", "text-white");
         expect(screen.getByText("상품상태")).toBeInTheDocument();
         expect(screen.getByText("구성품")).toBeInTheDocument();
         expect(screen.getByText("상품 설명")).toBeInTheDocument();
@@ -63,6 +63,12 @@ describe("ProductSummaryCard", () => {
         expect(screen.queryByText("팔린 플랫폼")).not.toBeInTheDocument();
         expect(screen.queryByText("최종판매가격")).not.toBeInTheDocument();
         expect(screen.queryByRole("button", { name: "판매완료" })).not.toBeInTheDocument();
+    });
+
+    it("임시저장 상태는 연한 빨간색 상태 뱃지를 보여준다", () => {
+        render(<ProductSummaryCard product={{ ...soldProduct, status: "DRAFT" }} />);
+
+        expect(screen.getByText("임시저장")).toHaveClass("bg-[#fff4f4]", "text-[#fa503d]");
     });
 
     it("관심 상품은 상단에 판매글 바로가기를 표시하고 관심 액션을 하단으로 이동한다", () => {

@@ -16,6 +16,7 @@ import { formatPrice, formatSignedPercent } from "./formatters";
 import { MarketAnalysisPriceDistribution } from "./MarketAnalysisPriceDistribution";
 import { MarketAnalysisRecommendation } from "./MarketAnalysisRecommendation";
 import { MarketAnalysisSummaryMetrics } from "./MarketAnalysisSummaryMetrics";
+import { toPriceDistributionViewModel } from "./marketAnalysisAdapters";
 
 function MetricRow({
     label,
@@ -52,6 +53,7 @@ export function MarketAnalysisContent({
     onDetailsOpenChange?: (open: boolean) => void;
 }) {
     const isBuyerView = analysis.recommendation === "BUY" || analysis.recommendation === "WAIT";
+    const priceDistribution = toPriceDistributionViewModel(analysis);
 
     if (variant === "management") {
         return (
@@ -99,7 +101,7 @@ export function MarketAnalysisContent({
                             </span>
                         </span>
                         <span className="flex shrink-0 items-center gap-[3px] text-[16px] leading-[25px] text-[#83889e]">
-                            {isDetailsOpen ? "접기" : "더보기"}
+                            {isDetailsOpen ? "내용 접기" : "더보기"}
                             {isDetailsOpen ? (
                                 <ChevronUp aria-hidden="true" className="size-4" />
                             ) : (
@@ -110,8 +112,8 @@ export function MarketAnalysisContent({
                 </div>
 
                 {isDetailsOpen ? (
-                    <div className="flex flex-col gap-5 bg-[#fafbff] px-[30px] pb-[30px]">
-                        <MarketAnalysisPriceDistribution analysis={analysis} />
+                    <div className="flex flex-col gap-5 px-[30px] pb-[30px]">
+                        <MarketAnalysisPriceDistribution data={priceDistribution} />
                         <ProductPriceTrendSection query={priceTrendQuery} />
                         <ProductValuationForecastSection query={valuationForecastQuery} />
                     </div>
@@ -175,7 +177,7 @@ export function MarketAnalysisContent({
                             />
                         </div>
                     </div>
-                    <MarketAnalysisPriceDistribution analysis={analysis} />
+                    <MarketAnalysisPriceDistribution data={priceDistribution} />
                 </div>
                 <ProductPriceTrendSection query={priceTrendQuery} />
                 <ProductValuationForecastSection query={valuationForecastQuery} />
