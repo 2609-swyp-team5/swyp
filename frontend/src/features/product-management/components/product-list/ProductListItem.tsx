@@ -21,6 +21,7 @@ export function ProductListItem({ item, isSelected, onSelect }: ProductListItemP
         <button
             type="button"
             aria-pressed={isSelected}
+            aria-current={isSelected ? "true" : undefined}
             className={cn(
                 "flex h-[100px] w-full items-center gap-3 border-b border-[#d3d3d3] px-3 py-3 text-left transition-colors last:border-b-0 hover:bg-[#faf9ff] focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-[#6653fb] focus-visible:ring-inset",
                 isSelected && "bg-[#f1f1f1] hover:bg-[#f1f1f1]",

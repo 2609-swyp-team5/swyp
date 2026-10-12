@@ -159,7 +159,7 @@ export function ProductListShell({
                     </div>
                 </div>
 
-                <div className="grid items-start gap-8 lg:grid-cols-[350px_minmax(0,1fr)] lg:gap-10">
+                <div className="grid items-start gap-8 lg:grid-cols-[350px_minmax(0,1fr)] lg:gap-10 xl:grid-cols-[350px_826px]">
                     <aside className="h-fit overflow-hidden rounded-[20px] border border-[#d3d3d3] bg-white px-5 py-[30px]">
                         <div>
                             <p className="text-[20px] leading-[30px] font-semibold text-[#6b6c7b]">
