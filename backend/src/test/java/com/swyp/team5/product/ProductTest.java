@@ -1145,7 +1145,9 @@ class ProductTest extends IntegrationTest {
         mockMvc.perform(get("/products/{productId}/summary", productId)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.soldPrice").value(850_000));
+                .andExpect(jsonPath("$.data.soldPrice").value(850_000))
+                .andExpect(jsonPath("$.data.tradeMethod").value("DIRECT"))
+                .andExpect(jsonPath("$.data.deliveryType").doesNotExist());
 
         String otherToken = createOtherMemberToken();
         mockMvc.perform(get("/products/{productId}", productId)

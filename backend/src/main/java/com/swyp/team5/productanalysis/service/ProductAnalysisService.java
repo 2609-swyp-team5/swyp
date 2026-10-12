@@ -629,6 +629,16 @@ public class ProductAnalysisService {
      * @param itemId 관심 등록 대상 ID
      */
     public void analyzeInterestedItemById(Long itemId) {
+        analyzeInterestedItemById(itemId, false);
+    }
+
+    /**
+     * {@link #analyzeInterestedItemById(Long)}와 같지만 {@code force}면 최근 분석 여부와 관계없이 분석한다(판매자의 재분석 요청용).
+     *
+     * @param itemId 분석할 대상 ID
+     * @param force true면 최근 {@code analysis.interest-skip-hours}시간 안에 분석했어도 다시 분석
+     */
+    public void analyzeInterestedItemById(Long itemId, boolean force) {
         Optional<Item> item = itemRepository.findById(itemId).map(found -> (Item) Hibernate.unproxy(found));
         if (item.isEmpty()) {
             log.info("관심 대상 {}: 없어서 관심 등록 직후 분석을 건너뜁니다.", itemId);
@@ -642,7 +652,7 @@ public class ProductAnalysisService {
                         && analysis.getAnalyzedAt() != null
                         && analysis.getAnalyzedAt().isAfter(recent))
                 .orElse(false);
-        if (analyzedRecently) {
+        if (analyzedRecently && !force) {
             log.info("관심 대상 {}: 최근 {}시간 안에 분석해 관심 등록 직후 분석을 건너뜁니다.", itemId, skipHours);
             return;
         }

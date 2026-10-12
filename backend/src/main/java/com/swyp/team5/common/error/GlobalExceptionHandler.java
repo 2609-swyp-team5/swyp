@@ -21,6 +21,9 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.swyp.team5.admin.error.InvalidMemberStatusException;
 import com.swyp.team5.admin.error.SelfStatusChangeException;
+import com.swyp.team5.aichat.error.AiChatMessageNotFoundException;
+import com.swyp.team5.aichat.error.AiChatNotFoundException;
+import com.swyp.team5.aichat.error.InvalidAiChatCursorException;
 import com.swyp.team5.auth.error.DuplicateEmailException;
 import com.swyp.team5.auth.error.DuplicatePhoneException;
 import com.swyp.team5.auth.error.InactiveMemberException;
@@ -117,7 +120,9 @@ public class GlobalExceptionHandler {
         MemberPlatformNotFoundException.class,
         ProductPlatformNotFoundException.class,
         MemberNotFoundException.class,
-        NotificationNotFoundException.class
+        NotificationNotFoundException.class,
+        AiChatNotFoundException.class,
+        AiChatMessageNotFoundException.class
     })
     public ResponseEntity<ApiResponse<Void>> handleNotFound(RuntimeException e) {
         log.warn("리소스를 찾을 수 없음: {}", ErrorLogs.describe(e));
@@ -143,6 +148,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidProductSearchException.class)
     public ResponseEntity<ApiResponse<Void>> handleInvalidProductSearch(InvalidProductSearchException e) {
         log.warn("상품 검색 조건 오류: {}", ErrorLogs.describe(e));
+        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
+    }
+
+    @ExceptionHandler(InvalidAiChatCursorException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidAiChatCursor(InvalidAiChatCursorException e) {
+        log.warn("AI 대화 목록 커서 오류: {}", ErrorLogs.describe(e));
         return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
     }
 
