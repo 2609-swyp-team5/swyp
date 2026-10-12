@@ -6,7 +6,7 @@ const priceFormatter = new Intl.NumberFormat("ko-KR");
 const badgeToneClassNames: Record<ProductListItemData["badgeTone"], string> = {
     primary: "bg-[#6653fb] text-white",
     dark: "bg-[#272727] text-white",
-    muted: "bg-[#83889e] text-white",
+    muted: "bg-[#83889E] text-white",
     warning: "bg-[#fa503d] text-white",
 };
 
@@ -39,7 +39,8 @@ export function ProductListItem({ item, isSelected, onSelect }: ProductListItemP
                 {item.badgeLabel ? (
                     <span
                         className={cn(
-                            "inline-flex h-5 w-14 items-center justify-center rounded-full text-[13px] leading-5 font-semibold tracking-[-0.5px]",
+                            "inline-flex h-5 w-14 items-center justify-center rounded-full leading-5 font-semibold tracking-[-0.5px]",
+                            item.badgeTone === "muted" ? "text-[10px]" : "text-[13px]",
                             badgeToneClassNames[item.badgeTone],
                         )}
                     >
