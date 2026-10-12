@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.IntStream;
 
+import com.swyp.team5.item.entity.AnalysisSkipReason;
 import com.swyp.team5.item.entity.Item;
 import com.swyp.team5.productanalysis.entity.AnalysisConfidence;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
@@ -40,7 +41,12 @@ public record ProductAnalysisResponse(
         // 제거 예정
         Long marketExpectedPrice, // 예상 시세 — 1개월 뒤 예상 가격(expectedPrice), 도입 이전 분석이면 평균가
         List<PriceBucket> priceDistribution, // 비교 매물 가격 분포(최저~최고가를 같은 폭으로 나눈 구간, 낮은 가격 순), 매물이 없으면 빈 배열
-        Summary summary) { // 요약 지표 — 추천이 SELL이면 판매 현황(SALE_STATS), 그 밖에는 대기 추천 지표(WAIT_RECOMMENDATION)
+        Summary summary, // 요약 지표 — 추천이 SELL이면 판매 현황(SALE_STATS), 그 밖에는 대기 추천 지표(WAIT_RECOMMENDATION)
+        AnalysisStatus analysisStatus, // 분석 상태 — 분석 이력이 없어도 채워짐(분석 중이면 이전 결과가 있어도 ANALYZING)
+        AnalysisSkipReason
+                analysisSkipReason, // 마지막 분석을 건너뛴 사유(NOT_ENOUGH_CANDIDATES/NOT_ENOUGH_SIMILAR), 건너뛴 적 없거나 이후 분석에
+        // 성공했으면 null
+        String analysisSkipMessage) { // analysisSkipReason의 화면 표시 문구, 없으면 null
 
     /**
      * 가격 분포 한 구간. 마지막 구간만 {@code to}를 포함하고 나머지는 {@code to} 미만이다.
@@ -114,8 +120,12 @@ public record ProductAnalysisResponse(
         }
     }
 
-    /** 아직 분석 이력이 없는 상품(분석 배치가 아직 돌지 않았거나, 비교 매물이 부족해 건너뛴 경우)에 사용한다. */
-    public static ProductAnalysisResponse empty(Item product) {
+    /**
+     * 아직 분석 이력이 없는 상품(분석 배치가 아직 돌지 않았거나, 비교 매물이 부족해 건너뛴 경우)에 사용한다.
+     *
+     * @param status 분석 상태(왜 결과가 없는지)
+     */
+    public static ProductAnalysisResponse empty(Item product, AnalysisStatus status) {
         return new ProductAnalysisResponse(
                 product.getId(),
                 product.getPrice(),
@@ -140,7 +150,10 @@ public record ProductAnalysisResponse(
                 List.of(),
                 null,
                 List.of(),
-                null);
+                null,
+                status,
+                product.getAnalysisSkipReason(),
+                skipMessage(product.getAnalysisSkipReason()));
     }
 
     /**
@@ -160,6 +173,7 @@ public record ProductAnalysisResponse(
      * @param confidenceRate 매물 수 기반 신뢰도 비율
      * @param priceDistribution 비교 매물 가격 분포
      * @param summary 요약 지표
+     * @param status 분석 상태
      */
     public static ProductAnalysisResponse from(
             Item product,
@@ -169,7 +183,8 @@ public record ProductAnalysisResponse(
             Integer confidenceRate,
             List<PriceForecast> forecasts,
             List<PriceBucket> priceDistribution,
-            Summary summary) {
+            Summary summary,
+            AnalysisStatus status) {
         String description =
                 buyerView && analysis.getProduct() != null ? analysis.getBuyerDescription() : analysis.getDescription();
         return new ProductAnalysisResponse(
@@ -198,7 +213,14 @@ public record ProductAnalysisResponse(
                 PriceForecastResponse.sorted(forecasts),
                 analysis.getExpectedPrice() == null ? analysis.getAveragePrice() : analysis.getExpectedPrice(),
                 priceDistribution,
-                summary);
+                summary,
+                status,
+                product.getAnalysisSkipReason(),
+                skipMessage(product.getAnalysisSkipReason()));
+    }
+
+    private static String skipMessage(AnalysisSkipReason reason) {
+        return reason == null ? null : reason.getMessage();
     }
 
     /** (등록가 − 평균가) / 평균가 × 100을 소수 첫째 자리로 반올림한다. 평균가가 0이면 0. */

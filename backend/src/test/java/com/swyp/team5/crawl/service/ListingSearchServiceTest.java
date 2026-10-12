@@ -2,10 +2,10 @@ package com.swyp.team5.crawl.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -14,11 +14,11 @@ import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
+import java.util.Optional;
 
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.crawl.client.BunjangSearchClient;
-import com.swyp.team5.crawl.dto.BunjangSearchItem;
+import com.swyp.team5.crawl.dto.BunjangProductItem;
 import com.swyp.team5.platform.entity.CategoryPlatform;
 import com.swyp.team5.platform.entity.Platform;
 import com.swyp.team5.platform.entity.PlatformListing;
@@ -45,8 +45,23 @@ class ListingSearchServiceTest {
         return new ListingSearchService(bunjangSearchClient, categoryPlatformRepository, platformListingUpserter);
     }
 
-    private static BunjangSearchItem item(long pid, String status, boolean ad, String categoryId) {
-        return new BunjangSearchItem(pid, "다이슨 에어랩 " + pid, 300_000L, status, ad, "https://img/" + pid, categoryId);
+    private static final long CATEGORY_ID = 7L;
+
+    private static final String BUNJANG_CATEGORY_ID = "610700002";
+
+    private static BunjangProductItem item(long pid, String status, boolean ad) {
+        return new BunjangProductItem(pid, "다이슨 에어랩 " + pid, 300_000L, status, ad, "https://img/" + pid);
+    }
+
+    /** 우리 카테고리 → 번개장터 카테고리 매핑을 준비하고, 저장에 쓰일 플랫폼·카테고리를 담은 매핑을 돌려준다. */
+    private CategoryPlatform givenMapping() {
+        CategoryPlatform mapping = mock(CategoryPlatform.class);
+        lenient().when(mapping.getExternalCategoryId()).thenReturn(BUNJANG_CATEGORY_ID);
+        lenient().when(mapping.getPlatform()).thenReturn(mock(Platform.class));
+        lenient().when(mapping.getCategory()).thenReturn(mock(Category.class));
+        when(categoryPlatformRepository.findByPlatformNameAndCategoryId("번개장터", CATEGORY_ID))
+                .thenReturn(Optional.of(mapping));
+        return mapping;
     }
 
     // 검색어 - 괄호 문구·특수문자를 빼고, 상품명에 없는 브랜드만 앞에 붙이며, 50자로 자름
@@ -60,44 +75,51 @@ class ListingSearchServiceTest {
         assertThat(ListingSearchService.searchQuery("[]()!!", null)).isEmpty();
     }
 
-    // 저장 - 판매중·비광고 매물 중 우리 카테고리에 매핑되는 것만 저장하고 돌려줌
+    // 저장 - 분석 대상 카테고리의 번개장터 카테고리 안을 검색해 판매중·비광고 매물만(pid 없는 광고 항목 제외) 그 카테고리로 저장하고 돌려줌
     @Test
-    void searchAndSaveKeepsOnlySellingNonAdMappedListings() {
-        when(bunjangSearchClient.search("다이슨 에어랩", 100))
-                .thenReturn(List.of(
-                        item(1L, "SELLING", false, "610700002"),
-                        item(2L, "RESERVED", false, "610700002"),
-                        item(3L, "SELLING", true, "610700002"),
-                        item(4L, "SELLING", false, "999999"))); // 매핑 없는 카테고리
-        Platform platform = mock(Platform.class);
-        Category category = mock(Category.class);
-        CategoryPlatform mapping = mock(CategoryPlatform.class);
-        when(mapping.getExternalCategoryId()).thenReturn("610700002");
-        when(mapping.getPlatform()).thenReturn(platform);
-        when(mapping.getCategory()).thenReturn(category);
-        when(categoryPlatformRepository.findByPlatformNameAndExternalCategoryIds("번개장터", Set.of("610700002", "999999")))
-                .thenReturn(List.of(mapping));
+    void searchAndSaveKeepsOnlySellingNonAdListingsInMappedCategory() {
+        CategoryPlatform mapping = givenMapping();
+        when(bunjangSearchClient.search("다이슨 에어랩", BUNJANG_CATEGORY_ID))
+                .thenReturn(
+                        List.of(item(1L, "SELLING", false), item(2L, "RESERVED", false), item(3L, "SELLING", true)));
         PlatformListing saved = mock(PlatformListing.class);
         when(platformListingUpserter.upsertKeepingCategory(
-                        platform, category, 1L, "다이슨 에어랩 1", 300_000L, "SELLING", "https://img/1"))
+                        mapping.getPlatform(),
+                        mapping.getCategory(),
+                        1L,
+                        "다이슨 에어랩 1",
+                        300_000L,
+                        "SELLING",
+                        "https://img/1"))
                 .thenReturn(saved);
 
-        assertThat(service().searchAndSave("다이슨 에어랩", null, 100)).containsExactly(saved);
+        assertThat(service().searchAndSave("다이슨 에어랩", null, CATEGORY_ID)).containsExactly(saved);
+    }
+
+    // 카테고리 매핑이 없으면 검색하지 않음
+    @Test
+    void searchAndSaveSkipsWhenCategoryHasNoMapping() {
+        when(categoryPlatformRepository.findByPlatformNameAndCategoryId("번개장터", CATEGORY_ID))
+                .thenReturn(Optional.empty());
+
+        assertThat(service().searchAndSave("다이슨 에어랩", null, CATEGORY_ID)).isEmpty();
+        verifyNoInteractions(bunjangSearchClient, platformListingUpserter);
     }
 
     // 실패 - 검색 호출이 실패해도 예외 없이 빈 목록(분석을 막지 않음)
     @Test
     void searchAndSaveReturnsEmptyWhenSearchFails() {
-        when(bunjangSearchClient.search(anyString(), anyInt())).thenThrow(new IllegalStateException("timeout"));
+        givenMapping();
+        when(bunjangSearchClient.search(anyString(), anyString())).thenThrow(new IllegalStateException("timeout"));
 
-        assertThat(service().searchAndSave("다이슨 에어랩", null, 100)).isEmpty();
+        assertThat(service().searchAndSave("다이슨 에어랩", null, CATEGORY_ID)).isEmpty();
         verifyNoInteractions(platformListingUpserter);
     }
 
     // 검색어가 비면 호출하지 않음
     @Test
     void searchAndSaveSkipsBlankQuery() {
-        assertThat(service().searchAndSave("[급처]", null, 100)).isEmpty();
+        assertThat(service().searchAndSave("[급처]", null, CATEGORY_ID)).isEmpty();
         verifyNoInteractions(bunjangSearchClient, platformListingUpserter);
     }
 
@@ -137,38 +159,33 @@ class ListingSearchServiceTest {
     // 검색 결과가 끝까지 없으면 모든 검색어를 시도한 뒤 빈 목록(저장 없음)
     @Test
     void searchAndSaveTriesEveryQueryBeforeGivingUp() {
-        when(bunjangSearchClient.search(anyString(), eq(100))).thenReturn(List.of());
+        givenMapping();
+        when(bunjangSearchClient.search(anyString(), eq(BUNJANG_CATEGORY_ID))).thenReturn(List.of());
 
-        assertThat(service().searchAndSave("주판이요", "몰루", 100)).isEmpty();
-        verify(bunjangSearchClient).search("몰루 주판", 100);
-        verify(bunjangSearchClient).search("주판", 100);
+        assertThat(service().searchAndSave("주판이요", "몰루", CATEGORY_ID)).isEmpty();
+        verify(bunjangSearchClient).search("몰루 주판", BUNJANG_CATEGORY_ID);
+        verify(bunjangSearchClient).search("주판", BUNJANG_CATEGORY_ID);
         verifyNoInteractions(platformListingUpserter);
     }
 
     // 재검색 - 판매중 결과가 10건보다 적으면 앞 단어로 줄여 다시 검색해 합치고(pid 중복 제거), 충분해지면 멈춤
     @Test
     void searchAndSaveRetriesWithShorterQueryWhenTooFewResults() {
-        when(bunjangSearchClient.search("빈티지 웨스턴 브라운 스터드 레더 벨트", 100))
-                .thenReturn(List.of(item(1L, "SELLING", false, "1"), item(2L, "SOLD_OUT", false, "1")));
-        List<BunjangSearchItem> more = new ArrayList<>();
-        more.add(item(1L, "SELLING", false, "1")); // 첫 검색과 중복
+        givenMapping();
+        when(bunjangSearchClient.search("빈티지 웨스턴 브라운 스터드 레더 벨트", BUNJANG_CATEGORY_ID))
+                .thenReturn(List.of(item(1L, "SELLING", false), item(2L, "SOLD_OUT", false)));
+        List<BunjangProductItem> more = new ArrayList<>();
+        more.add(item(1L, "SELLING", false)); // 첫 검색과 중복
         for (long pid = 10; pid < 19; pid++) {
-            more.add(item(pid, "SELLING", false, "1"));
+            more.add(item(pid, "SELLING", false));
         }
-        when(bunjangSearchClient.search("빈티지 웨스턴 브라운", 100)).thenReturn(more);
-        Platform platform = mock(Platform.class);
-        Category category = mock(Category.class);
-        CategoryPlatform mapping = mock(CategoryPlatform.class);
-        when(mapping.getExternalCategoryId()).thenReturn("1");
-        when(mapping.getPlatform()).thenReturn(platform);
-        when(mapping.getCategory()).thenReturn(category);
-        when(categoryPlatformRepository.findByPlatformNameAndExternalCategoryIds("번개장터", Set.of("1")))
-                .thenReturn(List.of(mapping));
+        when(bunjangSearchClient.search("빈티지 웨스턴 브라운", BUNJANG_CATEGORY_ID)).thenReturn(more);
         when(platformListingUpserter.upsertKeepingCategory(
                         any(), any(), anyLong(), anyString(), anyLong(), anyString(), anyString()))
                 .thenAnswer(invocation -> mock(PlatformListing.class));
 
-        assertThat(service().searchAndSave("빈티지 웨스턴 브라운 스터드 레더 벨트", null, 100)).hasSize(10);
-        verify(bunjangSearchClient, never()).search("빈티지 웨스턴", 100); // 10건이 모여 앞 2단어 검색은 안 함
+        assertThat(service().searchAndSave("빈티지 웨스턴 브라운 스터드 레더 벨트", null, CATEGORY_ID))
+                .hasSize(10);
+        verify(bunjangSearchClient, never()).search("빈티지 웨스턴", BUNJANG_CATEGORY_ID); // 10건이 모여 앞 2단어 검색은 안 함
     }
 }

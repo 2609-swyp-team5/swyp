@@ -2,6 +2,7 @@ package com.swyp.team5.productanalysis;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -17,12 +18,15 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.passport.JwtTokenProvider;
+import com.swyp.team5.item.entity.AnalysisSkipReason;
+import com.swyp.team5.item.repository.ItemRepository;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.entity.MemberRole;
 import com.swyp.team5.member.repository.MemberRepository;
 import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
+import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
@@ -59,6 +63,9 @@ class PriceForecastTest extends IntegrationTest {
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
+
+    @Autowired
+    private ItemRepository itemRepository;
 
     // ProductTest와 같은 목 구성을 써서 스프링 컨텍스트를 재사용한다. 다른 구성(NotificationTest)을 쓰면 그 사이 새 컨텍스트의
     // Flyway clean으로 enum 타입이 다시 만들어져 오래된 컨텍스트의 커넥션이 "cache lookup failed for type"으로 실패한다.
@@ -139,7 +146,9 @@ class PriceForecastTest extends IntegrationTest {
                 // 프론트 화면용 필드 — 요약 지표는 type으로 구분, 가격 분포는 배열
                 .andExpect(jsonPath("$.data.summary.type").exists())
                 .andExpect(jsonPath("$.data.priceDistribution").isArray())
-                .andExpect(jsonPath("$.data.marketExpectedPrice").isNumber());
+                .andExpect(jsonPath("$.data.marketExpectedPrice").isNumber())
+                .andExpect(jsonPath("$.data.analysisStatus").value("ANALYZED"))
+                .andExpect(jsonPath("$.data.analysisSkipReason").doesNotExist());
 
         mockMvc.perform(get("/products/{productId}/analysis/forecast", product.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
@@ -211,6 +220,60 @@ class PriceForecastTest extends IntegrationTest {
                     .andExpect(status().isBadRequest());
         } finally {
             productAnalysisRepository.deleteAll(List.of(yesterday, outOfRange));
+        }
+    }
+
+    // 분석 결과가 없으면 분석 상태로 이유를 구분하고, 분석 요청은 건너뛴 지 얼마 안 됐거나 분석 대상이 아니면 분석하지 않음
+    @Test
+    void returnsAnalysisStatusWhenNotAnalyzedAndHandlesRequests() throws Exception {
+        Product fresh = productRepository.save(newProduct(member));
+        Product skipped = productRepository.save(newProduct(member));
+        Product soldOut = newProduct(member);
+        soldOut.changeStatus(ProductStatus.SOLD_OUT);
+        soldOut = productRepository.save(soldOut);
+        itemRepository.recordAnalysisSkip(skipped.getId(), AnalysisSkipReason.NOT_ENOUGH_SIMILAR, LocalDateTime.now());
+        String bearer = "Bearer " + jwtTokenProvider.createAccessToken(member.getId(), MemberRole.USER);
+        try {
+            mockMvc.perform(get("/products/{productId}/analysis", fresh.getId())
+                            .header(HttpHeaders.AUTHORIZATION, bearer))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.analysisId").doesNotExist())
+                    .andExpect(jsonPath("$.data.analysisStatus").value("NOT_ANALYZED"));
+            mockMvc.perform(get("/products/{productId}/analysis", skipped.getId())
+                            .header(HttpHeaders.AUTHORIZATION, bearer))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.analysisStatus").value("SKIPPED"))
+                    .andExpect(jsonPath("$.data.analysisSkipReason").value("NOT_ENOUGH_SIMILAR"))
+                    .andExpect(jsonPath("$.data.analysisSkipMessage")
+                            .value(AnalysisSkipReason.NOT_ENOUGH_SIMILAR.getMessage()));
+            mockMvc.perform(get("/products/{productId}/analysis", soldOut.getId())
+                            .header(HttpHeaders.AUTHORIZATION, bearer))
+                    .andExpect(jsonPath("$.data.analysisStatus").value("UNAVAILABLE"));
+
+            // 방금 건너뛴 대상은 다시 분석하지 않음
+            mockMvc.perform(post("/products/{productId}/analysis", skipped.getId())
+                            .header(HttpHeaders.AUTHORIZATION, bearer))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.productId").value(skipped.getId()))
+                    .andExpect(jsonPath("$.data.analysisStatus").value("SKIPPED"))
+                    .andExpect(jsonPath("$.data.analysisSkipReason").value("NOT_ENOUGH_SIMILAR"));
+            mockMvc.perform(post("/products/{productId}/analysis", soldOut.getId())
+                            .header(HttpHeaders.AUTHORIZATION, bearer))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.analysisStatus").value("UNAVAILABLE"));
+            // 테스트는 분석 대기열(관심 등록 직후 분석)이 꺼져 있어 분석하지 않고 현재 상태를 돌려줌
+            mockMvc.perform(post("/products/{productId}/analysis", fresh.getId())
+                            .header(HttpHeaders.AUTHORIZATION, bearer))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.analysisStatus").value("NOT_ANALYZED"));
+
+            mockMvc.perform(post("/products/{productId}/analysis", fresh.getId()))
+                    .andExpect(status().isUnauthorized());
+            mockMvc.perform(post("/products/{productId}/analysis", Long.MAX_VALUE)
+                            .header(HttpHeaders.AUTHORIZATION, bearer))
+                    .andExpect(status().isNotFound());
+        } finally {
+            productRepository.deleteAll(List.of(fresh, skipped, soldOut));
         }
     }
 

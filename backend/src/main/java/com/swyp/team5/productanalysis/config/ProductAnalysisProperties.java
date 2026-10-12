@@ -82,12 +82,10 @@ public record ProductAnalysisProperties(
 
     /**
      * 비교 매물 부족 시 상품명 검색 설정. 카테고리 수집 매물만으로 키워드 후보나 AI가 확인한 같은 물건이 {@code min-listings}보다
-     * 적으면, 상품명으로 번개장터를 검색해 판매중 매물 최대 {@code size}건을 저장하고 비교 매물에 보탠다.
+     * 적으면, 상품명으로 같은 카테고리의 번개장터 매물을 검색해(검색어당 첫 페이지 60건) 판매중 매물을 저장하고 비교 매물에 보탠다.
      */
-    public record SearchFallback(
-            boolean enabled, // 검색 사용 여부
-            @NotNull Integer size) { // 한 번에 검색해 올 건수
+    public record SearchFallback(boolean enabled) { // 검색 사용 여부
 
-        public static final SearchFallback DEFAULT = new SearchFallback(true, 100);
+        public static final SearchFallback DEFAULT = new SearchFallback(true);
     }
 }
