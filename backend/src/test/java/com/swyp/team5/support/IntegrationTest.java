@@ -7,6 +7,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
+import com.swyp.team5.aichat.service.AiChatAnswerService;
 import com.swyp.team5.auth.service.MemberAccessBlocker;
 import com.swyp.team5.auth.service.RefreshTokenService;
 import com.swyp.team5.file.service.FileStorageService;
@@ -48,6 +49,10 @@ public abstract class IntegrationTest {
     @MockitoBean
     protected ProductImageLoader productImageLoader;
 
+    // AI 대화 답변(AI 호출·검색·분석 조합)은 단위 테스트로 검증하고, 통합 테스트는 대화 저장·조회 흐름만 본다
+    @MockitoBean
+    protected AiChatAnswerService aiChatAnswerService;
+
     // 실제 동작은 그대로 두고 필요한 테스트(AuthTest)에서만 일부 메서드를 바꾼다(필드 이름으로 구글 전략 빈을 지정)
     @MockitoSpyBean
     protected SocialLoginStrategy googleLoginStrategy;
@@ -56,7 +61,8 @@ public abstract class IntegrationTest {
     private static final String TRUNCATE_DATA_TABLES =
             "TRUNCATE TABLE members, socials, items, products, platform_listings, "
                     + "product_images, product_tags, tags, product_components, components, interests, product_analysis, "
-                    + "price_forecasts, notifications, notification_settings, member_platforms, product_platforms, search_logs "
+                    + "price_forecasts, notifications, notification_settings, member_platforms, product_platforms, search_logs, "
+                    + "ai_chats, ai_chat_messages "
                     + "RESTART IDENTITY CASCADE";
 
     private static Class<?> lastResetClass;

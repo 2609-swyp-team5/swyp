@@ -21,7 +21,8 @@ import com.swyp.team5.product.dto.ProductSearchCondition;
 @Service
 public class ProductAiSearchService {
 
-    private static final String SYSTEM_PROMPT =
+    /** 검색 조건 해석 규칙 — 지금이니 AI 대화의 질문 해석({@code AiChatQuestionInterpreter})도 같은 규칙을 쓴다. */
+    public static final String SYSTEM_PROMPT =
             """
             너는 중고거래 통합 검색의 검색어 해석기야. 사용자가 쓴 문장을 읽고 검색 조건만 뽑아.
             - keyword: 찾는 상품의 핵심 검색어. 상품명·브랜드·모델명 위주로 짧게(예: "아이폰 15 프로").
@@ -67,8 +68,11 @@ public class ProductAiSearchService {
         }
     }
 
-    // AI 값은 그대로 믿지 않는다 — 음수 가격은 버리고, 최소·최대가 뒤바뀌면 맞바꾼다(검색 조건 생성자가 400을 던지지 않게)
-    private static ProductSearchCondition toSearchCondition(ProductAiSearchCondition result) {
+    /**
+     * AI가 뽑은 조건을 검색 조건으로 바꾼다. AI 값은 그대로 믿지 않는다 — 음수 가격은 버리고, 최소·최대가 뒤바뀌면 맞바꾼다(검색 조건
+     * 생성자가 400을 던지지 않게).
+     */
+    public static ProductSearchCondition toSearchCondition(ProductAiSearchCondition result) {
         Long minPrice = nonNegative(result.minPrice());
         Long maxPrice = nonNegative(result.maxPrice());
         if (minPrice != null && maxPrice != null && minPrice > maxPrice) {
