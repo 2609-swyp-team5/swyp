@@ -129,7 +129,7 @@ export function TargetPriceCard({
                         placeholder="목표 가격 입력"
                         value={input}
                         onChange={(event) => setInput(formatInput(parsePrice(event.target.value)))}
-                        className="h-10 w-full rounded-[10px] border border-[#d8d2ff] bg-white px-3 pr-8 text-[14px] text-[#1b1d29] transition-colors outline-none placeholder:text-[#9b96c8] focus:border-[#6653fb] focus:ring-3 focus:ring-[#6653fb]/15"
+                        className="h-10 w-full rounded-[10px] border border-[#d8d2ff] bg-white px-3 pr-8 text-right text-[14px] text-[#1b1d29] tabular-nums transition-colors outline-none placeholder:text-[#9b96c8] focus:border-[#6653fb] focus:ring-3 focus:ring-[#6653fb]/15"
                     />
                     <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-[13px] text-[#6b6c7b]">
                         원
