@@ -46,20 +46,28 @@ vi.mock("./target-price/SellerTargetPriceSection", () => ({
 import { ProductManagementDetail } from "./ProductManagementDetail";
 
 const soldProduct: ProductDetailSummaryResponse = {
+    source: "OUR",
     id: 3,
     title: "아이폰 13 미니 128GB",
+    brand: null,
+    description: null,
     price: 320000,
     soldPrice: 450000,
     soldPlatform: "중고나라",
     status: "SOLD_OUT",
     createdAt: "2026-09-15T10:00:00",
-    category: { id: 1, name: "전자기기", parentId: null },
+    category: { id: 1, name: "전자기기", parentId: null, leaf: true },
     condition: "A",
+    tradeMethod: "DELIVERY",
+    deliveryType: "INCLUDED",
     imageUrls: [],
+    tags: [],
+    includedItems: [],
     viewCount: 128,
     interestCount: 14,
     daysOnSale: 21,
     platforms: [],
+    updatedAt: "2026-09-15T10:00:00",
 };
 
 const soldProductOverview: ProductManagementOverviewResponse = {

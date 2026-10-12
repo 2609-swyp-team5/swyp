@@ -39,7 +39,7 @@ export function ProductManagementDetail({
     const shouldShowCompetition = currentStatus !== undefined;
 
     return (
-        <div className="flex min-w-0 flex-col gap-6">
+        <div className="flex w-full min-w-0 flex-col gap-6">
             {isPending ? (
                 initialStatus === "SOLD_OUT" ? (
                     <SoldProductSummarySkeleton />

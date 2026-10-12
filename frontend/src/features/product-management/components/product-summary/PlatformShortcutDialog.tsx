@@ -43,14 +43,17 @@ export function PlatformShortcutDialog({
     className,
     label = "바로가기",
     compact = false,
+    variant = "default",
 }: {
     product: { platforms: ProductPlatformShortcut[] };
     className?: string;
     label?: string;
     compact?: boolean;
+    variant?: "default" | "management";
 }) {
     const [isOpen, setIsOpen] = useState(false);
     const platforms = product.platforms;
+    const isManagementVariant = variant === "management";
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -61,28 +64,34 @@ export function PlatformShortcutDialog({
                     className={cn(
                         compact
                             ? "h-auto gap-1.5 rounded-[10px] border border-[#d3d3d3] bg-white text-[13px] text-[#6653fb] hover:border-[#6653fb] hover:bg-[#fafbff]"
-                            : "h-auto flex-col gap-2 rounded-xl p-2.5 text-[#83889e] hover:bg-[#f5f3ff] hover:text-[#6653fb]",
+                            : isManagementVariant
+                              ? "h-auto min-w-[46px] flex-col gap-1 rounded-xl px-0 py-0 text-[#83889e] hover:bg-transparent hover:text-[#6653fb]"
+                              : "h-auto flex-col gap-2 rounded-xl p-2.5 text-[#83889e] hover:bg-[#f5f3ff] hover:text-[#6653fb]",
                         className,
                     )}
                 >
                     <span
                         className={cn(
                             "flex items-center justify-center",
-                            compact ? "size-5" : "size-10 rounded-full bg-[#eaeafd]",
+                            compact || isManagementVariant
+                                ? "size-5"
+                                : "size-10 rounded-full bg-[#eaeafd]",
                         )}
                     >
                         <ExternalLink
                             aria-hidden="true"
                             className={cn(
-                                "text-[#6653fb]",
-                                compact ? "size-[18px]" : "size-[22px]",
+                                isManagementVariant ? "text-[#83889e]" : "text-[#6653fb]",
+                                compact || isManagementVariant ? "size-5" : "size-[22px]",
                             )}
                         />
                     </span>
                     <span
                         className={cn(
                             "leading-[25px] font-normal",
-                            compact ? "text-[13px]" : "text-[16px]",
+                            compact || isManagementVariant
+                                ? "text-[12px] leading-[18px]"
+                                : "text-[16px]",
                         )}
                     >
                         {label}
