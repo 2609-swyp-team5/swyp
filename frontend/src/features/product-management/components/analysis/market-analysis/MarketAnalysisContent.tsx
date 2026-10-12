@@ -1,5 +1,7 @@
+import { ArrowRight, ChevronRight, ChevronUp, Sparkles } from "lucide-react";
 import Image from "next/image";
 
+import { Button } from "@/common/components/ui/Button";
 import { cn } from "@/common/lib/utils";
 
 import type {
@@ -38,18 +40,91 @@ export function MarketAnalysisContent({
     analysis,
     priceTrendQuery,
     valuationForecastQuery,
+    variant = "default",
+    isDetailsOpen = true,
+    onDetailsOpenChange,
 }: {
     analysis: ProductMarketAnalysis;
     priceTrendQuery: StreamingQueryState<ProductPriceTrend>;
     valuationForecastQuery: StreamingQueryState<ProductValuationForecast>;
+    variant?: "default" | "management";
+    isDetailsOpen?: boolean;
+    onDetailsOpenChange?: (open: boolean) => void;
 }) {
     const isBuyerView = analysis.recommendation === "BUY" || analysis.recommendation === "WAIT";
 
+    if (variant === "management") {
+        return (
+            <div className="flex flex-col bg-white">
+                <div className="px-[30px] pb-5">
+                    <div className="rounded-[10px] bg-[#fafbff] px-[30px] py-5">
+                        <MarketAnalysisRecommendation analysis={analysis} variant="management" />
+                        <div className="mt-5 flex flex-col items-end gap-[10px]">
+                            <MarketAnalysisSummaryMetrics
+                                analysis={analysis}
+                                variant="management"
+                            />
+                            {isBuyerView ? (
+                                <span className="text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6653fb]">
+                                    구매 고려 가격
+                                </span>
+                            ) : (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    className="h-auto gap-1 rounded-none p-0 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6653fb] hover:bg-transparent hover:text-[#6653fb]"
+                                >
+                                    추천 가격으로 변경
+                                    <ArrowRight aria-hidden="true" className="size-4" />
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="border-t border-[#d3d3d3] bg-white px-[50px] py-[30px]">
+                    <button
+                        type="button"
+                        aria-expanded={isDetailsOpen}
+                        className="flex w-full items-start justify-between gap-5 text-left"
+                        onClick={() => onDetailsOpenChange?.(!isDetailsOpen)}
+                    >
+                        <span className="flex min-w-0 flex-col gap-2.5">
+                            <span className="flex items-center gap-2.5 text-[22px] leading-[30px] font-semibold tracking-[0.5px] text-[#363636]">
+                                <Sparkles aria-hidden="true" className="size-5 fill-[#363636]" />
+                                상세 시세 분석 보기
+                            </span>
+                            <span className="text-[16px] leading-[25px] text-[#464646]">
+                                최근 30일 거래 데이터, 경쟁 상품 수를 종합해 타이밍을 분석합니다.
+                            </span>
+                        </span>
+                        <span className="flex shrink-0 items-center gap-[3px] text-[16px] leading-[25px] text-[#83889e]">
+                            {isDetailsOpen ? "접기" : "더보기"}
+                            {isDetailsOpen ? (
+                                <ChevronUp aria-hidden="true" className="size-4" />
+                            ) : (
+                                <ChevronRight aria-hidden="true" className="size-4" />
+                            )}
+                        </span>
+                    </button>
+                </div>
+
+                {isDetailsOpen ? (
+                    <div className="flex flex-col gap-5 bg-[#fafbff] px-[30px] pb-[30px]">
+                        <MarketAnalysisPriceDistribution analysis={analysis} />
+                        <ProductPriceTrendSection query={priceTrendQuery} />
+                        <ProductValuationForecastSection query={valuationForecastQuery} />
+                    </div>
+                ) : null}
+            </div>
+        );
+    }
+
     return (
         <>
-            <MarketAnalysisRecommendation analysis={analysis} />
+            <MarketAnalysisRecommendation analysis={analysis} variant={variant} />
             <div className="flex flex-col gap-5 bg-[#fafbff] px-10 py-[30px]">
-                <MarketAnalysisSummaryMetrics analysis={analysis} />
+                <MarketAnalysisSummaryMetrics analysis={analysis} variant={variant} />
                 <div className="grid gap-[30px] lg:grid-cols-2">
                     <div className="flex min-w-0 flex-col justify-center gap-10 rounded-[20px] py-5">
                         <div className="flex flex-col gap-[10px]">

@@ -23,6 +23,8 @@ export function ProductManagementDetail({
     initialStatus?: ProductStatus;
 }) {
     const [showSoldDetails, setShowSoldDetails] = useState(initialStatus !== "SOLD_OUT");
+    const [showAnalysisDetails, setShowAnalysisDetails] = useState(false);
+
     const isSoldOverviewMode = initialStatus === "SOLD_OUT" && !showSoldDetails;
     const shouldLoadDetailSections = !isSoldOverviewMode;
     const overview = useProductManagementOverviewQuery(productId, {
@@ -31,7 +33,8 @@ export function ProductManagementDetail({
     const sections = useProductManagementSectionsQuery(productId, {
         summaryEnabled: !isSoldOverviewMode,
         analysisEnabled: shouldLoadDetailSections,
-        competitionEnabled: shouldLoadDetailSections,
+        analysisDetailsEnabled: shouldLoadDetailSections && showAnalysisDetails,
+        competitionEnabled: shouldLoadDetailSections && showAnalysisDetails,
     });
     const activeSummaryQuery = isSoldOverviewMode ? overview : sections.productSummary;
     const { data, error, isPending } = activeSummaryQuery;
@@ -78,8 +81,15 @@ export function ProductManagementDetail({
                         isPending={sections.productAnalysis.isPending}
                         priceTrendQuery={sections.productPriceTrend}
                         valuationForecastQuery={sections.productValuationForecast}
+                        variant="management"
+                        isDetailsOpen={showAnalysisDetails}
+                        onDetailsOpenChange={setShowAnalysisDetails}
+                        analysisRetry={{
+                            isFetching: sections.productAnalysis.isFetching,
+                            refetch: sections.productAnalysis.refetch,
+                        }}
                     />
-                    {shouldShowCompetition ? (
+                    {shouldShowCompetition && showAnalysisDetails ? (
                         <ProductCompetitionSection query={sections.productCompetition} />
                     ) : null}
                 </>

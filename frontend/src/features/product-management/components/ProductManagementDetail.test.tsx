@@ -34,7 +34,19 @@ vi.mock("./product-summary/SoldProductSummaryCard", () => ({
     ),
 }));
 vi.mock("./analysis/market-analysis/MarketAnalysisSection", () => ({
-    MarketAnalysisSection: () => <div data-testid="market-analysis" />,
+    MarketAnalysisSection: ({
+        onDetailsOpenChange,
+    }: {
+        onDetailsOpenChange?: (open: boolean) => void;
+    }) => (
+        <button
+            type="button"
+            data-testid="market-analysis"
+            onClick={() => onDetailsOpenChange?.(true)}
+        >
+            상세 시세 분석 보기
+        </button>
+    ),
 }));
 vi.mock("./competition/ProductCompetitionSection", () => ({
     ProductCompetitionSection: () => <div data-testid="competition" />,
@@ -111,6 +123,7 @@ describe("ProductManagementDetail", () => {
         expect(sectionsQueryMock).toHaveBeenLastCalledWith(3, {
             summaryEnabled: false,
             analysisEnabled: false,
+            analysisDetailsEnabled: false,
             competitionEnabled: false,
         });
 
@@ -118,11 +131,16 @@ describe("ProductManagementDetail", () => {
 
         expect(screen.getByTestId("full-sold-summary")).toBeInTheDocument();
         expect(screen.getByTestId("market-analysis")).toBeInTheDocument();
+        expect(screen.queryByTestId("competition")).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByTestId("market-analysis"));
+
         expect(screen.getByTestId("competition")).toBeInTheDocument();
         expect(overviewQueryMock).toHaveBeenLastCalledWith(3, { enabled: false });
         expect(sectionsQueryMock).toHaveBeenLastCalledWith(3, {
             summaryEnabled: true,
             analysisEnabled: true,
+            analysisDetailsEnabled: true,
             competitionEnabled: true,
         });
     });
