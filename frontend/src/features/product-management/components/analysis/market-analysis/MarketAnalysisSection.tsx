@@ -5,6 +5,7 @@ import { useState } from "react";
 import { getApiErrorMessage } from "@/common/lib/api/error";
 
 import type {
+    ProductCompetition,
     ProductMarketAnalysis,
     ProductPriceTrend,
     ProductValuationForecast,
@@ -15,6 +16,7 @@ import { MarketAnalysisSkeleton } from "./MarketAnalysisSkeleton";
 
 type MarketAnalysisSectionProps = {
     result: ProductMarketAnalysis | null | undefined;
+    competitionQuery?: StreamingQueryState<ProductCompetition>;
     error: unknown;
     isPending: boolean;
     priceTrendQuery: StreamingQueryState<ProductPriceTrend>;
@@ -73,6 +75,7 @@ function RetryButton({
 
 export function MarketAnalysisSection({
     result,
+    competitionQuery,
     error,
     isPending,
     priceTrendQuery,
@@ -123,6 +126,7 @@ export function MarketAnalysisSection({
     ) : result ? (
         <MarketAnalysisContent
             analysis={result}
+            competitionQuery={competitionQuery}
             priceTrendQuery={priceTrendQuery}
             valuationForecastQuery={valuationForecastQuery}
             variant={variant}

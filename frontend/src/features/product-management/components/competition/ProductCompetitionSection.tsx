@@ -9,10 +9,12 @@ export function ProductCompetitionSection({
     query,
     heading,
     showCompetitionMeta,
+    variant,
 }: {
     query: StreamingQueryState<ProductCompetition>;
     heading?: string;
     showCompetitionMeta?: boolean;
+    variant?: "default" | "management";
 }) {
     const isError = Boolean(query.error);
 
@@ -29,6 +31,7 @@ export function ProductCompetitionSection({
                     competition={query.data.competition}
                     heading={heading}
                     showCompetitionMeta={showCompetitionMeta}
+                    variant={variant}
                 />
             ) : null}
         </section>

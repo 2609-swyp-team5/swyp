@@ -36,20 +36,24 @@ vi.mock("./product-summary/SoldProductSummaryCard", () => ({
 vi.mock("./analysis/market-analysis/MarketAnalysisSection", () => ({
     MarketAnalysisSection: ({
         onDetailsOpenChange,
+        isDetailsOpen,
+        competitionQuery,
     }: {
         onDetailsOpenChange?: (open: boolean) => void;
+        isDetailsOpen?: boolean;
+        competitionQuery?: unknown;
     }) => (
-        <button
-            type="button"
-            data-testid="market-analysis"
-            onClick={() => onDetailsOpenChange?.(true)}
-        >
-            상세 시세 분석 보기
-        </button>
+        <>
+            <button
+                type="button"
+                data-testid="market-analysis"
+                onClick={() => onDetailsOpenChange?.(true)}
+            >
+                상세 시세 분석 보기
+            </button>
+            {isDetailsOpen && competitionQuery ? <div data-testid="competition" /> : null}
+        </>
     ),
-}));
-vi.mock("./competition/ProductCompetitionSection", () => ({
-    ProductCompetitionSection: () => <div data-testid="competition" />,
 }));
 vi.mock("./target-price/SellerTargetPriceSection", () => ({
     SellerTargetPriceSection: () => <div data-testid="target-price" />,

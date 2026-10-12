@@ -1,7 +1,10 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 
-import { createProductMarketAnalysisMock } from "../../../mocks/productManagementMock";
+import {
+    createProductCompetitionMock,
+    createProductMarketAnalysisMock,
+} from "../../../mocks/productManagementMock";
 import { MarketAnalysisSection } from "./MarketAnalysisSection";
 
 vi.mock("next/image", () => ({
@@ -74,6 +77,13 @@ it("분석 결과가 없으면 안내 문구를 보여준다", () => {
 
 it("관리 화면은 접힌 추천 카드와 3열 가격 metric을 먼저 보여준다", () => {
     const analysis = createProductMarketAnalysisMock(1, "SELL", "SELL");
+    const competitionQuery = {
+        data: createProductCompetitionMock(1),
+        error: null,
+        isPending: false,
+        isFetching: false,
+        refetch: vi.fn(),
+    } as never;
 
     render(
         <MarketAnalysisSection
@@ -83,6 +93,7 @@ it("관리 화면은 접힌 추천 카드와 3열 가격 metric을 먼저 보여
             priceTrendQuery={idleQuery}
             valuationForecastQuery={idleQuery}
             variant="management"
+            competitionQuery={competitionQuery}
             analysisRetry={{ isFetching: false, refetch: vi.fn() }}
         />,
     );
@@ -95,6 +106,7 @@ it("관리 화면은 접힌 추천 카드와 3열 가격 metric을 먼저 보여
     fireEvent.click(screen.getByRole("button", { name: /상세 시세 분석 보기/ }));
 
     expect(screen.getByText("거래 가격 분포")).toBeInTheDocument();
+    expect(screen.getByText("경쟁 상품 수")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /내용 접기/ }));
     expect(screen.queryByText("거래 가격 분포")).not.toBeInTheDocument();
 });

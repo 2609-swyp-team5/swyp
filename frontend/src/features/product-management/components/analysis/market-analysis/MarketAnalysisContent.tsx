@@ -5,11 +5,13 @@ import { Button } from "@/common/components/ui/Button";
 import { cn } from "@/common/lib/utils";
 
 import type {
+    ProductCompetition,
     ProductMarketAnalysis,
     ProductPriceTrend,
     ProductValuationForecast,
 } from "../../../types";
 import type { StreamingQueryState } from "../../shared/streaming/productManagementStreamingTypes";
+import { ProductCompetitionSection } from "../../competition/ProductCompetitionSection";
 import { ProductPriceTrendSection } from "../price-trend/ProductPriceTrendSection";
 import { ProductValuationForecastSection } from "../valuation-forecast/ProductValuationForecastSection";
 import { formatPrice, formatSignedPercent } from "./formatters";
@@ -39,6 +41,7 @@ function MetricRow({
 
 export function MarketAnalysisContent({
     analysis,
+    competitionQuery,
     priceTrendQuery,
     valuationForecastQuery,
     variant = "default",
@@ -46,6 +49,7 @@ export function MarketAnalysisContent({
     onDetailsOpenChange,
 }: {
     analysis: ProductMarketAnalysis;
+    competitionQuery?: StreamingQueryState<ProductCompetition>;
     priceTrendQuery: StreamingQueryState<ProductPriceTrend>;
     valuationForecastQuery: StreamingQueryState<ProductValuationForecast>;
     variant?: "default" | "management";
@@ -116,6 +120,12 @@ export function MarketAnalysisContent({
                         <MarketAnalysisPriceDistribution data={priceDistribution} />
                         <ProductPriceTrendSection query={priceTrendQuery} />
                         <ProductValuationForecastSection query={valuationForecastQuery} />
+                        {competitionQuery ? (
+                            <ProductCompetitionSection
+                                query={competitionQuery}
+                                variant="management"
+                            />
+                        ) : null}
                     </div>
                 ) : null}
             </div>

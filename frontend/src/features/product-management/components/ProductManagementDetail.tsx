@@ -7,7 +7,6 @@ import type { ProductStatus } from "@/features/sell/types";
 import { useProductManagementOverviewQuery } from "../hooks/useProductManagementOverviewQuery";
 import { useProductManagementSectionsQuery } from "../hooks/useProductManagementSectionsQuery";
 import { MarketAnalysisSection } from "./analysis/market-analysis/MarketAnalysisSection";
-import { ProductCompetitionSection } from "./competition/ProductCompetitionSection";
 import { ProductSummaryCard } from "./product-summary/ProductSummaryCard";
 import { ProductSummarySkeleton } from "./product-summary/ProductSummarySkeleton";
 import { SoldProductSummaryCard } from "./product-summary/SoldProductSummaryCard";
@@ -39,7 +38,6 @@ export function ProductManagementDetail({
     const activeSummaryQuery = isSoldOverviewMode ? overview : sections.productSummary;
     const { data, error, isPending } = activeSummaryQuery;
     const currentStatus = data?.status ?? (isPending ? initialStatus : undefined);
-    const shouldShowCompetition = currentStatus !== undefined;
 
     return (
         <div className="flex w-full min-w-0 flex-col gap-6">
@@ -79,6 +77,7 @@ export function ProductManagementDetail({
                         result={sections.productAnalysis.data}
                         error={sections.productAnalysis.error}
                         isPending={sections.productAnalysis.isPending}
+                        competitionQuery={sections.productCompetition}
                         priceTrendQuery={sections.productPriceTrend}
                         valuationForecastQuery={sections.productValuationForecast}
                         variant="management"
@@ -89,9 +88,6 @@ export function ProductManagementDetail({
                             refetch: sections.productAnalysis.refetch,
                         }}
                     />
-                    {shouldShowCompetition && showAnalysisDetails ? (
-                        <ProductCompetitionSection query={sections.productCompetition} />
-                    ) : null}
                 </>
             ) : null}
         </div>
