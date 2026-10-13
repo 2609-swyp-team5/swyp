@@ -40,7 +40,9 @@ public record ProductAnalysisResponse(
                 forecasts, // 감가 예측가(1M/3M/6M 순), 분석 이력이 없거나 예측 도입 전 분석이면 빈 배열 — GET /analysis/forecast로 분리됨, 프론트 전환 후
         // 제거 예정
         Long marketExpectedPrice, // 예상 시세 — 1개월 뒤 예상 가격(expectedPrice), 도입 이전 분석이면 평균가
-        List<PriceBucket> priceDistribution, // 비교 매물 가격 분포(최저~최고가를 같은 폭으로 나눈 구간, 낮은 가격 순), 매물이 없으면 빈 배열
+        // 비교 매물(판매 중) 가격 분포(최저~최고가를 같은 폭으로 나눈 구간, 낮은 가격 순), 매물이 없으면 빈 배열 — 판매 완료 가격 분포는
+        // GET /analysis/distribution
+        List<PriceBucket> priceDistribution,
         Summary summary, // 요약 지표 — 추천이 SELL이면 판매 현황(SALE_STATS), 그 밖에는 대기 추천 지표(WAIT_RECOMMENDATION)
         AnalysisStatus analysisStatus, // 분석 상태 — 분석 이력이 없어도 채워짐(분석 중이면 이전 결과가 있어도 ANALYZING)
         AnalysisSkipReason

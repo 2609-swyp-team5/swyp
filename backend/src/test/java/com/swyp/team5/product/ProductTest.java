@@ -1216,7 +1216,7 @@ class ProductTest extends IntegrationTest {
                                 new ProductStatusUpdateRequest(ProductStatus.SOLD_OUT, 800_000L, "번개장터"))))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(get("/products/{productId}/management-overview", productId)
+        mockMvc.perform(get("/products/{productId}/overview", productId)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id").value(productId))
@@ -1227,10 +1227,10 @@ class ProductTest extends IntegrationTest {
                 .andExpect(jsonPath("$.data.soldPrice").value(800_000))
                 .andExpect(jsonPath("$.data.soldPlatform").value("번개장터"));
 
-        mockMvc.perform(get("/products/{productId}/management-overview", productId)
+        mockMvc.perform(get("/products/{productId}/overview", productId)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + createOtherMemberToken()))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/products/{productId}/management-overview", Long.MAX_VALUE)
+        mockMvc.perform(get("/products/{productId}/overview", Long.MAX_VALUE)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isNotFound());
     }

@@ -21,6 +21,7 @@ import static org.mockito.Mockito.when;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -339,6 +340,58 @@ class ProductAnalysisServiceTest {
         assertThat(captor.getValue().getMinPrice()).isEqualTo(2000L);
         assertThat(captor.getValue().getAveragePrice()).isEqualTo(3000L);
         assertThat(captor.getValue().getMaxPrice()).isEqualTo(4000L);
+    }
+
+    // 분석 진행 단계 - 분석 중으로 기록된 대상은 단계마다 시작·완료를 순서대로 알림(분석 결과 구독 스트림용)
+    @Test
+    void analyzeProductReportsStepsInOrder() {
+        Product product = product(1L, 10L, 800_000L);
+        givenListings(
+                10L,
+                List.of(listing("아이패드 프로 매물1", 1000L), listing("아이패드 프로 매물2", 2000L), listing("아이패드 프로 매물3", 3000L)));
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.empty());
+        givenAiResult(new MarketAnalysisResult(List.of(1, 2, 3), AnalysisRecommendation.HOLD, 2000L, "설명"));
+        List<String> steps = new ArrayList<>();
+        progressTracker.onStep((itemId, event) -> steps.add(event.step() + ":" + event.status()));
+        progressTracker.start(1L);
+
+        try {
+            service().analyzeProduct(product);
+        } finally {
+            progressTracker.finish(1L);
+        }
+
+        assertThat(steps)
+                .containsExactly(
+                        "CANDIDATE_SEARCH:START",
+                        "CANDIDATE_SEARCH:DONE",
+                        "AI_ANALYSIS:START",
+                        "AI_ANALYSIS:DONE",
+                        "PRICE_CALCULATION:START",
+                        "PRICE_CALCULATION:DONE",
+                        "FORECAST:START",
+                        "FORECAST:DONE",
+                        "SAVE:START",
+                        "SAVE:DONE");
+    }
+
+    // 분석 진행 단계 - 비교 매물이 부족해 건너뛰면 매물 찾기 단계에서 멈춤(완료 단계를 보내지 않음)
+    @Test
+    void analyzeProductStopsStepsWhenSkipped() {
+        Product product = product(1L, 10L, 800_000L);
+        givenListings(10L, List.of(listing("갤럭시 탭 S9", 9000L)));
+        List<String> steps = new ArrayList<>();
+        progressTracker.onStep((itemId, event) -> steps.add(event.step() + ":" + event.status()));
+        progressTracker.start(1L);
+
+        try {
+            service().analyzeProduct(product);
+        } finally {
+            progressTracker.finish(1L);
+        }
+
+        assertThat(steps).containsExactly("CANDIDATE_SEARCH:START");
     }
 
     // 분석 - 같은 글을 반복 등록한 중복 매물(정규화한 제목·가격이 같음)은 하나로 세어 AI 후보·통계에 넣음

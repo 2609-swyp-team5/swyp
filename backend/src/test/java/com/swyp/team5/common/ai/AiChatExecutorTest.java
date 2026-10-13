@@ -10,6 +10,7 @@ import java.util.List;
 import org.springframework.ai.chat.client.ChatClient;
 
 import org.junit.jupiter.api.Test;
+import reactor.core.publisher.Flux;
 
 // AI 호출 대체(Gemini 실패 시 OpenAI GPT) 단위 테스트.
 class AiChatExecutorTest {
@@ -60,5 +61,39 @@ class AiChatExecutorTest {
                 }))
                 .isSameAs(gptFailure)
                 .satisfies(e -> assertThat(e.getSuppressed()).containsExactly(geminiFailure));
+    }
+
+    // 스트리밍 — Gemini가 첫 조각 전에 실패하면 GPT로 대체하고, 조각을 차례로 넘긴 뒤 이은 문장을 돌려줌
+    @Test
+    void streamFallsBackToGptWhenGeminiFailsBeforeFirstChunk() {
+        List<String> chunks = new ArrayList<>();
+
+        String result = executor.stream(
+                "테스트",
+                client -> client == gemini
+                        ? Flux.error(new IllegalStateException("gemini down"))
+                        : Flux.just("지금 ", "", "사기 좋아요."),
+                chunks::add);
+
+        assertThat(result).isEqualTo("지금 사기 좋아요.");
+        assertThat(chunks).containsExactly("지금 ", "사기 좋아요.");
+    }
+
+    // 스트리밍 — 이미 조각을 보낸 뒤 실패하면 GPT로 대체하지 않고 예외(앞부분이 화면에 나간 상태)
+    @Test
+    void streamDoesNotFallBackAfterChunksWereSent() {
+        List<ChatClient> called = new ArrayList<>();
+        List<String> chunks = new ArrayList<>();
+
+        assertThatThrownBy(() -> executor.stream(
+                        "테스트",
+                        client -> {
+                            called.add(client);
+                            return Flux.concat(Flux.just("지금 "), Flux.error(new IllegalStateException("cut")));
+                        },
+                        chunks::add))
+                .hasMessageContaining("cut");
+        assertThat(called).containsExactly(gemini);
+        assertThat(chunks).containsExactly("지금 ");
     }
 }

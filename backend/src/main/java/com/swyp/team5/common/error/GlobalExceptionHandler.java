@@ -21,6 +21,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.swyp.team5.admin.error.InvalidMemberStatusException;
 import com.swyp.team5.admin.error.SelfStatusChangeException;
+import com.swyp.team5.aichat.error.AiChatBusyException;
 import com.swyp.team5.aichat.error.AiChatMessageNotFoundException;
 import com.swyp.team5.aichat.error.AiChatNotFoundException;
 import com.swyp.team5.aichat.error.InvalidAiChatCursorException;
@@ -184,6 +185,12 @@ public class GlobalExceptionHandler {
             log.warn("플랫폼 본인인증 요청 거절({}): {}", reason, ErrorLogs.describe(e));
         }
         return errorResponse(reason.getStatus(), reason.getCode(), e.getMessage(), e.getDetails());
+    }
+
+    @ExceptionHandler(AiChatBusyException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAiChatBusy(AiChatBusyException e) {
+        log.warn("AI 대화 답변 대기열 포화: {}", ErrorLogs.describe(e));
+        return errorResponse(HttpStatus.SERVICE_UNAVAILABLE, "AI_CHAT_BUSY", e.getMessage());
     }
 
     @ExceptionHandler(ProductRegisterBusyException.class)
