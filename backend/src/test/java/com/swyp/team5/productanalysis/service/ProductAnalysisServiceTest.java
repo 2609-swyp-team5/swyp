@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.LongStream;
 
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.repository.CategoryRepository;
@@ -53,6 +54,8 @@ import com.swyp.team5.productanalysis.dto.CompetitionLevel;
 import com.swyp.team5.productanalysis.dto.CompetitionSortType;
 import com.swyp.team5.productanalysis.dto.MarketAnalysisResult;
 import com.swyp.team5.productanalysis.dto.PriceForecastResponse;
+import com.swyp.team5.productanalysis.dto.PriceReasonResult;
+import com.swyp.team5.productanalysis.dto.PriceReasonUpdate;
 import com.swyp.team5.productanalysis.dto.PriceTrendResponse;
 import com.swyp.team5.productanalysis.dto.ProductAnalysisResponse;
 import com.swyp.team5.productanalysis.dto.ProductCompetitionResponse;
@@ -1966,5 +1969,103 @@ class ProductAnalysisServiceTest {
         when(sold.getStatus()).thenReturn("SOLD_OUT");
         assertThat(service.analysisStatus(selling, false)).isEqualTo(AnalysisStatus.NOT_ANALYZED);
         assertThat(service.analysisStatus(sold, false)).isEqualTo(AnalysisStatus.UNAVAILABLE);
+    }
+
+    // 가격 변경 - 근거를 새 가격 기준 규칙 문장으로 바꾸고 구매자 추천도 다시 정함(판매자 추천·시세는 그대로)
+    @Test
+    void refreshPriceReasonsRewritesReasonsForNewPrice() {
+        Product product = product(1L, 10L, 1_000_000L); // 평균 1,200,000원보다 약 17% 쌈
+        ProductAnalysis analysis = snapshot(product, 1_000_000L, 1_200_000L, 1_400_000L, LocalDateTime.now(), 5);
+        analysis.assignBuyerView(AnalysisRecommendation.WAIT, "판매가가 평균 시세보다 비싸요.");
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.of(analysis));
+
+        service().refreshPriceReasons(1L);
+
+        assertThat(analysis.getRecommendation()).isEqualTo(AnalysisRecommendation.HOLD); // 판매자 추천은 추세로만 정해 그대로
+        assertThat(analysis.getDescription()).doesNotContain("높아요"); // 예전 "등록가가 비싸다" 문장 대신 새 가격 기준
+        assertThat(analysis.getBuyerRecommendation()).isEqualTo(AnalysisRecommendation.BUY);
+        assertThat(analysis.getBuyerDescription()).contains("1,200,000원").contains("17% 저렴해요");
+        assertThat(analysis.getAveragePrice()).isEqualTo(1_200_000L);
+    }
+
+    // 가격 변경 - 비싼 가격으로 바꾸면 판매자 근거가 가격을 낮추라는 문장, 비슷한 상품 기준 분석이면 "비슷한 상품"으로 표기
+    @Test
+    void refreshPriceReasonsUsesRelatedBasisWording() {
+        Product product = product(1L, 10L, 1_500_000L); // 평균보다 25% 비쌈
+        ProductAnalysis analysis = ProductAnalysis.create(
+                product,
+                1_000_000L,
+                1_200_000L,
+                1_400_000L,
+                null,
+                AnalysisRecommendation.SELL,
+                1_200_000L,
+                "예전 근거",
+                LocalDateTime.now());
+        analysis.assignComparisonBasis(ComparisonBasis.RELATED);
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.of(analysis));
+
+        service().refreshPriceReasons(1L);
+
+        assertThat(analysis.getDescription())
+                .isEqualTo("등록가가 비슷한 상품 평균 시세(1,200,000원)보다 25% 높아요. 시세가 오를 근거가 없어 가격을 낮춰 지금 파는 걸 추천해요.");
+        assertThat(analysis.getBuyerRecommendation()).isEqualTo(AnalysisRecommendation.WAIT);
+        verify(productAnalysisRepository, never()).findByItemIdAndAnalyzedAtAfterOrderByAnalyzedAtAsc(anyLong(), any());
+    }
+
+    // 가격 변경 - 분석 이력이 없으면 아무것도 하지 않음(AI 요청도 없음)
+    @Test
+    void priceReasonsSkipWithoutAnalysis() {
+        Product product = product(1L, 10L, 1_000L);
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.empty());
+
+        service().refreshPriceReasons(1L);
+
+        assertThat(service().requestPriceReasons(1L)).isEmpty();
+        verifyNoInteractions(geminiAiClient);
+    }
+
+    // 가격 변경 AI 근거 - 새 가격·시세·정해진 추천을 프롬프트로 주고 받은 문장을 같은 분석·같은 가격일 때만 저장
+    @Test
+    void requestAndApplyPriceReasonsWithAi() {
+        Product product = product(1L, 10L, 1_000_000L);
+        ProductAnalysis analysis = snapshot(product, 1_000_000L, 1_200_000L, 1_400_000L, LocalDateTime.now(), 5);
+        analysis.assignBuyerView(AnalysisRecommendation.BUY, "규칙 문장");
+        ReflectionTestUtils.setField(analysis, "id", 448L);
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.of(analysis));
+        when(geminiAiClient
+                        .prompt()
+                        .system(anyString())
+                        .user(anyString())
+                        .call()
+                        .entity(PriceReasonResult.class))
+                .thenReturn(new PriceReasonResult("AI 판매자 근거", "AI 구매자 근거"));
+
+        Optional<PriceReasonUpdate> update = service().requestPriceReasons(1L);
+
+        assertThat(update).contains(new PriceReasonUpdate(1L, 448L, 1_000_000L, "AI 판매자 근거", "AI 구매자 근거"));
+        ArgumentCaptor<String> prompt = ArgumentCaptor.forClass(String.class);
+        verify(geminiAiClient.prompt().system(anyString()), atLeastOnce()).user(prompt.capture());
+        assertThat(prompt.getValue())
+                .contains("새 등록가: 1000000원")
+                .contains("평균가(기준 시세) 1200000원")
+                .contains("판매자 관점: HOLD / 구매자 관점: BUY");
+
+        service().applyPriceReasons(update.orElseThrow());
+        assertThat(analysis.getDescription()).isEqualTo("AI 판매자 근거");
+        assertThat(analysis.getBuyerDescription()).isEqualTo("AI 구매자 근거");
+        assertThat(analysis.getBuyerRecommendation()).isEqualTo(AnalysisRecommendation.BUY); // 추천은 그대로
+
+        // AI를 기다리는 사이 가격이 또 바뀌었으면 버림
+        service().applyPriceReasons(new PriceReasonUpdate(1L, 448L, 900_000L, "늦은 문장", "늦은 문장"));
+        assertThat(analysis.getDescription()).isEqualTo("AI 판매자 근거");
     }
 }

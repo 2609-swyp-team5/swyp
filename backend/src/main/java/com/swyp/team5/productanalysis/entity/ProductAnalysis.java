@@ -149,6 +149,11 @@ public class ProductAnalysis {
         this.analyzedAt = analyzedAt;
     }
 
+    /** 판매자 관점 근거를 바꾼다(상품 가격이 바뀌어 가격 비교 문장을 새 가격 기준으로 다시 쓸 때). */
+    public void changeDescription(String description) {
+        this.description = description;
+    }
+
     /** 우리 상품 분석에 구매자 관점 추천(BUY/WAIT)과 근거를 붙인다. */
     public void assignBuyerView(AnalysisRecommendation buyerRecommendation, String buyerDescription) {
         this.buyerRecommendation = buyerRecommendation;
