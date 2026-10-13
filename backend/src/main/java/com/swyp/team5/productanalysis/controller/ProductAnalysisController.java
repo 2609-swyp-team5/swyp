@@ -21,6 +21,7 @@ import com.swyp.team5.common.passport.PrincipalMember;
 import com.swyp.team5.productanalysis.dto.AnalysisPerspective;
 import com.swyp.team5.productanalysis.dto.AnalysisRequestResponse;
 import com.swyp.team5.productanalysis.dto.AnalysisStatus;
+import com.swyp.team5.productanalysis.dto.PriceDistributionResponse;
 import com.swyp.team5.productanalysis.dto.PriceTrendResponse;
 import com.swyp.team5.productanalysis.dto.ProductAnalysisResponse;
 import com.swyp.team5.productanalysis.dto.ProductForecastResponse;
@@ -83,6 +84,21 @@ public class ProductAnalysisController {
     @GetMapping("/forecast")
     public ResponseEntity<ApiResponse<ProductForecastResponse>> getForecast(@PathVariable Long productId) {
         return ResponseEntity.ok(ApiResponse.success(productAnalysisService.getForecast(productId)));
+    }
+
+    /**
+     * 상품과 비슷한 물건의 판매 완료 가격 분포(최근 {@code days}일 안에 판매 완료가 확인된 외부 매물의 판매 직전 등록가)를 조회 시점에
+     * 계산해 조회한다.
+     *
+     * @param productId 조회할 상품 ID(외부 매물 ID 포함)
+     * @param days 조회 기간(일, 오늘 포함, 1~180, 기본 90)
+     * @return 200 OK + 판매 완료 가격 분포(판매 완료 매물이 없으면 {@code buckets}가 빈 배열)
+     */
+    @Operation(summary = "상품 판매 완료 가격 분포 조회")
+    @GetMapping("/distribution")
+    public ResponseEntity<ApiResponse<PriceDistributionResponse>> getPriceDistribution(
+            @PathVariable Long productId, @RequestParam(defaultValue = "90") @Min(1) @Max(180) int days) {
+        return ResponseEntity.ok(ApiResponse.success(productAnalysisService.getPriceDistribution(productId, days)));
     }
 
     /**

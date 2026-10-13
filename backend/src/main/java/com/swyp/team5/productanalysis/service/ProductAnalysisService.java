@@ -52,6 +52,7 @@ import com.swyp.team5.productanalysis.dto.AnalysisStatus;
 import com.swyp.team5.productanalysis.dto.CompetitionLevel;
 import com.swyp.team5.productanalysis.dto.CompetitionSortType;
 import com.swyp.team5.productanalysis.dto.MarketAnalysisResult;
+import com.swyp.team5.productanalysis.dto.PriceDistributionResponse;
 import com.swyp.team5.productanalysis.dto.PriceTrendResponse;
 import com.swyp.team5.productanalysis.dto.ProductAnalysisResponse;
 import com.swyp.team5.productanalysis.dto.ProductCompetitionResponse;
@@ -75,6 +76,8 @@ import org.hibernate.Hibernate;
 public class ProductAnalysisService {
 
     private static final String SELLING_STATUS = "SELLING";
+    /** 매물 재확인 배치가 기록하는 판매 완료 상태(번개장터 saleStatus·중고나라 상태 변환 값). */
+    private static final String SOLD_OUT_STATUS = "SOLD_OUT";
 
     // 판매자에게 시세 변동 알림을 보내는 상품 상태(임시저장은 아직 판매 전이라 제외)
     private static final List<ProductStatus> PRICE_CHANGE_SELLER_TARGETS =
@@ -304,6 +307,34 @@ public class ProductAnalysisService {
                         .setScale(1, RoundingMode.HALF_UP);
         return ProductAnalysisResponse.WaitRecommendation.of(
                 waitPeriodDays, changeRate, confidenceRate == null ? 0 : confidenceRate);
+    }
+
+    /**
+     * 상품(또는 외부 매물)과 비슷한 물건의 판매 완료 가격 분포를 조회 시점에 계산한다. 같은 카테고리에서 최근 {@code days}일(오늘
+     * 포함) 안에 판매 완료가 확인된({@code last_seen_at} 기준) 외부 매물 중 시세 분석 1단계와 같은 기준(키워드 후보·중복·이상치 제외,
+     * AI 선별 없음)으로 고른 것의 가격을 같은 폭 구간으로 센다. 가격은 판매 완료 직전 등록가다. 판매 완료 상태는 매물 재확인 배치가
+     * 기록하므로 재확인이 덜 된 카테고리는 매물이 적거나 없을 수 있고, 없으면 {@code buckets}가 빈 배열이다.
+     *
+     * @param days 조회 기간(일, 오늘 포함)
+     * @throws ProductNotFoundException 존재하지 않는 상품(외부 매물 포함)인 경우
+     */
+    @Transactional(readOnly = true)
+    public PriceDistributionResponse getPriceDistribution(Long productId, int days) {
+        Item item = getItemOrThrow(productId);
+        LocalDate to = LocalDate.now();
+        LocalDate from = to.minusDays(days - 1L);
+        List<PlatformListing> sold = SimilarListingFilter.removeDuplicates(
+                        platformListingRepository.findByCategoryIdAndStatusAndLastSeenAtAfterOrderByPriceAsc(
+                                item.getCategory().getId(), SOLD_OUT_STATUS, from.atStartOfDay()))
+                .stream()
+                .filter(listing -> !listing.getId().equals(item.getId()))
+                .toList();
+        String brand = item instanceof Product product ? product.getBrand() : null;
+        List<Long> prices = SimilarListingFilter.removeOutliers(
+                SimilarListingFilter.selectCandidates(item.getTitle(), brand, sold, Integer.MAX_VALUE).stream()
+                        .map(PlatformListing::getPrice)
+                        .toList());
+        return PriceDistributionResponse.of(item.getId(), days, from, to, prices, PRICE_DISTRIBUTION_BUCKETS);
     }
 
     /**

@@ -7,12 +7,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.swyp.team5.category.entity.Category;
@@ -23,6 +25,10 @@ import com.swyp.team5.item.repository.ItemRepository;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.entity.MemberRole;
 import com.swyp.team5.member.repository.MemberRepository;
+import com.swyp.team5.platform.entity.Platform;
+import com.swyp.team5.platform.entity.PlatformListing;
+import com.swyp.team5.platform.repository.PlatformListingRepository;
+import com.swyp.team5.platform.repository.PlatformRepository;
 import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
@@ -67,12 +73,19 @@ class PriceForecastTest extends IntegrationTest {
     @Autowired
     private ItemRepository itemRepository;
 
+    @Autowired
+    private PlatformRepository platformRepository;
+
+    @Autowired
+    private PlatformListingRepository platformListingRepository;
+
     // ProductTest와 같은 목 구성을 써서 스프링 컨텍스트를 재사용한다. 다른 구성(NotificationTest)을 쓰면 그 사이 새 컨텍스트의
     // Flyway clean으로 enum 타입이 다시 만들어져 오래된 컨텍스트의 커넥션이 "cache lookup failed for type"으로 실패한다.
 
     private Member member;
     private Product product;
     private ProductAnalysis analysis;
+    private final List<PlatformListing> createdListings = new ArrayList<>();
 
     @BeforeEach
     void setUp() {
@@ -93,6 +106,8 @@ class PriceForecastTest extends IntegrationTest {
 
     @AfterEach
     void tearDown() {
+        platformListingRepository.deleteAll(createdListings);
+        createdListings.clear();
         priceForecastRepository.deleteAll(priceForecastRepository.findByAnalysisId(analysis.getId()));
         productAnalysisRepository.delete(analysis);
         productRepository.delete(product);
@@ -120,6 +135,72 @@ class PriceForecastTest extends IntegrationTest {
                 .andExpect(jsonPath("$.data.priceDistribution[1].count").value(1))
                 .andExpect(jsonPath("$.data.priceDistribution[2].count").value(2))
                 .andExpect(jsonPath("$.data.priceDistribution[4].count").value(1));
+    }
+
+    // 판매 완료 가격 분포 - 같은 카테고리·비슷한 제목·기간 안 SOLD_OUT 매물만 셈(판매중·다른 물건·기간 밖·중복·이상치 제외)
+    @Test
+    void distributionCountsRecentSimilarSoldListings() throws Exception {
+        Category category = product.getCategory();
+        Platform platform = platformRepository.findByName("번개장터").orElseThrow();
+        for (long price : List.of(900_000L, 950_000L, 1_000_000L, 1_100_000L)) {
+            saveListing(platform, category, "감가 예측 테스트 판매합니다", price, "SOLD_OUT");
+        }
+        saveListing(platform, category, "감가 예측 테스트 팝니다", 1_000_000L, "SOLD_OUT");
+        saveListing(platform, category, "감가 예측 테스트 판매합니다", 950_000L, "SOLD_OUT"); // 같은 제목·가격 재등록(중복)
+        saveListing(platform, category, "감가 예측 테스트 판매합니다", 10_000_000L, "SOLD_OUT"); // 이상치
+        saveListing(platform, category, "감가 예측 테스트 판매합니다", 500_000L, "SELLING"); // 판매중
+        saveListing(platform, category, "전혀 다른 물건", 700_000L, "SOLD_OUT"); // 다른 물건
+        PlatformListing old = saveListing(platform, category, "감가 예측 테스트 판매합니다", 300_000L, "SOLD_OUT");
+        ReflectionTestUtils.setField(old, "lastSeenAt", LocalDateTime.now().minusDays(40)); // 기간 밖
+        platformListingRepository.save(old);
+
+        String token = jwtTokenProvider.createAccessToken(member.getId(), MemberRole.USER);
+        mockMvc.perform(get("/products/{productId}/analysis/distribution", product.getId())
+                        .param("days", "30")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.productId").value(product.getId()))
+                .andExpect(jsonPath("$.data.days").value(30))
+                .andExpect(jsonPath("$.data.soldCount").value(5))
+                .andExpect(jsonPath("$.data.minPrice").value(900_000))
+                .andExpect(jsonPath("$.data.averagePrice").value(990_000))
+                .andExpect(jsonPath("$.data.maxPrice").value(1_100_000))
+                .andExpect(jsonPath("$.data.buckets.length()").value(5))
+                .andExpect(jsonPath("$.data.buckets[2].count").value(2))
+                .andExpect(jsonPath("$.data.buckets[4].to").value(1_100_000));
+    }
+
+    // 판매 완료 가격 분포 - 매물이 없으면 빈 구간, 기간 범위 밖 400, 없는 상품 404, 비로그인 401
+    @Test
+    void distributionHandlesNoSoldListingsAndErrors() throws Exception {
+        String token = jwtTokenProvider.createAccessToken(member.getId(), MemberRole.USER);
+
+        mockMvc.perform(get("/products/{productId}/analysis/distribution", product.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.days").value(90))
+                .andExpect(jsonPath("$.data.soldCount").value(0))
+                .andExpect(jsonPath("$.data.minPrice").doesNotExist())
+                .andExpect(jsonPath("$.data.buckets.length()").value(0));
+
+        mockMvc.perform(get("/products/{productId}/analysis/distribution", product.getId())
+                        .param("days", "181")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(get("/products/{productId}/analysis/distribution", Long.MAX_VALUE)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/products/{productId}/analysis/distribution", product.getId()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    private PlatformListing saveListing(Platform platform, Category category, String title, long price, String status) {
+        PlatformListing listing = platformListingRepository.save(PlatformListing.create(
+                platform, category, "dist-" + UUID.randomUUID(), title, price, status, null, null));
+        createdListings.add(listing);
+        return listing;
     }
 
     // 1M/3M/6M을 DB enum으로 저장·조회하고, 분석 조회 응답에 기간 순으로 포함
