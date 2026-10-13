@@ -156,7 +156,8 @@ test("detail gallery and favorite use product and interest APIs", async ({ page 
     await externalDialog.getByRole("button", { name: "취소", exact: true }).click();
     await expect(externalDialog).toHaveCount(0);
     expect(page.url()).toContain("/search/1");
-    await expect(page.getByRole("button", { name: "AI 분석 보기", exact: true })).toBeEnabled();
+    // 회원은 버튼 없이 관심상품과 같은 AI 시세 분석 영역을 바로 본다
+    await expect(page.getByRole("button", { name: "AI 분석 보기", exact: true })).toHaveCount(0);
     expect(productRequests).toBe(1);
 });
 
@@ -217,13 +218,9 @@ test("detail matches the design layout and fits desktop and mobile", async ({ pa
         const externalIcon = page.locator("main .lucide-external-link");
         expect((await infoIcon.boundingBox())?.width).toBe(15);
         expect((await externalIcon.boundingBox())?.width).toBe(24);
-        expect(
-            (await page.getByRole("button", { name: "AI 분석 보기", exact: true }).boundingBox())
-                ?.height,
-        ).toBe(45);
-        await expect(
-            page.getByText("AI가 시세 분석과 거래 타이밍을 종합해 알려드려요."),
-        ).toBeVisible();
+        await expect(page.getByRole("button", { name: "AI 분석 보기", exact: true })).toHaveCount(
+            0,
+        );
         await page
             .locator("main")
             .screenshot({ path: testInfo.outputPath(`search-detail-${width}.png`) });

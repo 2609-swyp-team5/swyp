@@ -22,8 +22,7 @@ import { useCategoriesQuery } from "@/features/sell/hooks/queries/useCategoriesQ
 import { tradeMethodLabels } from "@/features/sell/components/manage/productReviewUtils";
 import { MarketAnalysisSection } from "@/features/product-management/components/analysis/market-analysis/MarketAnalysisSection";
 import { useProductManagementSectionsQuery } from "@/features/product-management/hooks/useProductManagementSectionsQuery";
-import { useProductAnalysisQuery } from "@/features/product-management/hooks/useProductAnalysisQuery";
-import { ProductCompetitionSection } from "@/features/product-management/components/competition/ProductCompetitionSection";
+import { useRequestProductAnalysisMutation } from "@/features/product-management/hooks/useRequestProductAnalysisMutation";
 
 // Figma LinkCard: 판매글 바로가기·관심상품 추가를 같은 너비로 나란히 둔다
 const detailActionClass =
@@ -33,7 +32,8 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
     const [selectedImage, setSelectedImage] = useState(0);
     const [externalDialogOpen, setExternalDialogOpen] = useState(false);
     const [interestDialogOpen, setInterestDialogOpen] = useState(false);
-    const [analysisProductId, setAnalysisProductId] = useState<number | null>(null);
+    const [showAnalysisDetails, setShowAnalysisDetails] = useState(false);
+    const [analysisLoginNoticeOpen, setAnalysisLoginNoticeOpen] = useState(false);
     const interests = useInterestToggle();
     const {
         data: product,
@@ -44,23 +44,21 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
     } = useSearchProductDetailQuery(targetId);
     const isInitialized = useAuthStore((state) => state.isInitialized);
     const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
-    // 회원이면 이미 있는 분석 결과를 미리 조회해, 있으면 버튼을 누르지 않아도 바로 보여준다(분석 조회는 회원 전용)
-    const existingAnalysis = useProductAnalysisQuery(targetId, {
-        enabled: Boolean(product) && isInitialized && isLoggedIn,
-        perspective: "BUY",
-    });
-    const analysisEnabled =
-        Boolean(product) && (analysisProductId === targetId || Boolean(existingAnalysis.data));
+    // 관심상품 상세와 같은 AI 시세 분석(구매자 관점, 같은 쿼리 키라 캐시 공유) — 분석 조회는 회원 전용이라 회원만 바로 보여 주고,
+    // 가격 추이·감가·경쟁 상품은 "더보기"를 펼칠 때 부른다
+    const canViewAnalysis = Boolean(product) && isInitialized && isLoggedIn;
     const sections = useProductManagementSectionsQuery(targetId, {
-        enabled: analysisEnabled,
+        enabled: canViewAnalysis,
         perspective: "BUY",
         summaryEnabled: false,
+        analysisDetailsEnabled: showAnalysisDetails,
+        competitionEnabled: showAnalysisDetails,
     });
-    const analysisFetching =
-        sections.productAnalysis.isFetching ||
-        sections.productPriceTrend.isFetching ||
-        sections.productValuationForecast.isFetching ||
-        sections.productCompetition.isFetching;
+    const requestAnalysisMutation = useRequestProductAnalysisMutation();
+    const handleAnalysisRetry = async () => {
+        await requestAnalysisMutation.mutateAsync({ productId: targetId });
+        await sections.productAnalysis.refetch();
+    };
     const liked = interests.interests.some(
         (item) => item.source === product?.source && item.targetId === targetId,
     );
@@ -129,6 +127,10 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
             <LoginRequiredDialog
                 open={interests.loginNoticeOpen}
                 onOpenChange={interests.onLoginNoticeOpenChange}
+            />
+            <LoginRequiredDialog
+                open={analysisLoginNoticeOpen}
+                onOpenChange={setAnalysisLoginNoticeOpen}
             />
             <div className="layout-container flex flex-col gap-[30px] py-10 lg:py-20">
                 <Link
@@ -391,14 +393,36 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                     </>
                 )}
 
-                {product && (
+                {product && canViewAnalysis && (
+                    <MarketAnalysisSection
+                        result={sections.productAnalysis.data}
+                        error={sections.productAnalysis.error}
+                        isPending={sections.productAnalysis.isPending}
+                        competitionQuery={sections.productCompetition}
+                        priceTrendQuery={sections.productPriceTrend}
+                        valuationForecastQuery={sections.productValuationForecast}
+                        perspective="BUY"
+                        variant="management"
+                        isDetailsOpen={showAnalysisDetails}
+                        onDetailsOpenChange={setShowAnalysisDetails}
+                        analysisRetry={{
+                            isFetching:
+                                sections.productAnalysis.isFetching ||
+                                requestAnalysisMutation.isPending,
+                            refetch: sections.productAnalysis.refetch,
+                            request:
+                                product.status === "SOLD_OUT" ? undefined : handleAnalysisRetry,
+                        }}
+                    />
+                )}
+                {/* 비회원은 기존 버튼 레이아웃을 두고, 누르면 로그인 안내(분석 조회는 회원 전용) */}
+                {product && isInitialized && !isLoggedIn && (
                     <div className="flex flex-col items-center justify-center gap-[15px] rounded-[5px] border border-[#eaeafd] bg-[#fafbff] px-2.5 py-[50px]">
                         <Button
                             type="button"
                             variant="outline"
-                            disabled={!product || analysisFetching}
-                            onClick={() => setAnalysisProductId(targetId)}
-                            className="h-auto gap-2.5 rounded-full border-[#6653fb] bg-white px-[30px] py-[5px] text-[#6653fb] disabled:opacity-100"
+                            onClick={() => setAnalysisLoginNoticeOpen(true)}
+                            className="h-auto gap-2.5 rounded-full border-[#6653fb] bg-white px-[30px] py-[5px] text-[#6653fb]"
                         >
                             <span
                                 aria-hidden="true"
@@ -407,46 +431,12 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                                 ✦
                             </span>
                             <span className="text-[20px] leading-[30px] font-semibold tracking-[0.5px]">
-                                {analysisFetching ? "분석 불러오는 중" : "AI 분석 보기"}
+                                AI 분석 보기
                             </span>
                         </Button>
                         <p className="text-center text-[16px] leading-[25px] font-normal tracking-normal text-[#83889e]">
                             AI가 시세 분석과 거래 타이밍을 종합해 알려드려요.
                         </p>
-                    </div>
-                )}
-                {analysisEnabled && (
-                    <div className="flex min-w-0 flex-col gap-4">
-                        <MarketAnalysisSection
-                            result={sections.productAnalysis.data}
-                            error={sections.productAnalysis.error}
-                            isPending={sections.productAnalysis.isPending}
-                            priceTrendQuery={sections.productPriceTrend}
-                            valuationForecastQuery={sections.productValuationForecast}
-                        />
-                        <ProductCompetitionSection
-                            query={sections.productCompetition}
-                            heading="비슷한 상품"
-                            showCompetitionMeta={false}
-                        />
-                        {(sections.productAnalysis.error ||
-                            sections.productPriceTrend.error ||
-                            sections.productValuationForecast.error ||
-                            sections.productCompetition.error) && (
-                            <Button
-                                variant="outline"
-                                className="self-end"
-                                disabled={analysisFetching}
-                                onClick={() => {
-                                    void sections.productAnalysis.refetch();
-                                    void sections.productPriceTrend.refetch();
-                                    void sections.productValuationForecast.refetch();
-                                    void sections.productCompetition.refetch();
-                                }}
-                            >
-                                AI 분석 다시 조회
-                            </Button>
-                        )}
                     </div>
                 )}
             </div>
