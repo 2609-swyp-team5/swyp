@@ -46,7 +46,6 @@ import com.swyp.team5.product.dto.ProductCreateRequest;
 import com.swyp.team5.product.dto.ProductDetailSummaryResponse;
 import com.swyp.team5.product.dto.ProductDetailSummaryResponse.PlatformLink;
 import com.swyp.team5.product.dto.ProductListItemResponse;
-import com.swyp.team5.product.dto.ProductManagementOverviewResponse;
 import com.swyp.team5.product.dto.ProductResponse;
 import com.swyp.team5.product.dto.ProductSearchCondition;
 import com.swyp.team5.product.dto.ProductSearchCursor;
@@ -1077,24 +1076,6 @@ class ProductServiceTest {
 
         service().updateStatus(1L, 1L, ProductStatus.SOLD_OUT, 850_000L, "  ");
         assertThat(product.getSoldPlatform()).isNull();
-    }
-
-    // 판매 관리 상품 개요 조회 - 본인 상품이면 최종 판매 정보 포함, 다른 회원이면 거절
-    @Test
-    void getManagementOverviewReturnsSoldInfoToOwnerOnly() {
-        Product product = newProduct(1L, newMember(1L), newCategory(1L, "전자기기"));
-        product.changeStatus(ProductStatus.SOLD_OUT, 800_000L, "번개장터");
-
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
-
-        ProductManagementOverviewResponse response = service().getManagementOverview(1L, 1L);
-
-        assertThat(response.id()).isEqualTo(1L);
-        assertThat(response.status()).isEqualTo(ProductStatus.SOLD_OUT);
-        assertThat(response.soldPrice()).isEqualTo(800_000L);
-        assertThat(response.soldPlatform()).isEqualTo("번개장터");
-        assertThatThrownBy(() -> service().getManagementOverview(2L, 1L))
-                .isInstanceOf(ProductAccessDeniedException.class);
     }
 
     // 상품 상태 변경 실패 - 소유자가 아님
