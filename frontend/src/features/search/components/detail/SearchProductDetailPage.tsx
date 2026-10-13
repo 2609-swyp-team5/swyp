@@ -399,6 +399,7 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                         error={sections.productAnalysis.error}
                         isPending={sections.productAnalysis.isPending}
                         competitionQuery={sections.productCompetition}
+                        priceDistributionQuery={sections.productPriceDistribution}
                         priceTrendQuery={sections.productPriceTrend}
                         valuationForecastQuery={sections.productValuationForecast}
                         perspective="BUY"

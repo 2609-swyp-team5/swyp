@@ -4,6 +4,7 @@ import {
     productAnalysisResponseSchema,
     productCompetitionResponseSchema,
     productDetailSummaryResponseSchema,
+    productPriceDistributionResponseSchema,
     productPriceTrendResponseSchema,
     productValuationForecastResponseSchema,
 } from "./productManagementResponseSchema";
@@ -136,6 +137,27 @@ describe("백엔드 분석 응답 파싱", () => {
         });
 
         expect(result.priceTrend.points[1].change?.rate).toBe(-8.03);
+    });
+
+    it("판매 완료 가격 분포 응답을 파싱한다", () => {
+        const result = productPriceDistributionResponseSchema.parse({
+            productId: 7,
+            days: 90,
+            from: "2026-07-14",
+            to: "2026-10-13",
+            soldCount: 5,
+            minPrice: 180000,
+            averagePrice: 274000,
+            maxPrice: 420000,
+            buckets: [
+                { from: 180000, to: 228000, count: 1 },
+                { from: 228000, to: 276000, count: 2 },
+                { from: 276000, to: 420000, count: 2 },
+            ],
+        });
+
+        expect(result.buckets).toHaveLength(3);
+        expect(result.soldCount).toBe(5);
     });
 
     it("감가 예측 응답을 파싱한다", () => {

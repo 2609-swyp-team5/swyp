@@ -152,6 +152,7 @@ export function InterestProductDetail({ interest }: { interest: InterestListItem
                 competitionQuery={sections.productCompetition}
                 priceTrendQuery={sections.productPriceTrend}
                 valuationForecastQuery={sections.productValuationForecast}
+                priceDistributionQuery={sections.productPriceDistribution}
                 perspective="BUY"
                 variant="management"
                 isDetailsOpen={showAnalysisDetails}

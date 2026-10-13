@@ -10,6 +10,7 @@ import type {
     ProductCompetition,
     ProductMarketAnalysis,
     ProductManagementPerspective,
+    ProductPriceDistribution,
     ProductPriceTrend,
     ProductValuationForecast,
 } from "../../../types";
@@ -22,6 +23,7 @@ import { formatPrice } from "./formatters";
 type MarketAnalysisSectionProps = {
     result: ProductMarketAnalysis | null | undefined;
     competitionQuery?: StreamingQueryState<ProductCompetition>;
+    priceDistributionQuery?: StreamingQueryState<ProductPriceDistribution>;
     error: unknown;
     isPending: boolean;
     priceTrendQuery: StreamingQueryState<ProductPriceTrend>;
@@ -168,6 +170,7 @@ function SoldAnalysisTrigger({ onClick }: { onClick: () => void }) {
 export function MarketAnalysisSection({
     result,
     competitionQuery,
+    priceDistributionQuery,
     error,
     isPending,
     priceTrendQuery,
@@ -251,6 +254,7 @@ export function MarketAnalysisSection({
         <MarketAnalysisContent
             analysis={result}
             competitionQuery={competitionQuery}
+            priceDistributionQuery={priceDistributionQuery}
             priceTrendQuery={priceTrendQuery}
             valuationForecastQuery={valuationForecastQuery}
             variant={variant}

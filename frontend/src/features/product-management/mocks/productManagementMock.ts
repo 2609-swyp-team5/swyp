@@ -3,6 +3,7 @@ import type {
     ProductMarketAnalysis,
     AnalysisRecommendation,
     ProductManagementPerspective,
+    ProductPriceDistribution,
     ProductPriceTrend,
     ProductValuationForecast,
 } from "../types";
@@ -35,6 +36,29 @@ const saleStatsSummary: ProductMarketAnalysis["summary"] = {
     viewCount: 128,
     interestCount: 14,
 };
+
+export function createProductPriceDistributionMock(
+    productId: number,
+    empty = false,
+): ProductPriceDistribution {
+    return {
+        productId,
+        days: 90,
+        from: "2026-07-14",
+        to: "2026-10-13",
+        soldCount: empty ? 0 : 5,
+        minPrice: empty ? null : 180000,
+        averagePrice: empty ? null : 274000,
+        maxPrice: empty ? null : 420000,
+        buckets: empty
+            ? []
+            : [
+                  { from: 180000, to: 228000, count: 1 },
+                  { from: 228000, to: 276000, count: 2 },
+                  { from: 276000, to: 420000, count: 2 },
+              ],
+    };
+}
 
 type ProductPriceTrendPoint = ProductPriceTrend["priceTrend"]["points"][number];
 

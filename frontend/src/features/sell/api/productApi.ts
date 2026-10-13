@@ -6,6 +6,7 @@ import type {
     ProductAnalysisRequestResponse,
     ProductCompetitionResponse,
     ProductDetailSummaryResponse,
+    ProductPriceDistributionResponse,
     ProductPriceTrendResponse,
     ProductValuationForecastResponse,
     ProductTargetPriceResponse,
@@ -64,6 +65,12 @@ const requestProductAnalysis = (id: number, force = false) =>
 
 const getProductPriceTrend = (id: number) =>
     api.get<ApiResponse<ProductPriceTrendResponse>>(`/products/${id}/analysis/trend`);
+
+const getProductPriceDistribution = (id: number, days = 30) =>
+    api.get<ApiResponse<ProductPriceDistributionResponse>>(
+        `/products/${id}/analysis/distribution`,
+        { params: { days } },
+    );
 
 const getProductValuationForecast = (id: number) =>
     api.get<ApiResponse<ProductValuationForecastResponse>>(`/products/${id}/analysis/forecast`);
@@ -355,6 +362,7 @@ export const productApi = {
     getProductAnalysis,
     requestProductAnalysis,
     getProductPriceTrend,
+    getProductPriceDistribution,
     getProductValuationForecast,
     getProductCompetition,
     getMyProducts,

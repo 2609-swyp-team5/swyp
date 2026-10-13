@@ -143,6 +143,16 @@ describe("productApi", () => {
         expect(get).toHaveBeenCalledWith("/products/42");
     });
 
+    it("gets completed-sale price distribution for a product", async () => {
+        await expect(productApi.getProductPriceDistribution(42)).resolves.toMatchObject({
+            data: { success: true },
+        });
+
+        expect(get).toHaveBeenCalledWith("/products/42/analysis/distribution", {
+            params: { days: 90 },
+        });
+    });
+
     it("deletes a product by id", async () => {
         await expect(productApi.deleteProduct(42)).resolves.toEqual({
             data: {

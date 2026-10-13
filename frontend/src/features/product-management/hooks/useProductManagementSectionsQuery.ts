@@ -3,6 +3,7 @@
 import { useProductAnalysisQuery } from "./useProductAnalysisQuery";
 import { useProductCompetitionQuery } from "./useProductCompetitionQuery";
 import { useProductPriceTrendQuery } from "./useProductPriceTrendQuery";
+import { useProductPriceDistributionQuery } from "./useProductPriceDistributionQuery";
 import { useProductSummaryQuery } from "./useProductSummaryQuery";
 import { useProductValuationForecastQuery } from "./useProductValuationForecastQuery";
 import type { ProductManagementPerspective } from "../types";
@@ -35,6 +36,9 @@ export function useProductManagementSectionsQuery(
     const productPriceTrend = useProductPriceTrendQuery(productId, {
         enabled: analysisDetailsEnabled,
     });
+    const productPriceDistribution = useProductPriceDistributionQuery(productId, {
+        enabled: analysisDetailsEnabled,
+    });
     const productValuationForecast = useProductValuationForecastQuery(productId, {
         enabled: analysisDetailsEnabled,
     });
@@ -47,6 +51,7 @@ export function useProductManagementSectionsQuery(
         productSummary,
         productAnalysis,
         productPriceTrend,
+        productPriceDistribution,
         productValuationForecast,
         productCompetition,
     };

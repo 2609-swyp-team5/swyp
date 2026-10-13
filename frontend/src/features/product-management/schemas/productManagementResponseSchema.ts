@@ -81,6 +81,24 @@ export const productPriceTrendResponseSchema = z.object({
     }),
 });
 
+export const productPriceDistributionResponseSchema = z.object({
+    productId: z.number(),
+    days: z.number(),
+    from: z.string(),
+    to: z.string(),
+    soldCount: z.number(),
+    minPrice: z.number().nullable(),
+    averagePrice: z.number().nullable(),
+    maxPrice: z.number().nullable(),
+    buckets: z.array(
+        z.object({
+            from: z.number(),
+            to: z.number(),
+            count: z.number(),
+        }),
+    ),
+});
+
 export const productValuationForecastResponseSchema = z.object({
     productId: z.number(),
     valuationForecast: z.object({
@@ -222,6 +240,9 @@ export const productDetailSummaryResponseSchema = z
 export type AnalysisRecommendation = z.infer<typeof analysisRecommendationSchema>;
 export type PriceForecastPeriod = z.infer<typeof priceForecastPeriodSchema>;
 export type ProductAnalysisResponse = z.infer<typeof productAnalysisResponseSchema>;
+export type ProductPriceDistributionResponse = z.infer<
+    typeof productPriceDistributionResponseSchema
+>;
 export type ProductPriceTrendResponse = z.infer<typeof productPriceTrendResponseSchema>;
 export type ProductValuationForecastResponse = z.infer<
     typeof productValuationForecastResponseSchema

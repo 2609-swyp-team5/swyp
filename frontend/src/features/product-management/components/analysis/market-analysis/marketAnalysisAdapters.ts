@@ -1,5 +1,6 @@
 import type {
     ProductMarketAnalysis,
+    ProductPriceDistribution,
     ProductPriceTrend,
     ProductValuationForecast,
 } from "../../../types";
@@ -13,12 +14,21 @@ export type PriceDistributionViewModel = {
 
 export function toPriceDistributionViewModel(
     analysis: ProductMarketAnalysis,
-): PriceDistributionViewModel {
+    distribution: ProductPriceDistribution,
+): PriceDistributionViewModel | null {
+    if (
+        distribution.minPrice === null ||
+        distribution.averagePrice === null ||
+        distribution.maxPrice === null
+    ) {
+        return null;
+    }
+
     return {
-        minPrice: analysis.minPrice,
-        averagePrice: analysis.averagePrice,
+        minPrice: distribution.minPrice,
+        averagePrice: distribution.averagePrice,
         suggestedPrice: analysis.suggestedPrice,
-        maxPrice: analysis.maxPrice,
+        maxPrice: distribution.maxPrice,
     };
 }
 

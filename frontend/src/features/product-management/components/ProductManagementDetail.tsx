@@ -76,6 +76,7 @@ export function ProductManagementDetail({
                         competitionQuery={sections.productCompetition}
                         priceTrendQuery={sections.productPriceTrend}
                         valuationForecastQuery={sections.productValuationForecast}
+                        priceDistributionQuery={sections.productPriceDistribution}
                         perspective="SELL"
                         variant={currentStatus === "SOLD_OUT" ? "sold" : "management"}
                         isDetailsOpen={showAnalysisDetails}

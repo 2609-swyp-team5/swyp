@@ -4,6 +4,7 @@ import { expect, it, vi } from "vitest";
 import {
     createProductCompetitionMock,
     createProductMarketAnalysisMock,
+    createProductPriceDistributionMock,
 } from "../../../mocks/productManagementMock";
 import { MarketAnalysisSection } from "./MarketAnalysisSection";
 
@@ -15,6 +16,13 @@ const idleQuery = { data: undefined, error: null, isPending: false } as never;
 
 it("판매자 전체 보기는 추천·가격·차트 정보를 함께 보여준다", () => {
     const analysis = createProductMarketAnalysisMock(1, "SELL", "HOLD");
+    const priceDistributionQuery = {
+        data: createProductPriceDistributionMock(1),
+        error: null,
+        isPending: false,
+        isFetching: false,
+        refetch: vi.fn(),
+    } as never;
 
     render(
         <MarketAnalysisSection
@@ -23,6 +31,7 @@ it("판매자 전체 보기는 추천·가격·차트 정보를 함께 보여준
             isPending={false}
             priceTrendQuery={idleQuery}
             valuationForecastQuery={idleQuery}
+            priceDistributionQuery={priceDistributionQuery}
         />,
     );
 
