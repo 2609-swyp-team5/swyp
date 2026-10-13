@@ -1,5 +1,6 @@
 package com.swyp.team5.crawl.service;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -33,7 +34,7 @@ public class JoongnaPriceCollectionService {
     private final JoongnaCategoryClient joongnaCategoryClient;
     private final JoongnaProductClient joongnaProductClient;
     private final CategoryPlatformRepository categoryPlatformRepository;
-    private final PlatformListingUpserter platformListingUpserter;
+    private final PlatformListingBatchWriter platformListingBatchWriter;
     private final JoongnaCrawlProperties properties;
 
     public void collectAll() {
@@ -51,14 +52,30 @@ public class JoongnaPriceCollectionService {
                         mapping -> mapping,
                         (first, ignored) -> first,
                         LinkedHashMap::new));
+        // 번개장터 수집과 같이 다 모은 뒤 한꺼번에 저장한다(PriceCollectionService 참고)
+        List<ListingObservation> observations = new ArrayList<>();
         targets.values()
                 .forEach(mapping -> collectCategorySafely(
-                        mapping, depths.getOrDefault(mapping.getExternalCategoryId(), DEFAULT_CATEGORY_DEPTH)));
+                        mapping,
+                        depths.getOrDefault(mapping.getExternalCategoryId(), DEFAULT_CATEGORY_DEPTH),
+                        observations));
+        if (observations.isEmpty()) {
+            return;
+        }
+        long startedAt = System.currentTimeMillis();
+        PlatformListingBatchWriter.Result result =
+                platformListingBatchWriter.write(mappings.get(0).getPlatform(), observations);
+        log.info(
+                "중고나라 매물 저장 완료 — 새 매물 {}건, 갱신 {}건({}ms)",
+                result.inserted(),
+                result.updated(),
+                System.currentTimeMillis() - startedAt);
     }
 
-    private void collectCategorySafely(CategoryPlatform mapping, int categoryDepth) {
+    private void collectCategorySafely(
+            CategoryPlatform mapping, int categoryDepth, List<ListingObservation> observations) {
         try {
-            collectCategory(mapping, categoryDepth);
+            collectCategory(mapping, categoryDepth, observations);
         } catch (Exception e) {
             log.error(
                     "카테고리 {}(중고나라 {}) 시세 수집 중 오류가 발생했습니다.",
@@ -68,7 +85,7 @@ public class JoongnaPriceCollectionService {
         }
     }
 
-    private void collectCategory(CategoryPlatform mapping, int categoryDepth) {
+    private void collectCategory(CategoryPlatform mapping, int categoryDepth, List<ListingObservation> observations) {
         int count = 0;
         boolean hasMorePages = false;
         for (int page = 0; page < properties.pageLimit(); page++) {
@@ -78,7 +95,7 @@ public class JoongnaPriceCollectionService {
                 if (!item.isSelling()) {
                     continue;
                 }
-                upsertListing(mapping, item);
+                observations.add(observation(mapping, item));
                 count++;
             }
             hasMorePages = result.hasNext();
@@ -102,9 +119,8 @@ public class JoongnaPriceCollectionService {
         }
     }
 
-    private void upsertListing(CategoryPlatform mapping, JoongnaProductItem item) {
-        platformListingUpserter.upsert(
-                mapping.getPlatform(),
+    private static ListingObservation observation(CategoryPlatform mapping, JoongnaProductItem item) {
+        return new ListingObservation(
                 mapping.getCategory(),
                 String.valueOf(item.seq()),
                 LISTING_URL_TEMPLATE.formatted(item.seq()),

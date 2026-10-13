@@ -5,7 +5,9 @@ import jakarta.validation.constraints.Min;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
@@ -15,16 +17,19 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.swyp.team5.common.common.ApiResponse;
 import com.swyp.team5.common.passport.PrincipalMember;
 import com.swyp.team5.productanalysis.dto.AnalysisPerspective;
 import com.swyp.team5.productanalysis.dto.AnalysisRequestResponse;
 import com.swyp.team5.productanalysis.dto.AnalysisStatus;
+import com.swyp.team5.productanalysis.dto.PriceDistributionResponse;
 import com.swyp.team5.productanalysis.dto.PriceTrendResponse;
 import com.swyp.team5.productanalysis.dto.ProductAnalysisResponse;
 import com.swyp.team5.productanalysis.dto.ProductForecastResponse;
 import com.swyp.team5.productanalysis.service.AnalysisRequestService;
+import com.swyp.team5.productanalysis.service.AnalysisStreamService;
 import com.swyp.team5.productanalysis.service.ProductAnalysisService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -38,6 +43,7 @@ public class ProductAnalysisController {
 
     private final ProductAnalysisService productAnalysisService;
     private final AnalysisRequestService analysisRequestService;
+    private final AnalysisStreamService analysisStreamService;
 
     /**
      * 상품의 가장 최근 시세 분석 결과를 조회한다.
@@ -74,6 +80,28 @@ public class ProductAnalysisController {
     }
 
     /**
+     * 시세 분석 진행 단계와 결과를 SSE로 구독한다. 분석 중(대기열 포함)이면 지금 단계와 이후 단계 변화를 {@code step} 이벤트로
+     * 보내다가 끝나면 결과({@link #getAnalysis}와 같은 필드)를 {@code complete} 이벤트로 보내고 닫는다. 분석 중이 아니면
+     * {@code complete}만 바로 보내고 닫는다. 이벤트 종류는 {@code data.event}로 구분한다(상품 등록 스트림과 같음). 분석 요청
+     * ({@link #requestAnalysis})이나 상품 등록 뒤에 결과를 반복 조회하는 대신 쓴다. 스트림 시간({@code analysis.stream.timeout})이
+     * 지나면 그때의 결과(아직 분석 중이면 ANALYZING)를 {@code complete}로 보내고 닫는다.
+     *
+     * @param productId 구독할 상품 ID(외부 매물 ID 포함)
+     * @param perspective 결과 관점(SELL 기본 — 판매자 추천, BUY — 구매자 추천)
+     * @return 200 OK + SSE 스트림({@code complete} 이벤트 후 종료)
+     */
+    @Operation(summary = "상품 시세 분석 진행·결과 구독(SSE)")
+    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public ResponseEntity<SseEmitter> streamAnalysis(
+            @PathVariable Long productId, @RequestParam(defaultValue = "SELL") AnalysisPerspective perspective) {
+        // 프록시(nginx 등)가 이벤트를 모아 보내지 않도록 버퍼링·캐시를 끈다
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noCache())
+                .header("X-Accel-Buffering", "no")
+                .body(analysisStreamService.subscribe(productId, perspective));
+    }
+
+    /**
      * 상품의 감가 예측(1M/3M/6M 예상 가격)을 조회한다. 가장 최근 시세 분석 때 함께 계산한 값이다.
      *
      * @param productId 조회할 상품 ID(외부 매물 ID 포함)
@@ -83,6 +111,21 @@ public class ProductAnalysisController {
     @GetMapping("/forecast")
     public ResponseEntity<ApiResponse<ProductForecastResponse>> getForecast(@PathVariable Long productId) {
         return ResponseEntity.ok(ApiResponse.success(productAnalysisService.getForecast(productId)));
+    }
+
+    /**
+     * 상품과 비슷한 물건의 판매 완료 가격 분포(최근 {@code days}일 안에 판매 완료가 확인된 외부 매물의 판매 직전 등록가)를 조회 시점에
+     * 계산해 조회한다.
+     *
+     * @param productId 조회할 상품 ID(외부 매물 ID 포함)
+     * @param days 조회 기간(일, 오늘 포함, 1~180, 기본 90)
+     * @return 200 OK + 판매 완료 가격 분포(판매 완료 매물이 없으면 {@code buckets}가 빈 배열)
+     */
+    @Operation(summary = "상품 판매 완료 가격 분포 조회")
+    @GetMapping("/distribution")
+    public ResponseEntity<ApiResponse<PriceDistributionResponse>> getPriceDistribution(
+            @PathVariable Long productId, @RequestParam(defaultValue = "90") @Min(1) @Max(180) int days) {
+        return ResponseEntity.ok(ApiResponse.success(productAnalysisService.getPriceDistribution(productId, days)));
     }
 
     /**

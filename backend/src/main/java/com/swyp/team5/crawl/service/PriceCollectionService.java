@@ -1,5 +1,6 @@
 package com.swyp.team5.crawl.service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
@@ -17,7 +18,9 @@ import com.swyp.team5.platform.repository.CategoryPlatformRepository;
 import com.swyp.team5.product.entity.ProductStatus;
 
 /**
- * 번개장터 카테고리별 매물을 광범위 수집해 {@link PlatformListing}으로 upsert한다.
+ * 번개장터 카테고리별 매물을 광범위 수집해 {@link PlatformListing}으로 upsert한다. 수집하는 동안은 메모리에만 모으고 모든 카테고리를 다
+ * 돈 뒤 {@link PlatformListingBatchWriter}로 한꺼번에 저장한다(번개장터 호출 간격 때문에 수집이 길어도 DB는 저장하는 잠깐만 쓰도록 —
+ * Neon 컴퓨트 시간 절감). 수집 도중 서버가 꺼지면 그 회차 결과는 저장되지 않는다.
  */
 @Slf4j
 @Service
@@ -30,7 +33,7 @@ public class PriceCollectionService {
 
     private final BunjangCategoryClient bunjangCategoryClient;
     private final CategoryPlatformRepository categoryPlatformRepository;
-    private final PlatformListingUpserter platformListingUpserter;
+    private final PlatformListingBatchWriter platformListingBatchWriter;
     private final BunjangCrawlProperties properties;
 
     /** 시세 분석 대상(등록됨·판매중) 우리 상품이 있는 카테고리만 순회하며 수집한다. 대상이 없으면 아무 것도 하지 않는다. */
@@ -41,13 +44,25 @@ public class PriceCollectionService {
             log.info("시세 분석 대상 상품이 있는 번개장터 매핑 카테고리가 없어 시세 수집을 건너뜁니다.");
             return;
         }
-        mappings.forEach(this::collectCategorySafely);
+        List<ListingObservation> observations = new ArrayList<>();
+        mappings.forEach(mapping -> collectCategorySafely(mapping, observations));
+        if (observations.isEmpty()) {
+            return;
+        }
+        long startedAt = System.currentTimeMillis();
+        PlatformListingBatchWriter.Result result =
+                platformListingBatchWriter.write(mappings.get(0).getPlatform(), observations);
+        log.info(
+                "번개장터 매물 저장 완료 — 새 매물 {}건, 갱신 {}건({}ms)",
+                result.inserted(),
+                result.updated(),
+                System.currentTimeMillis() - startedAt);
     }
 
     /** 카테고리 하나가 실패해도 다른 카테고리는 계속 수집하도록 예외를 격리한다. */
-    private void collectCategorySafely(CategoryPlatform mapping) {
+    private void collectCategorySafely(CategoryPlatform mapping, List<ListingObservation> observations) {
         try {
-            collectCategory(mapping);
+            collectCategory(mapping, observations);
         } catch (Exception e) {
             log.error(
                     "카테고리 {}(번개장터 {}) 시세 수집 중 오류가 발생했습니다.",
@@ -57,7 +72,7 @@ public class PriceCollectionService {
         }
     }
 
-    private void collectCategory(CategoryPlatform mapping) {
+    private void collectCategory(CategoryPlatform mapping, List<ListingObservation> observations) {
         Long categoryId = mapping.getCategory().getId();
         String bunjangCategoryId = mapping.getExternalCategoryId();
         int count = 0;
@@ -72,7 +87,7 @@ public class PriceCollectionService {
                 if (!SELLING_STATUS.equals(item.status())) {
                     continue; // 판매중이 아닌 매물(판매완료/예약중 등)은 현재 시세가 아니므로 제외
                 }
-                upsertListing(mapping, item);
+                observations.add(observation(mapping, item));
                 count++;
             }
             hasMorePages = result.hasNext();
@@ -95,11 +110,11 @@ public class PriceCollectionService {
         }
     }
 
-    private void upsertListing(CategoryPlatform mapping, BunjangProductItem item) {
-        platformListingUpserter.upsert(
-                mapping.getPlatform(),
+    private static ListingObservation observation(CategoryPlatform mapping, BunjangProductItem item) {
+        return new ListingObservation(
                 mapping.getCategory(),
-                item.pid(),
+                String.valueOf(item.pid()),
+                PlatformListingUpserter.bunjangListingUrl(item.pid()),
                 item.name(),
                 item.price(),
                 item.status(),
