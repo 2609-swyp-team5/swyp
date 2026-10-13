@@ -16,11 +16,12 @@ import { TrendingUp } from "lucide-react";
 
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/common/components/ui/Chart";
 import { cn } from "@/common/lib/utils";
-import type { ProductPriceTrend } from "../../../types";
+import type {
+    PriceTrendChartData,
+    PriceTrendChartPoint,
+} from "../market-analysis/marketAnalysisAdapters";
 import { formatPrice } from "../market-analysis/formatters";
 import styles from "./ProductPriceTrendChart.module.css";
-
-type ProductPriceTrendPoint = ProductPriceTrend["priceTrend"]["points"][number];
 
 const chartConfig = {
     averagePrice: {
@@ -39,17 +40,7 @@ function formatChartPrice(price: number) {
     return `${(price / 10000).toFixed(0)}만`;
 }
 
-function formatChartDate(date: string) {
-    const [, month, day] = date.split("-");
-    return `${Number(month)}/${Number(day)}`;
-}
-
-function formatComparedDate(date: string) {
-    const [year, month, day] = date.split("-");
-    return `${year}년 ${Number(month)}월 ${Number(day)}일`;
-}
-
-function getScale(points: ProductPriceTrendPoint[]) {
+function getScale(points: PriceTrendChartPoint[]) {
     const prices = points.map((point) => point.averagePrice);
     const minPrice = Math.min(...prices);
     const maxPrice = Math.max(...prices);
@@ -72,7 +63,7 @@ function PriceTrendTooltip({
     payload,
 }: {
     active?: boolean;
-    payload?: ReadonlyArray<{ payload?: ProductPriceTrendPoint }>;
+    payload?: ReadonlyArray<{ payload?: PriceTrendChartPoint }>;
 }) {
     const point = payload?.[0]?.payload;
 
@@ -87,9 +78,7 @@ function PriceTrendTooltip({
 
     return (
         <div className="pointer-events-none rounded-[10px] bg-white px-4 py-3 shadow-[0_6px_16px_rgba(54,54,54,0.18)]">
-            <p className="text-[10px] leading-[15px] text-[#83889e]">
-                {formatComparedDate(point.date)}
-            </p>
+            <p className="text-[10px] leading-[15px] text-[#83889e]">{point.tooltipDateLabel}</p>
             <div className="mt-1 flex w-full items-center justify-between">
                 <p className="text-[16px] leading-5 font-semibold text-[#575866]">
                     {formatPrice(point.averagePrice)}
@@ -174,22 +163,18 @@ function CurrentPriceLabel({
     );
 }
 
-export function ProductPriceTrendChart({
-    points,
-    totalTransactionCount,
-}: {
-    points: ProductPriceTrendPoint[];
-    totalTransactionCount: number;
-}) {
+export function ProductPriceTrendChart({ data }: { data: PriceTrendChartData }) {
+    const { points, totalTransactionCount, isLatestHighest } = data;
     const { lower, upper, ticks } = getScale(points);
     const lastIndex = points.length - 1;
     const latestPoint = points[lastIndex];
-    // 기록일이 4일 미만이면 위치가 겹쳐 같은 날짜 눈금(같은 key)이 생기므로 중복을 뺀다
     const dateIndexes = [
-        ...new Set([0, Math.floor(lastIndex / 3), Math.ceil((lastIndex * 2) / 3), lastIndex]),
+        ...new Set(
+            Array.from({ length: Math.min(6, points.length) }, (_, index) =>
+                Math.round((lastIndex * index) / Math.max(Math.min(6, points.length) - 1, 1)),
+            ),
+        ),
     ];
-    const isLatestHighest =
-        latestPoint.averagePrice === Math.max(...points.map((point) => point.averagePrice));
     const [currentPriceTextWidth, setCurrentPriceTextWidth] = useState<number | null>(null);
     const currentPriceBadgeWidth =
         currentPriceTextWidth === null
@@ -202,20 +187,20 @@ export function ProductPriceTrendChart({
             className={cn(styles.chart, "relative min-w-0")}
             aria-label="최근 30일 일 평균 거래가 차트"
         >
-            <div className="mb-2 flex items-center justify-between gap-3 px-1">
+            <div className="mb-3 flex items-center justify-between gap-3 px-1">
                 <div className="flex flex-col items-start justify-center gap-[5px]">
                     <div className="flex items-center gap-2">
-                        <p className="text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#2f3037]">
+                        <p className="text-[20px] leading-[25px] font-semibold tracking-[0.5px] text-[#363636]">
                             일 평균 거래가
                         </p>
                     </div>
-                    <p className="text-[10px] leading-[15px] text-[#a1a3ae]">
+                    <p className="text-[12px] leading-[15px] text-[#a1a3ae]">
                         실거래 {totalTransactionCount.toLocaleString("ko-KR")}건 기준
                     </p>
                 </div>
-                <p className="flex items-center gap-1 text-[12px] leading-[18px] font-semibold text-[#6653fb]">
-                    <TrendingUp aria-hidden="true" className="size-[18px]" strokeWidth={2.5} />
-                    {isLatestHighest ? "30일 최고가 갱신" : "최근 시세 반영"}
+                <p className="flex items-center gap-[7px] text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#5140dd]">
+                    <TrendingUp aria-hidden="true" className="size-5" strokeWidth={2.5} />
+                    {isLatestHighest ? "최근 1개월 최고가 갱신" : "최근 시세 반영"}
                 </p>
             </div>
             <ChartContainer
@@ -259,7 +244,10 @@ export function ProductPriceTrendChart({
                             left: 10,
                             right: chartRightPadding,
                         }}
-                        tickFormatter={formatChartDate}
+                        tickFormatter={(value) =>
+                            points.find((point) => point.date === String(value))?.dateLabel ??
+                            String(value)
+                        }
                         tickLine={false}
                         axisLine={false}
                         tick={{ fill: "#a1a3ae", fontSize: 11 }}

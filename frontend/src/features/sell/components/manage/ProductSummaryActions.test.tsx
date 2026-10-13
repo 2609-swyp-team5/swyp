@@ -102,4 +102,19 @@ describe("ProductSummaryActions", () => {
 
         expect(push).toHaveBeenCalledWith("/sell/manage/42");
     });
+
+    it("management variant는 판매완료·자세히 보기·삭제하기 액션을 함께 표시한다", () => {
+        render(
+            <ProductSummaryActions
+                product={{ id: 42, price: 250000 }}
+                actionHref="/sell/manage/42"
+                canMarkAsSold
+                variant="management"
+            />,
+        );
+
+        expect(screen.getByRole("button", { name: "판매 완료" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "자세히 보기" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "삭제하기" })).toBeInTheDocument();
+    });
 });

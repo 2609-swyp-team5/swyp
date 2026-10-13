@@ -16,6 +16,7 @@ import {
 } from "@/features/sell/components/ai-register/AiRegisterAdditionalInfoStep";
 import type { AiImagePreview } from "@/features/sell/components/ai-register/AiImageUpload";
 import { ProductRegistrationProcessing } from "@/features/sell/components/ProductRegistrationProcessing";
+import { RegistrationStepper } from "@/features/sell/components/shared/RegistrationStepper";
 import { SellAlertDialog } from "@/features/sell/components/shared/SellAlertDialog";
 import { AiRegisterUploadStep } from "@/features/sell/components/ai-register/AiRegisterUploadStep";
 import { useCreateAiProductMutation } from "@/features/sell/hooks/mutations/useCreateAiProductMutation";
@@ -238,9 +239,11 @@ export function AiRegisterPage() {
                     </div>
                 </header>
 
-                <div
-                    className={`flex w-full flex-col rounded-[20px] bg-white pt-0 sm:px-8 lg:px-[60px]`}
-                >
+                <div className="flex w-full flex-col gap-8 rounded-[20px] bg-white pt-0 sm:px-8 lg:px-[60px]">
+                    <RegistrationStepper
+                        steps={["사진 등록", "추가 정보 입력"]}
+                        currentStepIndex={isUploadStep ? 0 : 1}
+                    />
                     {isUploadStep ? (
                         <AiRegisterUploadStep
                             images={state.images}

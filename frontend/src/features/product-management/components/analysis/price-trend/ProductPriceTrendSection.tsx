@@ -2,6 +2,7 @@
 
 import type { ProductPriceTrend } from "../../../types";
 import type { StreamingQueryState } from "../../shared/streaming/productManagementStreamingTypes";
+import { toPriceTrendChartData } from "../market-analysis/marketAnalysisAdapters";
 import { ProductPriceTrendChart } from "./ProductPriceTrendChart";
 import { ProductPriceTrendSkeleton } from "./ProductPriceTrendSkeleton";
 
@@ -26,10 +27,16 @@ export function ProductPriceTrendSection({
         );
     }
 
-    const { points, totalTransactionCount } = query.data.priceTrend;
+    const chartData = toPriceTrendChartData(query.data.priceTrend);
 
-    if (points.length === 0) {
-        return null;
+    if (chartData.points.length === 0) {
+        return (
+            <section className="flex min-h-[363px] items-center justify-center rounded-[10px] border border-[#6653fb] bg-white p-6">
+                <p className="text-center text-[14px] leading-6 text-[#83889e]">
+                    최근 거래 가격 추이 데이터가 없습니다.
+                </p>
+            </section>
+        );
     }
 
     return (
@@ -38,10 +45,7 @@ export function ProductPriceTrendSection({
                 aria-label="최근 30일 일 평균 거래가"
                 className="h-[363px] min-w-0 rounded-[10px] border border-[#6653fb] bg-white px-5 py-[22px]"
             >
-                <ProductPriceTrendChart
-                    points={points}
-                    totalTransactionCount={totalTransactionCount}
-                />
+                <ProductPriceTrendChart data={chartData} />
             </section>
         </div>
     );

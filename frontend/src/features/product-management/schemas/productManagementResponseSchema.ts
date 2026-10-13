@@ -1,10 +1,30 @@
 import { z } from "zod";
 
-import { productConditionSchema, productStatusSchema } from "@/features/sell/schemas/productSchema";
+import {
+    deliveryTypeSchema,
+    productConditionSchema,
+    productPlatformStatusSchema,
+    productStatusSchema,
+    tradeMethodSchema,
+} from "@/features/sell/schemas/productSchema";
 import { productRecommendationSchema } from "@/features/sell/schemas/productResponseSchema";
 
 export const analysisRecommendationSchema = productRecommendationSchema;
 export const priceForecastPeriodSchema = z.enum(["1M", "3M", "6M"]);
+export const analysisStatusSchema = z.enum([
+    "ANALYZED",
+    "ANALYZING",
+    "SKIPPED",
+    "NOT_ANALYZED",
+    "UNAVAILABLE",
+]);
+
+export const productAnalysisRequestResponseSchema = z.object({
+    productId: z.number(),
+    analysisStatus: analysisStatusSchema,
+    analysisSkipReason: z.string().nullable(),
+    analysisSkipMessage: z.string().nullable(),
+});
 
 const productAnalysisSummarySchema = z.discriminatedUnion("type", [
     z.object({
@@ -100,19 +120,7 @@ export const productCompetitionResponseSchema = z.object({
     }),
 });
 
-export const productManagementOverviewResponseSchema = z.object({
-    id: z.number(),
-    title: z.string(),
-    price: z.number(),
-    status: productStatusSchema,
-    createdAt: z.string(),
-    soldPrice: z.number().nullable().optional(),
-    soldPlatform: z.string().nullable().optional(),
-});
-
-export type ProductManagementOverviewResponse = z.infer<
-    typeof productManagementOverviewResponseSchema
->;
+export type ProductAnalysisRequestResponse = z.infer<typeof productAnalysisRequestResponseSchema>;
 
 export const productDetailSummaryResponseSchema = z
     .object({
@@ -134,6 +142,8 @@ export const productDetailSummaryResponseSchema = z
         tags: z.array(z.string()),
         includedItems: z.array(z.string()),
         condition: productConditionSchema.nullable(),
+        tradeMethod: tradeMethodSchema.nullable().optional(),
+        deliveryType: deliveryTypeSchema.nullable().optional(),
         status: productStatusSchema.or(z.literal("RESERVED")),
         createdAt: z.string(),
         updatedAt: z.string(),
@@ -142,49 +152,68 @@ export const productDetailSummaryResponseSchema = z
         daysOnSale: z.number().nullable(),
         platforms: z.array(
             z.object({
+                platform: z.string().optional(),
                 platformName: z.string(),
+                status: productPlatformStatusSchema.optional(),
                 productUrl: z.string().nullable(),
             }),
         ),
     })
     .transform(
         ({
+            source,
             id,
             title,
+            brand,
+            description,
+            category,
             price,
             soldPrice,
             soldPlatform,
+            imageUrls,
+            tags,
+            includedItems,
+            condition,
+            tradeMethod,
+            deliveryType,
             status,
             createdAt,
-            category,
-            condition,
-            imageUrls,
+            updatedAt,
             viewCount,
             interestCount,
             daysOnSale,
             platforms,
         }) => ({
+            source,
             id,
             title,
+            brand,
+            description,
             price,
             ...(soldPrice !== undefined ? { soldPrice } : {}),
             ...(soldPlatform !== undefined ? { soldPlatform } : {}),
             status,
             createdAt,
+            updatedAt,
             category: {
                 id: category.id,
                 name: category.name,
                 parentId: category.parentId,
+                leaf: category.leaf,
             },
+            tags,
+            includedItems,
             condition,
+            tradeMethod: tradeMethod ?? null,
+            deliveryType: deliveryType ?? null,
             imageUrls,
             viewCount,
             interestCount,
             daysOnSale,
-            platforms: platforms.map(({ platformName, productUrl }) => ({
-                platform: platformName,
+            platforms: platforms.map(({ platform, platformName, status, productUrl }) => ({
+                platform: platform ?? platformName,
                 platformName,
-                status: "POSTED" as const,
+                status: status ?? ("POSTED" as const),
                 productUrl,
             })),
         }),

@@ -3,9 +3,9 @@ import type { ApiErrorResponse, ApiResponse, CursorPageResponse } from "@/common
 import { useAuthStore } from "@/features/auth/store/authStore";
 import type {
     ProductAnalysisResponse,
+    ProductAnalysisRequestResponse,
     ProductCompetitionResponse,
     ProductDetailSummaryResponse,
-    ProductManagementOverviewResponse,
     ProductPriceTrendResponse,
     ProductValuationForecastResponse,
     ProductTargetPriceResponse,
@@ -47,12 +47,14 @@ const getProduct = (id: number) => api.get<ApiResponse<ProductResponse>>(`/produ
 const getProductManagementSummary = (id: number) =>
     api.get<ApiResponse<ProductDetailSummaryResponse>>(`/products/${id}/summary`);
 
-const getProductManagementOverview = (id: number) =>
-    api.get<ApiResponse<ProductManagementOverviewResponse>>(`/products/${id}/management-overview`);
-
 const getProductAnalysis = (id: number, perspective?: "SELL" | "BUY") =>
     api.get<ApiResponse<ProductAnalysisResponse>>(`/products/${id}/analysis`, {
         params: perspective ? { perspective } : undefined,
+    });
+
+const requestProductAnalysis = (id: number, force = false) =>
+    api.post<ApiResponse<ProductAnalysisRequestResponse>>(`/products/${id}/analysis`, undefined, {
+        params: { force },
     });
 
 const getProductPriceTrend = (id: number) =>
@@ -75,6 +77,9 @@ const getMyProducts = (params?: { status?: ProductStatus; cursor?: string; size?
 
 const getProductTargetPrice = (id: number) =>
     api.get<ApiResponse<ProductTargetPriceResponse>>(`/products/${id}/target-price`);
+
+const updateProductPrice = (id: number, price: number) =>
+    api.patch<ApiResponse<ProductResponse>>(`/products/${id}/price`, { price });
 
 // null이면 목표 판매가 해제
 const setProductTargetPrice = (id: number, targetPrice: number | null) =>
@@ -330,13 +335,14 @@ const updateProduct = async (
 export const productApi = {
     getProduct,
     getProductManagementSummary,
-    getProductManagementOverview,
     getProductAnalysis,
+    requestProductAnalysis,
     getProductPriceTrend,
     getProductValuationForecast,
     getProductCompetition,
     getMyProducts,
     getProductTargetPrice,
+    updateProductPrice,
     setProductTargetPrice,
     deleteProduct,
     updateProductStatus,

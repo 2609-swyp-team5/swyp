@@ -164,7 +164,8 @@ test("detail loads buyer analysis only on click and retries failed analysis", as
     await expect(page.getByRole("region", { name: "AI 시세 분석", exact: true })).toContainText(
         result.description,
     );
-    await expect(page.getByRole("region", { name: "비슷한 상품", exact: true })).toContainText(
+    await page.getByRole("button", { name: /상세 시세 분석 보기/ }).click();
+    await expect(page.getByRole("region", { name: "경쟁 상품 수", exact: true })).toContainText(
         similar.competition.items[0].title,
     );
     expect(requests).toBeGreaterThan(previousRequests);

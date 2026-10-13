@@ -111,11 +111,15 @@ export function createProductMarketAnalysisMock(
 
 export function createProductSummaryMock(productId: number): ProductDetailSummaryResponse {
     return {
+        source: "OUR",
         id: productId,
+        brand: null,
+        description: "상품 설명 예시",
         category: {
             id: 1,
             name: "전자기기",
             parentId: null,
+            leaf: true,
         },
         title: `상품 ${productId}`,
         price: 495000,
@@ -123,12 +127,17 @@ export function createProductSummaryMock(productId: number): ProductDetailSummar
         soldPlatform: null,
         status: "ON_SALE",
         condition: "A",
+        tradeMethod: "DELIVERY",
+        deliveryType: "INCLUDED",
         imageUrls: [],
+        tags: [],
+        includedItems: [],
         viewCount: 128,
         interestCount: 14,
         daysOnSale: 21,
         platforms: [],
         createdAt: "2026-10-02T12:00:00",
+        updatedAt: "2026-10-02T12:00:00",
     };
 }
 

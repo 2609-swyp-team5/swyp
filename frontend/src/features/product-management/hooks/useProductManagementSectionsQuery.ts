@@ -14,12 +14,16 @@ export function useProductManagementSectionsQuery(
         perspective?: ProductManagementPerspective;
         summaryEnabled?: boolean;
         analysisEnabled?: boolean;
+        analysisDetailsEnabled?: boolean;
         competitionEnabled?: boolean;
     },
 ) {
     const enabled = options?.enabled ?? true;
     const summaryEnabled = enabled && (options?.summaryEnabled ?? true);
     const analysisEnabled = enabled && (options?.analysisEnabled ?? true);
+    // 기존 관심/검색 상세 화면은 분석 상세를 즉시 보여주므로 기본값을 유지한다.
+    // 판매 상품 관리 화면만 이 값을 false로 내려 접힌 상태에서 상세 API를 지연 호출한다.
+    const analysisDetailsEnabled = enabled && (options?.analysisDetailsEnabled ?? analysisEnabled);
     const competitionEnabled = enabled && (options?.competitionEnabled ?? true);
     const perspective = options?.perspective ?? "SELL";
 
@@ -28,12 +32,14 @@ export function useProductManagementSectionsQuery(
         enabled: analysisEnabled,
         perspective,
     });
-    const productPriceTrend = useProductPriceTrendQuery(productId, { enabled: analysisEnabled });
+    const productPriceTrend = useProductPriceTrendQuery(productId, {
+        enabled: analysisDetailsEnabled,
+    });
     const productValuationForecast = useProductValuationForecastQuery(productId, {
-        enabled: analysisEnabled,
+        enabled: analysisDetailsEnabled,
     });
     const productCompetition = useProductCompetitionQuery(productId, {
-        enabled: competitionEnabled,
+        enabled: competitionEnabled && analysisDetailsEnabled,
         perspective,
     });
 
