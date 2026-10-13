@@ -91,7 +91,7 @@ export function TargetPriceCard({
     const message = error ? getApiErrorMessage(error) : validation;
 
     if (isInterestVariant || isManagementVariant) {
-        const referenceLabel = isInterestVariant ? "현재 AI 추천 판매가" : compareLabel;
+        const referenceLabel = isInterestVariant ? "현재 AI 추천 구매가" : compareLabel;
         const referencePrice = isInterestVariant ? recommendedPrice : comparePrice;
         const referenceColor = isInterestVariant ? "text-[#6653fb]" : "text-[#272727]";
         const referenceLabelColor = isInterestVariant ? "text-[#6653fb]" : "text-[#6b6c7b]";

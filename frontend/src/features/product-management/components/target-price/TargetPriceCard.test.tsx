@@ -80,7 +80,7 @@ describe("TargetPriceCard", () => {
             "href",
             "/my/notifications",
         );
-        expect(screen.getByText("현재 AI 추천 판매가")).toBeInTheDocument();
+        expect(screen.getByText("현재 AI 추천 구매가")).toBeInTheDocument();
         expect(screen.getByText("469,000원")).toBeInTheDocument();
         expect(screen.getByText("시세 대비 +4.9%")).toBeInTheDocument();
         expect(screen.getByText("목표 등록가")).toBeInTheDocument();

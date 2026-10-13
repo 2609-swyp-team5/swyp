@@ -42,7 +42,7 @@ export function MarketAnalysisSummaryMetrics({
                   ]
                 : [
                       {
-                          label: "AI 추천 판매가",
+                          label: isBuyerView ? "AI 추천 구매가" : "AI 추천 판매가",
                           value: formatPrice(analysis.suggestedPrice),
                           valueClassName: "text-[#6653fb]",
                           supportingText: `시세 대비 ${formatSignedPercent(analysis.marketPriceDiffRate)}`,

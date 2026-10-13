@@ -156,6 +156,24 @@ it("관리 화면의 HOLD 추천에는 추천 가격 변경 액션을 표시하�
     expect(screen.queryByRole("button", { name: "추천 가격으로 변경" })).not.toBeInTheDocument();
 });
 
+it("관리 화면의 BUY 추천은 추천가를 구매가로 표시한다", () => {
+    const analysis = createProductMarketAnalysisMock(1, "BUY", "BUY");
+
+    render(
+        <MarketAnalysisSection
+            result={analysis}
+            error={null}
+            isPending={false}
+            priceTrendQuery={idleQuery}
+            valuationForecastQuery={idleQuery}
+            variant="management"
+        />,
+    );
+
+    expect(screen.getByText("AI 추천 구매가")).toBeInTheDocument();
+    expect(screen.queryByText("AI 추천 판매가")).not.toBeInTheDocument();
+});
+
 it("관리형 구매 분석에는 구매 고려 가격 액션을 표시하지 않는다", () => {
     const analysis = createProductMarketAnalysisMock(1, "BUY", "BUY");
 
