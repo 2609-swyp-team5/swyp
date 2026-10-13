@@ -1,11 +1,14 @@
 package com.swyp.team5.productanalysis;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,7 +19,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.passport.JwtTokenProvider;
@@ -35,12 +41,14 @@ import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.repository.ProductRepository;
+import com.swyp.team5.productanalysis.dto.AnalysisStep;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.ForecastPeriod;
 import com.swyp.team5.productanalysis.entity.PriceForecast;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 import com.swyp.team5.productanalysis.repository.PriceForecastRepository;
 import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
+import com.swyp.team5.productanalysis.service.AnalysisProgressTracker;
 import com.swyp.team5.support.IntegrationTest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -78,6 +86,11 @@ class PriceForecastTest extends IntegrationTest {
 
     @Autowired
     private PlatformListingRepository platformListingRepository;
+
+    @Autowired
+    private AnalysisProgressTracker progressTracker;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     // ProductTest와 같은 목 구성을 써서 스프링 컨텍스트를 재사용한다. 다른 구성(NotificationTest)을 쓰면 그 사이 새 컨텍스트의
     // Flyway clean으로 enum 타입이 다시 만들어져 오래된 컨텍스트의 커넥션이 "cache lookup failed for type"으로 실패한다.
@@ -385,6 +398,91 @@ class PriceForecastTest extends IntegrationTest {
                 categoryRepository.findById(root.getId()).orElseThrow().getName();
 
         assertThat(categoryRepository.findRootName(leaf.getId())).contains(expected);
+    }
+
+    // 분석 중이 아니면 분석 결과 구독 스트림이 지금의 결과 1건을 바로 보내고 닫힘
+    @Test
+    void streamSendsLatestAnalysisImmediatelyWhenNotAnalyzing() throws Exception {
+        String token = jwtTokenProvider.createAccessToken(member.getId(), MemberRole.USER);
+        MvcResult started = mockMvc.perform(get("/products/{productId}/analysis/stream", product.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+        started.getAsyncResult(5_000);
+
+        List<JsonNode> events = streamEvents(started);
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0).at("/data/event").asText()).isEqualTo("complete");
+        assertThat(events.get(0).at("/data/analysisId").asLong()).isEqualTo(analysis.getId());
+        assertThat(events.get(0).at("/data/analysisStatus").asText()).isEqualTo("ANALYZED");
+    }
+
+    // 분석 중이면 대기 단계부터 단계 변화를 보내다가, 끝나면 결과를 complete로 보내고 닫힘
+    @Test
+    void streamWaitsUntilAnalysisFinishes() throws Exception {
+        String token = jwtTokenProvider.createAccessToken(member.getId(), MemberRole.USER);
+        progressTracker.start(product.getId());
+        MvcResult started;
+        try {
+            started = mockMvc.perform(get("/products/{productId}/analysis/stream", product.getId())
+                            .param("perspective", "BUY")
+                            .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                    .andExpect(request().asyncStarted())
+                    .andReturn();
+            assertThat(started.getResponse().getContentAsString(StandardCharsets.UTF_8))
+                    .doesNotContain("complete");
+            progressTracker.stepStarted(product.getId(), AnalysisStep.CANDIDATE_SEARCH);
+            progressTracker.stepDone(product.getId(), AnalysisStep.CANDIDATE_SEARCH);
+        } finally {
+            progressTracker.finish(product.getId());
+        }
+        started.getAsyncResult(5_000);
+
+        List<JsonNode> events = streamEvents(started);
+        assertThat(events).hasSize(4);
+        assertThat(events.get(0).at("/data/event").asText()).isEqualTo("step");
+        assertThat(events.get(0).at("/data/status").asText()).isEqualTo("WAITING");
+        assertThat(events.get(0).at("/message").asText()).isEqualTo("분석 순서를 기다리고 있어요.");
+        assertThat(events.get(1).at("/data/step").asText()).isEqualTo("CANDIDATE_SEARCH");
+        assertThat(events.get(1).at("/data/status").asText()).isEqualTo("START");
+        assertThat(events.get(1).at("/data/index").asInt()).isEqualTo(1);
+        assertThat(events.get(1).at("/data/total").asInt()).isEqualTo(AnalysisStep.values().length);
+        assertThat(events.get(2).at("/data/status").asText()).isEqualTo("DONE");
+        assertThat(events.get(3).at("/data/event").asText()).isEqualTo("complete");
+        assertThat(events.get(3).at("/data/analysisId").asLong()).isEqualTo(analysis.getId());
+        assertThat(events.get(3).at("/data/analysisStatus").asText()).isEqualTo("ANALYZED");
+    }
+
+    // 없는 상품은 스트림을 열기 전에 404, 로그인하지 않으면 401
+    @Test
+    void streamRejectsUnknownProductAndAnonymous() throws Exception {
+        String token = jwtTokenProvider.createAccessToken(member.getId(), MemberRole.USER);
+        mockMvc.perform(get("/products/{productId}/analysis/stream", 999_999_999L)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/products/{productId}/analysis/stream", product.getId()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    private List<JsonNode> streamEvents(MvcResult started) throws Exception {
+        String body = mockMvc.perform(asyncDispatch(started))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString(StandardCharsets.UTF_8);
+        List<JsonNode> events = new ArrayList<>();
+        for (String block : body.split("\n\n")) {
+            StringBuilder data = new StringBuilder();
+            for (String line : block.split("\n")) {
+                if (line.startsWith("data:")) {
+                    data.append(line.substring("data:".length()));
+                }
+            }
+            if (!data.isEmpty()) {
+                events.add(objectMapper.readTree(data.toString()));
+            }
+        }
+        return events;
     }
 
     private Product newProduct(Member owner) {

@@ -49,6 +49,7 @@ import com.swyp.team5.product.service.ProductTargetPriceService;
 import com.swyp.team5.productanalysis.config.ProductAnalysisProperties;
 import com.swyp.team5.productanalysis.dto.AnalysisPerspective;
 import com.swyp.team5.productanalysis.dto.AnalysisStatus;
+import com.swyp.team5.productanalysis.dto.AnalysisStep;
 import com.swyp.team5.productanalysis.dto.CompetitionLevel;
 import com.swyp.team5.productanalysis.dto.CompetitionSortType;
 import com.swyp.team5.productanalysis.dto.MarketAnalysisResult;
@@ -756,6 +757,7 @@ public class ProductAnalysisService {
         if (selection.isEmpty()) {
             return;
         }
+        progressTracker.stepStarted(product.getId(), AnalysisStep.PRICE_CALCULATION);
         MarketAnalysisResult aiResult = selection.get().aiResult();
         List<Long> prices = selection.get().prices();
 
@@ -797,7 +799,10 @@ public class ProductAnalysisService {
         analysis.assignConfidence(prices.size(), ConfidenceRule.grade(prices, properties.confidence()));
         analysis.assignListingPrices(prices);
 
+        progressTracker.stepDone(product.getId(), AnalysisStep.PRICE_CALCULATION);
+
         // 감가 예측(1M/3M/6M)과, 판매자 추천에 붙는 1개월 가격 전망(SELL=감가 예측, HOLD=시세 추세)
+        progressTracker.stepStarted(product.getId(), AnalysisStep.FORECAST);
         List<DepreciationForecaster.Forecast> forecasts = forecastWithOutlook(
                 analysis,
                 product.getCategory().getId(),
@@ -805,6 +810,8 @@ public class ProductAnalysisService {
                 monthlyRate,
                 sellerRecommendation,
                 averagePrice);
+        progressTracker.stepDone(product.getId(), AnalysisStep.FORECAST);
+        progressTracker.stepStarted(product.getId(), AnalysisStep.SAVE);
         productAnalysisRepository.save(analysis);
         saveForecasts(analysis, forecasts);
         itemRepository.clearAnalysisSkip(product.getId());
@@ -832,6 +839,7 @@ public class ProductAnalysisService {
 
         // 판매자가 정한 목표 판매가에 평균 시세가 도달했으면 판매자에게 알림(도달 1번에 1회)
         productTargetPriceService.checkAfterAnalysis(product.getId(), averagePrice);
+        progressTracker.stepDone(product.getId(), AnalysisStep.SAVE);
     }
 
     /**
@@ -858,6 +866,7 @@ public class ProductAnalysisService {
         if (selection.isEmpty()) {
             return;
         }
+        progressTracker.stepStarted(listing.getId(), AnalysisStep.PRICE_CALCULATION);
         MarketAnalysisResult aiResult = selection.get().aiResult();
         List<Long> prices = selection.get().prices();
 
@@ -891,6 +900,9 @@ public class ProductAnalysisService {
         analysis.assignConfidence(prices.size(), ConfidenceRule.grade(prices, properties.confidence()));
         analysis.assignListingPrices(prices);
 
+        progressTracker.stepDone(listing.getId(), AnalysisStep.PRICE_CALCULATION);
+
+        progressTracker.stepStarted(listing.getId(), AnalysisStep.FORECAST);
         // 감가 예측(1M/3M/6M)과 1개월 가격 전망 — 우리 상품과 같은 규칙. 전망은 시세 추세로 갈리므로(오르는 중이면 상승 전망,
         // 아니면 감가 예측 1M) 판매자 규칙을 추세 판단에만 쓰고, 저장하는 추천은 구매자 관점 그대로 둔다
         List<DepreciationForecaster.Forecast> forecasts = forecastWithOutlook(
@@ -900,6 +912,8 @@ public class ProductAnalysisService {
                 monthlyRate,
                 RecommendationRule.forSeller(monthlyRate),
                 averagePrice);
+        progressTracker.stepDone(listing.getId(), AnalysisStep.FORECAST);
+        progressTracker.stepStarted(listing.getId(), AnalysisStep.SAVE);
         productAnalysisRepository.save(analysis);
         saveForecasts(analysis, forecasts);
         itemRepository.clearAnalysisSkip(listing.getId());
@@ -914,6 +928,7 @@ public class ProductAnalysisService {
             notificationService.notifyListingPriceChanged(
                     listing, previous.get().getAveragePrice(), averagePrice);
         }
+        progressTracker.stepDone(listing.getId(), AnalysisStep.SAVE);
     }
 
     /**
@@ -1067,6 +1082,7 @@ public class ProductAnalysisService {
             PlatformListing self,
             List<PlatformListing> listings,
             Function<List<PlatformListing>, MarketAnalysisResult> ai) {
+        progressTracker.stepStarted(itemId, AnalysisStep.CANDIDATE_SEARCH);
         int sampleSize = properties.sampleSize();
         List<PlatformListing> pool = excludeSelf(listings, self);
         List<PlatformListing> candidates = SimilarListingFilter.selectCandidates(title, brand, pool, sampleSize);
@@ -1098,7 +1114,10 @@ public class ProductAnalysisService {
             }
         }
 
+        progressTracker.stepDone(itemId, AnalysisStep.CANDIDATE_SEARCH);
+
         // 2) AI가 같은 물건만 고른다
+        progressTracker.stepStarted(itemId, AnalysisStep.AI_ANALYSIS);
         MarketAnalysisResult aiResult = ai.apply(candidates);
         List<PlatformListing> similar = similarListings(candidates, aiResult.similarListingNumbers());
         List<Long> prices = SimilarListingFilter.removeOutliers(
@@ -1135,6 +1154,7 @@ public class ProductAnalysisService {
                     minListings);
             return skip(itemId, AnalysisSkipReason.NOT_ENOUGH_SIMILAR);
         }
+        progressTracker.stepDone(itemId, AnalysisStep.AI_ANALYSIS);
         return Optional.of(new SimilarSelection(aiResult, prices));
     }
 

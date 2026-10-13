@@ -10,6 +10,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import com.swyp.team5.product.event.ProductRegisteredEvent;
+import com.swyp.team5.productanalysis.service.AnalysisProgressTracker;
 import com.swyp.team5.productanalysis.service.ProductAnalysisService;
 import org.junit.jupiter.api.Test;
 
@@ -20,7 +21,8 @@ class ProductRegisteredAnalysisListenerTest {
     @Test
     void analyzesRegisteredProductInBackground() {
         ProductAnalysisService service = mock(ProductAnalysisService.class);
-        ProductRegisteredAnalysisListener listener = new ProductRegisteredAnalysisListener(service);
+        ProductRegisteredAnalysisListener listener =
+                new ProductRegisteredAnalysisListener(service, new AnalysisProgressTracker());
 
         listener.onProductRegistered(new ProductRegisteredEvent(7L));
 
@@ -34,7 +36,8 @@ class ProductRegisteredAnalysisListenerTest {
         ProductAnalysisService service = mock(ProductAnalysisService.class);
         CountDownLatch release = new CountDownLatch(1);
         doAnswer(invocation -> release.await(1, TimeUnit.SECONDS)).when(service).analyzeProductById(7L);
-        ProductRegisteredAnalysisListener listener = new ProductRegisteredAnalysisListener(service);
+        ProductRegisteredAnalysisListener listener =
+                new ProductRegisteredAnalysisListener(service, new AnalysisProgressTracker());
 
         assertThat(listener.enqueue(7L)).isTrue();
         assertThat(listener.enqueue(7L)).isFalse();
@@ -48,6 +51,26 @@ class ProductRegisteredAnalysisListenerTest {
         }
         assertThat(requeued).isTrue();
         verify(service, timeout(1000).times(2)).analyzeProductById(7L);
+        listener.shutdown();
+    }
+
+    // 대기열에 넣는 순간부터 분석이 끝날 때까지 진행 중으로 기록(등록 직후 분석 구독 스트림이 대기·진행 단계를 보도록)
+    @Test
+    void marksProductInProgressFromQueueUntilFinished() throws InterruptedException {
+        ProductAnalysisService service = mock(ProductAnalysisService.class);
+        AnalysisProgressTracker tracker = new AnalysisProgressTracker();
+        CountDownLatch release = new CountDownLatch(1);
+        CountDownLatch finished = new CountDownLatch(1);
+        tracker.onFinished(itemId -> finished.countDown());
+        doAnswer(invocation -> release.await(1, TimeUnit.SECONDS)).when(service).analyzeProductById(7L);
+        ProductRegisteredAnalysisListener listener = new ProductRegisteredAnalysisListener(service, tracker);
+
+        listener.enqueue(7L);
+        assertThat(tracker.isInProgress(7L)).isTrue();
+        release.countDown();
+
+        assertThat(finished.await(1, TimeUnit.SECONDS)).isTrue();
+        assertThat(tracker.isInProgress(7L)).isFalse();
         listener.shutdown();
     }
 }
