@@ -393,7 +393,7 @@ public class ProductController {
      * @return 200 OK + 상품 개요(판매 완료 정보는 미입력·판매 완료 전이면 null)
      */
     @Operation(summary = "판매 관리 상품 개요 조회")
-    @GetMapping("/{productId}/management-overview")
+    @GetMapping("/{productId}/overview")
     public ResponseEntity<ApiResponse<ProductManagementOverviewResponse>> getManagementOverview(
             @AuthenticationPrincipal PrincipalMember currentMember, @PathVariable Long productId) {
         return ResponseEntity.ok(
