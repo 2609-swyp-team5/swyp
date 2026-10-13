@@ -18,6 +18,11 @@ public class PlatformListingUpserter {
 
     private final PlatformListingRepository platformListingRepository;
 
+    /** 번개장터 매물 페이지 주소. */
+    public static String bunjangListingUrl(long pid) {
+        return LISTING_URL_TEMPLATE.formatted(pid);
+    }
+
     /**
      * 이미 있으면 관측값만 갱신하고 없으면 새로 만든다.
      *

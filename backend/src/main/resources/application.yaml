@@ -160,7 +160,7 @@ naver:
 crawl:
   bunjang:
     enabled: ${CRAWL_BUNJANG_ENABLED:true}
-    cron: ${CRAWL_BUNJANG_CRON:0 0 * * * *} # 매 시간 정각에 실행
+    cron: ${CRAWL_BUNJANG_CRON:0 0 */3 * * *} # 3시간마다 정각(00/03/06…) — 비교 매물은 최근 168시간을 쓰므로 충분하고, 매시 수집은 Neon 컴퓨트를 쉬지 못하게 해 늘림(2026-10-13)
     page-limit: ${CRAWL_BUNJANG_PAGE_LIMIT:8} # 한 번에 크롤링할 페이지 수 제한(60건 * 페이지)
     reconcile:
       enabled: ${CRAWL_BUNJANG_RECONCILE_ENABLED:true}
@@ -170,7 +170,7 @@ crawl:
       call-interval-ms: ${CRAWL_BUNJANG_RECONCILE_CALL_INTERVAL_MS:500} # 개별 호출 간 최소 대기 시간
   joongna:
     enabled: ${CRAWL_JOONGNA_ENABLED:false} # 중고나라 시세 수집(검증 후 운영에서 켬)
-    cron: ${CRAWL_JOONGNA_CRON:0 30 * * * *} # 매 시간 30분(번개장터 수집과 겹치지 않게)
+    cron: ${CRAWL_JOONGNA_CRON:0 30 */3 * * *} # 3시간마다 30분(번개장터 수집과 겹치지 않게, 같은 이유로 늘림)
     page-limit: ${CRAWL_JOONGNA_PAGE_LIMIT:3} # 카테고리마다 가져올 페이지 수(40건 * 페이지)
     reconcile-cron: ${CRAWL_JOONGNA_RECONCILE_CRON:0 45 5 * * *} # 매일 새벽 5시 45분 판매 상태 재확인(대상·간격은 crawl.bunjang.reconcile 값 공용)
 

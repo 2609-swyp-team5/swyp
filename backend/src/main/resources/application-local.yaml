@@ -60,6 +60,8 @@ crawl:
 
 analysis:
   enabled: ${PRICE_ANALYSIS_ENABLED:false}
+  recovery:
+    enabled: ${PRICE_ANALYSIS_RECOVERY_ENABLED:false} # 30분마다 DB를 조회해 로컬에서도 Neon 컴퓨트가 쉬지 못하므로 끔(재기동으로 사라진 등록 직후 분석은 다시 넣지 않음)
 
 interest:
   target-price-alert:
