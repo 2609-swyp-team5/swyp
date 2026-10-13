@@ -174,4 +174,64 @@ describe("ProductRegistrationProcessing", () => {
         ).toBeInTheDocument();
         expect(screen.getAllByText("−")).toHaveLength(2);
     });
+
+    it("expands the market analysis step into its sub-steps while registering", () => {
+        render(
+            <ProductRegistrationProcessing
+                kind="ai"
+                status="loading"
+                progress={{
+                    step: "MARKET_ANALYSIS",
+                    status: "PROGRESS",
+                    index: 4,
+                    total: 4,
+                    message: "AI가 같은 물건을 고르고 시세를 판단하고 있어요.",
+                    marketAnalysis: { step: "AI_ANALYSIS", status: "START", index: 2, total: 5 },
+                }}
+                onGoToManage={vi.fn()}
+            />,
+        );
+
+        [
+            "이미지 업로드 완료",
+            "상품 이미지 분석 완료",
+            "상품 등록 완료",
+            "비교 매물 찾기 완료",
+        ].forEach((label) => expect(screen.getByText(label)).toBeInTheDocument());
+        expect(screen.getByText("AI가 같은 물건을 고르고 시세 판단하는 중")).toBeInTheDocument();
+        ["시세·추천 계산", "감가·가격 전망 계산", "분석 결과 저장"].forEach((label) =>
+            expect(screen.getByText(label)).toBeInTheDocument(),
+        );
+        expect(screen.queryByText("AI 시세 분석")).not.toBeInTheDocument();
+    });
+
+    it("marks where the market analysis stopped when it is skipped", () => {
+        render(
+            <ProductRegistrationProcessing
+                kind="direct"
+                status="success"
+                progress={{
+                    step: "MARKET_ANALYSIS",
+                    status: "SKIP",
+                    index: 4,
+                    total: 4,
+                    message: "비슷한 매물이 부족해요.",
+                    marketAnalysis: { step: "AI_ANALYSIS", status: "DONE", index: 2, total: 5 },
+                }}
+                onGoToManage={vi.fn()}
+            />,
+        );
+
+        expect(screen.getByText("AI 시세 판단 완료")).toBeInTheDocument();
+        expect(screen.getByText("비슷한 매물이 부족해요.")).toBeInTheDocument();
+        expect(screen.getByText("감가·가격 전망 계산 건너뜀")).toBeInTheDocument();
+    });
+
+    it("does not show market analysis steps when editing", () => {
+        render(
+            <ProductRegistrationProcessing kind="edit" status="loading" onGoToManage={vi.fn()} />,
+        );
+
+        expect(screen.queryByText("비교 매물 찾기")).not.toBeInTheDocument();
+    });
 });

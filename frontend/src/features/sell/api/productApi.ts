@@ -10,7 +10,11 @@ import type {
     ProductValuationForecastResponse,
     ProductTargetPriceResponse,
 } from "@/features/product-management/schemas/productManagementResponseSchema";
-import { productRegisterStreamEventSchema } from "../schemas/productRegisterStreamSchema";
+import {
+    type MarketAnalysisProgress,
+    marketAnalysisProgressSchema,
+    productRegisterStreamEventSchema,
+} from "../schemas/productRegisterStreamSchema";
 
 import {
     aiProductCreateInputSchema,
@@ -40,6 +44,7 @@ const productRegisterSteps: ProductRegisterStep[] = [
     "IMAGE_UPLOAD",
     "IMAGE_ANALYSIS",
     "PRODUCT_SAVE",
+    "MARKET_ANALYSIS",
 ];
 
 const getProduct = (id: number) => api.get<ApiResponse<ProductResponse>>(`/products/${id}`);
@@ -127,6 +132,10 @@ const readSseStream = async (
     const decoder = new TextDecoder();
     let buffer = "";
     let product: ProductResponse | null = null;
+    // 오류 이벤트에는 전체 단계 수가 없어 마지막 step 이벤트의 값을 쓴다(시세 분석 단계 유무에 따라 3 또는 4)
+    let lastTotal = productRegisterSteps.length;
+    // 시세 분석 단계의 마지막 세부 단계(DONE·SKIP 이벤트에도 함께 넘겨 어디까지 진행됐는지 그린다)
+    let marketAnalysis: MarketAnalysisProgress | null = null;
 
     const handleBlock = (block: string) => {
         const dataLine = block.split(/\r?\n/).find((line) => line.startsWith("data:"));
@@ -140,12 +149,19 @@ const readSseStream = async (
         );
 
         if (event.data.event === "step") {
+            lastTotal = event.data.total;
+            const isMarketAnalysis = event.data.step === "MARKET_ANALYSIS";
+            if (isMarketAnalysis && event.data.status === "PROGRESS") {
+                const parsed = marketAnalysisProgressSchema.safeParse(event.data.result);
+                marketAnalysis = parsed.success ? parsed.data : marketAnalysis;
+            }
             onProgress?.({
                 step: event.data.step,
                 status: event.data.status,
                 index: event.data.index,
                 total: event.data.total,
                 message: event.message,
+                ...(isMarketAnalysis ? { marketAnalysis } : {}),
             });
             return;
         }
@@ -161,7 +177,7 @@ const readSseStream = async (
                 step: event.data.step,
                 status: "ERROR",
                 index: stepIndex + 1,
-                total: productRegisterSteps.length,
+                total: lastTotal,
                 message: event.message,
             });
         }
@@ -266,7 +282,8 @@ const createDirectProduct = async (
         new Blob([JSON.stringify(parsedRequest.data)], { type: "application/json" }),
     );
 
-    return createProductWithSse("/products", formData, onProgress);
+    // 저장 뒤 시세 분석까지 같은 스트림으로 기다린다(완료 화면에서 AI 시세 분석을 바로 보여 주기 위함)
+    return createProductWithSse("/products?withMarketAnalysis=true", formData, onProgress);
 };
 
 const createAiProduct = async (
@@ -297,7 +314,7 @@ const createAiProduct = async (
     formData.append("defectStatus", parsedInput.data.operationStatus);
     parsedInput.data.includedItems.forEach((item) => formData.append("includedItems", item));
 
-    return createProductWithSse("/products/analyze", formData, onProgress);
+    return createProductWithSse("/products/analyze?withMarketAnalysis=true", formData, onProgress);
 };
 
 const updateProduct = async (

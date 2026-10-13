@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Sparkles } from "lucide-react";
 
 import { Button } from "@/common/components/ui/Button";
+import type { ProductMarketAnalysis } from "@/features/product-management/types";
 import type { ProductResponse } from "@/features/sell/types";
 import { priceFormatter } from "@/features/sell/components/manage/productReviewUtils";
 
@@ -15,15 +16,24 @@ const recommendationLabels: Record<string, string> = {
     WAIT: "구매 보류 추천",
 };
 
-export function PriceAnalysis({ product }: { product: ProductResponse }) {
+// 시세 분석 결과(marketAnalysis)가 있으면 그 추천가·판단·근거를, 없으면(분석 전·비교 매물 부족) 등록 때 사진 기반 AI 추정값을 보여 준다
+export function PriceAnalysis({
+    product,
+    marketAnalysis,
+}: {
+    product: ProductResponse;
+    marketAnalysis?: ProductMarketAnalysis | null;
+}) {
     const router = useRouter();
-    const suggestedPrice = product.suggestedPrice;
-    const recommendation = product.recommendation;
+    const suggestedPrice = marketAnalysis ? marketAnalysis.suggestedPrice : product.suggestedPrice;
+    const recommendation = marketAnalysis ? marketAnalysis.recommendation : product.recommendation;
     const recommendationValue = recommendation ?? "—";
     const recommendationLabel = recommendation
         ? (recommendationLabels[recommendation] ?? recommendation)
         : "분석 결과 준비 중";
-    const analysisDescription = product.analysisDescription ?? "분석 결과가 없습니다.";
+    const analysisDescription =
+        (marketAnalysis ? marketAnalysis.description : product.analysisDescription) ||
+        "분석 결과가 없습니다.";
 
     return (
         <section
@@ -72,7 +82,9 @@ export function PriceAnalysis({ product }: { product: ProductResponse }) {
                                 : `${priceFormatter.format(suggestedPrice)}원`}
                         </p>
                         <p className="mt-2 text-[12px] leading-5 font-normal tracking-[-0.5px] text-[#83889e]">
-                            AI가 분석한 적정 판매 가격이에요.
+                            {marketAnalysis
+                                ? "비슷한 매물 시세로 분석한 적정 판매 가격이에요."
+                                : "AI가 분석한 적정 판매 가격이에요."}
                         </p>
                     </div>
                 </div>

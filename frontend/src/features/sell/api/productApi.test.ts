@@ -210,7 +210,10 @@ describe("productApi", () => {
         const formData = request.body as FormData;
         const requestPart = formData.get("data");
 
-        expect(fetchMock).toHaveBeenCalledWith("https://api.test/products", expect.any(Object));
+        expect(fetchMock).toHaveBeenCalledWith(
+            "https://api.test/products?withMarketAnalysis=true",
+            expect.any(Object),
+        );
         expect(request.method).toBe("POST");
         expect(request.headers).toEqual(expect.any(Headers));
         expect((request.headers as Headers).get("Accept")).toBe("text/event-stream");
@@ -242,7 +245,7 @@ describe("productApi", () => {
         const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
         const formData = request.body as FormData;
         expect(fetchMock).toHaveBeenCalledWith(
-            "https://api.test/products/analyze",
+            "https://api.test/products/analyze?withMarketAnalysis=true",
             expect.any(Object),
         );
         expect(formData.getAll("images")).toEqual(images);
@@ -349,7 +352,7 @@ describe("productApi", () => {
             step: "IMAGE_ANALYSIS",
             status: "ERROR",
             index: 2,
-            total: 3,
+            total: 4, // 앞선 step 이벤트가 없으면 등록 단계 수(시세 분석 포함)
             message: "AI 사진 분석에 실패했어요",
         });
     });

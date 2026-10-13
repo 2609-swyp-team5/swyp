@@ -14,6 +14,7 @@ import type {
     tradeMethodSchema,
 } from "./schemas/productSchema";
 import type {
+    MarketAnalysisProgress,
     ProductRegisterStep,
     ProductRegisterStepStatus,
 } from "./schemas/productRegisterStreamSchema";
@@ -55,6 +56,8 @@ export interface ProductRegisterProgress {
     index: number;
     total: number;
     message: string;
+    // 시세 분석 단계(MARKET_ANALYSIS)만 — 마지막으로 받은 세부 단계(아직 없으면 null)
+    marketAnalysis?: MarketAnalysisProgress | null;
 }
 
 export type ProductRegisterError = Error & {
