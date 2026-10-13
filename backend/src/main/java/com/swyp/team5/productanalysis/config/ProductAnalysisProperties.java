@@ -17,7 +17,7 @@ public record ProductAnalysisProperties(
         Confidence confidence, // 신뢰도 기준(없으면 기본값)
         Competition competition, // 경쟁 상품 기준(없으면 기본값)
         SearchFallback searchFallback, // 비교 매물 부족 시 상품명 검색 설정(없으면 기본값)
-        Integer interestMinListings, // 관심 등록 대상(관심 등록 직후 분석·외부 매물 분석)의 최소 유사 매물 수(없으면 1)
+        Integer interestMinListings, // 정기 배치가 아닌 분석(등록 직후·관심 등록 직후·재시도·외부 매물)의 최소 유사 매물 수(없으면 1)
         Integer batchConcurrency) { // 정기 배치에서 동시에 분석할 대상 수(없으면 3)
 
     /** 관심 등록 직후 분석을 건너뛸 최근 분석 기준 기본값(시간). 정기 배치 주기(6시간)와 같다. */

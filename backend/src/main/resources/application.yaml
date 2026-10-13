@@ -210,7 +210,7 @@ analysis:
   stream: # 분석 완료 구독(SSE, GET /products/{id}/analysis/stream)
     timeout: ${PRICE_ANALYSIS_STREAM_TIMEOUT:180s} # 스트림 최대 유지 시간(지나면 그때의 분석 결과를 보내고 종료) — 분석 1건은 AI 최대 2회 + 호출 간격이라 수십 초가 걸릴 수 있음
     keep-alive-interval: 15s # 연결 유지용 주석 이벤트 간격
-  interest-min-listings: ${PRICE_ANALYSIS_INTEREST_MIN_LISTINGS:1} # 관심 등록 대상(관심 등록 직후 분석·외부 매물 분석)의 최소 유사 매물 수 — 적으면 신뢰도 LOW
+  interest-min-listings: ${PRICE_ANALYSIS_INTEREST_MIN_LISTINGS:1} # 정기 배치가 아닌 분석(상품 등록 직후·관심 등록 직후·재시도·외부 매물)의 최소 유사 매물 수 — 적으면 신뢰도 LOW
   recovery: # 등록·관심 등록 직후 분석이 재시작·오류로 사라진 대상을 다시 대기열에 넣음(분석 결과·건너뛴 기록 둘 다 없는 대상)
     enabled: ${PRICE_ANALYSIS_RECOVERY_ENABLED:true}
     window-hours: ${PRICE_ANALYSIS_RECOVERY_WINDOW_HOURS:24} # 최근 이 시간 안에 등록·관심 등록된 대상만

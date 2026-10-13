@@ -33,7 +33,7 @@ public class BunjangSearchClient {
      * 검색어로 번개장터 카테고리 안을 관련도 순으로 첫 페이지(60건)만 조회한다(광고·판매 완료 매물과 pid 없는 외부 광고 항목도 섞여
      * 있음). {@code cursor}·{@code page}를 넘겨도 같은 결과가 와서(2026-10-11 확인) 다음 페이지는 받지 않는다.
      *
-     * @param bunjangCategoryId 검색 범위 번개장터 카테고리 ID(하위 카테고리 포함)
+     * @param bunjangCategoryId 검색 범위 번개장터 카테고리 ID(하위 카테고리 포함), null이면 전체 카테고리
      */
     public List<BunjangProductItem> search(String query, String bunjangCategoryId) {
         JsonNode root = bunjangRestClient
@@ -47,11 +47,10 @@ public class BunjangSearchClient {
     }
 
     private static URI buildUri(UriBuilder uriBuilder, String query, String bunjangCategoryId) {
-        return uriBuilder
-                .path(PATH)
-                .queryParam("q", query)
-                .queryParam("categoryId", bunjangCategoryId)
-                .queryParam("sort", "score")
-                .build();
+        uriBuilder.path(PATH).queryParam("q", query);
+        if (bunjangCategoryId != null) {
+            uriBuilder.queryParam("categoryId", bunjangCategoryId);
+        }
+        return uriBuilder.queryParam("sort", "score").build();
     }
 }

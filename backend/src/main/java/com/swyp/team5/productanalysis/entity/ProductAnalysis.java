@@ -89,6 +89,10 @@ public class ProductAnalysis {
     @Column(columnDefinition = "analysis_confidence")
     private AnalysisConfidence confidence; // 분석 시점 신뢰도 등급, 신뢰도 도입 이전 스냅샷은 null
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "comparison_basis", length = 10)
+    private ComparisonBasis comparisonBasis; // 비교 매물 기준(같은 물건/비슷한 물건), 도입 이전 스냅샷은 null(같은 물건)
+
     // 1개월 가격 전망(우리 상품·외부 매물). 대기 기간은 시세 상승 중(HOLD)일 때만(1M), 예상 가격·변화율은 SELL(감가 예측)·HOLD(시세
     // 추세) 모두. 외부 매물은 판매자 규칙을 추세 판단에만 써서 같은 방식으로 채운다. 도입 이전 스냅샷은 null
     @Convert(converter = ForecastPeriodConverter.class)
@@ -155,6 +159,11 @@ public class ProductAnalysis {
     public void assignConfidence(int listingCount, AnalysisConfidence confidence) {
         this.listingCount = listingCount;
         this.confidence = confidence;
+    }
+
+    /** 비교 매물 기준(같은 물건 / 같은 물건이 부족해 쓴 비슷한 물건)을 붙인다. */
+    public void assignComparisonBasis(ComparisonBasis comparisonBasis) {
+        this.comparisonBasis = comparisonBasis;
     }
 
     /** 통계에 쓴 비교 매물 가격 목록을 붙인다(가격 분포 계산용). */

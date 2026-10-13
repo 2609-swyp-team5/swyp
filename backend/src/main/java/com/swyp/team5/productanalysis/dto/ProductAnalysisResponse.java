@@ -10,6 +10,7 @@ import com.swyp.team5.item.entity.AnalysisSkipReason;
 import com.swyp.team5.item.entity.Item;
 import com.swyp.team5.productanalysis.entity.AnalysisConfidence;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
+import com.swyp.team5.productanalysis.entity.ComparisonBasis;
 import com.swyp.team5.productanalysis.entity.PriceForecast;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
 
@@ -33,6 +34,8 @@ public record ProductAnalysisResponse(
         AnalysisConfidence confidence, // 신뢰도 등급(HIGH/MEDIUM/LOW) — 매물 수 비율·가격 변동 중 낮은 쪽, 분석 24시간 경과 시 한 단계 하향
         Integer confidenceRate, // 신뢰도 비율(0~100, 매물 수 기반 — 비교 매물 20건 이상이면 100)
         Integer listingCount, // 통계에 쓴 비교 매물 수(위 세 필드는 신뢰도 도입 이전 분석이면 null)
+        ComparisonBasis comparisonBasis, // 비교 기준 — SAME(같은 물건 매물) / RELATED(같은 물건이 부족해 같은 종류·시리즈의 비슷한 매물로 분석, 신뢰도 LOW —
+        // 화면에 "비슷한 상품 기준" 표시), 분석 이력이 없으면 null
         String waitPeriod, // 시세가 오르는 중(우리 상품은 판매자 추천 HOLD)일 때 권장 대기 기간(1M), 그 밖에는 null
         Long expectedPrice, // 1개월 뒤 예상 가격(오르는 중=시세 추세 기반 상승, 그 밖=감가 예측 1M), 도입 이전 분석은 null
         BigDecimal expectedPriceChangeRate, // 1개월 예상 변화율(소수 4자리 비율, 0.04 = +4%), 도입 이전 분석은 null
@@ -149,6 +152,7 @@ public record ProductAnalysisResponse(
                 null,
                 null,
                 null,
+                null,
                 List.of(),
                 null,
                 List.of(),
@@ -207,6 +211,7 @@ public record ProductAnalysisResponse(
                 confidence,
                 confidenceRate,
                 analysis.getListingCount(),
+                analysis.getComparisonBasis() == null ? ComparisonBasis.SAME : analysis.getComparisonBasis(),
                 analysis.getWaitPeriod() == null
                         ? null
                         : analysis.getWaitPeriod().getCode(),
