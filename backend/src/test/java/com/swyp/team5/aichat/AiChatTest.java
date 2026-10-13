@@ -8,13 +8,17 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,13 +27,19 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
+import com.swyp.team5.aichat.dto.AiChatStep;
+import com.swyp.team5.aichat.dto.AiChatStreamEvent;
 import com.swyp.team5.aichat.entity.AiChatIntent;
 import com.swyp.team5.aichat.entity.AiChatPayload;
 import com.swyp.team5.aichat.service.AiChatAnswerService.Answer;
+import com.swyp.team5.aichat.service.AiChatProgress;
 import com.swyp.team5.common.passport.JwtTokenProvider;
 import com.swyp.team5.item.entity.ListingSource;
 import com.swyp.team5.member.entity.Member;
@@ -46,6 +56,8 @@ class AiChatTest extends IntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Autowired
     private MemberRepository memberRepository;
@@ -66,8 +78,8 @@ class AiChatTest extends IntegrationTest {
         Member other = memberRepository.save(newMember("other"));
         ownerToken = jwtTokenProvider.createAccessToken(owner.getId(), MemberRole.USER);
         otherToken = jwtTokenProvider.createAccessToken(other.getId(), MemberRole.USER);
-        when(aiChatAnswerService.answer(anyLong(), anyString(), any()))
-                .thenAnswer(invocation -> answerFor(invocation.getArgument(1)));
+        when(aiChatAnswerService.answer(anyLong(), anyString(), any(), any()))
+                .thenAnswer(invocation -> answerFor(invocation.getArgument(1), invocation.getArgument(3)));
     }
 
     // 새 대화 — 질문·답변 저장, 제목 = 첫 질문 앞 30자, 카드(JSONB) 그대로 응답
@@ -111,7 +123,8 @@ class AiChatTest extends IntegrationTest {
                         eq("그럼 256기가는?"),
                         argThat(history -> history.size() == 2
                                 && history.get(0).question()
-                                && history.get(0).content().equals("아이폰 13 미니 시세 어때?")));
+                                && history.get(0).content().equals("아이폰 13 미니 시세 어때?")),
+                        any());
         perform(get("/ai/chats/" + chatId + "/messages"), ownerToken, null)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.title").value("아이폰 13 미니 시세 어때?"))
@@ -249,6 +262,109 @@ class AiChatTest extends IntegrationTest {
             request.contentType(MediaType.APPLICATION_JSON).content(body);
         }
         return mockMvc.perform(request);
+    }
+
+    // 답변 스트림 — Accept: text/event-stream이면 단계 → 카드 결과 → 문장 조각 → complete(JSON 응답과 같은 필드) 순으로 보냄
+    @Test
+    void startChatStreamsStepsDeltasAndComplete() throws Exception {
+        MvcResult started = mockMvc.perform(post("/ai/chats")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken)
+                        .accept(MediaType.TEXT_EVENT_STREAM)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"message\":\"아이폰 13 미니 살까?\"}"))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+        started.getAsyncResult(5_000);
+
+        List<JsonNode> events = streamEvents(started);
+        assertThat(events)
+                .extracting(event -> event.at("/data/event").asText() + ":"
+                        + event.at("/data/step").asText() + ":"
+                        + event.at("/data/status").asText())
+                .containsExactly(
+                        "step:INTERPRET:START",
+                        "step:INTERPRET:DONE",
+                        "step:SEARCH:START",
+                        "step:SEARCH:DONE",
+                        "step:WRITE:START",
+                        "delta::",
+                        "delta::",
+                        "step:WRITE:DONE",
+                        "complete::");
+        assertThat(events.get(0).at("/message").asText()).isEqualTo("질문을 이해하고 있어요.");
+        assertThat(events.get(0).at("/data/total").asInt()).isEqualTo(3);
+        assertThat(events.get(3).at("/data/result/analysis/productId").asLong()).isEqualTo(155400L);
+        assertThat(events.get(3).at("/data/result/recommendedProducts/0/id").asLong())
+                .isEqualTo(161932L);
+        assertThat(events.get(5).at("/data/text").asText()
+                        + events.get(6).at("/data/text").asText())
+                .isEqualTo("답변: 아이폰 13 미니 살까?");
+        JsonNode complete = events.get(8);
+        assertThat(complete.at("/data/chatId").asLong()).isPositive();
+        assertThat(complete.at("/data/answer/content").asText()).isEqualTo("답변: 아이폰 13 미니 살까?");
+        assertThat(complete.at("/data/answer/analysis/productId").asLong()).isEqualTo(155400L);
+
+        // 스트림으로 만든 답변도 저장되어 대화 열기에서 보임
+        perform(get("/ai/chats/" + complete.at("/data/chatId").asLong() + "/messages"), ownerToken, null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.messages.length()").value(2))
+                .andExpect(jsonPath("$.data.messages[1].content").value("답변: 아이폰 13 미니 살까?"));
+    }
+
+    // 답변 스트림 — 다른 회원 대화에 이어서 질문하면 스트림을 열기 전에 404(JSON)
+    @Test
+    void askStreamRejectsOtherMembersChatBeforeStreaming() throws Exception {
+        Long chatId = startChat("아이폰 13 미니 시세 어때?");
+
+        mockMvc.perform(post("/ai/chats/" + chatId + "/messages")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken)
+                        .accept(MediaType.TEXT_EVENT_STREAM)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"message\":\"그럼 256기가는?\"}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("NOT_FOUND"));
+    }
+
+    private List<JsonNode> streamEvents(MvcResult started) throws Exception {
+        String body = mockMvc.perform(asyncDispatch(started))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString(StandardCharsets.UTF_8);
+        List<JsonNode> events = new ArrayList<>();
+        for (String block : body.split("\n\n")) {
+            StringBuilder data = new StringBuilder();
+            for (String line : block.split("\n")) {
+                if (line.startsWith("data:")) {
+                    data.append(line.substring("data:".length()));
+                }
+            }
+            if (!data.isEmpty()) {
+                events.add(objectMapper.readTree(data.toString()));
+            }
+        }
+        return events;
+    }
+
+    // 스트림 요청이면 실제 답변처럼 단계·카드·문장 조각을 알림
+    private static Answer answerFor(String question, AiChatProgress progress) {
+        Answer answer = answerFor(question);
+        progress.started(AiChatStep.INTERPRET);
+        progress.done(AiChatStep.INTERPRET, null);
+        progress.started(AiChatStep.SEARCH);
+        progress.done(
+                AiChatStep.SEARCH,
+                new AiChatStreamEvent.SearchResult(
+                        answer.intent(),
+                        answer.payload().analysis(),
+                        answer.payload().recommendedProducts()));
+        progress.started(AiChatStep.WRITE);
+        if (progress.streamsText()) {
+            progress.delta("답변: ");
+            progress.delta(question);
+        }
+        progress.done(AiChatStep.WRITE, null);
+        return answer;
     }
 
     private static Answer answerFor(String question) {

@@ -103,12 +103,16 @@ public class AiChatService {
 
     /** 새 대화를 만들고 첫 질문에 답한다(제목 = 첫 질문 앞 30자). */
     public AiChatAnswerResponse startChat(Long memberId, String message) {
-        Saved saved = transactionTemplate.execute(status -> {
+        return answer(memberId, saveNewChat(memberId, message), AiChatProgress.NONE);
+    }
+
+    /** 새 대화와 첫 질문을 저장한다(답변은 {@link #answer}로). */
+    public PendingQuestion saveNewChat(Long memberId, String message) {
+        return transactionTemplate.execute(status -> {
             AiChat chat = aiChatRepository.save(AiChat.start(memberRepository.getReferenceById(memberId), message));
             AiChatMessage question = aiChatMessageRepository.save(AiChatMessage.question(chat, message));
-            return new Saved(chat.getId(), question.getId(), List.of());
+            return new PendingQuestion(chat.getId(), question.getId(), List.of(), message);
         });
-        return answerAndSave(memberId, saved, message);
     }
 
     /**
@@ -117,14 +121,22 @@ public class AiChatService {
      * @throws AiChatNotFoundException 없거나 본인 대화가 아닌 경우
      */
     public AiChatAnswerResponse ask(Long memberId, Long chatId, String message) {
-        Saved saved = transactionTemplate.execute(status -> {
+        return answer(memberId, saveQuestion(memberId, chatId, message), AiChatProgress.NONE);
+    }
+
+    /**
+     * 이어서 할 질문을 저장한다(답변은 {@link #answer}로).
+     *
+     * @throws AiChatNotFoundException 없거나 본인 대화가 아닌 경우
+     */
+    public PendingQuestion saveQuestion(Long memberId, Long chatId, String message) {
+        return transactionTemplate.execute(status -> {
             AiChat chat = findOwnedChat(memberId, chatId);
             List<Turn> history = history(aiChatMessageRepository.findByChatIdOrderByIdAsc(chatId));
             AiChatMessage question = aiChatMessageRepository.save(AiChatMessage.question(chat, message));
             chat.touch();
-            return new Saved(chat.getId(), question.getId(), history);
+            return new PendingQuestion(chat.getId(), question.getId(), history, message);
         });
-        return answerAndSave(memberId, saved, message);
     }
 
     /**
@@ -136,7 +148,17 @@ public class AiChatService {
      * @throws AiChatMessageNotFoundException 대화 안에 없는 메시지이거나 답변이 아닌 경우
      */
     public AiChatAnswerResponse regenerate(Long memberId, Long chatId, Long answerId, String editedQuestion) {
-        Regenerating target = transactionTemplate.execute(status -> {
+        return answer(memberId, prepareRegenerate(memberId, chatId, answerId, editedQuestion), AiChatProgress.NONE);
+    }
+
+    /**
+     * 다시 만들 답변과 뒤에 이어진 메시지를 지우고(질문을 고치면 고친 뒤) 다시 답할 질문을 돌려준다(답변은 {@link #answer}로).
+     *
+     * @throws AiChatNotFoundException 없거나 본인 대화가 아닌 경우
+     * @throws AiChatMessageNotFoundException 대화 안에 없는 메시지이거나 답변이 아닌 경우
+     */
+    public PendingQuestion prepareRegenerate(Long memberId, Long chatId, Long answerId, String editedQuestion) {
+        return transactionTemplate.execute(status -> {
             AiChat chat = findOwnedChat(memberId, chatId);
             List<AiChatMessage> messages = aiChatMessageRepository.findByChatIdOrderByIdAsc(chatId);
             int index = indexOf(messages, answerId);
@@ -153,9 +175,8 @@ public class AiChatService {
             List<Turn> history = history(messages.subList(0, index - 1));
             aiChatMessageRepository.deleteFrom(chatId, answerId);
             aiChatRepository.findById(chatId).ifPresent(AiChat::touch);
-            return new Regenerating(new Saved(chat.getId(), question.getId(), history), content);
+            return new PendingQuestion(chat.getId(), question.getId(), history, content);
         });
-        return answerAndSave(memberId, target.saved(), target.question());
     }
 
     /**
@@ -177,8 +198,13 @@ public class AiChatService {
                 status -> new AiChatDeleteAllResponse(aiChatRepository.deleteAllByMemberId(memberId)));
     }
 
-    private AiChatAnswerResponse answerAndSave(Long memberId, Saved saved, String question) {
-        Answer answer = aiChatAnswerService.answer(memberId, question, saved.history());
+    /**
+     * 저장된 질문에 답하고 답변을 저장한다(트랜잭션 밖에서 답변을 만든 뒤 짧은 트랜잭션으로 저장).
+     *
+     * @param progress 진행 상황을 받을 쪽(답변 스트림, 필요 없으면 {@link AiChatProgress#NONE})
+     */
+    public AiChatAnswerResponse answer(Long memberId, PendingQuestion saved, AiChatProgress progress) {
+        Answer answer = aiChatAnswerService.answer(memberId, saved.question(), saved.history(), progress);
         return transactionTemplate.execute(status -> {
             AiChat chat = aiChatRepository.findById(saved.chatId()).orElseThrow(AiChatNotFoundException::new);
             AiChatMessage savedAnswer = aiChatMessageRepository.save(
@@ -218,9 +244,13 @@ public class AiChatService {
         return -1;
     }
 
-    private record Saved(Long chatId, Long questionId, List<Turn> history) {}
-
-    private record Regenerating(Saved saved, String question) {}
+    /**
+     * 저장했지만 아직 답하지 않은 질문.
+     *
+     * @param history 맥락으로 넘길 이전 질문·답변
+     * @param question 답할 질문 내용
+     */
+    public record PendingQuestion(Long chatId, Long questionId, List<Turn> history, String question) {}
 
     /** 커서 = 마지막 항목의 updatedAt(epoch 마이크로초)과 chatId를 "_"로 이은 문자열. */
     record ChatCursor(LocalDateTime updatedAt, Long id) {

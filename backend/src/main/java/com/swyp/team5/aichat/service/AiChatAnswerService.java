@@ -14,6 +14,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.stereotype.Service;
 
+import com.swyp.team5.aichat.dto.AiChatStep;
+import com.swyp.team5.aichat.dto.AiChatStreamEvent;
 import com.swyp.team5.aichat.entity.AiChatIntent;
 import com.swyp.team5.aichat.entity.AiChatPayload;
 import com.swyp.team5.aichat.entity.AiChatPayload.AnalysisCard;
@@ -101,12 +103,29 @@ public class AiChatAnswerService {
      * @param history 이전 질문·답변(오래된 순, 최근 몇 개만)
      */
     public Answer answer(Long memberId, String question, List<Turn> history) {
+        return answer(memberId, question, history, AiChatProgress.NONE);
+    }
+
+    /**
+     * {@link #answer(Long, String, List)}와 같지만 단계 시작·완료와 답변 문장 조각을 {@code progress}에 알린다(답변 스트림용).
+     * 매물·시세 찾기 결과(카드·추천 상품)는 문장보다 먼저 단계 결과로 알린다.
+     */
+    public Answer answer(Long memberId, String question, List<Turn> history, AiChatProgress progress) {
+        progress.started(AiChatStep.INTERPRET);
         Interpretation interpretation = interpreter.interpret(question, history);
         AiChatIntent intent = interpretation.intent();
         String keyword = interpretation.condition().keyword();
+        progress.done(AiChatStep.INTERPRET, null);
         if (intent == AiChatIntent.UNKNOWN || keyword == null) {
-            return new Answer(unknownText(), AiChatIntent.UNKNOWN, null);
+            progress.skipped(AiChatStep.SEARCH);
+            progress.started(AiChatStep.WRITE);
+            String text = unknownText();
+            progress.delta(text);
+            progress.done(AiChatStep.WRITE, null);
+            return new Answer(text, AiChatIntent.UNKNOWN, null);
         }
+
+        progress.started(AiChatStep.SEARCH);
 
         List<ProductListItemResponse> listings = saleListings(productService
                 .getProducts(memberId, interpretation.condition(), null, SEARCH_SIZE)
@@ -120,9 +139,15 @@ public class AiChatAnswerService {
         Long baseAverage = card != null && card.averagePrice() != null ? card.averagePrice() : medianPrice;
         List<RecommendedProduct> recommended = recommend(listings, card, baseAverage);
         AiChatPayload payload = new AiChatPayload(card, recommended);
+        progress.done(AiChatStep.SEARCH, new AiChatStreamEvent.SearchResult(intent, card, recommended));
 
         Facts facts = new Facts(intent, keyword, listings.size(), medianPrice, card, recommended);
-        return new Answer(write(question, history, facts), intent, payload);
+        progress.started(AiChatStep.WRITE);
+        String text = progress.streamsText()
+                ? writeStreaming(question, history, facts, progress)
+                : write(question, history, facts);
+        progress.done(AiChatStep.WRITE, null);
+        return new Answer(text, intent, payload);
     }
 
     private AnalysisCard myProductCard(Long memberId, String keyword) {
@@ -242,6 +267,33 @@ public class AiChatAnswerService {
             log.warn("AI 대화 답변 작성 실패, 고정 문장으로 대체합니다. 원인: {}", e.toString());
         }
         return fallbackText(facts);
+    }
+
+    // 문장 조각을 받는 대로 넘긴다. 조각을 보내기 전에 실패하면 고정 문장을 한 조각으로 보내고, 중간에 실패하면 고정 문장으로 마무리한다
+    // (화면은 complete의 문장으로 바꾼다)
+    private String writeStreaming(String question, List<Turn> history, Facts facts, AiChatProgress progress) {
+        boolean[] sent = {false};
+        try {
+            String text = aiChatExecutor.stream(
+                    "AI 대화 답변 작성",
+                    client ->
+                            client.prompt().system(ANSWER_PROMPT).user(answerMessage(question, history, facts)).stream()
+                                    .content(),
+                    chunk -> {
+                        sent[0] = true;
+                        progress.delta(chunk);
+                    });
+            if (!text.isBlank()) {
+                return text.strip();
+            }
+        } catch (RuntimeException e) {
+            log.warn("AI 대화 답변 스트리밍 작성 실패, 고정 문장으로 대체합니다. 원인: {}", e.toString());
+        }
+        String fallback = fallbackText(facts);
+        if (!sent[0]) {
+            progress.delta(fallback);
+        }
+        return fallback;
     }
 
     private static String answerMessage(String question, List<Turn> history, Facts facts) {

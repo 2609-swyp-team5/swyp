@@ -14,8 +14,12 @@ import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
+import com.swyp.team5.aichat.dto.AiChatStep;
+import com.swyp.team5.aichat.dto.AiChatStreamEvent;
 import com.swyp.team5.aichat.entity.AiChatIntent;
 import com.swyp.team5.aichat.entity.AiChatPayload.AnalysisCard;
 import com.swyp.team5.aichat.entity.AiChatPayload.RecommendedProduct;
@@ -142,6 +146,108 @@ class AiChatAnswerServiceTest {
         assertThat(answer.intent()).isEqualTo(AiChatIntent.UNKNOWN);
         assertThat(answer.payload()).isNull();
         verify(productService, never()).getProducts(any(), any(), any(), anyInt());
+    }
+
+    // 스트림 — 단계 시작·완료, 매물 찾기 결과(카드), 답변 문장 조각을 차례로 알림
+    @Test
+    void streamingAnswerReportsStepsCardsAndChunks() {
+        interpret(AiChatIntent.BUY, "아이폰 13 미니");
+        searchReturns(listing(4L, "아이폰 13 미니 블루", 310_000L, AnalysisRecommendation.BUY));
+        ProductAnalysisResponse analysis = analysis(AnalysisRecommendation.BUY, 320_000L, "평균보다 저렴해요.");
+        when(productAnalysisService.getLatestAnalysis(4L, AnalysisPerspective.BUY))
+                .thenReturn(analysis);
+        when(aiChatExecutor.stream(eq("AI 대화 답변 작성"), any(), any())).thenAnswer(invocation -> {
+            Consumer<String> onChunk = invocation.getArgument(2);
+            onChunk.accept(" 지금 ");
+            onChunk.accept("사기 좋아요. ");
+            return " 지금 사기 좋아요. ";
+        });
+        RecordingProgress progress = new RecordingProgress();
+
+        Answer answer = service.answer(MEMBER_ID, "아이폰 13 미니 사도 돼?", List.of(), progress);
+
+        assertThat(answer.content()).isEqualTo("지금 사기 좋아요.");
+        assertThat(progress.events)
+                .containsExactly(
+                        "START:INTERPRET",
+                        "DONE:INTERPRET",
+                        "START:SEARCH",
+                        "DONE:SEARCH:4",
+                        "START:WRITE",
+                        "DELTA: 지금 ",
+                        "DELTA:사기 좋아요. ",
+                        "DONE:WRITE");
+        verify(aiChatExecutor, never()).call(eq("AI 대화 답변 작성"), any());
+    }
+
+    // 스트림 — 문장 AI가 조각 없이 실패하면 고정 문장을 한 조각으로 보냄
+    @Test
+    void streamingAnswerSendsFallbackTextWhenAiFails() {
+        interpret(AiChatIntent.PRICE, "아이패드");
+        searchReturns(listing(20L, "아이패드 프로", 300_000L, AnalysisRecommendation.BUY));
+        ProductAnalysisResponse analysis = analysis(AnalysisRecommendation.BUY, 300_000L, "평균이에요.");
+        when(productAnalysisService.getLatestAnalysis(20L, AnalysisPerspective.BUY))
+                .thenReturn(analysis);
+        when(aiChatExecutor.stream(eq("AI 대화 답변 작성"), any(), any())).thenThrow(new IllegalStateException("AI down"));
+        RecordingProgress progress = new RecordingProgress();
+
+        Answer answer = service.answer(MEMBER_ID, "아이패드 시세 어때?", List.of(), progress);
+
+        assertThat(progress.events).contains("DELTA:" + answer.content());
+        assertThat(answer.content()).contains("300,000원");
+    }
+
+    // 스트림 — 상품과 무관한 질문은 매물 찾기를 건너뛰고 안내 문장을 한 조각으로 보냄
+    @Test
+    void streamingUnknownQuestionSkipsSearch() {
+        when(interpreter.interpret(anyString(), any()))
+                .thenReturn(new Interpretation(true, AiChatIntent.UNKNOWN, ProductSearchCondition.ofKeyword(null)));
+        RecordingProgress progress = new RecordingProgress();
+
+        Answer answer = service.answer(MEMBER_ID, "안녕?", List.of(), progress);
+
+        assertThat(progress.events)
+                .containsExactly(
+                        "START:INTERPRET",
+                        "DONE:INTERPRET",
+                        "SKIP:SEARCH",
+                        "START:WRITE",
+                        "DELTA:" + answer.content(),
+                        "DONE:WRITE");
+    }
+
+    /** 받은 진행 상황을 문자열로 기록한다(매물 찾기 결과는 카드 상품 ID만). */
+    private static final class RecordingProgress implements AiChatProgress {
+
+        private final List<String> events = new ArrayList<>();
+
+        @Override
+        public void started(AiChatStep step) {
+            events.add("START:" + step);
+        }
+
+        @Override
+        public void done(AiChatStep step, Object result) {
+            events.add(
+                    result instanceof AiChatStreamEvent.SearchResult search
+                            ? "DONE:" + step + ":" + search.analysis().productId()
+                            : "DONE:" + step);
+        }
+
+        @Override
+        public void skipped(AiChatStep step) {
+            events.add("SKIP:" + step);
+        }
+
+        @Override
+        public void delta(String text) {
+            events.add("DELTA:" + text);
+        }
+
+        @Override
+        public boolean streamsText() {
+            return true;
+        }
     }
 
     @Test

@@ -8,7 +8,9 @@ import jakarta.validation.constraints.Min;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.swyp.team5.aichat.dto.AiChatAnswerResponse;
 import com.swyp.team5.aichat.dto.AiChatDeleteAllResponse;
@@ -29,6 +32,7 @@ import com.swyp.team5.aichat.dto.AiChatRegenerateRequest;
 import com.swyp.team5.aichat.dto.AiChatSuggestionResponse;
 import com.swyp.team5.aichat.dto.AiChatSummaryResponse;
 import com.swyp.team5.aichat.service.AiChatService;
+import com.swyp.team5.aichat.service.AiChatStreamService;
 import com.swyp.team5.aichat.service.AiChatSuggestionService;
 import com.swyp.team5.common.common.ApiResponse;
 import com.swyp.team5.common.common.CursorPageResponse;
@@ -39,7 +43,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 /**
  * 지금이니 AI 대화 API(로그인 필요). 질문을 보내면 AI가 질문을 해석해 매물을 찾고, 시세 분석 결과를 근거로 설명 문장·"상세 시세 분석"
  * 카드·추천 상품을 돌려준다. 질문 1건당 AI 호출은 최대 2회(해석·문장)이고, 대상 상품의 분석 결과가 없으면 분석을 요청한 뒤 카드를
- * "분석 중"(ANALYZING)으로 먼저 답한다 — 결과는 카드의 {@code productId}로 {@code GET /products/{id}/analysis}를 조회한다.
+ * "분석 중"(ANALYZING)으로 먼저 답한다 — 결과는 카드의 {@code productId}로 {@code GET /products/{id}/analysis/stream}을 구독한다.
+ *
+ * <p>질문·다시 만들기 API는 {@code Accept: text/event-stream}으로 부르면 같은 결과를 SSE로 보낸다(진행 단계 → 카드 → 답변 문장 조각
+ * → complete, {@link AiChatStreamService}). 질문 저장·권한 확인은 스트림 전에 해서 404 등은 JSON으로 응답한다.
  */
 @Tag(name = "AiChat", description = "지금이니 AI 대화")
 @RestController
@@ -50,6 +57,7 @@ public class AiChatController {
 
     private final AiChatService aiChatService;
     private final AiChatSuggestionService aiChatSuggestionService;
+    private final AiChatStreamService aiChatStreamService;
 
     /**
      * 추천 질문을 조회한다(메인 검색창 아래 칩 — 누르면 그 질문을 그대로 보낸다). AI를 부르지 않고 내 판매 상품(팔기)·관심상품(사기)·
@@ -144,6 +152,53 @@ public class AiChatController {
     }
 
     /**
+     * {@link #startChat}을 SSE로 — 새 대화를 만들고 답변을 단계별로 보낸다({@code complete}의 필드는 JSON 응답과 같음).
+     *
+     * @return 200 OK + 답변 SSE 스트림
+     */
+    @Operation(summary = "새 대화(첫 질문, 스트리밍)")
+    @PostMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public ResponseEntity<SseEmitter> startChatStream(
+            @AuthenticationPrincipal PrincipalMember currentMember, @RequestBody @Valid AiChatQuestionRequest request) {
+        Long memberId = currentMember.memberId();
+        return stream(aiChatStreamService.answer(memberId, aiChatService.saveNewChat(memberId, request.message())));
+    }
+
+    /**
+     * {@link #ask}를 SSE로 — 이어서 질문하고 답변을 단계별로 보낸다.
+     *
+     * @return 200 OK + 답변 SSE 스트림(없거나 본인 대화가 아니면 스트림 전 404)
+     */
+    @Operation(summary = "이어서 질문(스트리밍)")
+    @PostMapping(value = "/{chatId}/messages", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public ResponseEntity<SseEmitter> askStream(
+            @AuthenticationPrincipal PrincipalMember currentMember,
+            @PathVariable Long chatId,
+            @RequestBody @Valid AiChatQuestionRequest request) {
+        Long memberId = currentMember.memberId();
+        return stream(
+                aiChatStreamService.answer(memberId, aiChatService.saveQuestion(memberId, chatId, request.message())));
+    }
+
+    /**
+     * {@link #regenerate}를 SSE로 — 답변을 다시 만들며 단계별로 보낸다.
+     *
+     * @return 200 OK + 답변 SSE 스트림(대화·메시지가 없으면 스트림 전 404)
+     */
+    @Operation(summary = "답변 다시 만들기·질문 수정(스트리밍)")
+    @PostMapping(value = "/{chatId}/messages/{messageId}/regenerate", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public ResponseEntity<SseEmitter> regenerateStream(
+            @AuthenticationPrincipal PrincipalMember currentMember,
+            @PathVariable Long chatId,
+            @PathVariable Long messageId,
+            @RequestBody(required = false) @Valid AiChatRegenerateRequest request) {
+        Long memberId = currentMember.memberId();
+        String edited = request != null && request.editsQuestion() ? request.message() : null;
+        return stream(aiChatStreamService.answer(
+                memberId, aiChatService.prepareRegenerate(memberId, chatId, messageId, edited)));
+    }
+
+    /**
      * 대화를 지운다(메시지도 함께).
      *
      * @return 200 OK
@@ -166,5 +221,13 @@ public class AiChatController {
     public ResponseEntity<ApiResponse<AiChatDeleteAllResponse>> deleteAll(
             @AuthenticationPrincipal PrincipalMember currentMember) {
         return ResponseEntity.ok(ApiResponse.success(aiChatService.deleteAll(currentMember.memberId())));
+    }
+
+    // 프록시(nginx 등)가 이벤트를 모아 보내지 않도록 버퍼링·캐시를 끈다
+    private static ResponseEntity<SseEmitter> stream(SseEmitter emitter) {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noCache())
+                .header("X-Accel-Buffering", "no")
+                .body(emitter);
     }
 }
