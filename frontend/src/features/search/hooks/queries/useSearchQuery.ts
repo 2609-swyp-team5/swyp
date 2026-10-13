@@ -8,7 +8,7 @@ import type { SearchParams } from "@/features/search/types";
 
 const pageSize = 20;
 
-export function useSearchQuery(params: SearchParams, staleTime = 0, enabled = true) {
+export function useSearchQuery(params: SearchParams) {
     const isInitialized = useAuthStore((state) => state.isInitialized);
 
     return useInfiniteQuery({
@@ -33,8 +33,7 @@ export function useSearchQuery(params: SearchParams, staleTime = 0, enabled = tr
             (previousQuery?.queryKey[1] as SearchParams | undefined)?.keyword === params.keyword
                 ? previousData
                 : undefined,
-        enabled: isInitialized && enabled,
-        staleTime,
+        enabled: isInitialized,
         retry: false,
     });
 }

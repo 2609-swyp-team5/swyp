@@ -1,38 +1,49 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { ScrollToTopButton } from "@/common/components/layout/ScrollToTopButton";
 import { useSmoothScroll } from "@/common/hooks/useSmoothScroll";
 import { SearchBar } from "@/features/search/components/SearchBar";
 import { SearchFilters } from "@/features/search/components/SearchFilters";
 import { SearchResults } from "@/features/search/components/SearchResults";
-import { AiSearchSummary } from "@/features/search/components/AiSearchSummary";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { useSearchQuery } from "@/features/search/hooks/queries/useSearchQuery";
 import type { SearchParams, SearchSort } from "@/features/search/types";
+import { parseSearchUrl, toSearchQuery } from "@/features/search/utils/searchUrlState";
 import { useInterestToggle } from "@/features/interest/hooks/useInterestToggle";
 import { Button } from "@/common/components/ui/Button";
 import { LoginRequiredDialog } from "@/features/auth/components/LoginRequiredDialog";
-import { useAiSearchMutation } from "@/features/search/hooks/mutations/useAiSearchMutation";
-import { getApiErrorMessage } from "@/common/lib/api/error";
 
 export function SearchPage() {
+    const router = useRouter();
+    const pathname = usePathname();
     const searchParams = useSearchParams();
-    const initialMode = searchParams.get("mode") === "ai" ? "ai" : "general";
-    const initialAiSearchStarted = useRef(false);
-    const [canLoadProducts, setCanLoadProducts] = useState(initialMode !== "ai");
-    const [keyword, setKeyword] = useState(searchParams.get("keyword") ?? "");
-    const [submittedKeyword, setSubmittedKeyword] = useState(searchParams.get("keyword") ?? "");
-    const [sort, setSort] = useState<SearchSort>("LATEST");
-    const [filters, setFilters] = useState<SearchParams>({});
-    const [searchMessage, setSearchMessage] = useState("");
-    const [hasAiResult, setHasAiResult] = useState(false);
-    const queryClient = useQueryClient();
-    const aiSearch = useAiSearchMutation();
-    const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
+    // 검색어·정렬·필터는 URL과 같이 둔다(새로고침·공유·뒤로 가기에도 같은 결과). 화면은 바로 반응하도록 상태를 먼저 바꾸고
+    // URL을 맞추며, 뒤로 가기처럼 화면 밖에서 URL이 바뀌면 URL 값을 다시 읽는다
+    const query = searchParams.toString();
+    const [searchState, setSearchState] = useState(() => parseSearchUrl(searchParams));
+    const { keyword: submittedKeyword, sort, filters } = searchState;
+    const [keyword, setKeyword] = useState(submittedKeyword);
+    const [seenQuery, setSeenQuery] = useState(query);
+    // 이 화면이 바꾼(아직 반영 중일 수 있는) URL 목록 — 연달아 바꿀 때 앞선 URL이 늦게 와도 바깥 변경으로 오인하지 않는다
+    const [writtenQueries, setWrittenQueries] = useState([query]);
+    // 필터 입력값(가격·제외어)은 SearchFilters 내부 상태라 URL에서 다시 읽을 때 새로 만든다
+    const [filtersKey, setFiltersKey] = useState(0);
+    if (query !== seenQuery) {
+        setSeenQuery(query);
+        const writtenIndex = writtenQueries.indexOf(query);
+        if (writtenIndex >= 0) {
+            setWrittenQueries(writtenQueries.slice(writtenIndex));
+        } else {
+            const next = parseSearchUrl(searchParams);
+            setSearchState(next);
+            setKeyword(next.keyword);
+            setWrittenQueries([query]);
+            setFiltersKey((current) => current + 1);
+        }
+    }
     const interests = useInterestToggle();
     const liked = Object.fromEntries(
         interests.interests.map((item) => [`${item.source}:${item.targetId}`, true]),
@@ -52,84 +63,30 @@ export function SearchPage() {
         isPlaceholderData,
         fetchNextPage,
         refetch,
-    } = useSearchQuery(
-        { ...filters, keyword: submittedKeyword || undefined, sort },
-        hasAiResult ? Infinity : 0,
-        canLoadProducts,
-    );
+    } = useSearchQuery({ ...filters, keyword: submittedKeyword || undefined, sort });
     const products = data?.pages.flatMap((page) => page.content) ?? [];
 
-    const submitSearch = useCallback(
-        (mode: "general" | "ai") => {
-            if (aiSearch.isPending) return;
-            aiSearch.reset();
-            setSearchMessage("");
-            if (mode === "general") {
-                setCanLoadProducts(true);
-                setHasAiResult(false);
-                setSubmittedKeyword(keyword.trim());
-                return;
-            }
-            if (!isLoggedIn) {
-                interests.onLoginNoticeOpenChange(true);
-                return;
-            }
-            const query = keyword.trim();
-            if (!query || query.length > 200) {
-                setSearchMessage("AI 검색어를 1~200자로 입력해 주세요.");
-                return;
-            }
-            aiSearch.mutate(query, {
-                onSuccess: async ({ condition, result }) => {
-                    const nextFilters: SearchParams = {
-                        excludeKeyword: condition.excludeKeyword ?? undefined,
-                        status: condition.status,
-                        platform: condition.platform,
-                        minPrice: condition.minPrice ?? undefined,
-                        maxPrice: condition.maxPrice ?? undefined,
-                        condition: condition.condition,
-                        defectStatus: condition.defectStatus,
-                    };
-                    const nextKeyword = condition.keyword ?? "";
-                    const params = {
-                        ...nextFilters,
-                        keyword: nextKeyword || undefined,
-                        sort: condition.sort,
-                    };
-                    await queryClient.cancelQueries({ queryKey: ["search"] });
-                    // 첫 페이지는 AI 응답을 사용하고, 이후 페이지는 해석된 조건으로 일반 검색한다.
-                    queryClient.setQueryData(["search", params], {
-                        pages: [result],
-                        pageParams: [null],
-                    });
-                    setFilters(nextFilters);
-                    setCanLoadProducts(true);
-                    setHasAiResult(true);
-                    setSort(condition.sort);
-                    setSubmittedKeyword(nextKeyword);
-                },
-            });
-        },
-        [aiSearch, keyword, isLoggedIn, interests, queryClient],
-    );
-
-    useEffect(() => {
-        if (initialMode !== "ai" || !isInitialized || initialAiSearchStarted.current) return;
-        initialAiSearchStarted.current = true;
-        submitSearch("ai");
-    }, [initialMode, isInitialized, submitSearch]);
+    // 새 검색어는 기록을 남기고(push), 정렬·필터 변경은 같은 검색 안에서 바꾼다(replace)
+    const navigate = (
+        next: { keyword?: string; sort?: SearchSort; filters?: SearchParams },
+        mode: "push" | "replace",
+    ) => {
+        const nextState = {
+            keyword: next.keyword ?? submittedKeyword,
+            sort: next.sort ?? sort,
+            filters: next.filters ?? filters,
+        };
+        const nextQuery = toSearchQuery(nextState);
+        setSearchState(nextState);
+        if (nextQuery === writtenQueries.at(-1)) return;
+        setWrittenQueries([...writtenQueries, nextQuery]);
+        router[mode](nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+    };
+    const submitSearch = () => navigate({ keyword: keyword.trim() }, "push");
 
     useEffect(() => {
         const target = loadMoreRef.current;
-        if (
-            !target ||
-            !hasNextPage ||
-            isPlaceholderData ||
-            isFetching ||
-            isError ||
-            aiSearch.isPending
-        )
-            return;
+        if (!target || !hasNextPage || isPlaceholderData || isFetching || isError) return;
 
         const observer = new IntersectionObserver(
             ([entry]) => {
@@ -139,50 +96,24 @@ export function SearchPage() {
         );
         observer.observe(target);
         return () => observer.disconnect();
-    }, [hasNextPage, isPlaceholderData, isFetching, isError, fetchNextPage, aiSearch.isPending]);
+    }, [hasNextPage, isPlaceholderData, isFetching, isError, fetchNextPage]);
     return (
         <main className="flex-1 bg-white font-normal tracking-normal">
             <LoginRequiredDialog
                 open={interests.loginNoticeOpen}
                 onOpenChange={interests.onLoginNoticeOpenChange}
             />
-            <SearchBar
-                initialMode={initialMode}
-                keyword={keyword}
-                onKeywordChange={setKeyword}
-                onSearch={submitSearch}
-                isSearching={aiSearch.isPending}
-            />
+            <SearchBar keyword={keyword} onKeywordChange={setKeyword} onSearch={submitSearch} />
             <div className="layout-container flex flex-col items-start gap-8 py-[60px] xl:flex-row xl:gap-[60px]">
                 <SearchFilters
-                    key={aiSearch.data ? JSON.stringify(aiSearch.data.condition) : "general"}
-                    disabled={aiSearch.isPending}
+                    key={filtersKey}
                     filters={filters}
-                    onFiltersChange={(nextFilters) => {
-                        setHasAiResult(false);
-                        setFilters(nextFilters);
-                    }}
+                    onFiltersChange={(nextFilters) => navigate({ filters: nextFilters }, "replace")}
                     keyword={keyword}
                     onKeywordChange={setKeyword}
-                    onKeywordSubmit={() => submitSearch("general")}
+                    onKeywordSubmit={submitSearch}
                 />
                 <div className="flex min-w-0 flex-1 flex-col gap-4">
-                    {(aiSearch.isPending || aiSearch.isSuccess) && (
-                        <AiSearchSummary
-                            query={aiSearch.variables ?? ""}
-                            isLoading={aiSearch.isPending}
-                            aiApplied={aiSearch.data?.aiApplied}
-                            params={{ ...filters, keyword: submittedKeyword || undefined, sort }}
-                        />
-                    )}
-                    {(searchMessage || aiSearch.isError) && (
-                        <p
-                            role={aiSearch.isError ? "alert" : "status"}
-                            className="text-sm text-[#6b7395]"
-                        >
-                            {aiSearch.isError ? getApiErrorMessage(aiSearch.error) : searchMessage}
-                        </p>
-                    )}
                     {interests.errorMessage && (
                         <div
                             role="alert"
@@ -198,10 +129,7 @@ export function SearchPage() {
                     )}
                     <SearchResults
                         sort={sort}
-                        onSortChange={(nextSort) => {
-                            setHasAiResult(false);
-                            setSort(nextSort);
-                        }}
+                        onSortChange={(nextSort) => navigate({ sort: nextSort }, "replace")}
                         keyword={submittedKeyword}
                         products={products}
                         totalCount={data?.pages[0]?.totalCount ?? null}
@@ -210,9 +138,7 @@ export function SearchPage() {
                             interests.toggle({ source: product.source, targetId: product.id })
                         }
                         likeDisabled={interests.disabled}
-                        isLoading={
-                            !isInitialized || (canLoadProducts && isPending) || aiSearch.isPending
-                        }
+                        isLoading={!isInitialized || isPending}
                         isRefreshing={isPlaceholderData}
                         error={isError ? error : null}
                         onRetry={() => void (isFetchNextPageError ? fetchNextPage() : refetch())}

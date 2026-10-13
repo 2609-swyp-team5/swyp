@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { cn } from "@/common/lib/utils";
 import * as m from "motion/react-m";
 import { cardMotion, revealMotion } from "@/features/onboarding/onboardingMotion";
 import { SectionHeading } from "@/features/onboarding/components/shared/SectionHeading";
@@ -30,14 +31,6 @@ const signals = [
         height: 640,
         alt: "구매 시점부터 현재와 향후 예상까지의 구매가 대비 가치",
     },
-    {
-        title: "실거래 데이터",
-        description: "완료된 거래의 가격이 어디에 모여 있는지 확인해요",
-        image: "trades.png",
-        width: 1062,
-        height: 636,
-        alt: "최근 90일의 개별 거래 기록과 주요 거래 가격 구간",
-    },
 ];
 
 export function AnalysisSection() {
@@ -46,68 +39,82 @@ export function AnalysisSection() {
             className="relative isolate bg-[radial-gradient(ellipse_1162px_644px_at_50%_50%,#b9aefc,transparent)] py-10 md:py-20"
             aria-labelledby="signals-heading"
         >
-            <div className="layout-container relative space-y-12 md:space-y-20">
-                <div className="relative z-10 lg:max-w-[697px]">
-                    <SectionHeading
-                        id="signals-heading"
-                        eyebrow="네 가지 데이터를 종합해서 지금이 좋은 타이밍인지 판단해요"
-                        title={
-                            <>
-                                <span className="lg:whitespace-nowrap">시세부터 실거래까지,</span>
-                                <br />
-                                <span className="lg:whitespace-nowrap">
-                                    타이밍의 근거를 확인하세요
-                                </span>
-                            </>
-                        }
-                    />
-                </div>
-                <div className="relative mx-auto aspect-[383/360] w-[240px] -scale-x-100 overflow-hidden lg:absolute lg:top-0 lg:-right-[57px] lg:mx-0 lg:w-[383px]">
-                    <Image
-                        src="/onboarding/analysis-character.png"
-                        alt="분석 그래프를 살펴보는 AI 캐릭터"
-                        width={1536}
-                        height={1024}
-                        unoptimized
-                        className="absolute top-0 -left-[14.64%] h-full w-[141.21%] max-w-none"
-                    />
-                </div>
-                <div className="relative z-10 grid gap-x-[30px] gap-y-5 md:grid-cols-2">
-                    {signals.map((signal, index) => (
-                        <m.article
-                            key={signal.title}
-                            {...cardMotion}
-                            transition={{ ...revealMotion.transition, delay: index * 0.08 }}
-                            className="hover:border-primary/25 flex min-w-0 flex-col justify-between gap-2.5 rounded-[30px] border border-[#d3d3d3] bg-white p-5 transition-[border-color,box-shadow] duration-300 hover:shadow-[0_16px_40px_rgba(32,35,50,0.07)] motion-reduce:transition-none md:min-h-[460px] md:p-[30px]"
-                        >
-                            <div className={index === 1 ? "space-y-[5px]" : "space-y-2.5"}>
-                                <div
-                                    className={`flex items-center ${index === 1 ? "gap-2.5" : "gap-[15px]"}`}
-                                >
-                                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#6653fb] text-[16px] leading-6 font-bold text-white">
-                                        {index + 1}
+            {/* Figma 1854-13457: 2열 그리드 — 왼쪽 위 칸에 제목·캐릭터, 나머지 세 칸에 분석 카드 */}
+            <div className="layout-container relative grid gap-x-[30px] gap-y-5 md:grid-cols-2">
+                <div className="flex min-w-0 flex-col items-center justify-end gap-2.5 self-start md:px-[30px]">
+                    <div className="w-full">
+                        <SectionHeading
+                            id="signals-heading"
+                            eyebrow="네 가지 데이터를 종합해서 지금이 좋은 타이밍인지 판단해요"
+                            // Figma 40/50px — 절반 칸이라 좁은 화면에선 줄인다
+                            titleClassName="md:text-[28px] md:leading-[38px] lg:text-[32px] lg:leading-[42px] xl:text-[40px] xl:leading-[50px]"
+                            title={
+                                <>
+                                    <span className="xl:whitespace-nowrap">
+                                        시세부터 실거래까지,
                                     </span>
-                                    <h3 className="text-[24px] leading-9 font-bold tracking-normal text-[#363636]">
-                                        {signal.title}
-                                    </h3>
-                                </div>
-                                <p className="text-[16px] leading-6 font-normal tracking-[-0.3125px] text-[#6b6c7b]">
-                                    {signal.description}
-                                </p>
-                            </div>
-                            <div className="flex min-w-0 items-center md:h-[320px]">
-                                <Image
-                                    src={`/onboarding/${signal.image}`}
-                                    alt={signal.alt}
-                                    width={signal.width}
-                                    height={signal.height}
-                                    unoptimized
-                                    className="h-auto w-full"
-                                />
-                            </div>
-                        </m.article>
-                    ))}
+                                    <br />
+                                    <span className="xl:whitespace-nowrap">
+                                        타이밍의 근거를 확인하세요
+                                    </span>
+                                </>
+                            }
+                        />
+                    </div>
+                    <div className="relative aspect-[383/360] w-[240px] overflow-hidden md:w-full md:max-w-[383px]">
+                        <Image
+                            src="/onboarding/analysis-character.png"
+                            alt="분석 그래프를 살펴보는 AI 캐릭터"
+                            width={1536}
+                            height={1024}
+                            unoptimized
+                            className="absolute top-0 -left-[14.64%] h-full w-[141.21%] max-w-none"
+                        />
+                    </div>
                 </div>
+                {signals.map((signal, index) => (
+                    <m.article
+                        key={signal.title}
+                        {...cardMotion}
+                        transition={{ ...revealMotion.transition, delay: index * 0.08 }}
+                        // Figma: 카드 높이 462px 고정(제목 칸에 맞춰 늘어나지 않게 self-start), 중고 시세만 그래프가 설명 바로 아래
+                        className={cn(
+                            "hover:border-primary/25 flex min-w-0 flex-col gap-2.5 rounded-[30px] border border-[#d3d3d3] bg-white p-5 transition-[border-color,box-shadow] duration-300 hover:shadow-[0_16px_40px_rgba(32,35,50,0.07)] motion-reduce:transition-none md:h-[462px] md:self-start md:p-[30px]",
+                            index === 0 ? "justify-start" : "justify-between",
+                        )}
+                    >
+                        <div className={index === 1 ? "space-y-[5px]" : "space-y-2.5"}>
+                            <div
+                                className={`flex items-center ${index === 1 ? "gap-2.5" : "gap-[15px]"}`}
+                            >
+                                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#6653fb] text-[16px] leading-6 font-bold text-white">
+                                    {index + 1}
+                                </span>
+                                <h3 className="text-[24px] leading-9 font-bold tracking-normal text-[#363636]">
+                                    {signal.title}
+                                </h3>
+                            </div>
+                            <p className="text-[16px] leading-6 font-normal tracking-[-0.3125px] text-[#6b6c7b]">
+                                {signal.description}
+                            </p>
+                        </div>
+                        <div
+                            className={cn(
+                                "flex min-w-0 md:h-[320px]",
+                                index === 0 ? "items-start" : "items-center",
+                            )}
+                        >
+                            <Image
+                                src={`/onboarding/${signal.image}`}
+                                alt={signal.alt}
+                                width={signal.width}
+                                height={signal.height}
+                                unoptimized
+                                className="h-auto w-full"
+                            />
+                        </div>
+                    </m.article>
+                ))}
             </div>
         </section>
     );
