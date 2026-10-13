@@ -72,8 +72,8 @@ export function SearchBar({
                                     <Image
                                         src="/figma/search/ai-search.svg"
                                         alt=""
-                                        width={19.8066}
-                                        height={26.6958}
+                                        width={20}
+                                        height={27}
                                         className="h-[22px] w-auto brightness-0 invert"
                                         unoptimized
                                     />
@@ -99,8 +99,8 @@ export function SearchBar({
                                     <Image
                                         src="/figma/search/general-search.svg"
                                         alt=""
-                                        width={14.2}
-                                        height={17.2}
+                                        width={14}
+                                        height={17}
                                         className="h-4 w-auto"
                                         unoptimized
                                     />
