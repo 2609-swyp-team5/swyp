@@ -59,6 +59,7 @@ import com.swyp.team5.productanalysis.dto.ProductCompetitionResponse;
 import com.swyp.team5.productanalysis.dto.ProductForecastResponse;
 import com.swyp.team5.productanalysis.entity.AnalysisConfidence;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
+import com.swyp.team5.productanalysis.entity.ComparisonBasis;
 import com.swyp.team5.productanalysis.entity.ForecastPeriod;
 import com.swyp.team5.productanalysis.entity.PriceForecast;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
@@ -526,6 +527,156 @@ class ProductAnalysisServiceTest {
         assertThat(captor.getValue().getAveragePrice()).isEqualTo(1100L);
         assertThat(captor.getValue().getMaxPrice()).isEqualTo(1200L);
         assertThat(captor.getValue().getSuggestedPrice()).isEqualTo(1100L); // 2차 AI 응답 사용
+    }
+
+    // 비슷한 물건 대체 - 같은 물건이 최소 수보다 적으면 AI가 고른 비슷한 물건(같은 종류·시리즈)까지 넣어 분석하고, 비교 기준
+    // RELATED·신뢰도 LOW로 저장
+    @Test
+    void analyzeProductUsesRelatedListingsWhenSameItemsTooFew() {
+        Product product = product(1L, 10L, 800_000L);
+        givenListings(
+                10L,
+                List.of(
+                        listing("아이패드 프로 11 4세대", 1000L),
+                        listing("아이패드 프로 11 3세대", 900L),
+                        listing("아이패드 프로 12.9", 1300L),
+                        listing("아이패드 프로 케이스", 20L)));
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.empty());
+        givenAiResult(new MarketAnalysisResult(
+                List.of(1), AnalysisRecommendation.SELL, 1000L, "비슷한 상품 시세 기준", null, null, List.of(2, 3)));
+
+        service().analyzeProduct(product);
+
+        ArgumentCaptor<ProductAnalysis> captor = ArgumentCaptor.forClass(ProductAnalysis.class);
+        verify(productAnalysisRepository).save(captor.capture());
+        ProductAnalysis saved = captor.getValue();
+        assertThat(saved.getListingPrices()).containsExactlyInAnyOrder(1000L, 900L, 1300L);
+        assertThat(saved.getComparisonBasis()).isEqualTo(ComparisonBasis.RELATED);
+        assertThat(saved.getConfidence()).isEqualTo(AnalysisConfidence.LOW);
+        verify(itemRepository, never()).recordAnalysisSkip(any(), any(), any());
+    }
+
+    // 비슷한 물건 대체 - 비교 대상이 이전 분석(같은 물건 기준)과 달라 추세·직전 대비 변동률을 쓰지 않음. 이전 기록이 크게 낮아도
+    // 오르는 중(HOLD)으로 판단하지 않고, 규칙 근거 문장의 "같은 물건"은 "비슷한 상품"으로 바뀜
+    @Test
+    void analyzeProductIgnoresTrendAndChangeRateWhenUsingRelatedListings() {
+        Product product = product(1L, 10L, 800_000L);
+        givenListings(
+                10L,
+                List.of(
+                        listing("아이패드 프로 11 4세대", 1000L),
+                        listing("아이패드 프로 11 3세대", 900L),
+                        listing("아이패드 프로 12.9", 1300L)));
+        ProductAnalysis oldest = mock(ProductAnalysis.class);
+        when(oldest.getAnalyzedAt()).thenReturn(LocalDateTime.now().minusDays(20));
+        when(oldest.getAveragePrice()).thenReturn(100L);
+        ProductAnalysis recent = mock(ProductAnalysis.class);
+        lenient().when(recent.getAnalyzedAt()).thenReturn(LocalDateTime.now().minusDays(10));
+        lenient().when(recent.getAveragePrice()).thenReturn(200L);
+        when(productAnalysisRepository.findByItemIdAndAnalyzedAtAfterOrderByAnalyzedAtAsc(eq(1L), any()))
+                .thenReturn(List.of(oldest, recent));
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.of(recent));
+        // AI는 HOLD를 골랐지만 규칙(추세 없음 → SELL)과 달라 규칙 근거 문장을 씀
+        givenAiResult(new MarketAnalysisResult(
+                List.of(), AnalysisRecommendation.HOLD, 1000L, "설명", null, null, List.of(1, 2, 3)));
+
+        service().analyzeProduct(product);
+
+        ArgumentCaptor<ProductAnalysis> captor = ArgumentCaptor.forClass(ProductAnalysis.class);
+        verify(productAnalysisRepository).save(captor.capture());
+        ProductAnalysis saved = captor.getValue();
+        assertThat(saved.getComparisonBasis()).isEqualTo(ComparisonBasis.RELATED);
+        assertThat(saved.getRecommendation()).isEqualTo(AnalysisRecommendation.SELL);
+        assertThat(saved.getChangeRate()).isNull();
+        assertThat(saved.getDescription()).doesNotContain("같은 물건");
+    }
+
+    // 비슷한 물건 대체 - 같은 물건과 비슷한 물건을 합쳐도 최소 수보다 적으면 건너뜀(같은 물건 번호를 비슷한 물건에 또 넣어도 한 번만 셈)
+    @Test
+    void analyzeProductSkipsWhenSameAndRelatedListingsTooFew() {
+        Product product = product(1L, 10L, 800_000L);
+        givenListings(
+                10L,
+                List.of(listing("아이패드 프로 매물1", 1000L), listing("아이패드 프로 매물2", 2000L), listing("아이패드 프로 매물3", 3000L)));
+        givenAiResult(new MarketAnalysisResult(
+                List.of(1), AnalysisRecommendation.SELL, 1000L, "설명", null, null, List.of(1, 2)));
+
+        service().analyzeProduct(product);
+
+        verify(productAnalysisRepository, never()).save(any());
+        verify(itemRepository).recordAnalysisSkip(eq(1L), eq(AnalysisSkipReason.NOT_ENOUGH_SIMILAR), any());
+    }
+
+    // 같은 물건만 충분하면 비교 기준 SAME(비슷한 물건은 통계에 넣지 않음)
+    @Test
+    void analyzeProductKeepsSameBasisWhenEnoughSameItems() {
+        Product product = product(1L, 10L, 800_000L);
+        givenListings(
+                10L,
+                List.of(
+                        listing("아이패드 프로 매물1", 1000L),
+                        listing("아이패드 프로 매물2", 1100L),
+                        listing("아이패드 프로 매물3", 1200L),
+                        listing("아이패드 프로 다른 세대", 5000L)));
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.empty());
+        givenAiResult(new MarketAnalysisResult(
+                List.of(1, 2, 3), AnalysisRecommendation.SELL, 1100L, "설명", null, null, List.of(4)));
+
+        service().analyzeProduct(product);
+
+        ArgumentCaptor<ProductAnalysis> captor = ArgumentCaptor.forClass(ProductAnalysis.class);
+        verify(productAnalysisRepository).save(captor.capture());
+        assertThat(captor.getValue().getComparisonBasis()).isEqualTo(ComparisonBasis.SAME);
+        assertThat(captor.getValue().getListingPrices()).containsExactlyInAnyOrder(1000L, 1100L, 1200L);
+    }
+
+    // 카테고리 밖 검색 - 같은 카테고리 상품명 검색 결과가 적으면(잘못된 카테고리 등록 대비) 카테고리 없이 찾은 저장 전 매물까지
+    // 후보로 써서 분석
+    @Test
+    void analyzeProductSearchesOutsideCategoryWhenCategorySearchFindsFew() {
+        Product product = product(1L, 10L, 800_000L);
+        givenListings(10L, List.of(listing("아이패드 프로 매물1", 1000L)));
+        when(listingSearchService.searchAndSave("아이패드 프로", null, 10L)).thenReturn(List.of());
+        List<PlatformListing> outside = List.of(
+                listing("아이패드 프로 다른 카테고리1", 1100L),
+                listing("아이패드 프로 다른 카테고리2", 1200L),
+                listing("아이패드 프로 다른 카테고리3", 1300L));
+        when(listingSearchService.searchOutsideCategory(eq("아이패드 프로"), any(), eq(10L), any()))
+                .thenReturn(outside);
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.empty());
+        givenAiResult(new MarketAnalysisResult(List.of(1, 2, 3, 4), AnalysisRecommendation.SELL, 1150L, "설명"));
+
+        service().analyzeProduct(product);
+
+        ArgumentCaptor<ProductAnalysis> captor = ArgumentCaptor.forClass(ProductAnalysis.class);
+        verify(productAnalysisRepository).save(captor.capture());
+        assertThat(captor.getValue().getListingPrices()).containsExactlyInAnyOrder(1000L, 1100L, 1200L, 1300L);
+        verify(listingSearchService).searchOutsideCategory(eq("아이패드 프로"), any(), eq(10L), any());
+    }
+
+    // 등록 직후 분석 - 최소 비교 매물 수는 interest-min-listings(1)라 같은 물건 1건이어도 분석(신뢰도 LOW)
+    @Test
+    void analyzeProductByIdUsesInterestMinListings() {
+        Product product = product(1L, 10L, 800_000L);
+        when(product.getStatus()).thenReturn(ProductStatus.ON_SALE);
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        givenListings(10L, List.of(listing("아이패드 프로 매물1", 1000L)));
+        when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
+                .thenReturn(Optional.empty());
+        givenAiResult(new MarketAnalysisResult(List.of(1), AnalysisRecommendation.SELL, 1000L, "설명"));
+
+        // 정기 배치 최소 3건, 등록 직후(interest-min-listings) 최소 1건
+        service(new ProductAnalysisProperties(3, 24, 30, 0L, null, null, null, null, 1, null))
+                .analyzeProductById(1L);
+
+        ArgumentCaptor<ProductAnalysis> captor = ArgumentCaptor.forClass(ProductAnalysis.class);
+        verify(productAnalysisRepository).save(captor.capture());
+        assertThat(captor.getValue().getListingCount()).isEqualTo(1);
+        assertThat(captor.getValue().getConfidence()).isEqualTo(AnalysisConfidence.LOW);
     }
 
     // 검색 보탬 - 검색이 꺼져 있으면 검색하지 않고 건너뜀

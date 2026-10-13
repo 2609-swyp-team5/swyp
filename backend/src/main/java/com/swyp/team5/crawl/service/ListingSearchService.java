@@ -106,7 +106,44 @@ public class ListingSearchService {
         }
     }
 
-    /** 검색어를 차례로 검색해 판매중·비광고 매물을 모은다(pid 중복 제거, 충분하면 멈춤). */
+    /**
+     * 분석 대상과 같은 카테고리 검색 결과가 적을 때 카테고리 없이(번개장터 전체) 상품명으로 검색한다. 상품이 잘못된 카테고리에
+     * 등록됐어도(예: 아이패드를 여성의류로) 같은 물건을 찾을 수 있게 하려는 것이다. 검색 결과에는 번개장터 카테고리가 없어 우리
+     * 카테고리를 알 수 없으므로 <b>저장하지 않고</b> 이번 분석의 비교 후보로만 쓴다(분석 대상 카테고리를 임시로 붙인 저장 전 매물 —
+     * ID가 없음). 이미 저장된 매물({@code exclude})과 같은 pid는 뺀다. 검색이 실패하면 빈 목록.
+     *
+     * @param categoryId 임시 매물에 붙일 분석 대상의 우리 카테고리 ID(번개장터 매핑이 없으면 검색하지 않음)
+     * @param excludeExternalIds 이미 후보 풀에 있는 매물의 외부 ID(pid)
+     */
+    public List<PlatformListing> searchOutsideCategory(
+            String title, String brand, Long categoryId, Set<String> excludeExternalIds) {
+        List<String> queries = queriesToTry(title, brand);
+        if (queries.isEmpty()) {
+            return List.of();
+        }
+        Optional<CategoryPlatform> mapping =
+                categoryPlatformRepository.findByPlatformNameAndCategoryId(PLATFORM_NAME, categoryId);
+        if (mapping.isEmpty()) {
+            return List.of();
+        }
+        CategoryPlatform target = mapping.get();
+        List<PlatformListing> found = searchSelling(queries, null).stream()
+                .filter(item -> !excludeExternalIds.contains(String.valueOf(item.pid())))
+                .map(item -> PlatformListing.create(
+                        target.getPlatform(),
+                        target.getCategory(),
+                        String.valueOf(item.pid()),
+                        item.name(),
+                        item.price(),
+                        item.status(),
+                        item.productImage(),
+                        PlatformListingUpserter.bunjangListingUrl(item.pid())))
+                .toList();
+        log.info("번개장터 전체 카테고리 검색 \"{}\": 판매중 {}건을 비교 후보로 씁니다(저장 안 함).", queries.getFirst(), found.size());
+        return found;
+    }
+
+    /** 검색어를 차례로 검색해 판매중·비광고 매물을 모은다(pid 중복 제거, 충분하면 멈춤, 카테고리가 null이면 전체). */
     private List<BunjangProductItem> searchSelling(List<String> queries, String bunjangCategoryId) {
         Map<Long, BunjangProductItem> found = new LinkedHashMap<>();
         for (int i = 0; i < queries.size(); i++) {
