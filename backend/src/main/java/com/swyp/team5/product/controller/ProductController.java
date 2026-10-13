@@ -39,7 +39,6 @@ import com.swyp.team5.product.dto.ProductAiSearchResponse;
 import com.swyp.team5.product.dto.ProductCreateRequest;
 import com.swyp.team5.product.dto.ProductDetailSummaryResponse;
 import com.swyp.team5.product.dto.ProductListItemResponse;
-import com.swyp.team5.product.dto.ProductManagementOverviewResponse;
 import com.swyp.team5.product.dto.ProductPriceUpdateRequest;
 import com.swyp.team5.product.dto.ProductResponse;
 import com.swyp.team5.product.dto.ProductSearchCondition;
@@ -383,21 +382,6 @@ public class ProductController {
             @Valid @RequestBody ProductPriceUpdateRequest request) {
         ProductResponse response = productService.updatePrice(currentMember.memberId(), productId, request.price());
         return ResponseEntity.ok(ApiResponse.success(response));
-    }
-
-    /**
-     * 판매 관리 화면의 상품 개요(제목·등록가·상태·등록일·최종 판매 가격·플랫폼)를 조회한다. 본인이 등록한 상품만 조회할 수 있다.
-     *
-     * @param currentMember 인증된 요청자
-     * @param productId 상품 ID(우리 상품만)
-     * @return 200 OK + 상품 개요(판매 완료 정보는 미입력·판매 완료 전이면 null)
-     */
-    @Operation(summary = "판매 관리 상품 개요 조회")
-    @GetMapping("/{productId}/overview")
-    public ResponseEntity<ApiResponse<ProductManagementOverviewResponse>> getManagementOverview(
-            @AuthenticationPrincipal PrincipalMember currentMember, @PathVariable Long productId) {
-        return ResponseEntity.ok(
-                ApiResponse.success(productService.getManagementOverview(currentMember.memberId(), productId)));
     }
 
     /**
