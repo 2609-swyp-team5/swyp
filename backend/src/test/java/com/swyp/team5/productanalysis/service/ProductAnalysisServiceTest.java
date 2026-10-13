@@ -21,6 +21,7 @@ import static org.mockito.Mockito.when;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -1818,6 +1819,7 @@ class ProductAnalysisServiceTest {
         assertThat(response.currentPrice()).isEqualTo(800_000L);
         PriceTrendResponse.Trend trend = response.priceTrend();
         assertThat(trend.period()).isEqualTo("1M");
+        assertThat(trend.unit()).isEqualTo(PriceTrendResponse.Unit.DAY);
         assertThat(trend.comparisonBasis()).isEqualTo("PREVIOUS_TRADING_DAY");
         assertThat(trend.totalTransactionCount()).isZero();
         assertThat(trend.days()).isEqualTo(30);
@@ -1857,9 +1859,77 @@ class ProductAnalysisServiceTest {
                                 1,
                                 new PriceTrendResponse.Change(day1, -83L, new BigDecimal("-8.03"))));
         assertThat(trend.period()).isEqualTo("7D");
+        assertThat(trend.unit()).isEqualTo(PriceTrendResponse.Unit.DAY);
         assertThat(trend.totalTransactionCount()).isEqualTo(11L);
         assertThat(trend.averagePrice()).isEqualTo(992L); // (1033 + 950) / 2 = 991.5 → 992
         assertThat(trend.changeRate()).isEqualByComparingTo("-0.0803"); // (950 - 1033) / 1033
+    }
+
+    // 가격 추이 조회 - 첫 기록일이 3개월 이상 지났으면 달별로 묶음(그달 1일·일별 평균의 평균·직전 월 대비), 기간 평균·합계·변동률은 일별 기준
+    @Test
+    void getPriceTrendGroupsByMonthWhenRecordsSpanThreeMonths() {
+        Product product = product(1L, 10L, 800_000L);
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
+        YearMonth month1 = YearMonth.now().minusMonths(4);
+        YearMonth month2 = YearMonth.now().minusMonths(2);
+        LocalDate today = LocalDate.now();
+        when(productAnalysisRepository.findByItemIdAndAnalyzedAtGreaterThanEqualOrderByAnalyzedAtAsc(eq(1L), any()))
+                .thenReturn(List.of(
+                        snapshot(product, 900L, 1_000L, 1_100L, month1.atDay(5).atTime(6, 0), 5),
+                        snapshot(
+                                product,
+                                1_000L,
+                                1_200L,
+                                1_500L,
+                                month1.atDay(20).atTime(6, 0),
+                                7),
+                        snapshot(product, 800L, 900L, 1_000L, month2.atDay(10).atTime(6, 0), 3),
+                        snapshot(product, 950L, 1_000L, 1_050L, today.atTime(0, 0), 4)));
+
+        PriceTrendResponse.Trend trend = service().getPriceTrend(1L, 180).priceTrend();
+
+        assertThat(trend.unit()).isEqualTo(PriceTrendResponse.Unit.MONTH);
+        assertThat(trend.points())
+                .containsExactly(
+                        new PriceTrendResponse.Point(month1.atDay(1), 1_100L, 7L, 900L, 1_500L, 2, null),
+                        new PriceTrendResponse.Point(
+                                month2.atDay(1),
+                                900L,
+                                3L,
+                                800L,
+                                1_000L,
+                                1,
+                                new PriceTrendResponse.Change(month1.atDay(1), -200L, new BigDecimal("-18.18"))),
+                        new PriceTrendResponse.Point(
+                                today.withDayOfMonth(1),
+                                1_000L,
+                                4L,
+                                950L,
+                                1_050L,
+                                1,
+                                new PriceTrendResponse.Change(month2.atDay(1), 100L, new BigDecimal("11.11"))));
+        assertThat(trend.totalTransactionCount()).isEqualTo(19L); // 일별 5 + 7 + 3 + 4
+        assertThat(trend.averagePrice()).isEqualTo(1_025L); // 일별 (1000 + 1200 + 900 + 1000) / 4
+        assertThat(trend.changeRate()).isEqualByComparingTo("0"); // 첫날 1000 → 마지막 날 1000
+    }
+
+    // 가격 추이 조회 - 첫 기록일이 정확히 3개월 전이면 월 단위, 그보다 하루 늦으면 일 단위
+    @Test
+    void getPriceTrendUnitBoundaryIsThreeMonths() {
+        Product product = product(1L, 10L, 800_000L);
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
+        LocalDate threeMonthsAgo = LocalDate.now().minusMonths(3);
+        when(productAnalysisRepository.findByItemIdAndAnalyzedAtGreaterThanEqualOrderByAnalyzedAtAsc(eq(1L), any()))
+                .thenReturn(List.of(snapshot(product, 900L, 1_000L, 1_100L, threeMonthsAgo.atTime(6, 0))))
+                .thenReturn(List.of(snapshot(
+                        product,
+                        900L,
+                        1_000L,
+                        1_100L,
+                        threeMonthsAgo.plusDays(1).atTime(6, 0))));
+
+        assertThat(service().getPriceTrend(1L, 180).priceTrend().unit()).isEqualTo(PriceTrendResponse.Unit.MONTH);
+        assertThat(service().getPriceTrend(1L, 180).priceTrend().unit()).isEqualTo(PriceTrendResponse.Unit.DAY);
     }
 
     // 조회 성공 - 관심 등록된 외부 매물도 같은 ID로 최근 분석·현재 판매가를 조회

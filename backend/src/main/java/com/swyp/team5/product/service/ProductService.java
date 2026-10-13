@@ -43,7 +43,6 @@ import com.swyp.team5.product.dto.ProductCreateRequest;
 import com.swyp.team5.product.dto.ProductDetailSummaryResponse;
 import com.swyp.team5.product.dto.ProductDetailSummaryResponse.PlatformLink;
 import com.swyp.team5.product.dto.ProductListItemResponse;
-import com.swyp.team5.product.dto.ProductManagementOverviewResponse;
 import com.swyp.team5.product.dto.ProductPlatformSummaryResponse;
 import com.swyp.team5.product.dto.ProductResponse;
 import com.swyp.team5.product.dto.ProductSearchCondition;
@@ -704,22 +703,6 @@ public class ProductService {
         }
 
         return ProductResponse.from(product);
-    }
-
-    /**
-     * 판매 관리 화면의 상품 개요(제목·등록가·상태·등록일·최종 판매 정보)를 조회한다. 본인이 등록한 상품만 조회할 수 있다.
-     *
-     * @param memberId 요청한 회원 ID
-     * @param productId 조회할 상품 ID(우리 상품만, 외부 매물 ID는 없음 처리)
-     * @return 상품 개요
-     * @throws ProductNotFoundException 존재하지 않는 상품인 경우
-     * @throws ProductAccessDeniedException 본인이 등록한 상품이 아닌 경우
-     */
-    @Transactional(readOnly = true)
-    public ProductManagementOverviewResponse getManagementOverview(Long memberId, Long productId) {
-        Product product = getProductOrThrow(productId);
-        validateRegisteredBy(product, memberId);
-        return ProductManagementOverviewResponse.from(product);
     }
 
     /**

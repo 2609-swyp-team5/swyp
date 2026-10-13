@@ -44,6 +44,7 @@ import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.productanalysis.dto.AnalysisStep;
+import com.swyp.team5.productanalysis.entity.AnalysisConfidence;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.ForecastPeriod;
 import com.swyp.team5.productanalysis.entity.PriceForecast;
@@ -152,9 +153,13 @@ class PriceForecastTest extends IntegrationTest {
                 .andExpect(jsonPath("$.data.priceDistribution[4].count").value(1));
     }
 
-    // 판매 완료 가격 분포 - 같은 카테고리·비슷한 제목·기간 안 SOLD_OUT 매물만 셈(판매중·다른 물건·기간 밖·중복·이상치 제외)
+    // 거래 가격 분포 - 판매 중은 최근 분석의 비교 매물 가격, 판매 완료는 같은 카테고리·비슷한 제목·기간 안 SOLD_OUT 매물만 셈
+    // (판매중·다른 물건·기간 밖·중복·이상치 제외)
     @Test
     void distributionCountsRecentSimilarSoldListings() throws Exception {
+        analysis.assignListingPrices(List.of(900_000L, 950_000L, 1_000_000L, 1_000_000L, 1_100_000L));
+        analysis.assignConfidence(5, AnalysisConfidence.LOW);
+        productAnalysisRepository.save(analysis);
         Category category = product.getCategory();
         Platform platform = platformRepository.findByName("번개장터").orElseThrow();
         for (long price : List.of(900_000L, 950_000L, 1_000_000L, 1_100_000L)) {
@@ -175,17 +180,26 @@ class PriceForecastTest extends IntegrationTest {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.productId").value(product.getId()))
-                .andExpect(jsonPath("$.data.days").value(30))
-                .andExpect(jsonPath("$.data.soldCount").value(5))
-                .andExpect(jsonPath("$.data.minPrice").value(900_000))
-                .andExpect(jsonPath("$.data.averagePrice").value(990_000))
-                .andExpect(jsonPath("$.data.maxPrice").value(1_100_000))
-                .andExpect(jsonPath("$.data.buckets.length()").value(5))
-                .andExpect(jsonPath("$.data.buckets[2].count").value(2))
-                .andExpect(jsonPath("$.data.buckets[4].to").value(1_100_000));
+                .andExpect(jsonPath("$.data.onSale.count").value(5))
+                .andExpect(jsonPath("$.data.onSale.suggestedPrice").value(1_000_000))
+                .andExpect(jsonPath("$.data.onSale.minPrice").value(900_000))
+                .andExpect(jsonPath("$.data.onSale.averagePrice").value(1_000_000))
+                .andExpect(jsonPath("$.data.onSale.maxPrice").value(1_100_000))
+                .andExpect(jsonPath("$.data.onSale.comparisonBasis").value("SAME"))
+                .andExpect(jsonPath("$.data.onSale.buckets.length()").value(5))
+                .andExpect(jsonPath("$.data.onSale.buckets[2].count").value(2))
+                .andExpect(jsonPath("$.data.soldOut.days").value(30))
+                .andExpect(jsonPath("$.data.soldOut.count").value(5))
+                .andExpect(jsonPath("$.data.soldOut.minPrice").value(900_000))
+                .andExpect(jsonPath("$.data.soldOut.averagePrice").value(990_000))
+                .andExpect(jsonPath("$.data.soldOut.suggestedPrice").value(1_000_000))
+                .andExpect(jsonPath("$.data.soldOut.maxPrice").value(1_100_000))
+                .andExpect(jsonPath("$.data.soldOut.buckets.length()").value(5))
+                .andExpect(jsonPath("$.data.soldOut.buckets[2].count").value(2))
+                .andExpect(jsonPath("$.data.soldOut.buckets[4].to").value(1_100_000));
     }
 
-    // 판매 완료 가격 분포 - 매물이 없으면 빈 구간, 기간 범위 밖 400, 없는 상품 404, 비로그인 401
+    // 거래 가격 분포 - 판매 완료 매물이 없으면 빈 구간, 분석 이력이 없으면 판매 중도 빈 분포, 기간 범위 밖 400, 없는 상품 404, 비로그인 401
     @Test
     void distributionHandlesNoSoldListingsAndErrors() throws Exception {
         String token = jwtTokenProvider.createAccessToken(member.getId(), MemberRole.USER);
@@ -193,10 +207,20 @@ class PriceForecastTest extends IntegrationTest {
         mockMvc.perform(get("/products/{productId}/analysis/distribution", product.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.days").value(90))
-                .andExpect(jsonPath("$.data.soldCount").value(0))
-                .andExpect(jsonPath("$.data.minPrice").doesNotExist())
-                .andExpect(jsonPath("$.data.buckets.length()").value(0));
+                .andExpect(jsonPath("$.data.soldOut.days").value(90))
+                .andExpect(jsonPath("$.data.soldOut.count").value(0))
+                .andExpect(jsonPath("$.data.soldOut.minPrice").doesNotExist())
+                .andExpect(jsonPath("$.data.soldOut.buckets.length()").value(0));
+
+        productAnalysisRepository.delete(analysis);
+        mockMvc.perform(get("/products/{productId}/analysis/distribution", product.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.onSale.count").value(0))
+                .andExpect(jsonPath("$.data.onSale.suggestedPrice").doesNotExist())
+                .andExpect(jsonPath("$.data.soldOut.suggestedPrice").doesNotExist())
+                .andExpect(jsonPath("$.data.onSale.averagePrice").doesNotExist())
+                .andExpect(jsonPath("$.data.onSale.buckets.length()").value(0));
 
         mockMvc.perform(get("/products/{productId}/analysis/distribution", product.getId())
                         .param("days", "181")
