@@ -74,7 +74,7 @@ test("sell manage requests and renders the selected status tab", async ({ page }
 
     await page.goto("/sell/manage");
     await expect(page.getByRole("tab", { name: "전체 3", exact: true })).toBeVisible();
-    await expect(page.getByText("PENDING", { exact: true }).first()).toBeVisible();
+    await expect(page.getByAltText("분석 대기").first()).toBeVisible();
     await page.getByRole("tab", { name: "임시저장 1", exact: true }).click();
     await expect(page.getByRole("tab", { name: "전체 3", exact: true })).toBeVisible();
     await expect(page.getByText(draft.title, { exact: true }).first()).toBeVisible();
