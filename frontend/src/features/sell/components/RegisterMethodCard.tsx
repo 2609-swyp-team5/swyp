@@ -1,10 +1,14 @@
-import type { ReactNode } from "react";
+"use client";
+
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 
 import { ArrowRight, Check } from "lucide-react";
 
 import { Button } from "@/common/components/ui/Button";
 import { cn } from "@/common/lib/utils";
+import { LoginRequiredDialog } from "@/features/auth/components/LoginRequiredDialog";
+import { useAuthStore } from "@/features/auth/store/authStore";
 
 type RegisterMethodCardProps = {
     title: string;
@@ -39,6 +43,9 @@ export function RegisterMethodCard({
     className,
 }: RegisterMethodCardProps) {
     const styles = toneStyles[tone];
+    const isInitialized = useAuthStore((state) => state.isInitialized);
+    const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
+    const [loginNoticeOpen, setLoginNoticeOpen] = useState(false);
 
     return (
         <article
@@ -86,11 +93,21 @@ export function RegisterMethodCard({
                     styles.button,
                 )}
             >
-                <Link href={href}>
+                <Link
+                    href={href}
+                    onClick={(event) => {
+                        // 로그인 확인 전에는 이동시키고, 하위 경로의 로그인 가드에 맡긴다.
+                        if (isInitialized && !isLoggedIn) {
+                            event.preventDefault();
+                            setLoginNoticeOpen(true);
+                        }
+                    }}
+                >
                     <span>{tone === "ai" ? "AI 등록 시작하기" : "직접 등록 시작하기"}</span>
                     <ArrowRight aria-hidden="true" className="size-5" />
                 </Link>
             </Button>
+            <LoginRequiredDialog open={loginNoticeOpen} onOpenChange={setLoginNoticeOpen} />
         </article>
     );
 }

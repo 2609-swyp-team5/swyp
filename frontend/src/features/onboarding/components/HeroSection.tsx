@@ -122,7 +122,7 @@ export function HeroSection({
                                         src="/onboarding/speech-wait.svg"
                                         alt=""
                                         width={189}
-                                        height={98.3192}
+                                        height={98}
                                         className="h-auto -scale-x-100"
                                     />
                                     <span className="absolute top-[25.75%] left-0 w-full text-center text-[clamp(12px,3.5vw,20px)] leading-[1.6] font-medium tracking-normal text-black">

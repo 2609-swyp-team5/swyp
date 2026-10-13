@@ -36,22 +36,6 @@ export const searchResponseSchema = z.object({
     totalCount: z.number().nullable(),
 });
 
-export const aiSearchResponseSchema = z.object({
-    aiApplied: z.boolean(),
-    condition: z.object({
-        keyword: z.string().nullable(),
-        excludeKeyword: z.string().nullable(),
-        status: z.array(searchStatusSchema),
-        platform: z.array(z.enum(["BUNJANG", "OUR"])),
-        minPrice: z.number().nullable(),
-        maxPrice: z.number().nullable(),
-        condition: z.array(productConditionSchema),
-        defectStatus: z.array(defectStatusSchema),
-        sort: z.enum(["RECOMMENDED", "LATEST", "INTEREST", "PRICE_HIGH", "PRICE_LOW"]),
-    }),
-    result: searchResponseSchema,
-});
-
 export const searchProductDetailSchema = z.object({
     source: z.enum(["OUR", "EXTERNAL"]),
     id: z.number(),
