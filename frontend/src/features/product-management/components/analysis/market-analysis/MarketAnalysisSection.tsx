@@ -124,7 +124,7 @@ function PendingAnalysisCard({ perspective }: { perspective: ProductManagementPe
                     width={390}
                     height={271}
                     aria-hidden="true"
-                    className="pointer-events-none absolute top-[40px] right-[30px] hidden h-[271px] w-[380px] max-w-[52%] object-contain md:block"
+                    className="pointer-events-none absolute top-[40px] right-[30px] mt-1.5 hidden h-auto w-[380px] max-w-[52%] object-contain md:block"
                 />
                 <Image
                     src="/figma/product-management/analysis-pending.svg"
