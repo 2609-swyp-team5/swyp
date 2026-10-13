@@ -1,13 +1,10 @@
 import type { z } from "zod";
 import type {
-    aiSearchResponseSchema,
     searchProductDetailSchema,
     searchResponseSchema,
     searchResultItemSchema,
     searchStatusSchema,
 } from "./schemas/searchResponseSchema";
-
-export type AiSearchResponse = z.infer<typeof aiSearchResponseSchema>;
 
 // 우리 상품과 외부 매물의 거래 상태 필터
 export type SearchStatus = z.infer<typeof searchStatusSchema>;
