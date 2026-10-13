@@ -120,19 +120,6 @@ export const productCompetitionResponseSchema = z.object({
     }),
 });
 
-export const productManagementOverviewResponseSchema = z.object({
-    id: z.number(),
-    title: z.string(),
-    price: z.number(),
-    status: productStatusSchema,
-    createdAt: z.string(),
-    soldPrice: z.number().nullable().optional(),
-    soldPlatform: z.string().nullable().optional(),
-});
-
-export type ProductManagementOverviewResponse = z.infer<
-    typeof productManagementOverviewResponseSchema
->;
 export type ProductAnalysisRequestResponse = z.infer<typeof productAnalysisRequestResponseSchema>;
 
 export const productDetailSummaryResponseSchema = z

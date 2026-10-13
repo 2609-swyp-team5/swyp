@@ -106,7 +106,7 @@ function PendingAnalysisCard({ perspective }: { perspective: ProductManagementPe
     const timingLabel = perspective === "BUY" ? "구매" : "판매";
 
     return (
-        <div className="relative min-h-[300px] overflow-hidden rounded-[16px] border border-[#83889e] bg-[#fafbff]">
+        <div className="relative min-h-[300px] overflow-hidden rounded-[16px] bg-[#fafbff]">
             <div className="relative z-10 flex min-h-[300px] items-center px-6 py-8 md:px-[30px] md:py-[30px]">
                 <div className="flex w-full flex-col gap-[10px] text-[#363636] md:w-[290px]">
                     <h3 className="text-[22px] leading-[30px] font-semibold tracking-[0.5px]">

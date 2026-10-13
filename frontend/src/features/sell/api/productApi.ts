@@ -6,7 +6,6 @@ import type {
     ProductAnalysisRequestResponse,
     ProductCompetitionResponse,
     ProductDetailSummaryResponse,
-    ProductManagementOverviewResponse,
     ProductPriceTrendResponse,
     ProductValuationForecastResponse,
     ProductTargetPriceResponse,
@@ -47,9 +46,6 @@ const getProduct = (id: number) => api.get<ApiResponse<ProductResponse>>(`/produ
 
 const getProductManagementSummary = (id: number) =>
     api.get<ApiResponse<ProductDetailSummaryResponse>>(`/products/${id}/summary`);
-
-const getProductManagementOverview = (id: number) =>
-    api.get<ApiResponse<ProductManagementOverviewResponse>>(`/products/${id}/management-overview`);
 
 const getProductAnalysis = (id: number, perspective?: "SELL" | "BUY") =>
     api.get<ApiResponse<ProductAnalysisResponse>>(`/products/${id}/analysis`, {
@@ -339,7 +335,6 @@ const updateProduct = async (
 export const productApi = {
     getProduct,
     getProductManagementSummary,
-    getProductManagementOverview,
     getProductAnalysis,
     requestProductAnalysis,
     getProductPriceTrend,
