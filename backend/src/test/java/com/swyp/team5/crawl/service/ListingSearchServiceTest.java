@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.crawl.client.BunjangSearchClient;
@@ -73,6 +74,29 @@ class ListingSearchServiceTest {
         assertThat(ListingSearchService.searchQuery("다이슨 에어랩", "다이슨")).isEqualTo("다이슨 에어랩");
         assertThat(ListingSearchService.searchQuery("가".repeat(60), null)).hasSize(50);
         assertThat(ListingSearchService.searchQuery("[]()!!", null)).isEmpty();
+    }
+
+    // 카테고리 밖 검색 - 카테고리 없이(전체) 검색해 판매중·비광고 매물 중 이미 아는 pid를 뺀 것을 저장하지 않은 임시 매물로 돌려줌
+    @Test
+    void searchOutsideCategoryReturnsUnsavedListingsExcludingKnownPids() {
+        givenMapping();
+        when(bunjangSearchClient.search("다이슨 에어랩", null))
+                .thenReturn(List.of(item(1L, "SELLING", false), item(2L, "SELLING", false), item(3L, "SELLING", true)));
+
+        List<PlatformListing> found = service().searchOutsideCategory("다이슨 에어랩", null, CATEGORY_ID, Set.of("1"));
+
+        assertThat(found).extracting(PlatformListing::getExternalItemId).containsExactly("2");
+        assertThat(found.getFirst().getId()).isNull();
+        assertThat(found.getFirst().getListingUrl()).contains("2");
+        verifyNoInteractions(platformListingUpserter);
+    }
+
+    // 카테고리 밖 검색 - 번개장터 카테고리 매핑이 없으면 검색하지 않음
+    @Test
+    void searchOutsideCategorySkipsWithoutMapping() {
+        assertThat(service().searchOutsideCategory("다이슨 에어랩", null, CATEGORY_ID, Set.of()))
+                .isEmpty();
+        verifyNoInteractions(bunjangSearchClient);
     }
 
     // 저장 - 분석 대상 카테고리의 번개장터 카테고리 안을 검색해 판매중·비광고 매물만(pid 없는 광고 항목 제외) 그 카테고리로 저장하고 돌려줌

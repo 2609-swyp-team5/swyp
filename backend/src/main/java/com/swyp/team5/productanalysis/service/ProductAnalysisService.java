@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.LongSummaryStatistics;
 import java.util.Map;
@@ -58,7 +59,9 @@ import com.swyp.team5.productanalysis.dto.PriceTrendResponse;
 import com.swyp.team5.productanalysis.dto.ProductAnalysisResponse;
 import com.swyp.team5.productanalysis.dto.ProductCompetitionResponse;
 import com.swyp.team5.productanalysis.dto.ProductForecastResponse;
+import com.swyp.team5.productanalysis.entity.AnalysisConfidence;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
+import com.swyp.team5.productanalysis.entity.ComparisonBasis;
 import com.swyp.team5.productanalysis.entity.ForecastPeriod;
 import com.swyp.team5.productanalysis.entity.PriceForecast;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
@@ -87,6 +90,12 @@ public class ProductAnalysisService {
     /** 추세 계산에 쓸 이전 분석 기록 기간(개월). 프롬프트의 1/3/6개월 전 대비 비교 중 가장 긴 기간과 같다. */
     private static final int TREND_MONTHS = 6;
 
+    /**
+     * 같은 카테고리 상품명 검색에서 새로 찾은 매물이 이 수보다 적으면 카테고리 없이 한 번 더 검색한다(잘못된 카테고리에 등록된
+     * 상품 대비).
+     */
+    private static final int OUTSIDE_CATEGORY_SEARCH_THRESHOLD = 10;
+
     /** 대기 기간(개월)을 일로 바꿀 때 쓰는 한 달 일수. */
     private static final int DAYS_PER_MONTH = 30;
 
@@ -101,7 +110,11 @@ public class ProductAnalysisService {
             먼저 후보 중 이 상품과 "같은 물건"인 매물의 번호를 모두 골라 similarListingNumbers에 담아.
             같은 물건이란 종류와 모델(세대/시리즈/용량 등 가격을 좌우하는 사양)이 같은 것이야. 단어가 겹쳐도
             액세서리·부품·다른 모델·다른 종류의 물건·묶음 판매는 고르지 마. 같은 물건이 없으면 빈 배열로 둬.
-            추천과 적정가는 네가 고른 매물의 가격만 근거로 판단해.
+            그다음, 같은 물건은 아니지만 같은 종류·시리즈라 시세 참고가 되는 매물(세대·용량 등 일부 사양이 다르거나
+            제목만으로는 사양을 확인할 수 없는 것)의 번호를 relatedListingNumbers에 담아. 이미 같은 물건으로 고른 번호와
+            액세서리·부품·다른 종류의 물건·묶음 판매는 넣지 마. 없으면 빈 배열로 둬.
+            추천과 적정가는 네가 고른 같은 물건 매물의 가격만 근거로 판단해. 같은 물건이 2건 미만이면 비슷한 물건 매물까지
+            참고하고, 근거 문장에 "비슷한 상품 시세 기준"임을 밝혀.
 
             [이전 분석 추이]는 지난 분석들에서 같은 물건 매물의 평균가가 어떻게 변해 왔는지야. "하락/상승 추세"는
             반드시 이 기록으로만 판단하고, 기록이 없거나 판단 보류면 추세를 지어내지 말고 현재 가격 수준만으로 판단해.
@@ -142,7 +155,11 @@ public class ProductAnalysisService {
             먼저 후보 중 이 매물과 "같은 물건"인 매물의 번호를 모두 골라 similarListingNumbers에 담아.
             같은 물건이란 종류와 모델(세대/시리즈/용량 등 가격을 좌우하는 사양)이 같은 것이야. 단어가 겹쳐도
             액세서리·부품·다른 모델·다른 종류의 물건·묶음 판매는 고르지 마. 같은 물건이 없으면 빈 배열로 둬.
-            추천과 적정가는 네가 고른 매물의 가격만 근거로 판단해.
+            그다음, 같은 물건은 아니지만 같은 종류·시리즈라 시세 참고가 되는 매물(세대·용량 등 일부 사양이 다르거나
+            제목만으로는 사양을 확인할 수 없는 것)의 번호를 relatedListingNumbers에 담아. 이미 같은 물건으로 고른 번호와
+            액세서리·부품·다른 종류의 물건·묶음 판매는 넣지 마. 없으면 빈 배열로 둬.
+            추천과 적정가는 네가 고른 같은 물건 매물의 가격만 근거로 판단해. 같은 물건이 2건 미만이면 비슷한 물건 매물까지
+            참고하고, 근거 문장에 "비슷한 상품 시세 기준"임을 밝혀.
 
             [이전 분석 추이]는 지난 분석들에서 같은 물건 매물의 평균가가 어떻게 변해 왔는지야. "하락/상승 추세"는
             반드시 이 기록으로만 판단하고, 기록이 없거나 판단 보류면 추세를 지어내지 말고 현재 가격 수준만으로 판단해.
@@ -639,8 +656,8 @@ public class ProductAnalysisService {
     }
 
     /**
-     * 상품 1건을 정기 배치와 같은 방식으로 분석한다(등록 직후 분석 진입점). 이미 삭제됐거나 분석 대상 상태가 아니면
-     * 건너뛰고, 실패해도 예외를 던지지 않는다(로그만 남김).
+     * 상품 1건을 정기 배치와 같은 방식으로 분석한다(등록 직후 분석 진입점). 최소 비교 매물 수는 관심 등록·재시도와 같은
+     * {@code interest-min-listings}(기본 1)다. 이미 삭제됐거나 분석 대상 상태가 아니면 건너뛰고, 실패해도 예외를 던지지 않는다(로그만 남김).
      *
      * @param productId 분석할 상품 ID
      */
@@ -649,7 +666,8 @@ public class ProductAnalysisService {
                 .findById(productId)
                 .filter(product -> ProductStatus.ANALYSIS_TARGETS.contains(product.getStatus()))
                 .ifPresentOrElse(
-                        product -> analyzeProductSafely(product, properties.minListings()),
+                        // 등록 직후 분석도 관심 등록·재시도처럼 최소 매물 수를 낮춰 결과를 먼저 보여 준다(매물이 적으면 신뢰도 LOW)
+                        product -> analyzeProductSafely(product, properties.interestMinListings()),
                         () -> log.info("상품 {}: 없거나 분석 대상 상태가 아니라 등록 직후 분석을 건너뜁니다.", productId));
     }
 
@@ -760,6 +778,9 @@ public class ProductAnalysisService {
         progressTracker.stepStarted(product.getId(), AnalysisStep.PRICE_CALCULATION);
         MarketAnalysisResult aiResult = selection.get().aiResult();
         List<Long> prices = selection.get().prices();
+        ComparisonBasis basis = selection.get().basis();
+        // 비슷한 물건까지 쓴 분석은 이전 분석과 비교 대상이 달라 추세를 믿을 수 없으므로 추세 없이 판단한다
+        PriceTrend basisTrend = basis == ComparisonBasis.RELATED ? PriceTrend.of(List.of()) : trend;
 
         LongSummaryStatistics stats = prices.stream().mapToLong(Long::longValue).summaryStatistics();
         long minPrice = stats.getMin();
@@ -768,12 +789,14 @@ public class ProductAnalysisService {
 
         Optional<ProductAnalysis> previous =
                 productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(product.getId());
-        BigDecimal changeRate = previous.map(p -> calculateChangeRate(p.getAveragePrice(), averagePrice))
+        // 직전 분석과 비교 기준(같은 물건/비슷한 물건)이 다르면 평균가를 비교할 수 없어 변동률을 비운다
+        BigDecimal changeRate = previous.filter(p -> basisOf(p) == basis)
+                .map(p -> calculateChangeRate(p.getAveragePrice(), averagePrice))
                 .orElse(null);
 
         // 추천은 규칙으로 정한다(AI 추천이 규칙과 다르면 근거 문장도 규칙 기반으로 바꿈)
         LocalDateTime analyzedAt = LocalDateTime.now();
-        OptionalDouble monthlyRate = trend.plus(analyzedAt, averagePrice).monthlyRate();
+        OptionalDouble monthlyRate = basisTrend.plus(analyzedAt, averagePrice).monthlyRate();
         AnalysisRecommendation sellerRecommendation = RecommendationRule.forSeller(monthlyRate);
         AnalysisRecommendation buyerRecommendation =
                 RecommendationRule.forBuyer(product.getPrice(), averagePrice, monthlyRate);
@@ -785,18 +808,22 @@ public class ProductAnalysisService {
                 changeRate,
                 sellerRecommendation,
                 aiResult.suggestedPrice(),
-                aiResult.recommendation() == sellerRecommendation
-                        ? aiResult.description()
-                        : RecommendationRule.sellerReason(
-                                sellerRecommendation, product.getPrice(), averagePrice, monthlyRate),
+                basisText(
+                        aiResult.recommendation() == sellerRecommendation
+                                ? aiResult.description()
+                                : RecommendationRule.sellerReason(
+                                        sellerRecommendation, product.getPrice(), averagePrice, monthlyRate),
+                        basis),
                 analyzedAt);
         analysis.assignBuyerView(
                 buyerRecommendation,
-                aiResult.buyerRecommendation() == buyerRecommendation && aiResult.buyerDescription() != null
-                        ? aiResult.buyerDescription()
-                        : RecommendationRule.buyerReason(
-                                buyerRecommendation, product.getPrice(), averagePrice, monthlyRate));
-        analysis.assignConfidence(prices.size(), ConfidenceRule.grade(prices, properties.confidence()));
+                basisText(
+                        aiResult.buyerRecommendation() == buyerRecommendation && aiResult.buyerDescription() != null
+                                ? aiResult.buyerDescription()
+                                : RecommendationRule.buyerReason(
+                                        buyerRecommendation, product.getPrice(), averagePrice, monthlyRate),
+                        basis));
+        assignConfidence(analysis, selection.get());
         analysis.assignListingPrices(prices);
 
         progressTracker.stepDone(product.getId(), AnalysisStep.PRICE_CALCULATION);
@@ -806,7 +833,7 @@ public class ProductAnalysisService {
         List<DepreciationForecaster.Forecast> forecasts = forecastWithOutlook(
                 analysis,
                 product.getCategory().getId(),
-                trend.plus(analyzedAt, averagePrice),
+                basisTrend.plus(analyzedAt, averagePrice),
                 monthlyRate,
                 sellerRecommendation,
                 averagePrice);
@@ -869,6 +896,9 @@ public class ProductAnalysisService {
         progressTracker.stepStarted(listing.getId(), AnalysisStep.PRICE_CALCULATION);
         MarketAnalysisResult aiResult = selection.get().aiResult();
         List<Long> prices = selection.get().prices();
+        ComparisonBasis basis = selection.get().basis();
+        // 비슷한 물건까지 쓴 분석은 이전 분석과 비교 대상이 달라 추세를 믿을 수 없으므로 추세 없이 판단한다
+        PriceTrend basisTrend = basis == ComparisonBasis.RELATED ? PriceTrend.of(List.of()) : trend;
 
         LongSummaryStatistics stats = prices.stream().mapToLong(Long::longValue).summaryStatistics();
         long minPrice = stats.getMin();
@@ -877,12 +907,14 @@ public class ProductAnalysisService {
 
         Optional<ProductAnalysis> previous =
                 productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(listing.getId());
-        BigDecimal changeRate = previous.map(p -> calculateChangeRate(p.getAveragePrice(), averagePrice))
+        // 직전 분석과 비교 기준(같은 물건/비슷한 물건)이 다르면 평균가를 비교할 수 없어 변동률을 비운다
+        BigDecimal changeRate = previous.filter(p -> basisOf(p) == basis)
+                .map(p -> calculateChangeRate(p.getAveragePrice(), averagePrice))
                 .orElse(null);
 
         // 추천은 구매자 관점 규칙으로 정한다(AI 추천이 규칙과 다르면 근거 문장도 규칙 기반으로 바꿈)
         LocalDateTime analyzedAt = LocalDateTime.now();
-        OptionalDouble monthlyRate = trend.plus(analyzedAt, averagePrice).monthlyRate();
+        OptionalDouble monthlyRate = basisTrend.plus(analyzedAt, averagePrice).monthlyRate();
         AnalysisRecommendation recommendation =
                 RecommendationRule.forBuyer(listing.getPrice(), averagePrice, monthlyRate);
         ProductAnalysis analysis = ProductAnalysis.createForListing(
@@ -893,11 +925,14 @@ public class ProductAnalysisService {
                 changeRate,
                 recommendation,
                 aiResult.suggestedPrice(),
-                aiResult.recommendation() == recommendation
-                        ? aiResult.description()
-                        : RecommendationRule.buyerReason(recommendation, listing.getPrice(), averagePrice, monthlyRate),
+                basisText(
+                        aiResult.recommendation() == recommendation
+                                ? aiResult.description()
+                                : RecommendationRule.buyerReason(
+                                        recommendation, listing.getPrice(), averagePrice, monthlyRate),
+                        basis),
                 analyzedAt);
-        analysis.assignConfidence(prices.size(), ConfidenceRule.grade(prices, properties.confidence()));
+        assignConfidence(analysis, selection.get());
         analysis.assignListingPrices(prices);
 
         progressTracker.stepDone(listing.getId(), AnalysisStep.PRICE_CALCULATION);
@@ -908,7 +943,7 @@ public class ProductAnalysisService {
         List<DepreciationForecaster.Forecast> forecasts = forecastWithOutlook(
                 analysis,
                 listing.getCategory().getId(),
-                trend.plus(analyzedAt, averagePrice),
+                basisTrend.plus(analyzedAt, averagePrice),
                 monthlyRate,
                 RecommendationRule.forSeller(monthlyRate),
                 averagePrice);
@@ -1014,8 +1049,20 @@ public class ProductAnalysisService {
         return result;
     }
 
+    /** 시세 추세용 기록 — 비슷한 물건까지 쓴 분석은 같은 물건 시세와 섞이지 않도록 뺀다. */
+    /** 분석의 비교 기준(도입 이전 분석은 같은 물건 기준). */
+    private static ComparisonBasis basisOf(ProductAnalysis analysis) {
+        return analysis.getComparisonBasis() == null ? ComparisonBasis.SAME : analysis.getComparisonBasis();
+    }
+
+    /** 비슷한 물건까지 쓴 분석이면 근거 문장의 "같은 물건"을 "비슷한 상품"으로 바꾼다(규칙 문장이 같은 물건 기준으로 쓰여 있음). */
+    private static String basisText(String text, ComparisonBasis basis) {
+        return basis == ComparisonBasis.RELATED && text != null ? text.replace("같은 물건", "비슷한 상품") : text;
+    }
+
     private static List<PriceTrend.Snapshot> snapshots(List<ProductAnalysis> analyses) {
         return analyses.stream()
+                .filter(analysis -> basisOf(analysis) == ComparisonBasis.SAME)
                 .map(analysis -> new PriceTrend.Snapshot(analysis.getAnalyzedAt(), analysis.getAveragePrice()))
                 .toList();
     }
@@ -1055,8 +1102,11 @@ public class ProductAnalysisService {
                 .toList();
     }
 
-    /** 같은 물건 비교 매물 선별 결과 — AI 응답(적정가·근거 문장)과 이상치를 뺀 가격 목록. */
-    private record SimilarSelection(MarketAnalysisResult aiResult, List<Long> prices) {}
+    /**
+     * 같은 물건 비교 매물 선별 결과 — AI 응답(적정가·근거 문장), 이상치를 뺀 가격 목록, 비교 기준(같은 물건이 부족해 비슷한 물건까지
+     * 썼으면 RELATED).
+     */
+    private record SimilarSelection(MarketAnalysisResult aiResult, List<Long> prices, ComparisonBasis basis) {}
 
     /**
      * 같은 물건 비교 매물을 고른다. 키워드로 후보를 넓게 고르고({@link SimilarListingFilter#selectCandidates}) AI가 같은
@@ -1116,46 +1166,85 @@ public class ProductAnalysisService {
 
         progressTracker.stepDone(itemId, AnalysisStep.CANDIDATE_SEARCH);
 
-        // 2) AI가 같은 물건만 고른다
+        // 2) AI가 같은 물건(과 같은 종류·시리즈의 비슷한 물건)을 고른다
         progressTracker.stepStarted(itemId, AnalysisStep.AI_ANALYSIS);
         MarketAnalysisResult aiResult = ai.apply(candidates);
         List<PlatformListing> similar = similarListings(candidates, aiResult.similarListingNumbers());
-        List<Long> prices = SimilarListingFilter.removeOutliers(
-                similar.stream().map(PlatformListing::getPrice).toList());
+        List<PlatformListing> related = relatedListings(candidates, aiResult, similar);
+        List<Long> prices = pricesOf(similar);
 
         // 3) 같은 물건이 부족하고 아직 검색 전이면, 검색으로 새 후보를 보태 확인된 매물과 함께 AI에 한 번 더 묻는다
         if (prices.size() < minListings && !searched) {
             // 새 후보는 검색 결과에서만 고른다(searchListings가 기존 풀에 있던 매물은 이미 뺌)
             List<PlatformListing> found = searchListings(title, brand, categoryId, self, pool);
             List<PlatformListing> newCandidates = SimilarListingFilter.selectCandidates(
-                    title, brand, found, Math.max(sampleSize - similar.size(), 0));
+                    title, brand, found, Math.max(sampleSize - similar.size() - related.size(), 0));
             if (newCandidates.isEmpty()) {
                 log.info("{}: 같은 물건이 {}건뿐이라 상품명으로 검색했지만 보탤 새 후보가 없습니다(검색 결과 {}건).", label, prices.size(), found.size());
             } else {
                 log.info("{}: 같은 물건이 {}건뿐이라 검색 후보 {}건을 보태 다시 확인합니다.", label, prices.size(), newCandidates.size());
                 List<PlatformListing> retryCandidates = new ArrayList<>(similar);
+                retryCandidates.addAll(related);
                 retryCandidates.addAll(newCandidates);
                 sleepBetweenAiCalls();
                 aiResult = ai.apply(retryCandidates);
                 candidates = retryCandidates;
-                prices = SimilarListingFilter.removeOutliers(
-                        similarListings(retryCandidates, aiResult.similarListingNumbers()).stream()
-                                .map(PlatformListing::getPrice)
-                                .toList());
+                similar = similarListings(retryCandidates, aiResult.similarListingNumbers());
+                related = relatedListings(retryCandidates, aiResult, similar);
+                prices = pricesOf(similar);
             }
         }
 
+        // 4) 그래도 같은 물건이 부족하면 같은 종류·시리즈의 비슷한 물건까지 넣어 분석한다(신뢰도는 LOW로 표시)
+        ComparisonBasis basis = ComparisonBasis.SAME;
         if (prices.size() < minListings) {
+            List<PlatformListing> withRelated = new ArrayList<>(similar);
+            withRelated.addAll(related);
+            List<Long> relatedPrices = pricesOf(withRelated);
+            if (relatedPrices.size() < minListings) {
+                log.info(
+                        "{}: 후보 {}건 중 같은 물건 {}건·비슷한 물건 {}건뿐이라 분석을 건너뜁니다(최소 {}건 필요).",
+                        label,
+                        candidates.size(),
+                        similar.size(),
+                        related.size(),
+                        minListings);
+                return skip(itemId, AnalysisSkipReason.NOT_ENOUGH_SIMILAR);
+            }
             log.info(
-                    "{}: 후보 {}건 중 같은 물건으로 확인된 매물이 {}건뿐이라 분석을 건너뜁니다(최소 {}건 필요).",
+                    "{}: 같은 물건이 {}건뿐이라 비슷한 물건 {}건을 더해 분석합니다(비슷한 상품 기준, 신뢰도 LOW).",
                     label,
-                    candidates.size(),
-                    prices.size(),
-                    minListings);
-            return skip(itemId, AnalysisSkipReason.NOT_ENOUGH_SIMILAR);
+                    similar.size(),
+                    related.size());
+            prices = relatedPrices;
+            basis = ComparisonBasis.RELATED;
         }
         progressTracker.stepDone(itemId, AnalysisStep.AI_ANALYSIS);
-        return Optional.of(new SimilarSelection(aiResult, prices));
+        return Optional.of(new SimilarSelection(aiResult, prices, basis));
+    }
+
+    /** AI가 고른 비슷한 물건(같은 종류·시리즈) 매물 — 같은 물건으로 고른 매물은 뺀다. */
+    private static List<PlatformListing> relatedListings(
+            List<PlatformListing> candidates, MarketAnalysisResult aiResult, List<PlatformListing> similar) {
+        return similarListings(candidates, aiResult.relatedListingNumbers()).stream()
+                .filter(listing -> !similar.contains(listing))
+                .toList();
+    }
+
+    /** 매물 가격에서 이상치를 뺀 목록. */
+    private static List<Long> pricesOf(List<PlatformListing> listings) {
+        return SimilarListingFilter.removeOutliers(
+                listings.stream().map(PlatformListing::getPrice).toList());
+    }
+
+    /** 신뢰도와 비교 기준을 붙인다. 비슷한 물건까지 쓴 분석은 같은 물건 분석보다 덜 정확하므로 신뢰도를 LOW로 고정한다. */
+    private void assignConfidence(ProductAnalysis analysis, SimilarSelection selection) {
+        List<Long> prices = selection.prices();
+        AnalysisConfidence confidence = selection.basis() == ComparisonBasis.RELATED
+                ? AnalysisConfidence.LOW
+                : ConfidenceRule.grade(prices, properties.confidence());
+        analysis.assignConfidence(prices.size(), confidence);
+        analysis.assignComparisonBasis(selection.basis());
     }
 
     private Optional<SimilarSelection> skip(Long itemId, AnalysisSkipReason reason) {
@@ -1178,11 +1267,25 @@ public class ProductAnalysisService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
         List<PlatformListing> found =
-                excludeSelf(listingSearchService.searchAndSave(title, brand, categoryId), self).stream()
+                new ArrayList<>(excludeSelf(listingSearchService.searchAndSave(title, brand, categoryId), self).stream()
                         .filter(listing -> listing.getId() == null || !poolIds.contains(listing.getId()))
                         .filter(listing ->
                                 pool.stream().noneMatch(other -> SimilarListingFilter.isDuplicate(listing, other)))
-                        .toList();
+                        .toList());
+        // 같은 카테고리 검색 결과가 적으면 상품이 잘못된 카테고리에 등록됐을 수 있어 카테고리 없이 한 번 더 찾는다(저장하지 않는
+        // 이번 분석용 후보 — 같은 물건인지는 AI가 가린다)
+        if (found.size() < OUTSIDE_CATEGORY_SEARCH_THRESHOLD) {
+            Set<String> known = new HashSet<>();
+            pool.forEach(listing -> known.add(listing.getExternalItemId()));
+            found.forEach(listing -> known.add(listing.getExternalItemId()));
+            if (self != null) {
+                known.add(self.getExternalItemId());
+            }
+            excludeSelf(listingSearchService.searchOutsideCategory(title, brand, categoryId, known), self).stream()
+                    .filter(listing ->
+                            pool.stream().noneMatch(other -> SimilarListingFilter.isDuplicate(listing, other)))
+                    .forEach(found::add);
+        }
         return SimilarListingFilter.removeDuplicates(found);
     }
 
