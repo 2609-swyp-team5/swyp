@@ -201,7 +201,7 @@ public class ProductController {
      * @param excludeKeyword 제외 키워드(선택, 공백·쉼표로 구분한 단어 중 하나라도 제목/설명에 있으면 제외)
      * @param status 상품 상태 필터(선택, DRAFT/ON_SALE/RESERVED/SOLD_OUT 복수 — 우리 상품·외부 매물 모두 적용, DRAFT는 우리 상품만,
      *     미지정 시 외부 매물은 판매중만)
-     * @param platform 플랫폼 필터(선택, OUR/BUNJANG 복수)
+     * @param platform 플랫폼 필터(선택, OUR/BUNJANG/JOONGNA 복수)
      * @param minPrice 최소 가격(선택, 포함)
      * @param maxPrice 최대 가격(선택, 포함)
      * @param condition 제품 상태 등급 필터(선택, S~D 복수, 지정 시 외부 매물 제외)
