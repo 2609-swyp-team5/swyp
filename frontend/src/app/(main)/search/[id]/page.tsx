@@ -1,5 +1,6 @@
 import { isAxiosError } from "axios";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 
@@ -21,6 +22,13 @@ type ProductLookup =
 function parseTargetId(id: string) {
     const targetId = Number(id);
     return Number.isSafeInteger(targetId) && targetId > 0 ? targetId : null;
+}
+
+const metadataCrawlerPattern =
+    /(?:bot\b|crawler\b|spider\b|facebookexternalhit|google-inspectiontool|kakaotalk|whatsapp|yeti|bingpreview)/i;
+
+function isMetadataCrawler(userAgent: string) {
+    return metadataCrawlerPattern.test(userAgent);
 }
 
 const lookupProduct = cache(async (id: number): Promise<ProductLookup> => {
@@ -106,6 +114,15 @@ export async function generateMetadata({
         return noIndexMetadata;
     }
 
+    const userAgent = (await headers()).get("user-agent") ?? "";
+    if (!isMetadataCrawler(userAgent)) {
+        return createPublicPageMetadata({
+            title: "상품 상세",
+            description: defaultSiteDescription,
+            pathname: `/search/${targetId}`,
+        });
+    }
+
     const lookup = await lookupProduct(targetId);
     if (lookup.status !== "found" || !lookup.product.title.trim()) {
         return noIndexMetadata;
@@ -123,14 +140,19 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     const targetId = parseTargetId(id);
     if (targetId === null) notFound();
 
-    const lookup = await lookupProduct(targetId);
-    if (lookup.status === "not-found") {
+    const requestHeaders = await headers();
+    const userAgent = requestHeaders.get("user-agent") ?? "";
+    const isCrawler = isMetadataCrawler(userAgent);
+
+    // 일반 브라우저는 상세 컴포넌트가 API를 조회하고, 크롤러만 서버에서 상품을 조회한다.
+    const lookup = isCrawler ? await lookupProduct(targetId) : null;
+    if (lookup?.status === "not-found") {
         notFound();
     }
 
     return (
         <>
-            {lookup.status === "found" && <ProductStructuredData product={lookup.product} />}
+            {lookup?.status === "found" && <ProductStructuredData product={lookup.product} />}
             <SearchProductDetailPage key={targetId} targetId={targetId} />
         </>
     );
