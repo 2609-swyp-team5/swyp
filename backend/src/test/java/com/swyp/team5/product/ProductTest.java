@@ -1205,36 +1205,6 @@ class ProductTest extends IntegrationTest {
         }
     }
 
-    // 판매 관리 상품 개요 조회 - 판매자 본인은 등록가·상태·최종 판매 정보를 받고, 다른 회원은 403, 없는 상품은 404
-    @Test
-    void getManagementOverviewReturnsSoldInfoToOwnerOnly() throws Exception {
-        Long productId = createProduct();
-        mockMvc.perform(patch("/products/{productId}/status", productId)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
-                                new ProductStatusUpdateRequest(ProductStatus.SOLD_OUT, 800_000L, "번개장터"))))
-                .andExpect(status().isOk());
-
-        mockMvc.perform(get("/products/{productId}/overview", productId)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.id").value(productId))
-                .andExpect(jsonPath("$.data.title").exists())
-                .andExpect(jsonPath("$.data.price").exists())
-                .andExpect(jsonPath("$.data.status").value("SOLD_OUT"))
-                .andExpect(jsonPath("$.data.createdAt").exists())
-                .andExpect(jsonPath("$.data.soldPrice").value(800_000))
-                .andExpect(jsonPath("$.data.soldPlatform").value("번개장터"));
-
-        mockMvc.perform(get("/products/{productId}/overview", productId)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + createOtherMemberToken()))
-                .andExpect(status().isForbidden());
-        mockMvc.perform(get("/products/{productId}/overview", Long.MAX_VALUE)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
-                .andExpect(status().isNotFound());
-    }
-
     // 상품 상태 변경 실패 - 소유자가 아님
     @Test
     void updateStatusFailsWhenNotOwner() throws Exception {

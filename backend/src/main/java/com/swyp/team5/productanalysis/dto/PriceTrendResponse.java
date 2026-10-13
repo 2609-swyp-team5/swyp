@@ -16,19 +16,31 @@ public record PriceTrendResponse(Long productId, Long currentPrice, Trend priceT
     /** 직전 기록일(분석이 있었던 날) 대비로 변화를 계산한다. */
     public static final String COMPARISON_BASIS = "PREVIOUS_TRADING_DAY";
 
+    /** 첫 기록일이 오늘로부터 이 개월 수 이상 지났으면 월 단위로 묶는다. */
+    public static final int MONTHLY_MIN_MONTHS = 3;
+
+    /** 추이 점의 단위 — DAY(하루에 점 하나), MONTH(한 달에 점 하나, 점 날짜는 그달 1일). */
+    public enum Unit {
+        DAY,
+        MONTH
+    }
+
     /**
      * @param period 조회 기간 코드 — 30일이면 {@code 1M}, 그 밖에는 {@code {days}D}(예: {@code 7D})
-     * @param comparisonBasis 일별 변화의 비교 기준({@link #COMPARISON_BASIS})
+     * @param unit 점 단위 — 첫 기록일이 오늘로부터 {@link #MONTHLY_MIN_MONTHS}개월 이상 지났으면 MONTH, 아니면(기록이 없을 때 포함) DAY
+     * @param comparisonBasis 점별 변화의 비교 기준({@link #COMPARISON_BASIS} — 월 단위면 직전 기록 월)
      * @param totalTransactionCount 기간 내 일별 비교 매물 수의 합(실거래 데이터가 없어 판매 중 비교 매물 수로 대신함)
      * @param days 조회 기간(일, 오늘 포함)
      * @param from 조회 시작일(포함)
      * @param to 조회 종료일(오늘, 포함)
-     * @param averagePrice 기간 평균가(일별 평균가의 평균), 기록이 없으면 null
-     * @param changeRate 첫 기록일 대비 마지막 기록일 평균가 변동률(소수 4자리, 예: -0.0350 = 3.5% 하락), 기록일이 2일 미만이면 null
-     * @param points 기록이 있는 날만 날짜 오름차순(분석이 안 된 날은 빠짐)
+     * @param averagePrice 기간 평균가(일별 평균가의 평균, 단위와 무관), 기록이 없으면 null
+     * @param changeRate 첫 기록일 대비 마지막 기록일 평균가 변동률(소수 4자리, 예: -0.0350 = 3.5% 하락, 단위와 무관), 기록일이 2일
+     *     미만이면 null
+     * @param points 기록이 있는 날(월 단위면 달)만 날짜 오름차순(분석이 안 된 날은 빠짐)
      */
     public record Trend(
             String period,
+            Unit unit,
             String comparisonBasis,
             long totalTransactionCount,
             int days,
@@ -38,12 +50,24 @@ public record PriceTrendResponse(Long productId, Long currentPrice, Trend priceT
             BigDecimal changeRate,
             List<Point> points) {
 
+        /**
+         * @param dailyPoints 일별 점(비교 매물 수 합계는 단위와 무관하게 일별 기준)
+         * @param points 응답에 담을 점(일 단위면 {@code dailyPoints}와 같음)
+         */
         public static Trend of(
-                int days, LocalDate from, LocalDate to, Long averagePrice, BigDecimal changeRate, List<Point> points) {
+                Unit unit,
+                int days,
+                LocalDate from,
+                LocalDate to,
+                Long averagePrice,
+                BigDecimal changeRate,
+                List<Point> dailyPoints,
+                List<Point> points) {
             return new Trend(
                     days == 30 ? "1M" : days + "D",
+                    unit,
                     COMPARISON_BASIS,
-                    points.stream().mapToLong(Point::transactionCount).sum(),
+                    dailyPoints.stream().mapToLong(Point::transactionCount).sum(),
                     days,
                     from,
                     to,
@@ -54,11 +78,13 @@ public record PriceTrendResponse(Long productId, Long currentPrice, Trend priceT
     }
 
     /**
-     * 하루치 시세. 같은 날 여러 번 분석됐으면 평균가는 그 평균, 최저/최고가는 그날 중 최저/최고다.
+     * 하루치(월 단위면 한 달치) 시세. 같은 날 여러 번 분석됐으면 평균가는 그 평균, 최저/최고가는 그날 중 최저/최고다. 월 단위면
+     * 평균가는 그달 일별 평균가의 평균, 최저/최고가는 그달 중 최저/최고다.
      *
-     * @param transactionCount 그날 분석에 쓴 비교 매물 수(여러 번이면 최대, 신뢰도 도입 이전 분석만 있으면 0)
-     * @param analysisCount 그날 분석 횟수
-     * @param change 직전 기록일 대비 평균가 변화(첫 기록일은 null)
+     * @param date 기록일(월 단위면 그달 1일)
+     * @param transactionCount 그날(그달) 분석에 쓴 비교 매물 수(여러 번이면 최대, 신뢰도 도입 이전 분석만 있으면 0)
+     * @param analysisCount 그날(그달) 분석 횟수
+     * @param change 직전 기록일(월 단위면 직전 기록 월) 대비 평균가 변화(첫 점은 null)
      */
     public record Point(
             LocalDate date,

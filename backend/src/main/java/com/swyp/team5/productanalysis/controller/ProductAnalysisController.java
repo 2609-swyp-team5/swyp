@@ -114,14 +114,14 @@ public class ProductAnalysisController {
     }
 
     /**
-     * 상품과 비슷한 물건의 판매 완료 가격 분포(최근 {@code days}일 안에 판매 완료가 확인된 외부 매물의 판매 직전 등록가)를 조회 시점에
-     * 계산해 조회한다.
+     * 상품의 거래 가격 분포를 판매 중(가장 최근 시세 분석의 비교 매물)과 판매 완료(최근 {@code days}일 안에 판매 완료가 확인된 비슷한
+     * 외부 매물의 판매 직전 등록가, 조회 시점 계산) 두 가지로 함께 조회한다. 화면 탭 전환은 이 응답에서 고른다.
      *
      * @param productId 조회할 상품 ID(외부 매물 ID 포함)
-     * @param days 조회 기간(일, 오늘 포함, 1~180, 기본 90)
-     * @return 200 OK + 판매 완료 가격 분포(판매 완료 매물이 없으면 {@code buckets}가 빈 배열)
+     * @param days 판매 완료 조회 기간(일, 오늘 포함, 1~180, 기본 90)
+     * @return 200 OK + 판매 중·판매 완료 가격 분포(각각 매물이 없으면 {@code count} 0, {@code buckets} 빈 배열)
      */
-    @Operation(summary = "상품 판매 완료 가격 분포 조회")
+    @Operation(summary = "상품 거래 가격 분포 조회(판매 중·판매 완료)")
     @GetMapping("/distribution")
     public ResponseEntity<ApiResponse<PriceDistributionResponse>> getPriceDistribution(
             @PathVariable Long productId, @RequestParam(defaultValue = "90") @Min(1) @Max(180) int days) {
@@ -129,7 +129,8 @@ public class ProductAnalysisController {
     }
 
     /**
-     * 상품의 최근 가격 추이(시세 분석 스냅샷의 일별 평균·최저·최고가)를 조회한다.
+     * 상품의 최근 가격 추이(시세 분석 스냅샷의 일별 평균·최저·최고가)를 조회한다. 첫 기록일이 오늘로부터 3개월 이상 지났으면 달별로
+     * 묶어 돌려준다(응답 {@code priceTrend.unit} — DAY/MONTH).
      *
      * @param productId 조회할 상품 ID
      * @param days 조회 기간(일, 오늘 포함, 1~180, 기본 30)
