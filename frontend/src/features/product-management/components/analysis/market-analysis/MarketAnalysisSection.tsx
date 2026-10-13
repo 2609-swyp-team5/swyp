@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { ChevronRight, Sparkles } from "lucide-react";
+import Image from "next/image";
 
 import { getApiErrorMessage } from "@/common/lib/api/error";
 
 import type {
     ProductCompetition,
     ProductMarketAnalysis,
+    ProductManagementPerspective,
     ProductPriceTrend,
     ProductValuationForecast,
 } from "../../../types";
@@ -24,6 +26,7 @@ type MarketAnalysisSectionProps = {
     isPending: boolean;
     priceTrendQuery: StreamingQueryState<ProductPriceTrend>;
     valuationForecastQuery: StreamingQueryState<ProductValuationForecast>;
+    perspective?: ProductManagementPerspective;
     variant?: "default" | "management" | "sold";
     isDetailsOpen?: boolean;
     onDetailsOpenChange?: (open: boolean) => void;
@@ -33,25 +36,45 @@ type MarketAnalysisSectionProps = {
     analysisRetry?: {
         isFetching: boolean;
         refetch: () => Promise<unknown>;
+        request?: () => Promise<unknown>;
     };
 };
 
-function AnalysisHeader({ variant }: { variant: "default" | "management" }) {
+function AnalysisHeader({
+    variant,
+    analysisRetry,
+}: {
+    variant: "default" | "management";
+    analysisRetry?: MarketAnalysisSectionProps["analysisRetry"];
+}) {
     return (
-        <div className="flex items-center gap-[10px]">
-            <span className="flex size-12 items-center justify-center rounded-[12px] bg-gradient-to-b from-[#6653fb] to-[#b1a9ef] text-[22px] leading-[33px] text-white">
-                ✦
-            </span>
-            <h2
-                id="product-market-analysis-title"
-                className={
-                    variant === "management"
-                        ? "text-[22px] leading-[30px] font-semibold tracking-[0.5px] text-[#6653fb]"
-                        : "text-[30px] leading-[42px] font-bold tracking-[0.5px] text-[#6653fb]"
-                }
-            >
-                AI 시세 분석
-            </h2>
+        <div className="flex w-full items-center justify-between gap-4">
+            <div className="flex items-center gap-[10px]">
+                <span className="flex size-12 items-center justify-center rounded-[12px] bg-gradient-to-b from-[#6653fb] to-[#b1a9ef] text-[22px] leading-[33px] text-white">
+                    ✦
+                </span>
+                <h2
+                    id="product-market-analysis-title"
+                    className={
+                        variant === "management"
+                            ? "text-[22px] leading-[30px] font-semibold tracking-[0.5px] text-[#6653fb]"
+                            : "text-[30px] leading-[42px] font-bold tracking-[0.5px] text-[#6653fb]"
+                    }
+                >
+                    AI 시세 분석
+                </h2>
+            </div>
+            {analysisRetry?.request ? (
+                <button
+                    type="button"
+                    className="flex h-[31px] shrink-0 cursor-pointer items-center justify-center gap-[5px] rounded-[50px] border-[0.5px] border-[#83889e] px-[15px] py-[5px] text-[12px] leading-5 tracking-[-0.5px] text-[#83889e] disabled:cursor-wait disabled:opacity-50"
+                    disabled={analysisRetry.isFetching}
+                    onClick={() => void analysisRetry.request?.()}
+                >
+                    <Image src="/sell/ai-analysis-retry.svg" alt="" width={12} height={12} />
+                    {analysisRetry.isFetching ? "재시도 중..." : "AI 분석 재시도"}
+                </button>
+            ) : null}
         </div>
     );
 }
@@ -76,6 +99,43 @@ function RetryButton({
         >
             {analysisRetry.isFetching ? "재시도 중..." : label}
         </button>
+    );
+}
+
+function PendingAnalysisCard({ perspective }: { perspective: ProductManagementPerspective }) {
+    const timingLabel = perspective === "BUY" ? "구매" : "판매";
+
+    return (
+        <div className="relative min-h-[300px] overflow-hidden rounded-[16px] border border-[#83889e] bg-[#fafbff]">
+            <div className="relative z-10 flex min-h-[300px] items-center px-6 py-8 md:px-[30px] md:py-[30px]">
+                <div className="flex w-full flex-col gap-[10px] text-[#363636] md:w-[290px]">
+                    <h3 className="text-[22px] leading-[30px] font-semibold tracking-[0.5px]">
+                        {timingLabel} 타이밍을 분석하고 있어요
+                    </h3>
+                    <p className="text-[16px] leading-[25px]">
+                        비슷한 매물과 최근 시세를 비교하고 있어요.
+                        <br />
+                        분석이 완료되면 결과를 보여드릴게요.
+                    </p>
+                </div>
+                <Image
+                    src="/figma/product-management/analysis-pending.svg"
+                    alt=""
+                    width={390}
+                    height={271}
+                    aria-hidden="true"
+                    className="pointer-events-none absolute top-[40px] right-[30px] hidden h-[271px] w-[380px] max-w-[52%] object-contain md:block"
+                />
+                <Image
+                    src="/figma/product-management/analysis-pending.svg"
+                    alt=""
+                    width={390}
+                    height={271}
+                    aria-hidden="true"
+                    className="pointer-events-none mt-6 block h-auto w-full max-w-[400px] object-contain md:hidden"
+                />
+            </div>
+        </div>
     );
 }
 
@@ -112,6 +172,7 @@ export function MarketAnalysisSection({
     isPending,
     priceTrendQuery,
     valuationForecastQuery,
+    perspective = "SELL",
     variant = "default",
     isDetailsOpen: controlledIsDetailsOpen,
     onDetailsOpenChange,
@@ -203,14 +264,8 @@ export function MarketAnalysisSection({
         />
     ) : result === null ? (
         isManagementVariant ? (
-            <div className="flex min-h-[260px] flex-col items-center justify-center gap-3 bg-white px-6 py-16 text-center">
-                <p className="text-[16px] leading-6 font-semibold text-[#363636]">
-                    아직 시세 분석 결과가 없어요.
-                </p>
-                <p className="text-[13px] leading-5 text-[#83889e]">
-                    비슷한 매물이 모이면 분석해 드릴게요.
-                </p>
-                <RetryButton analysisRetry={analysisRetry} label="분석 다시 시도" />
+            <div className="px-[30px] pb-5">
+                <PendingAnalysisCard perspective={perspective} />
             </div>
         ) : (
             <p className="bg-white px-6 py-16 text-center text-[14px] leading-6 text-[#83889e]">
@@ -274,7 +329,7 @@ export function MarketAnalysisSection({
                     className="w-full overflow-hidden rounded-[16px] border border-[#83889e] bg-white shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]"
                 >
                     <div className="px-[30px] pt-10 pb-5">
-                        <AnalysisHeader variant="management" />
+                        <AnalysisHeader variant="management" analysisRetry={analysisRetry} />
                     </div>
                     {analysisBody}
                 </section>
@@ -297,7 +352,7 @@ export function MarketAnalysisSection({
         <>
             {priceChangeToast}
             <div className="flex min-w-0 flex-col gap-2">
-                <AnalysisHeader variant="default" />
+                <AnalysisHeader variant="default" analysisRetry={analysisRetry} />
                 <section
                     aria-labelledby="product-market-analysis-title"
                     className="w-full overflow-hidden rounded-[16px] border border-[#83889e] bg-[#fafbff] shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]"

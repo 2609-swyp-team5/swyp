@@ -3,6 +3,7 @@ import type { ApiErrorResponse, ApiResponse, CursorPageResponse } from "@/common
 import { useAuthStore } from "@/features/auth/store/authStore";
 import type {
     ProductAnalysisResponse,
+    ProductAnalysisRequestResponse,
     ProductCompetitionResponse,
     ProductDetailSummaryResponse,
     ProductManagementOverviewResponse,
@@ -53,6 +54,11 @@ const getProductManagementOverview = (id: number) =>
 const getProductAnalysis = (id: number, perspective?: "SELL" | "BUY") =>
     api.get<ApiResponse<ProductAnalysisResponse>>(`/products/${id}/analysis`, {
         params: perspective ? { perspective } : undefined,
+    });
+
+const requestProductAnalysis = (id: number, force = false) =>
+    api.post<ApiResponse<ProductAnalysisRequestResponse>>(`/products/${id}/analysis`, undefined, {
+        params: { force },
     });
 
 const getProductPriceTrend = (id: number) =>
@@ -335,6 +341,7 @@ export const productApi = {
     getProductManagementSummary,
     getProductManagementOverview,
     getProductAnalysis,
+    requestProductAnalysis,
     getProductPriceTrend,
     getProductValuationForecast,
     getProductCompetition,

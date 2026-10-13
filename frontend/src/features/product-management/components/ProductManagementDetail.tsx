@@ -5,6 +5,7 @@ import { useState } from "react";
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import type { ProductStatus } from "@/features/sell/types";
 import { useProductManagementSectionsQuery } from "../hooks/useProductManagementSectionsQuery";
+import { useRequestProductAnalysisMutation } from "../hooks/useRequestProductAnalysisMutation";
 import { useUpdateProductPriceMutation } from "../hooks/useUpdateProductPriceMutation";
 import { MarketAnalysisSection } from "./analysis/market-analysis/MarketAnalysisSection";
 import { ProductSummaryCard } from "./product-summary/ProductSummaryCard";
@@ -21,6 +22,7 @@ export function ProductManagementDetail({
 }) {
     const [showAnalysisDetails, setShowAnalysisDetails] = useState(false);
     const updateProductPriceMutation = useUpdateProductPriceMutation();
+    const requestAnalysisMutation = useRequestProductAnalysisMutation();
 
     const sections = useProductManagementSectionsQuery(productId, {
         summaryEnabled: true,
@@ -40,6 +42,10 @@ export function ProductManagementDetail({
             productId,
             price: suggestedPrice,
         });
+    };
+    const handleAnalysisRetry = async () => {
+        await requestAnalysisMutation.mutateAsync({ productId, force: true });
+        await sections.productAnalysis.refetch();
     };
 
     return (
@@ -70,12 +76,16 @@ export function ProductManagementDetail({
                         competitionQuery={sections.productCompetition}
                         priceTrendQuery={sections.productPriceTrend}
                         valuationForecastQuery={sections.productValuationForecast}
+                        perspective="SELL"
                         variant={currentStatus === "SOLD_OUT" ? "sold" : "management"}
                         isDetailsOpen={showAnalysisDetails}
                         onDetailsOpenChange={setShowAnalysisDetails}
                         analysisRetry={{
-                            isFetching: sections.productAnalysis.isFetching,
+                            isFetching:
+                                sections.productAnalysis.isFetching ||
+                                requestAnalysisMutation.isPending,
                             refetch: sections.productAnalysis.refetch,
+                            request: currentStatus === "SOLD_OUT" ? undefined : handleAnalysisRetry,
                         }}
                         onRecommendedPriceChange={
                             currentStatus === "SOLD_OUT" ? undefined : handleRecommendedPriceChange

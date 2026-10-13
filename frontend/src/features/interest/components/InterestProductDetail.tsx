@@ -14,6 +14,7 @@ import { TargetPriceSaveToast } from "@/features/product-management/components/t
 import { canSetInterestTargetPrice } from "@/features/product-management/components/target-price/targetPriceAvailability";
 import { formatPrice } from "@/features/product-management/components/analysis/market-analysis/formatters";
 import { useNotificationSettingsQuery } from "@/features/notifications/hooks/queries/useNotificationSettingsQuery";
+import { useRequestProductAnalysisMutation } from "@/features/product-management/hooks/useRequestProductAnalysisMutation";
 import { useDeleteInterestMutation } from "../hooks/mutations/useDeleteInterestMutation";
 import { useSetInterestTargetPriceMutation } from "../hooks/mutations/useSetInterestTargetPriceMutation";
 import type { InterestListItem } from "../types";
@@ -31,6 +32,7 @@ export function InterestProductDetail({ interest }: { interest: InterestListItem
     const deleteMutation = useDeleteInterestMutation();
     const targetPriceMutation = useSetInterestTargetPriceMutation(interest.interestId);
     const notificationSettingsQuery = useNotificationSettingsQuery();
+    const requestAnalysisMutation = useRequestProductAnalysisMutation();
     const { targetPrice, price } = interest;
     const sections = useProductManagementSectionsQuery(interest.targetId, {
         perspective: "BUY",
@@ -64,6 +66,11 @@ export function InterestProductDetail({ interest }: { interest: InterestListItem
         targetPriceMutation.mutate(value, {
             onSuccess: (data) => setSavedTargetPrice(data.targetPrice),
         });
+    };
+
+    const handleAnalysisRetry = async () => {
+        await requestAnalysisMutation.mutateAsync({ productId: interest.targetId });
+        await sections.productAnalysis.refetch();
     };
 
     return (
@@ -141,12 +148,16 @@ export function InterestProductDetail({ interest }: { interest: InterestListItem
                 competitionQuery={sections.productCompetition}
                 priceTrendQuery={sections.productPriceTrend}
                 valuationForecastQuery={sections.productValuationForecast}
+                perspective="BUY"
                 variant="management"
                 isDetailsOpen={showAnalysisDetails}
                 onDetailsOpenChange={setShowAnalysisDetails}
                 analysisRetry={{
-                    isFetching: sections.productAnalysis.isFetching,
+                    isFetching:
+                        sections.productAnalysis.isFetching || requestAnalysisMutation.isPending,
                     refetch: sections.productAnalysis.refetch,
+                    request:
+                        interest.interestStatus === "SOLD_OUT" ? undefined : handleAnalysisRetry,
                 }}
             />
         </div>

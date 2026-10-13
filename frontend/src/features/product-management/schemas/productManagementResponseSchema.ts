@@ -11,6 +11,20 @@ import { productRecommendationSchema } from "@/features/sell/schemas/productResp
 
 export const analysisRecommendationSchema = productRecommendationSchema;
 export const priceForecastPeriodSchema = z.enum(["1M", "3M", "6M"]);
+export const analysisStatusSchema = z.enum([
+    "ANALYZED",
+    "ANALYZING",
+    "SKIPPED",
+    "NOT_ANALYZED",
+    "UNAVAILABLE",
+]);
+
+export const productAnalysisRequestResponseSchema = z.object({
+    productId: z.number(),
+    analysisStatus: analysisStatusSchema,
+    analysisSkipReason: z.string().nullable(),
+    analysisSkipMessage: z.string().nullable(),
+});
 
 const productAnalysisSummarySchema = z.discriminatedUnion("type", [
     z.object({
@@ -119,6 +133,7 @@ export const productManagementOverviewResponseSchema = z.object({
 export type ProductManagementOverviewResponse = z.infer<
     typeof productManagementOverviewResponseSchema
 >;
+export type ProductAnalysisRequestResponse = z.infer<typeof productAnalysisRequestResponseSchema>;
 
 export const productDetailSummaryResponseSchema = z
     .object({

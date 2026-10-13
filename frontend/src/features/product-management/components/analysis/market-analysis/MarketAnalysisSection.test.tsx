@@ -75,6 +75,42 @@ it("분석 결과가 없으면 안내 문구를 보여준다", () => {
     expect(screen.getByText(/아직 시세 분석 결과가 없어요/)).toBeInTheDocument();
 });
 
+it("관리 화면의 분석 대기 카드는 구매·판매 타이밍 문구를 구분한다", () => {
+    const { rerender } = render(
+        <MarketAnalysisSection
+            result={null}
+            error={null}
+            isPending={false}
+            priceTrendQuery={idleQuery}
+            valuationForecastQuery={idleQuery}
+            perspective="BUY"
+            variant="management"
+        />,
+    );
+
+    expect(screen.getByText("구매 타이밍을 분석하고 있어요")).toBeInTheDocument();
+    expect(screen.queryByText("아직 시세 분석 결과가 없어요.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "분석 다시 시도" })).not.toBeInTheDocument();
+    expect(screen.queryByText("상세 시세 분석 보기")).not.toBeInTheDocument();
+    expect(screen.queryByText("더보기")).not.toBeInTheDocument();
+
+    rerender(
+        <MarketAnalysisSection
+            result={null}
+            error={null}
+            isPending={false}
+            priceTrendQuery={idleQuery}
+            valuationForecastQuery={idleQuery}
+            perspective="SELL"
+            variant="management"
+        />,
+    );
+
+    expect(screen.getByText("판매 타이밍을 분석하고 있어요")).toBeInTheDocument();
+    expect(screen.queryByText("상세 시세 분석 보기")).not.toBeInTheDocument();
+    expect(screen.queryByText("더보기")).not.toBeInTheDocument();
+});
+
 it("관리 화면은 접힌 추천 카드와 3열 가격 metric을 먼저 보여준다", () => {
     const analysis = createProductMarketAnalysisMock(1, "SELL", "SELL");
     const competitionQuery = {
@@ -109,6 +145,27 @@ it("관리 화면은 접힌 추천 카드와 3열 가격 metric을 먼저 보여
     expect(screen.getByText("경쟁 상품 수")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /내용 접기/ }));
     expect(screen.queryByText("거래 가격 분포")).not.toBeInTheDocument();
+});
+
+it("관리 화면 헤더의 AI 분석 재시도 버튼은 분석 요청을 호출한다", () => {
+    const request = vi.fn().mockResolvedValue(undefined);
+    const analysis = createProductMarketAnalysisMock(1, "SELL", "SELL");
+
+    render(
+        <MarketAnalysisSection
+            result={analysis}
+            error={null}
+            isPending={false}
+            priceTrendQuery={idleQuery}
+            valuationForecastQuery={idleQuery}
+            variant="management"
+            analysisRetry={{ isFetching: false, refetch: vi.fn(), request }}
+        />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "AI 분석 재시도" }));
+
+    expect(request).toHaveBeenCalledTimes(1);
 });
 
 it.each([
@@ -243,7 +300,7 @@ it("판매완료 상품은 추천 요약 없이 상세 시세 분석을 접어 �
     expect(screen.queryByText("경쟁 상품 수")).not.toBeInTheDocument();
 });
 
-it("관리 화면의 로딩·결과 없음·오류 상태를 구분하고 재시도한다", () => {
+it("관리 화면의 로딩·분석 대기·오류 상태를 구분한다", () => {
     const refetch = vi.fn().mockResolvedValue(undefined);
     const { rerender } = render(
         <MarketAnalysisSection
@@ -270,9 +327,10 @@ it("관리 화면의 로딩·결과 없음·오류 상태를 구분하고 재시
             analysisRetry={{ isFetching: false, refetch }}
         />,
     );
-    expect(screen.getByText("아직 시세 분석 결과가 없어요.")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "분석 다시 시도" }));
-    expect(refetch).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("판매 타이밍을 분석하고 있어요")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "분석 다시 시도" })).not.toBeInTheDocument();
+    expect(screen.queryByText("상세 시세 분석 보기")).not.toBeInTheDocument();
+    expect(screen.queryByText("더보기")).not.toBeInTheDocument();
 
     rerender(
         <MarketAnalysisSection
