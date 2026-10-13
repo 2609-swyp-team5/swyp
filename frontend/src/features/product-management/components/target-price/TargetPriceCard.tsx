@@ -39,6 +39,7 @@ export function TargetPriceCard({
     variant = "default",
     recommendedPrice = null,
     marketPriceDiffRate = null,
+    targetPriceNotificationEnabled,
 }: {
     title: string;
     description: string;
@@ -54,6 +55,7 @@ export function TargetPriceCard({
     variant?: "default" | "interest" | "management";
     recommendedPrice?: number | null;
     marketPriceDiffRate?: number | null;
+    targetPriceNotificationEnabled?: boolean;
 }) {
     const inputId = useId();
     const [input, setInput] = useState(formatInput(targetPrice));
@@ -110,23 +112,25 @@ export function TargetPriceCard({
                             {description}
                         </p>
                     </div>
-                    <Button
-                        asChild
-                        variant="ghost"
-                        className="h-auto gap-2 rounded-full px-1.5 py-1 text-[#6653fb] hover:bg-[#f5f3ff] hover:text-[#6653fb] focus-visible:ring-2 focus-visible:ring-[#6653fb]/30"
-                    >
-                        <Link href="/my/notifications" aria-label="알림 활성화 설정으로 이동">
-                            <Image
-                                src="/sell/actions/target-price-info.svg"
-                                alt=""
-                                width={20}
-                                height={20}
-                            />
-                            <span className="text-[13px] leading-5 font-semibold tracking-[-0.5px]">
-                                알림 활성화
-                            </span>
-                        </Link>
-                    </Button>
+                    {targetPriceNotificationEnabled === false ? (
+                        <Button
+                            asChild
+                            variant="ghost"
+                            className="h-auto gap-2 rounded-full px-1.5 py-1 text-[#6653fb] hover:bg-[#f5f3ff] hover:text-[#6653fb] focus-visible:ring-2 focus-visible:ring-[#6653fb]/30"
+                        >
+                            <Link href="/my/notifications" aria-label="알림 활성화 설정으로 이동">
+                                <Image
+                                    src="/sell/actions/target-price-info.svg"
+                                    alt=""
+                                    width={20}
+                                    height={20}
+                                />
+                                <span className="text-[13px] leading-5 font-semibold tracking-[-0.5px]">
+                                    알림 활성화
+                                </span>
+                            </Link>
+                        </Button>
+                    ) : null}
                 </div>
 
                 <div className="mt-5 flex w-full items-center justify-between rounded-[10px] bg-[#fafbff] px-2.5 py-5">

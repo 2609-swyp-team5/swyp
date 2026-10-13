@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { useNotificationSettingsQuery } from "@/features/notifications/hooks/queries/useNotificationSettingsQuery";
 import { formatPrice } from "../analysis/market-analysis/formatters";
 import {
     useProductTargetPriceQuery,
@@ -20,6 +21,7 @@ function waitingText(targetPrice: number | null, averagePrice: number | null) {
 export function SellerTargetPriceSection({ productId }: { productId: number }) {
     const query = useProductTargetPriceQuery(productId);
     const mutation = useSetProductTargetPriceMutation(productId);
+    const notificationSettingsQuery = useNotificationSettingsQuery();
     const [savedTargetPrice, setSavedTargetPrice] = useState<number | null>(null);
 
     useEffect(() => {
@@ -67,6 +69,7 @@ export function SellerTargetPriceSection({ productId }: { productId: number }) {
                     })
                 }
                 variant="management"
+                targetPriceNotificationEnabled={notificationSettingsQuery.data?.targetPriceEnabled}
             />
         </>
     );

@@ -73,6 +73,7 @@ describe("TargetPriceCard", () => {
             recommendedPrice: 469000,
             marketPriceDiffRate: 4.9,
             variant: "interest",
+            targetPriceNotificationEnabled: false,
         });
 
         expect(screen.getByText("알림 활성화")).toBeInTheDocument();
@@ -87,6 +88,16 @@ describe("TargetPriceCard", () => {
         expect(screen.getByText("450,000원")).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "삭제하기" })).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "저장하기" })).toBeDisabled();
+    });
+
+    it("목표 가격 도달 알림이 켜져 있으면 활성화 링크를 숨긴다", () => {
+        renderCard({
+            title: "목표 구매가",
+            variant: "interest",
+            targetPriceNotificationEnabled: true,
+        });
+
+        expect(screen.queryByText("알림 활성화")).not.toBeInTheDocument();
     });
 
     it("판매 상품 관리도 같은 목표가 카드 구조를 사용한다", () => {

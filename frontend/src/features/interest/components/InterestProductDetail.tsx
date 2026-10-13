@@ -13,6 +13,7 @@ import { TargetPriceCard } from "@/features/product-management/components/target
 import { TargetPriceSaveToast } from "@/features/product-management/components/target-price/TargetPriceSaveToast";
 import { canSetInterestTargetPrice } from "@/features/product-management/components/target-price/targetPriceAvailability";
 import { formatPrice } from "@/features/product-management/components/analysis/market-analysis/formatters";
+import { useNotificationSettingsQuery } from "@/features/notifications/hooks/queries/useNotificationSettingsQuery";
 import { useDeleteInterestMutation } from "../hooks/mutations/useDeleteInterestMutation";
 import { useSetInterestTargetPriceMutation } from "../hooks/mutations/useSetInterestTargetPriceMutation";
 import type { InterestListItem } from "../types";
@@ -29,6 +30,7 @@ export function InterestProductDetail({ interest }: { interest: InterestListItem
     const [savedTargetPrice, setSavedTargetPrice] = useState<number | null>(null);
     const deleteMutation = useDeleteInterestMutation();
     const targetPriceMutation = useSetInterestTargetPriceMutation(interest.interestId);
+    const notificationSettingsQuery = useNotificationSettingsQuery();
     const { targetPrice, price } = interest;
     const sections = useProductManagementSectionsQuery(interest.targetId, {
         perspective: "BUY",
@@ -124,6 +126,9 @@ export function InterestProductDetail({ interest }: { interest: InterestListItem
                     error={targetPriceMutation.error}
                     onSave={handleTargetPriceSave}
                     variant="interest"
+                    targetPriceNotificationEnabled={
+                        notificationSettingsQuery.data?.targetPriceEnabled
+                    }
                     recommendedPrice={sections.productAnalysis.data?.suggestedPrice ?? null}
                     marketPriceDiffRate={sections.productAnalysis.data?.marketPriceDiffRate ?? null}
                 />
