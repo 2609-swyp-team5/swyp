@@ -31,7 +31,7 @@ public class ProductAiSearchService {
             - minPrice / maxPrice: 원 단위 정수("50만원 이하" → maxPrice 500000, "10~20만원" → 100000~200000).
               언급이 없으면 null.
             - statuses: 상품 상태 ON_SALE(판매중)/RESERVED(예약중)/SOLD_OUT(판매완료). 언급이 없으면 빈 배열.
-            - platforms: OUR(우리 서비스 직접 등록 상품)/BUNJANG(번개장터). 언급이 없으면 빈 배열.
+            - platforms: OUR(우리 서비스 직접 등록 상품)/BUNJANG(번개장터)/JOONGNA(중고나라). 언급이 없으면 빈 배열.
             - conditions: 상품 상태 등급 S(새 상품·미개봉)/A(사용감 거의 없음)/B(사용감 적음)/C(사용감 있음)/D(사용감 많음).
               "새거", "미개봉" → S, "깨끗한", "상태 좋은" → S와 A처럼 해당 등급을 모두 넣어. 언급이 없으면 빈 배열.
             - defectStatuses: 하자 여부 NORMAL(하자 없음)/ISSUES(하자 있음)/UNKNOWN(모름).
