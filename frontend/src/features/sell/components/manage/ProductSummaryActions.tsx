@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-
 import { Button } from "@/common/components/ui/Button";
 import { Input } from "@/common/components/ui/Input";
 import {
@@ -28,12 +27,21 @@ type ProductSummaryActionsProps = {
     actionIconSrc?: string;
     onDeleted?: () => void;
     canMarkAsSold?: boolean;
+    showDetails?: boolean;
+    middleAction?: ReactNode;
+    variant?: "default" | "management";
 };
 
 const soldPlatformOptions = Object.values(platformDefinitions).map((definition) => ({
     value: definition.name,
     label: definition.name,
 }));
+
+const managementActionIconPaths = {
+    sold: "/sell/actions/sale-complete.svg",
+    details: "/sell/actions/details.svg",
+    delete: "/sell/actions/trash.svg",
+} as const;
 
 const fieldClassName =
     "h-[50px] rounded-[8px] border border-[#d3d3d3] bg-[#fafbff] px-4 py-3 text-[16px] leading-[25px] text-[#6b6c7b] shadow-none placeholder:text-[#d3d3d3] focus-visible:border-[#6653fb] focus-visible:ring-0";
@@ -54,9 +62,12 @@ export function ProductSummaryActions({
     product,
     actionHref,
     actionLabel = "수정하기",
-    actionIconSrc = "/sell/pencil.svg",
+    actionIconSrc = "/sell/actions/pencil.svg",
     onDeleted,
     canMarkAsSold = false,
+    showDetails = true,
+    middleAction,
+    variant = "default",
 }: ProductSummaryActionsProps) {
     const router = useRouter();
     const deleteProductMutation = useDeleteProductMutation();
@@ -107,41 +118,125 @@ export function ProductSummaryActions({
 
     const soldPrice = parseSoldPrice(soldPriceInput);
     const isSoldFormValid = soldPrice !== null && Boolean(soldPlatform);
+    const isManagementVariant = variant === "management";
 
     return (
         <>
-            <div className="flex items-center justify-end gap-[30px]">
+            <div
+                className={
+                    isManagementVariant
+                        ? "flex shrink-0 items-end justify-end gap-[15px]"
+                        : "flex items-center justify-end gap-[30px]"
+                }
+            >
                 {canMarkAsSold ? (
                     <Button
                         type="button"
                         variant="ghost"
-                        className="h-auto flex-col gap-2 rounded-xl p-2.5 text-[#83889e] hover:bg-[#f5f3ff] hover:text-[#6653fb]"
+                        className={
+                            isManagementVariant
+                                ? "h-[52px] w-[52px] flex-col gap-[5px] rounded-none p-[5px] text-[#83889e] hover:bg-transparent hover:text-[#6653fb]"
+                                : "h-auto flex-col gap-2 rounded-xl p-2.5 text-[#83889e] hover:bg-[#f5f3ff] hover:text-[#6653fb]"
+                        }
                         onClick={openSoldDialog}
                         disabled={updateProductStatusMutation.isPending}
                     >
-                        <Image src="/sell/sold-out.svg" alt="" width={40} height={40} />
-                        <span className="text-[16px] leading-[25px] font-normal">판매완료</span>
+                        {isManagementVariant ? (
+                            <Image
+                                src={managementActionIconPaths.sold}
+                                alt=""
+                                width={25}
+                                height={25}
+                            />
+                        ) : (
+                            <Image src="/sell/sold-out.svg" alt="" width={40} height={40} />
+                        )}
+                        <span
+                            className={
+                                isManagementVariant
+                                    ? "text-[11px] leading-[16px] font-normal tracking-[-0.5px]"
+                                    : "text-[16px] leading-[25px] font-normal"
+                            }
+                        >
+                            {isManagementVariant ? "판매 완료" : "판매완료"}
+                        </span>
+                    </Button>
+                ) : isManagementVariant && showDetails ? (
+                    <span className="h-[52px] w-[52px] shrink-0" aria-hidden="true" />
+                ) : null}
+                {showDetails ? (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => router.push(actionHref)}
+                        className={
+                            isManagementVariant
+                                ? "h-[52px] w-[52px] flex-col gap-[5px] rounded-none p-[5px] text-[#83889e] hover:bg-transparent hover:text-[#6653fb]"
+                                : "h-auto flex-col gap-2 rounded-xl p-2.5 text-[#83889e] hover:bg-[#f5f3ff] hover:text-[#6653fb]"
+                        }
+                    >
+                        {isManagementVariant ? (
+                            <Image
+                                src={managementActionIconPaths.details}
+                                alt=""
+                                width={25}
+                                height={25}
+                            />
+                        ) : (
+                            <Image
+                                src={actionIconSrc}
+                                alt=""
+                                width={isManagementVariant ? 25 : 40}
+                                height={isManagementVariant ? 25 : 40}
+                            />
+                        )}
+                        <span
+                            className={
+                                isManagementVariant
+                                    ? "text-[11px] leading-[16px] font-normal tracking-[-0.5px]"
+                                    : "text-[16px] leading-[25px] font-normal"
+                            }
+                        >
+                            {isManagementVariant ? "자세히 보기" : actionLabel}
+                        </span>
                     </Button>
                 ) : null}
-                <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => router.push(actionHref)}
-                    className="h-auto flex-col gap-2 rounded-xl p-2.5 text-[#83889e] hover:bg-[#f5f3ff] hover:text-[#6653fb]"
-                >
-                    <Image src={actionIconSrc} alt="" width={40} height={40} />
-                    <span className="text-[16px] leading-[25px] font-normal">{actionLabel}</span>
-                </Button>
-                <Button
-                    type="button"
-                    variant="ghost"
-                    className="h-auto flex-col gap-2 rounded-xl p-2.5 text-[#83889e] hover:bg-[#f5f3ff] hover:text-[#6653fb]"
-                    onClick={() => setIsDeleteDialogOpen(true)}
-                    disabled={deleteProductMutation.isPending}
-                >
-                    <Image src="/sell/trash.svg" alt="" width={40} height={40} />
-                    <span className="text-[16px] leading-[25px] font-normal">삭제하기</span>
-                </Button>
+                {middleAction}
+                {isManagementVariant ? (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-[52px] w-[52px] flex-col gap-[5px] rounded-none p-[5px] text-[#83889e] hover:bg-transparent hover:text-[#6653fb]"
+                        onClick={() => setIsDeleteDialogOpen(true)}
+                        disabled={deleteProductMutation.isPending}
+                    >
+                        <Image
+                            src={managementActionIconPaths.delete}
+                            alt=""
+                            width={25}
+                            height={25}
+                        />
+                        <span className="text-[11px] leading-[16px] font-normal tracking-[-0.5px]">
+                            삭제하기
+                        </span>
+                    </Button>
+                ) : (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-auto flex-col gap-2 rounded-xl p-2.5 text-[#83889e] hover:bg-[#f5f3ff] hover:text-[#6653fb]"
+                        onClick={() => setIsDeleteDialogOpen(true)}
+                        disabled={deleteProductMutation.isPending}
+                    >
+                        <Image
+                            src={managementActionIconPaths.delete}
+                            alt=""
+                            width={40}
+                            height={40}
+                        />
+                        <span className="text-[16px] leading-[25px] font-normal">삭제하기</span>
+                    </Button>
+                )}
             </div>
 
             <SellAlertDialog

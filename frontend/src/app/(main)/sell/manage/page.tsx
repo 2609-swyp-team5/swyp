@@ -6,6 +6,7 @@ import { getApiErrorMessage } from "@/common/lib/api/error";
 import { ProductListShell } from "@/features/product-management/components/product-list/ProductListShell";
 import type { ProductListTab } from "@/features/product-management/components/product-list/productListTypes";
 import { ProductManagementDetail } from "@/features/product-management/components/ProductManagementDetail";
+import { resolveSellerRecommendationBadge } from "@/features/product-management/utils/productManagementDisplay";
 import { useMyProductsQuery } from "@/features/sell/hooks/queries/useMyProductsQuery";
 import type { ProductStatus } from "@/features/sell/types";
 
@@ -75,22 +76,28 @@ export default function SellManagePage() {
             tabs={tabs}
             activeTabKey={activeTabKey}
             onTabChange={setActiveTabKey}
-            items={products.map((product) => ({
-                id: String(product.id),
-                title: product.title,
-                price: product.price,
-                categoryName: product.categoryName,
-                thumbnailUrl: product.thumbnailUrl,
-                badgeLabel: product.recommendation,
-                badgeTone:
-                    product.recommendation === "SELL"
-                        ? "primary"
-                        : product.recommendation === "HOLD"
-                          ? "dark"
-                          : "muted",
-                metaLabel: statusMetaLabels[product.status],
-                status: product.status,
-            }))}
+            items={products.map((product) => {
+                const recommendationBadge = resolveSellerRecommendationBadge(
+                    product.recommendation,
+                );
+
+                return {
+                    id: String(product.id),
+                    title: product.title,
+                    price: product.price,
+                    categoryName: product.categoryName,
+                    thumbnailUrl: product.thumbnailUrl,
+                    badgeLabel: recommendationBadge,
+                    badgeTone:
+                        recommendationBadge === "SELL"
+                            ? "primary"
+                            : recommendationBadge === "HOLD"
+                              ? "dark"
+                              : "muted",
+                    metaLabel: statusMetaLabels[product.status],
+                    status: product.status,
+                };
+            })}
             totalCount={firstPage?.totalCount}
             statusCounts={firstPage?.statusCounts}
             isLoading={isPending || isPlaceholderData}

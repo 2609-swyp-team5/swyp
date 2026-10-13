@@ -125,7 +125,9 @@ export default function WishlistPage() {
                     (candidate) => String(candidate.targetId) === item.id,
                 );
 
-                return interest ? <InterestProductDetail interest={interest} /> : null;
+                return interest ? (
+                    <InterestProductDetail key={interest.interestId} interest={interest} />
+                ) : null;
             }}
             primaryAction={{ label: "상품 검색하기", href: "/search" }}
         />

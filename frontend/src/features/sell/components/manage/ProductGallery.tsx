@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { ImageOff } from "lucide-react";
+import { ChevronLeft, ChevronRight, ImageOff } from "lucide-react";
 
 import {
     Dialog,
@@ -65,10 +65,16 @@ function GalleryImage({
 type ProductGalleryProps = {
     product: Pick<ProductResponse, "imageUrls" | "title">;
     layout?: "side" | "bottom";
+    variant?: "default" | "management";
 };
 
-export function ProductGallery({ product, layout = "side" }: ProductGalleryProps) {
+export function ProductGallery({
+    product,
+    layout = "side",
+    variant = "default",
+}: ProductGalleryProps) {
     const isBottomLayout = layout === "bottom";
+    const isManagementVariant = variant === "management";
     const [selectedIndex, setSelectedIndex] = useState(0);
     const [isImagePopoverOpen, setIsImagePopoverOpen] = useState(false);
     const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
@@ -100,7 +106,13 @@ export function ProductGallery({ product, layout = "side" }: ProductGalleryProps
 
     if (!selectedImage) {
         return (
-            <div className="flex aspect-square min-h-[240px] items-center justify-center rounded-[10px] bg-[#f5f5f7] text-[15px] font-medium text-[#6b7395]">
+            <div
+                className={`flex items-center justify-center rounded-[10px] bg-[#f5f5f7] text-[15px] font-medium text-[#6b7395] ${
+                    isBottomLayout && isManagementVariant
+                        ? "h-[382px] w-full"
+                        : "aspect-square min-h-[240px]"
+                }`}
+            >
                 <span className="flex flex-col items-center gap-2">
                     <ImageOff aria-hidden="true" className="size-7" />
                     등록된 이미지가 없습니다.
@@ -113,7 +125,7 @@ export function ProductGallery({ product, layout = "side" }: ProductGalleryProps
         <div
             className={
                 isBottomLayout
-                    ? "flex w-full min-w-0 flex-col gap-3"
+                    ? `flex w-full min-w-0 flex-col ${isManagementVariant ? "h-[382px] gap-5" : "gap-3"}`
                     : "flex items-start gap-3 lg:gap-5"
             }
         >
@@ -121,7 +133,7 @@ export function ProductGallery({ product, layout = "side" }: ProductGalleryProps
                 <div
                     className={
                         isBottomLayout
-                            ? "order-2 grid w-full grid-cols-4 gap-2"
+                            ? `order-2 grid w-full grid-cols-4 ${isManagementVariant ? "h-[70px] gap-2.5" : "gap-2"}`
                             : "order-1 flex w-[72px] shrink-0 flex-col gap-3 lg:w-[100px] lg:gap-[10px]"
                     }
                 >
@@ -225,8 +237,8 @@ export function ProductGallery({ product, layout = "side" }: ProductGalleryProps
                             type="button"
                             aria-label={`${product.title} 상품 사진 ${selectedIndex + 1} 크게 보기`}
                             className={`relative cursor-zoom-in overflow-hidden rounded-[10px] bg-[#f5f5f7] focus-visible:ring-2 focus-visible:ring-[#6653fb] focus-visible:ring-offset-2 ${
-                                isBottomLayout
-                                    ? "aspect-[1.15] w-full"
+                                isBottomLayout && isManagementVariant
+                                    ? "aspect-[310/292] w-full"
                                     : "aspect-square w-full min-w-0 lg:size-[432px] lg:flex-none"
                             }`}
                             onClick={() => setViewerIndex(selectedIndex)}
@@ -261,7 +273,7 @@ export function ProductGallery({ product, layout = "side" }: ProductGalleryProps
                                     </span>
                                 </div>
                                 <span className="text-[16px] leading-[25px] font-normal text-white/72">
-                                    ← → 키로도 이동할 수 있어요
+                                    방향키로도 이동할 수 있어요
                                 </span>
                             </div>
                             <div className="flex items-center gap-2 rounded-full bg-[rgba(37,38,44,0.8)] px-3.5 py-2 text-[20px] leading-[30px] tracking-[0.5px]">
@@ -303,13 +315,7 @@ export function ProductGallery({ product, layout = "side" }: ProductGalleryProps
                                 }
                             >
                                 <span className="relative size-14">
-                                    <Image
-                                        src="/sell/viewer-prev.svg"
-                                        alt=""
-                                        width={104}
-                                        height={104}
-                                        className="absolute -inset-6 max-w-none"
-                                    />
+                                    <ChevronLeft aria-hidden="true" className="size-14" />
                                 </span>
                                 <span className="text-[16px] leading-[25px] font-semibold tracking-[0.5px]">
                                     이전
@@ -335,13 +341,7 @@ export function ProductGallery({ product, layout = "side" }: ProductGalleryProps
                                 }
                             >
                                 <span className="relative size-14">
-                                    <Image
-                                        src="/sell/viewer-next.svg"
-                                        alt=""
-                                        width={104}
-                                        height={104}
-                                        className="absolute -inset-6 max-w-none"
-                                    />
+                                    <ChevronRight aria-hidden="true" className="size-14" />
                                 </span>
                                 <span className="text-[16px] leading-[25px] font-semibold tracking-[0.5px]">
                                     다음

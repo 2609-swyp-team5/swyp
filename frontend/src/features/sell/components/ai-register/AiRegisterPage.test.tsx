@@ -98,8 +98,17 @@ describe("AiRegisterPage", () => {
 
         render(<AiRegisterPage />);
 
+        const stepper = screen.getByRole("list", { name: "상품 등록 단계" });
+        const photoStep = screen.getByText("사진 등록");
+        const additionalInfoStep = screen.getByText("추가 정보 입력");
+        expect(stepper).toContainElement(photoStep);
+        expect(stepper).toContainElement(additionalInfoStep);
+        expect(photoStep).toHaveClass("text-[#6653fb]");
+        expect(additionalInfoStep).toHaveClass("text-[#d3d3d3]");
         await user.click(screen.getByRole("button", { name: "테스트 사진 추가" }));
         await user.click(screen.getByRole("button", { name: "다음단계" }));
+        expect(photoStep).toHaveClass("text-[#6653fb]");
+        expect(additionalInfoStep).toHaveClass("text-[#6653fb]");
         await user.click(screen.getByRole("button", { name: "구매 시기 미상" }));
         await user.click(screen.getByRole("button", { name: "일부 문제 있음" }));
         await user.click(screen.getByRole("button", { name: "박스 추가" }));

@@ -3,26 +3,11 @@
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, XAxis, YAxis } from "recharts";
 
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/common/components/ui/Chart";
-import { cn } from "@/common/lib/utils";
-import type { ProductValuationForecast } from "../../../types";
+import type {
+    ValuationForecastChartData,
+    ValuationForecastChartPoint,
+} from "../market-analysis/marketAnalysisAdapters";
 import { formatPrice, formatSignedPercent } from "../market-analysis/formatters";
-
-type Forecast = ProductValuationForecast["valuationForecast"];
-
-type ForecastPoint = {
-    period: string;
-    valueRate: number;
-    expectedValue: number;
-    expectedChangeRate: number;
-    isCurrent: boolean;
-    rateLabel: string;
-};
-
-const forecastPeriodLabels = {
-    "1M": "1개월 후",
-    "3M": "3개월 후",
-    "6M": "6개월 후",
-} as const;
 
 const chartConfig = {
     valueRate: {
@@ -31,36 +16,12 @@ const chartConfig = {
     },
 } satisfies ChartConfig;
 
-function toForecastPoints(forecast: Forecast): ForecastPoint[] {
-    const currentPoint: ForecastPoint = {
-        period: "현재",
-        valueRate: forecast.baseValueRate,
-        expectedValue: forecast.baseValue,
-        expectedChangeRate: 0,
-        isCurrent: true,
-        rateLabel: `${Math.round(forecast.baseValueRate)}%`,
-    };
-
-    const forecastPoints = forecast.forecasts
-        .filter((item) => item.period in forecastPeriodLabels)
-        .map((item) => ({
-            period: forecastPeriodLabels[item.period as keyof typeof forecastPeriodLabels],
-            valueRate: item.expectedValueRate,
-            expectedValue: item.expectedValue,
-            expectedChangeRate: item.expectedChangeRate,
-            isCurrent: false,
-            rateLabel: `${Math.round(item.expectedValueRate)}%`,
-        }));
-
-    return [currentPoint, ...forecastPoints];
-}
-
 function ValuationForecastTooltip({
     active,
     payload,
 }: {
     active?: boolean;
-    payload?: ReadonlyArray<{ payload?: ForecastPoint }>;
+    payload?: ReadonlyArray<{ payload?: ValuationForecastChartPoint }>;
 }) {
     const point = payload?.[0]?.payload;
 
@@ -75,12 +36,7 @@ function ValuationForecastTooltip({
                 {formatPrice(point.expectedValue)}
             </p>
             <p
-                className={cn(
-                    "mt-0.5 text-[10px] leading-[15px] font-semibold",
-                    point.isCurrent || point.expectedChangeRate >= 0
-                        ? "text-[#6653fb]"
-                        : "text-[#ce3838]",
-                )}
+                className={`mt-0.5 text-[10px] leading-[15px] font-semibold ${point.expectedChangeRate > 0 ? "text-[#fa503d]" : "text-[#6653fb]"}`}
             >
                 {point.isCurrent
                     ? "현재 등록 기준"
@@ -90,18 +46,18 @@ function ValuationForecastTooltip({
     );
 }
 
-export function ProductValuationForecastChart({ forecast }: { forecast: Forecast }) {
-    const points = toForecastPoints(forecast);
+export function ProductValuationForecastChart({ data }: { data: ValuationForecastChartData }) {
+    const { points } = data;
 
     return (
         <div className="relative min-w-0" aria-label="현재부터 6개월 후까지 상품 가치 예측 차트">
-            <div className="mb-3 flex items-start justify-between gap-3 px-1">
+            <div className="mb-3 flex items-start justify-between gap-3 px-[30px]">
                 <div className="flex flex-col gap-[5px]">
                     <p className="text-[20px] leading-[25px] font-semibold tracking-[0.5px] text-[#363636]">
                         감가 상각률
                     </p>
                     <p className="text-[12px] leading-[15px] text-[#a1a3ae]">
-                        구매가 대비 가치를 확인해보세요.
+                        구매가 대비 가치를 확인해보세요
                     </p>
                 </div>
                 <div className="flex items-center gap-3 text-[12px] leading-[18px] text-[#6b6c7b]">
@@ -121,52 +77,62 @@ export function ProductValuationForecastChart({ forecast }: { forecast: Forecast
                     </span>
                 </div>
             </div>
-            <ChartContainer
-                id="valuation-forecast"
-                config={chartConfig}
-                className="aspect-auto h-[221px] w-full p-0 [&_*:focus]:outline-none"
-                initialDimension={{ width: 700, height: 221 }}
-            >
-                <BarChart data={points} margin={{ top: 25, right: 8, left: 8, bottom: 5 }}>
-                    <CartesianGrid vertical={false} stroke="#ececf5" />
-                    <XAxis
-                        dataKey="period"
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#83889e", fontSize: 10 }}
-                        tickMargin={8}
-                    />
-                    <YAxis domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} hide />
-                    <ChartTooltip
-                        cursor={false}
-                        content={<ValuationForecastTooltip />}
-                        isAnimationActive={false}
-                    />
-                    <defs>
-                        <linearGradient id="valuation-current-gradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#6653fb" />
-                            <stop offset="100%" stopColor="#998eee" />
-                        </linearGradient>
-                    </defs>
-                    <Bar dataKey="valueRate" radius={[4, 4, 0, 0]} maxBarSize={52}>
-                        <LabelList
-                            dataKey="rateLabel"
-                            position="top"
-                            fill="#6653fb"
-                            fontSize={10}
-                            fontWeight={600}
+            <div className="px-[20px]">
+                <ChartContainer
+                    id="valuation-forecast"
+                    config={chartConfig}
+                    className="aspect-auto h-[281px] w-full p-0 [&_*:focus]:outline-none"
+                    initialDimension={{ width: 700, height: 281 }}
+                >
+                    <BarChart data={points} margin={{ top: 25, right: 8, left: 8, bottom: 5 }}>
+                        <CartesianGrid vertical={false} stroke="#ececf5" />
+                        <XAxis
+                            dataKey="period"
+                            tickLine={false}
+                            axisLine={false}
+                            tick={{ fill: "#83889e", fontSize: 10 }}
+                            tickMargin={8}
                         />
-                        {points.map((point) => (
-                            <Cell
-                                key={point.period}
-                                fill={
-                                    point.isCurrent ? "url(#valuation-current-gradient)" : "#dedce9"
-                                }
+                        <YAxis domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} hide />
+                        <ChartTooltip
+                            cursor={false}
+                            content={<ValuationForecastTooltip />}
+                            isAnimationActive={false}
+                        />
+                        <defs>
+                            <linearGradient
+                                id="valuation-current-gradient"
+                                x1="0"
+                                y1="0"
+                                x2="0"
+                                y2="1"
+                            >
+                                <stop offset="0%" stopColor="#6653fb" />
+                                <stop offset="100%" stopColor="#998eee" />
+                            </linearGradient>
+                        </defs>
+                        <Bar dataKey="valueRate" radius={[4, 4, 0, 0]} maxBarSize={52}>
+                            <LabelList
+                                dataKey="rateLabel"
+                                position="top"
+                                fill="#6653fb"
+                                fontSize={10}
+                                fontWeight={600}
                             />
-                        ))}
-                    </Bar>
-                </BarChart>
-            </ChartContainer>
+                            {points.map((point) => (
+                                <Cell
+                                    key={point.period}
+                                    fill={
+                                        point.isCurrent
+                                            ? "url(#valuation-current-gradient)"
+                                            : "#dedce9"
+                                    }
+                                />
+                            ))}
+                        </Bar>
+                    </BarChart>
+                </ChartContainer>
+            </div>
         </div>
     );
 }

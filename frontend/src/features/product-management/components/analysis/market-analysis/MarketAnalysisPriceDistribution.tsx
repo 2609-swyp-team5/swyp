@@ -8,7 +8,7 @@ import {
 } from "@/common/components/ui/Card";
 import { cn } from "@/common/lib/utils";
 
-import type { ProductMarketAnalysis } from "../../../types";
+import type { PriceDistributionViewModel } from "./marketAnalysisAdapters";
 import { formatManWon } from "./formatters";
 
 function clamp(value: number, min: number, max: number) {
@@ -35,7 +35,7 @@ function PriceMetric({
 function ExpectedPriceLabel({ price }: { price: string }) {
     return (
         <div className="flex h-[50px] w-[99px] flex-col items-center justify-center gap-[5px] rounded-[5px] border-[0.5px] border-[#e1e1e1] bg-white">
-            <span className="text-[11px] leading-[13px] font-bold text-[#9a84f3]">예상가격</span>
+            <span className="text-[11px] leading-[13px] font-bold text-[#9a84f3]">추천가격</span>
             <strong className="text-[15px] leading-[18px] font-semibold whitespace-nowrap text-black">
                 {price}
             </strong>
@@ -54,10 +54,10 @@ function PriceMarker() {
     );
 }
 
-export function MarketAnalysisPriceDistribution({ analysis }: { analysis: ProductMarketAnalysis }) {
-    const priceRange = Math.max(analysis.maxPrice - analysis.minPrice, 1);
+export function MarketAnalysisPriceDistribution({ data }: { data: PriceDistributionViewModel }) {
+    const priceRange = Math.max(data.maxPrice - data.minPrice, 1);
     const expectedPosition = clamp(
-        ((analysis.marketExpectedPrice - analysis.minPrice) / priceRange) * 100,
+        ((data.suggestedPrice - data.minPrice) / priceRange) * 100,
         0,
         100,
     );
@@ -79,7 +79,7 @@ export function MarketAnalysisPriceDistribution({ analysis }: { analysis: Produc
                         className="absolute top-0 -translate-x-1/2"
                         style={{ left: labelPosition }}
                     >
-                        <ExpectedPriceLabel price={formatManWon(analysis.marketExpectedPrice)} />
+                        <ExpectedPriceLabel price={formatManWon(data.suggestedPrice)} />
                     </div>
                 </div>
                 <div className="relative h-[15px] w-full">
@@ -110,24 +110,24 @@ export function MarketAnalysisPriceDistribution({ analysis }: { analysis: Produc
                 </div>
             </CardContent>
             <div className="flex items-center justify-between gap-[5px] bg-[#6b49fd] px-5 py-2.5 text-white">
-                <span className="text-[18px] leading-5 font-semibold">예상 가격</span>
+                <span className="text-[18px] leading-5 font-semibold">추천 가격</span>
                 <strong className="text-[20px] leading-[25px] font-bold">
-                    {formatManWon(analysis.marketExpectedPrice)}
+                    {formatManWon(data.suggestedPrice)}
                 </strong>
             </div>
             <CardFooter className="rounded-none border-0 bg-white px-2.5 py-5 text-center">
                 <div className="flex w-full items-center justify-between overflow-hidden rounded-[5px] bg-white">
                     <PriceMetric
                         label="최저가"
-                        value={formatManWon(analysis.minPrice)}
+                        value={formatManWon(data.minPrice)}
                         className="border-r border-[#d3d3d3]"
                     />
                     <PriceMetric
                         label="평균 거래가"
-                        value={formatManWon(analysis.averagePrice)}
+                        value={formatManWon(data.averagePrice)}
                         className="border-r border-[#d3d3d3]"
                     />
-                    <PriceMetric label="최고가" value={formatManWon(analysis.maxPrice)} />
+                    <PriceMetric label="최고가" value={formatManWon(data.maxPrice)} />
                 </div>
             </CardFooter>
         </Card>

@@ -1,15 +1,20 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import { getApiErrorMessage } from "@/common/lib/api/error";
+import { Button } from "@/common/components/ui/Button";
 import { clearSelectedProductId } from "@/features/product-management/hooks/useSelectedProductId";
 import { useProductManagementSectionsQuery } from "@/features/product-management/hooks/useProductManagementSectionsQuery";
 import { MarketAnalysisSection } from "@/features/product-management/components/analysis/market-analysis/MarketAnalysisSection";
-import { ProductCompetitionSection } from "@/features/product-management/components/competition/ProductCompetitionSection";
 import { ProductSummaryCard } from "@/features/product-management/components/product-summary/ProductSummaryCard";
 import { ProductSummarySkeleton } from "@/features/product-management/components/product-summary/ProductSummarySkeleton";
-import { TargetPriceCard } from "@/features/product-management/components/target-price/TargetPriceCard";
+import { TargetPriceSaveToast } from "@/features/product-management/components/target-price/TargetPriceSaveToast";
 import { canSetInterestTargetPrice } from "@/features/product-management/components/target-price/targetPriceAvailability";
-import { formatPrice } from "@/features/product-management/components/analysis/market-analysis/formatters";
+import { formatSignedPercent } from "@/features/product-management/components/analysis/market-analysis/formatters";
+import { useNotificationSettingsQuery } from "@/features/notifications/hooks/queries/useNotificationSettingsQuery";
+import { useRequestProductAnalysisMutation } from "@/features/product-management/hooks/useRequestProductAnalysisMutation";
+import { ManagementTargetPriceCard } from "@/features/product-management/components/target-price/ManagementTargetPriceCard";
 import { useDeleteInterestMutation } from "../hooks/mutations/useDeleteInterestMutation";
 import { useSetInterestTargetPriceMutation } from "../hooks/mutations/useSetInterestTargetPriceMutation";
 import type { InterestListItem } from "../types";
@@ -22,11 +27,17 @@ const statusLabels: Record<string, string> = {
 };
 
 export function InterestProductDetail({ interest }: { interest: InterestListItem }) {
+    const [showAnalysisDetails, setShowAnalysisDetails] = useState(false);
+    const [savedTargetPrice, setSavedTargetPrice] = useState<number | null>(null);
     const deleteMutation = useDeleteInterestMutation();
     const targetPriceMutation = useSetInterestTargetPriceMutation(interest.interestId);
-    const { targetPrice, price } = interest;
+    const notificationSettingsQuery = useNotificationSettingsQuery();
+    const requestAnalysisMutation = useRequestProductAnalysisMutation();
+    const { targetPrice } = interest;
     const sections = useProductManagementSectionsQuery(interest.targetId, {
         perspective: "BUY",
+        analysisDetailsEnabled: showAnalysisDetails,
+        competitionEnabled: showAnalysisDetails,
     });
 
     const handleDelete = () => {
@@ -42,8 +53,34 @@ export function InterestProductDetail({ interest }: { interest: InterestListItem
 
     const summaryProduct = sections.productSummary.data;
 
+    useEffect(() => {
+        if (savedTargetPrice === null) {
+            return;
+        }
+
+        const timer = window.setTimeout(() => setSavedTargetPrice(null), 2500);
+        return () => window.clearTimeout(timer);
+    }, [savedTargetPrice]);
+
+    const handleTargetPriceSave = (value: number | null) => {
+        targetPriceMutation.mutate(value, {
+            onSuccess: (data) => setSavedTargetPrice(data.targetPrice),
+        });
+    };
+
+    const handleAnalysisRetry = async () => {
+        await requestAnalysisMutation.mutateAsync({ productId: interest.targetId });
+        await sections.productAnalysis.refetch();
+    };
+
     return (
         <div className="flex min-w-0 flex-col gap-6">
+            {savedTargetPrice !== null ? (
+                <TargetPriceSaveToast
+                    targetPrice={savedTargetPrice}
+                    description="상품 가격이 목표가 이하가 되면 알려드릴게요."
+                />
+            ) : null}
             {sections.productSummary.isPending ? <ProductSummarySkeleton /> : null}
             {summaryProduct ? (
                 <ProductSummaryCard
@@ -63,29 +100,41 @@ export function InterestProductDetail({ interest }: { interest: InterestListItem
                 </p>
             ) : null}
             {sections.productSummary.error ? (
-                <p className="-mt-4 text-right text-[13px] leading-5 text-[#d65353]">
-                    {getApiErrorMessage(sections.productSummary.error)}
-                </p>
+                <section className="flex min-h-[539px] flex-col items-center justify-center gap-4 rounded-[20px] border border-[#d3d3d3] bg-white p-6 text-center">
+                    <p role="alert" className="text-[14px] leading-6 text-[#d65353]">
+                        {getApiErrorMessage(sections.productSummary.error)}
+                    </p>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => void sections.productSummary.refetch()}
+                    >
+                        다시 시도
+                    </Button>
+                </section>
             ) : null}
 
             {canSetInterestTargetPrice(interest.interestStatus) ? (
-                <TargetPriceCard
+                <ManagementTargetPriceCard
                     key={`${interest.interestId}-${targetPrice ?? "none"}`}
                     title="목표 구매가"
                     description="상품 가격이 이 금액 이하가 되면 알려드려요."
                     targetPrice={targetPrice}
-                    compareLabel="현재 가격"
-                    comparePrice={price}
-                    reached={targetPrice !== null && price <= targetPrice}
-                    reachedText="현재 가격이 목표 구매가 이하예요."
-                    waitingText={
-                        targetPrice === null
-                            ? ""
-                            : `목표 구매가까지 ${formatPrice(price - targetPrice)} 남았어요.`
-                    }
+                    reference={{
+                        label: "현재 AI 추천 구매가",
+                        price: sections.productAnalysis.data?.suggestedPrice ?? null,
+                        emphasized: true,
+                        supportingText:
+                            sections.productAnalysis.data?.marketPriceDiffRate == null
+                                ? null
+                                : `시세 대비 ${formatSignedPercent(sections.productAnalysis.data.marketPriceDiffRate)}`,
+                    }}
                     isSaving={targetPriceMutation.isPending}
                     error={targetPriceMutation.error}
-                    onSave={(value) => targetPriceMutation.mutate(value)}
+                    onSave={handleTargetPriceSave}
+                    targetPriceNotificationEnabled={
+                        notificationSettingsQuery.data?.targetPriceEnabled
+                    }
                 />
             ) : null}
 
@@ -93,13 +142,20 @@ export function InterestProductDetail({ interest }: { interest: InterestListItem
                 result={sections.productAnalysis.data}
                 error={sections.productAnalysis.error}
                 isPending={sections.productAnalysis.isPending}
+                competitionQuery={sections.productCompetition}
                 priceTrendQuery={sections.productPriceTrend}
                 valuationForecastQuery={sections.productValuationForecast}
-            />
-            <ProductCompetitionSection
-                query={sections.productCompetition}
-                heading="비슷한 상품"
-                showCompetitionMeta={false}
+                perspective="BUY"
+                variant="management"
+                isDetailsOpen={showAnalysisDetails}
+                onDetailsOpenChange={setShowAnalysisDetails}
+                analysisRetry={{
+                    isFetching:
+                        sections.productAnalysis.isFetching || requestAnalysisMutation.isPending,
+                    refetch: sections.productAnalysis.refetch,
+                    request:
+                        interest.interestStatus === "SOLD_OUT" ? undefined : handleAnalysisRetry,
+                }}
             />
         </div>
     );

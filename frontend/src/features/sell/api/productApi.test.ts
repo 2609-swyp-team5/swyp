@@ -143,18 +143,6 @@ describe("productApi", () => {
         expect(get).toHaveBeenCalledWith("/products/42");
     });
 
-    it("gets the lightweight product management overview", async () => {
-        await expect(productApi.getProductManagementOverview(42)).resolves.toEqual({
-            data: {
-                success: true,
-                message: "",
-                data: { id: 42 },
-                error: null,
-            },
-        });
-        expect(get).toHaveBeenCalledWith("/products/42/management-overview");
-    });
-
     it("deletes a product by id", async () => {
         await expect(productApi.deleteProduct(42)).resolves.toEqual({
             data: {

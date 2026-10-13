@@ -1,43 +1,58 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type {
-    ProductDetailSummaryResponse,
-    ProductManagementOverviewResponse,
-} from "../schemas/productManagementResponseSchema";
+import type { ProductDetailSummaryResponse } from "../schemas/productManagementResponseSchema";
 
-const { overviewQueryMock, sectionsQueryMock } = vi.hoisted(() => ({
+const { sectionsQueryMock } = vi.hoisted(() => ({
     sectionsQueryMock: vi.fn(),
-    overviewQueryMock: vi.fn(),
 }));
 
 vi.mock("../hooks/useProductManagementSectionsQuery", () => ({
     useProductManagementSectionsQuery: sectionsQueryMock,
 }));
-vi.mock("../hooks/useProductManagementOverviewQuery", () => ({
-    useProductManagementOverviewQuery: overviewQueryMock,
+vi.mock("../hooks/useUpdateProductPriceMutation", () => ({
+    useUpdateProductPriceMutation: () => ({
+        isPending: false,
+        mutateAsync: vi.fn(),
+    }),
+}));
+vi.mock("../hooks/useRequestProductAnalysisMutation", () => ({
+    useRequestProductAnalysisMutation: () => ({
+        isPending: false,
+        mutateAsync: vi.fn(),
+    }),
 }));
 vi.mock("./product-summary/ProductSummarySkeleton", () => ({
     ProductSummarySkeleton: () => <div data-testid="summary-skeleton" />,
 }));
-vi.mock("./product-summary/SoldProductSummarySkeleton", () => ({
-    SoldProductSummarySkeleton: () => <div data-testid="sold-summary-skeleton" />,
-}));
 vi.mock("./product-summary/ProductSummaryCard", () => ({
     ProductSummaryCard: () => <div data-testid="full-sold-summary" />,
 }));
-vi.mock("./product-summary/SoldProductSummaryCard", () => ({
-    SoldProductSummaryCard: ({ onDetailsClick }: { onDetailsClick?: () => void }) => (
-        <button type="button" onClick={onDetailsClick}>
-            판매완료 요약
-        </button>
-    ),
-}));
 vi.mock("./analysis/market-analysis/MarketAnalysisSection", () => ({
-    MarketAnalysisSection: () => <div data-testid="market-analysis" />,
-}));
-vi.mock("./competition/ProductCompetitionSection", () => ({
-    ProductCompetitionSection: () => <div data-testid="competition" />,
+    MarketAnalysisSection: ({
+        onDetailsOpenChange,
+        isDetailsOpen,
+        competitionQuery,
+        variant,
+    }: {
+        onDetailsOpenChange?: (open: boolean) => void;
+        isDetailsOpen?: boolean;
+        competitionQuery?: unknown;
+        variant?: string;
+    }) => (
+        <>
+            <button
+                type="button"
+                data-testid="market-analysis"
+                onClick={() => onDetailsOpenChange?.(true)}
+            >
+                상세 시세 분석 보기
+            </button>
+            {isDetailsOpen && competitionQuery && variant !== "sold" ? (
+                <div data-testid="competition" />
+            ) : null}
+        </>
+    ),
 }));
 vi.mock("./target-price/SellerTargetPriceSection", () => ({
     SellerTargetPriceSection: () => <div data-testid="target-price" />,
@@ -46,30 +61,28 @@ vi.mock("./target-price/SellerTargetPriceSection", () => ({
 import { ProductManagementDetail } from "./ProductManagementDetail";
 
 const soldProduct: ProductDetailSummaryResponse = {
+    source: "OUR",
     id: 3,
     title: "아이폰 13 미니 128GB",
+    brand: null,
+    description: null,
     price: 320000,
     soldPrice: 450000,
     soldPlatform: "중고나라",
     status: "SOLD_OUT",
     createdAt: "2026-09-15T10:00:00",
-    category: { id: 1, name: "전자기기", parentId: null },
+    category: { id: 1, name: "전자기기", parentId: null, leaf: true },
     condition: "A",
+    tradeMethod: "DELIVERY",
+    deliveryType: "INCLUDED",
     imageUrls: [],
+    tags: [],
+    includedItems: [],
     viewCount: 128,
     interestCount: 14,
     daysOnSale: 21,
     platforms: [],
-};
-
-const soldProductOverview: ProductManagementOverviewResponse = {
-    id: soldProduct.id,
-    title: soldProduct.title,
-    price: soldProduct.price,
-    soldPrice: soldProduct.soldPrice,
-    soldPlatform: soldProduct.soldPlatform,
-    status: soldProduct.status,
-    createdAt: soldProduct.createdAt,
+    updatedAt: "2026-09-15T10:00:00",
 };
 
 function createSections() {
@@ -85,37 +98,29 @@ function createSections() {
 describe("ProductManagementDetail", () => {
     beforeEach(() => {
         sectionsQueryMock.mockReturnValue(createSections());
-        overviewQueryMock.mockReturnValue({
-            data: soldProductOverview,
-            error: null,
-            isPending: false,
-        });
     });
 
-    it("판매완료 요약 아래에 기존 화면을 자세히 보기로 연다", () => {
+    it("판매완료 상품은 상세 카드와 접힌 시세 분석을 함께 보여준다", () => {
         render(<ProductManagementDetail productId={3} initialStatus="SOLD_OUT" />);
-
-        expect(screen.getByRole("button", { name: "판매완료 요약" })).toBeInTheDocument();
-        expect(screen.queryByTestId("full-sold-summary")).not.toBeInTheDocument();
-        expect(screen.queryByTestId("market-analysis")).not.toBeInTheDocument();
-        expect(screen.queryByTestId("competition")).not.toBeInTheDocument();
-        expect(overviewQueryMock).toHaveBeenLastCalledWith(3, { enabled: true });
-        expect(sectionsQueryMock).toHaveBeenLastCalledWith(3, {
-            summaryEnabled: false,
-            analysisEnabled: false,
-            competitionEnabled: false,
-        });
-
-        fireEvent.click(screen.getByRole("button", { name: "판매완료 요약" }));
 
         expect(screen.getByTestId("full-sold-summary")).toBeInTheDocument();
         expect(screen.getByTestId("market-analysis")).toBeInTheDocument();
-        expect(screen.getByTestId("competition")).toBeInTheDocument();
-        expect(overviewQueryMock).toHaveBeenLastCalledWith(3, { enabled: false });
+        expect(screen.queryByTestId("competition")).not.toBeInTheDocument();
+        expect(sectionsQueryMock).toHaveBeenLastCalledWith(3, {
+            summaryEnabled: true,
+            analysisEnabled: false,
+            analysisDetailsEnabled: false,
+            competitionEnabled: false,
+        });
+
+        fireEvent.click(screen.getByTestId("market-analysis"));
+
+        expect(screen.queryByTestId("competition")).not.toBeInTheDocument();
         expect(sectionsQueryMock).toHaveBeenLastCalledWith(3, {
             summaryEnabled: true,
             analysisEnabled: true,
-            competitionEnabled: true,
+            analysisDetailsEnabled: true,
+            competitionEnabled: false,
         });
     });
 
@@ -124,15 +129,9 @@ describe("ProductManagementDetail", () => {
             ...createSections(),
             productSummary: { data: undefined, error: null, isPending: true },
         });
-        overviewQueryMock.mockReturnValue({
-            data: undefined,
-            error: null,
-            isPending: true,
-        });
 
         render(<ProductManagementDetail productId={3} initialStatus="SOLD_OUT" />);
 
-        expect(screen.getByTestId("sold-summary-skeleton")).toBeInTheDocument();
-        expect(screen.queryByTestId("summary-skeleton")).not.toBeInTheDocument();
+        expect(screen.getByTestId("summary-skeleton")).toBeInTheDocument();
     });
 });

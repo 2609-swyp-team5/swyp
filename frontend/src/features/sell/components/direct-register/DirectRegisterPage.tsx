@@ -15,6 +15,7 @@ import type {
     DirectStatusPriceState,
 } from "@/features/sell/components/direct-register/types";
 import { ProductRegistrationProcessing } from "@/features/sell/components/ProductRegistrationProcessing";
+import { RegistrationStepper } from "@/features/sell/components/shared/RegistrationStepper";
 import { SellAlertDialog } from "@/features/sell/components/shared/SellAlertDialog";
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { useCategoriesQuery } from "@/features/sell/hooks/queries/useCategoriesQuery";
@@ -26,46 +27,6 @@ export type DirectRegisterStep = "info" | "status";
 type DirectRegisterPageProps = {
     initialStep?: DirectRegisterStep;
 };
-
-function RegistrationStepper({ currentStep }: { currentStep: DirectRegisterStep }) {
-    const steps = ["상품 정보", "상태·가격"];
-    const currentStepIndex = currentStep === "info" ? 0 : 1;
-
-    return (
-        <ol aria-label="상품 등록 단계" className="flex items-center gap-2.5">
-            {steps.map((step, index) => (
-                <li key={step} className="flex items-center gap-2.5">
-                    <div className="flex items-center gap-2">
-                        <span
-                            className={`flex size-7 items-center justify-center rounded-full text-[13px] leading-[19px] font-bold ${
-                                index <= currentStepIndex
-                                    ? "bg-[#272727] text-white"
-                                    : "bg-[#d3d3d3] text-[#6b6c7b]"
-                            }`}
-                        >
-                            {index + 1}
-                        </span>
-                        <span
-                            className={`text-[16px] leading-[25px] font-semibold tracking-[0.5px] ${
-                                index <= currentStepIndex ? "text-[#363636]" : "text-[#d3d3d3]"
-                            }`}
-                        >
-                            {step}
-                        </span>
-                    </div>
-                    {index < steps.length - 1 && (
-                        <span
-                            aria-hidden="true"
-                            className={`h-px w-[30px] ${
-                                index < currentStepIndex ? "bg-[#272727]" : "bg-[#d3d3d3]"
-                            }`}
-                        />
-                    )}
-                </li>
-            ))}
-        </ol>
-    );
-}
 
 const initialInfoState: DirectRegisterInfoState = {
     images: [],
@@ -269,7 +230,10 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
                 </header>
 
                 <div className="flex flex-col gap-8">
-                    <RegistrationStepper currentStep={step} />
+                    <RegistrationStepper
+                        steps={["상품 정보", "상태·가격"]}
+                        currentStepIndex={step === "info" ? 0 : 1}
+                    />
 
                     {isInfoStep ? (
                         <>

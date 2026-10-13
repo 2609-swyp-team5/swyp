@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
 
 export type StreamingQueryState<T> = {
-    data: T | undefined;
-    error: unknown;
+    data: T | null | undefined;
+    error: Error | null;
     isPending: boolean;
+    isFetching: boolean;
+    refetch: () => Promise<unknown>;
 };
 
 export type ProductManagementStreamingSectionProps<T> = {

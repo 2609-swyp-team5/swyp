@@ -1,25 +1,8 @@
 "use client";
 
-import { type FormEvent, useId, useState } from "react";
-
-import { getApiErrorMessage } from "@/common/lib/api/error";
+import { useTargetPriceInput } from "./useTargetPriceInput";
 import { formatPrice } from "../analysis/market-analysis/formatters";
 
-const MAX_TARGET_PRICE = 100_000_000_000;
-
-function parsePrice(value: string) {
-    const digits = value.replace(/\D/g, "");
-    return digits === "" ? null : Number(digits);
-}
-
-function formatInput(value: number | null) {
-    return value === null ? "" : value.toLocaleString("ko-KR");
-}
-
-/**
- * 목표 가격 카드 — 판매자 목표 판매가(비교 기준: 최근 평균 시세)와 관심상품 목표 구매가(비교 기준: 현재 가격)에 함께 쓴다.
- * 저장하면 서버가 바로 도달 여부를 확인해 알림을 만든다. 부모는 저장된 목표가가 바뀌면 입력값을 새로 채우도록 {@code key}를 바꾼다.
- */
 export function TargetPriceCard({
     title,
     description,
@@ -45,38 +28,14 @@ export function TargetPriceCard({
     error: unknown;
     onSave: (targetPrice: number | null) => void;
 }) {
-    const inputId = useId();
-    const [input, setInput] = useState(formatInput(targetPrice));
-    const [validation, setValidation] = useState<string | null>(null);
-    const parsed = parsePrice(input);
-    const unchanged = parsed === targetPrice;
-
-    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        if (parsed === null || parsed <= 0) {
-            setValidation("목표 가격을 0원보다 크게 입력해 주세요.");
-            return;
-        }
-        if (parsed > MAX_TARGET_PRICE) {
-            setValidation("목표 가격이 너무 커요.");
-            return;
-        }
-        setValidation(null);
-        onSave(parsed);
-    };
-
-    const handleClear = () => {
-        setValidation(null);
-        onSave(null);
-    };
-
+    const { inputId, input, unchanged, message, handleInputChange, handleSubmit, handleClear } =
+        useTargetPriceInput({ targetPrice, error, onSave });
     const status =
         targetPrice === null
             ? { label: "미설정", className: "bg-[#f2f4f7] text-[#6b6c7b]" }
             : reached
               ? { label: "도달", className: "bg-[#f0edff] text-[#6653fb]" }
               : { label: "대기 중", className: "bg-[#eef4ff] text-[#3a6ff0]" };
-    const message = error ? getApiErrorMessage(error) : validation;
 
     return (
         <section aria-label={title} className="rounded-[16px] border border-[#dee5ed] bg-white p-5">
@@ -128,8 +87,8 @@ export function TargetPriceCard({
                         autoComplete="off"
                         placeholder="목표 가격 입력"
                         value={input}
-                        onChange={(event) => setInput(formatInput(parsePrice(event.target.value)))}
-                        className="h-10 w-full rounded-[10px] border border-[#d8d2ff] bg-white px-3 pr-8 text-[14px] text-[#1b1d29] transition-colors outline-none placeholder:text-[#9b96c8] focus:border-[#6653fb] focus:ring-3 focus:ring-[#6653fb]/15"
+                        onChange={handleInputChange}
+                        className="h-10 w-full rounded-[10px] border border-[#d8d2ff] bg-white px-3 pr-8 text-right text-[14px] text-[#1b1d29] tabular-nums transition-colors outline-none placeholder:text-[#9b96c8] focus:border-[#6653fb] focus:ring-3 focus:ring-[#6653fb]/15"
                     />
                     <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-[13px] text-[#6b6c7b]">
                         원
