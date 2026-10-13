@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -328,17 +329,34 @@ public class ProductAnalysisService {
     }
 
     /**
-     * 상품(또는 외부 매물)과 비슷한 물건의 판매 완료 가격 분포를 조회 시점에 계산한다. 같은 카테고리에서 최근 {@code days}일(오늘
-     * 포함) 안에 판매 완료가 확인된({@code last_seen_at} 기준) 외부 매물 중 시세 분석 1단계와 같은 기준(키워드 후보·중복·이상치 제외,
-     * AI 선별 없음)으로 고른 것의 가격을 같은 폭 구간으로 센다. 가격은 판매 완료 직전 등록가다. 판매 완료 상태는 매물 재확인 배치가
-     * 기록하므로 재확인이 덜 된 카테고리는 매물이 적거나 없을 수 있고, 없으면 {@code buckets}가 빈 배열이다.
+     * 상품(또는 외부 매물)의 거래 가격 분포를 판매 중·판매 완료 두 가지로 함께 조회한다.
      *
-     * @param days 조회 기간(일, 오늘 포함)
+     * <ul>
+     *   <li>판매 중: 가장 최근 시세 분석 때 통계에 쓴 비교 매물 가격의 분포({@link #getLatestAnalysis}의 {@code priceDistribution}과
+     *       같음). 분석 이력이 없으면 빈 분포다.
+     *   <li>판매 완료: 조회 시점에 같은 카테고리에서 최근 {@code days}일(오늘 포함) 안에 판매 완료가 확인된({@code last_seen_at} 기준)
+     *       외부 매물 중 시세 분석 1단계와 같은 기준(키워드 후보·중복·이상치 제외, AI 선별 없음)으로 고른 것의 가격 분포. 가격은 판매
+     *       완료 직전 등록가다. 판매 완료 상태는 매물 재확인 배치가 기록하므로 재확인이 덜 된 카테고리는 매물이 적거나 없을 수 있다.
+     * </ul>
+     *
+     * @param days 판매 완료 조회 기간(일, 오늘 포함)
      * @throws ProductNotFoundException 존재하지 않는 상품(외부 매물 포함)인 경우
      */
     @Transactional(readOnly = true)
     public PriceDistributionResponse getPriceDistribution(Long productId, int days) {
         Item item = getItemOrThrow(productId);
+        Optional<ProductAnalysis> latest = productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(productId);
+        return new PriceDistributionResponse(
+                item.getId(),
+                latest.map(analysis -> PriceDistributionResponse.OnSale.of(analysis, priceDistribution(item, analysis)))
+                        .orElseGet(PriceDistributionResponse.OnSale::empty),
+                soldOutDistribution(
+                        item,
+                        days,
+                        latest.map(PriceDistributionResponse::suggestedPriceOf).orElse(null)));
+    }
+
+    private PriceDistributionResponse.SoldOut soldOutDistribution(Item item, int days, Long suggestedPrice) {
         LocalDate to = LocalDate.now();
         LocalDate from = to.minusDays(days - 1L);
         List<PlatformListing> sold = SimilarListingFilter.removeDuplicates(
@@ -352,7 +370,7 @@ public class ProductAnalysisService {
                 SimilarListingFilter.selectCandidates(item.getTitle(), brand, sold, Integer.MAX_VALUE).stream()
                         .map(PlatformListing::getPrice)
                         .toList());
-        return PriceDistributionResponse.of(item.getId(), days, from, to, prices, PRICE_DISTRIBUTION_BUCKETS);
+        return PriceDistributionResponse.SoldOut.of(days, from, to, prices, suggestedPrice, PRICE_DISTRIBUTION_BUCKETS);
     }
 
     /**
@@ -400,7 +418,8 @@ public class ProductAnalysisService {
      * 상품의 최근 {@code days}일(오늘 포함) 시세 분석 스냅샷을 날짜별로 묶어 가격 추이를 조회한다. 같은 날 여러 번 분석됐으면
      * 평균가는 그 평균, 최저/최고가는 그날 중 최저/최고, 비교 매물 수는 그날 중 최대이고, 기간 평균가는 일별 평균가의 평균이다
      * (분석이 몰린 날이 과대 반영되지 않도록 {@link PriceTrend}와 같은 기준). 각 점에는 직전 기록일 대비 변화가 붙는다(첫 점은
-     * null). 외부 매물(관심 등록된 매물의 구매자 관점 분석)도 같은 방식으로 조회한다. 분석 이력이 없으면 {@code points}가 빈
+     * null). 첫 기록일이 오늘로부터 {@link PriceTrendResponse#MONTHLY_MIN_MONTHS}개월 이상 지났으면 일별 점을 달별로 다시 묶는다
+     * ({@link #monthlyPoints}). 기간 평균가·변동률·비교 매물 수 합계는 단위와 무관하게 일별 점 기준이다. 외부 매물(관심 등록된 매물의 구매자 관점 분석)도 같은 방식으로 조회한다. 분석 이력이 없으면 {@code points}가 빈
      * 배열이다.
      *
      * @throws ProductNotFoundException 존재하지 않는 상품(외부 매물 포함)인 경우
@@ -445,10 +464,15 @@ public class ProductAnalysisService {
             points.add(point);
             previous = point;
         }
+        PriceTrendResponse.Unit unit = !points.isEmpty()
+                        && !points.getFirst().date().isAfter(to.minusMonths(PriceTrendResponse.MONTHLY_MIN_MONTHS))
+                ? PriceTrendResponse.Unit.MONTH
+                : PriceTrendResponse.Unit.DAY;
         return new PriceTrendResponse(
                 item.getId(),
                 item.getPrice(),
                 PriceTrendResponse.Trend.of(
+                        unit,
                         days,
                         from,
                         to,
@@ -459,7 +483,49 @@ public class ProductAnalysisService {
                                         .average()
                                         .orElseThrow()),
                         trendChangeRate(points),
-                        points));
+                        points,
+                        unit == PriceTrendResponse.Unit.MONTH ? monthlyPoints(points) : points));
+    }
+
+    /**
+     * 일별 점을 달별로 묶는다. 점 날짜는 그달 1일, 평균가는 그달 일별 평균가의 평균, 비교 매물 수는 그달 중 최대, 최저/최고가는 그달
+     * 중 최저/최고, 분석 횟수는 합이고, 변화는 직전 기록 월 대비다.
+     */
+    private static List<PriceTrendResponse.Point> monthlyPoints(List<PriceTrendResponse.Point> dailyPoints) {
+        Map<YearMonth, List<PriceTrendResponse.Point>> byMonth = dailyPoints.stream()
+                .collect(Collectors.groupingBy(
+                        point -> YearMonth.from(point.date()), TreeMap::new, Collectors.toList()));
+        List<PriceTrendResponse.Point> points = new ArrayList<>();
+        PriceTrendResponse.Point previous = null;
+        for (Map.Entry<YearMonth, List<PriceTrendResponse.Point>> entry : byMonth.entrySet()) {
+            List<PriceTrendResponse.Point> days = entry.getValue();
+            long averagePrice = Math.round(days.stream()
+                    .mapToLong(PriceTrendResponse.Point::averagePrice)
+                    .average()
+                    .orElseThrow());
+            PriceTrendResponse.Point point = new PriceTrendResponse.Point(
+                    entry.getKey().atDay(1),
+                    averagePrice,
+                    days.stream()
+                            .mapToLong(PriceTrendResponse.Point::transactionCount)
+                            .max()
+                            .orElse(0),
+                    days.stream()
+                            .mapToLong(PriceTrendResponse.Point::minPrice)
+                            .min()
+                            .orElseThrow(),
+                    days.stream()
+                            .mapToLong(PriceTrendResponse.Point::maxPrice)
+                            .max()
+                            .orElseThrow(),
+                    days.stream()
+                            .mapToInt(PriceTrendResponse.Point::analysisCount)
+                            .sum(),
+                    PriceTrendResponse.Change.between(previous, averagePrice));
+            points.add(point);
+            previous = point;
+        }
+        return points;
     }
 
     /**
