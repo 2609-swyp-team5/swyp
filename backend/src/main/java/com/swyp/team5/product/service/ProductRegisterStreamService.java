@@ -1,6 +1,7 @@
 package com.swyp.team5.product.service;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -45,16 +46,22 @@ import com.swyp.team5.product.dto.register.ProductRegisterStep;
 import com.swyp.team5.product.dto.register.ProductRegisterStepEvent;
 import com.swyp.team5.product.dto.register.ProductRegisterStepEvent.ImageAnalysisResult;
 import com.swyp.team5.product.dto.register.ProductRegisterStepEvent.ImageUploadResult;
+import com.swyp.team5.product.dto.register.ProductRegisterStepEvent.MarketAnalysisProgress;
+import com.swyp.team5.product.dto.register.ProductRegisterStepEvent.MarketAnalysisResult;
 import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductImageRequiredException;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.error.ProductRegisterBusyException;
+import com.swyp.team5.productanalysis.dto.AnalysisStatus;
+import com.swyp.team5.productanalysis.dto.ProductAnalysisResponse;
+import com.swyp.team5.productanalysis.service.AnalysisCompletionWaiter;
 
 /**
  * 상품 등록·수정을 단계별로 처리하며 진행 상황을 SSE로 보낸다. 등록은 이미지 업로드 → AI 사진 분석 → 상품 저장, 수정은
  * 이미지 업로드 → 상품 저장 단계로 나눠 처리하며, 단계마다 SSE {@code step} 이벤트를, 끝나면 {@code complete}(등록·수정된
- * 상품) 또는 {@code error} 이벤트를 보낸다.
+ * 상품) 또는 {@code error} 이벤트를 보낸다. 등록 요청에 {@code withMarketAnalysis=true}면 상품 저장 뒤 등록 직후 시세 분석(분석
+ * 대기열)이 끝나길 기다리며 시세 분석 단계를 이어서 보내고, {@code complete}에 그 결과({@code marketAnalysis})를 담는다.
  *
  * <p>업로드와 AI 호출은 트랜잭션 밖에서 하고 저장({@link ProductService#saveDirect}/{@link ProductService#saveFromAnalysis}/
  * {@link ProductService#saveUpdate})만 짧은 트랜잭션으로 처리한다. 실패하면 이번 요청에서 업로드한 파일을 지운다.
@@ -81,10 +88,14 @@ public class ProductRegisterStreamService implements DisposableBean {
     private static final List<ProductRegisterStep> UPDATE_STEPS = List.of(
             ProductRegisterStep.IMAGE_UPLOAD, ProductRegisterStep.IMAGE_ANALYSIS, ProductRegisterStep.PRODUCT_SAVE);
 
+    // 시세 분석을 기다린 뒤 complete를 보낼 여유(스트림 시간이 먼저 끝나 저장된 등록이 error로 끝나지 않도록)
+    private static final Duration MARKET_ANALYSIS_MARGIN = Duration.ofSeconds(10);
+
     private final ProductService productService;
     private final ProductAiService productAiService;
     private final FileStorageService fileStorageService;
     private final ProductImageLoader productImageLoader;
+    private final AnalysisCompletionWaiter analysisCompletionWaiter;
     private final ProductRegisterStreamProperties properties;
     private final ThreadPoolTaskExecutor executor;
     private final ScheduledExecutorService keepAliveScheduler;
@@ -94,11 +105,13 @@ public class ProductRegisterStreamService implements DisposableBean {
             ProductAiService productAiService,
             FileStorageService fileStorageService,
             ProductImageLoader productImageLoader,
+            AnalysisCompletionWaiter analysisCompletionWaiter,
             ProductRegisterStreamProperties properties) {
         this.productService = productService;
         this.productAiService = productAiService;
         this.fileStorageService = fileStorageService;
         this.productImageLoader = productImageLoader;
+        this.analysisCompletionWaiter = analysisCompletionWaiter;
         this.properties = properties;
         // 스프링 빈으로 Executor를 등록하면 기본 applicationTaskExecutor 자동 설정이 꺼지므로 이 서비스 안에서만 쓴다
         this.executor = new ThreadPoolTaskExecutor();
@@ -123,6 +136,7 @@ public class ProductRegisterStreamService implements DisposableBean {
      * @param memberId 등록하는 회원 ID
      * @param request 등록 요청 바디
      * @param images 등록할 상품 이미지 목록(순서대로 저장)
+     * @param withMarketAnalysis 저장 뒤 시세 분석까지 기다려 보낼지({@link #analyzeMarket})
      * @return 진행 상황을 보내는 SSE 스트림
      * @throws CategoryNotFoundException 존재하지 않는 카테고리인 경우(스트림 시작 전)
      * @throws CategoryNotLeafException 최하위 카테고리가 아닌 경우(스트림 시작 전)
@@ -130,17 +144,19 @@ public class ProductRegisterStreamService implements DisposableBean {
      * @throws FileStorageException 빈 파일이거나 파일을 읽지 못한 경우(스트림 시작 전)
      * @throws ProductRegisterBusyException 처리 대기열이 가득 찬 경우(스트림 시작 전)
      */
-    public SseEmitter registerDirect(Long memberId, ProductCreateRequest request, List<MultipartFile> images) {
+    public SseEmitter registerDirect(
+            Long memberId, ProductCreateRequest request, List<MultipartFile> images, boolean withMarketAnalysis) {
         productService.validateLeafCategory(request.categoryId());
         List<MultipartFile> copies = copyImages(images);
-        return start(DIRECT_STEPS, stream -> {
+        return start(steps(DIRECT_STEPS, withMarketAnalysis), stream -> {
             List<String> imageUrls = uploadImages(stream, copies);
             ProductAiAnalysisResult analysis = analyze(stream, copies);
-            return save(
+            ProductResponse product = save(
                     stream,
                     "상품을 등록하고 있어요.",
                     "상품 등록 완료",
                     () -> productService.saveDirect(memberId, request, imageUrls, analysis));
+            return withMarketAnalysis ? analyzeMarket(stream, memberId, product) : product;
         });
     }
 
@@ -152,6 +168,7 @@ public class ProductRegisterStreamService implements DisposableBean {
      * @param purchasedMonths 사용자가 입력한 구매 후 경과 개월 수(선택)
      * @param defectStatus 사용자가 입력한 결함(하자) 상태
      * @param includedItems 사용자가 추가로 입력한 구성품 이름 목록(선택, AI 추론 결과와 합쳐짐)
+     * @param withMarketAnalysis 저장 뒤 시세 분석까지 기다려 보낼지({@link #analyzeMarket})
      * @return 진행 상황을 보내는 SSE 스트림
      * @throws ProductImageRequiredException 이미지가 없는 경우(스트림 시작 전)
      * @throws FileStorageException 빈 파일이거나 파일을 읽지 못한 경우(스트림 시작 전)
@@ -162,17 +179,19 @@ public class ProductRegisterStreamService implements DisposableBean {
             List<MultipartFile> images,
             Integer purchasedMonths,
             DefectStatus defectStatus,
-            List<String> includedItems) {
+            List<String> includedItems,
+            boolean withMarketAnalysis) {
         List<MultipartFile> copies = copyImages(images);
-        return start(AI_STEPS, stream -> {
+        return start(steps(AI_STEPS, withMarketAnalysis), stream -> {
             List<String> imageUrls = uploadImages(stream, copies);
             ProductAiAnalysisResult analysis = analyze(stream, copies);
-            return save(
+            ProductResponse product = save(
                     stream,
                     "상품을 등록하고 있어요.",
                     "상품 등록 완료",
                     () -> productService.saveFromAnalysis(
                             memberId, analysis, imageUrls, purchasedMonths, defectStatus, includedItems));
+            return withMarketAnalysis ? analyzeMarket(stream, memberId, product) : product;
         });
     }
 
@@ -236,6 +255,16 @@ public class ProductRegisterStreamService implements DisposableBean {
         executor.shutdown();
     }
 
+    /** 시세 분석을 기다리면 등록 단계 목록 끝에 시세 분석 단계를 붙인다. */
+    private static List<ProductRegisterStep> steps(List<ProductRegisterStep> base, boolean withMarketAnalysis) {
+        if (!withMarketAnalysis) {
+            return base;
+        }
+        List<ProductRegisterStep> steps = new ArrayList<>(base);
+        steps.add(ProductRegisterStep.MARKET_ANALYSIS);
+        return List.copyOf(steps);
+    }
+
     /** 요청 스레드가 끝나면 원본 multipart 임시 파일이 지워질 수 있어, 스트림을 열기 전에 내용을 메모리로 복사한다. */
     private static List<MultipartFile> copyImages(List<MultipartFile> images) {
         if (images == null || images.isEmpty()) {
@@ -292,8 +321,8 @@ public class ProductRegisterStreamService implements DisposableBean {
                 keepAliveScheduler.scheduleAtFixedRate(stream::ping, interval, interval, TimeUnit.MILLISECONDS);
         try {
             ProductResponse product = work.apply(stream);
-            stream.send(ApiResponse.success(
-                    ProductRegisterResponse.of(product, ProductRegisterAnalysis.of(product, stream.completedSteps))));
+            stream.send(ApiResponse.success(ProductRegisterResponse.of(
+                    product, ProductRegisterAnalysis.of(product, stream.completedSteps), stream.marketAnalysis)));
         } catch (RegisterCancelledException e) {
             log.info("상품 등록·수정 취소 - 결과를 받을 클라이언트가 없어 저장하지 않고 업로드 파일을 지웁니다. step={}", stream.currentStep);
             deleteUploadedFiles(stream);
@@ -375,6 +404,59 @@ public class ProductRegisterStreamService implements DisposableBean {
         return product;
     }
 
+    /**
+     * 저장한 상품의 시세 분석(등록 직후 분석 대기열 — {@code ProductRegisteredAnalysisListener})이 끝나길 기다리며 분석 세부 단계를
+     * {@code PROGRESS}로 보낸다. 끝나면 결과를 {@code complete}의 {@code marketAnalysis}에 담고, 분석에 성공했으면 판단·비교 매물 평균가가
+     * 반영되도록 상품을 다시 조회해 돌려준다. 상품은 이미 저장됐으므로 비교 매물 부족·분석 대상 아님·대기 시간 초과·오류는 등록을 실패시키지
+     * 않고 이 단계만 {@code SKIP}한다(대기 시간이 지나도 분석은 계속 진행 — 결과는 분석 조회·구독으로 확인). 대기 시간은
+     * {@code market-analysis-timeout}과 스트림 남은 시간 중 짧은 쪽이다.
+     */
+    private ProductResponse analyzeMarket(RegisterStream stream, Long memberId, ProductResponse product) {
+        stream.begin(ProductRegisterStep.MARKET_ANALYSIS, "비슷한 매물로 시세를 분석하고 있어요.");
+        try {
+            ProductAnalysisResponse result = analysisCompletionWaiter.await(
+                    product.id(),
+                    marketAnalysisWait(stream),
+                    event -> stream.progress(
+                            ProductRegisterStep.MARKET_ANALYSIS, event.message(), MarketAnalysisProgress.from(event)),
+                    stream::isClosed);
+            stream.marketAnalysis = result;
+            if (result.analysisStatus() == AnalysisStatus.ANALYZED) {
+                stream.done(ProductRegisterStep.MARKET_ANALYSIS, "시세 분석 완료", MarketAnalysisResult.from(result));
+                return productService.getProduct(product.id(), memberId);
+            }
+            stream.skip(
+                    ProductRegisterStep.MARKET_ANALYSIS,
+                    marketAnalysisSkipMessage(result),
+                    MarketAnalysisResult.from(result));
+        } catch (RuntimeException e) {
+            log.warn("상품 등록 - 시세 분석 결과 확인 실패(등록은 완료): productId={}, reason={}", product.id(), ErrorLogs.describe(e));
+            stream.skip(ProductRegisterStep.MARKET_ANALYSIS, "시세 분석 결과를 불러오지 못했어요. 판매 관리에서 다시 확인해 주세요.", null);
+        }
+        return product;
+    }
+
+    private Duration marketAnalysisWait(RegisterStream stream) {
+        Duration remaining = properties
+                .timeout()
+                .minus(Duration.ofNanos(System.nanoTime() - stream.startedAt))
+                .minus(MARKET_ANALYSIS_MARGIN);
+        Duration wait = remaining.compareTo(properties.marketAnalysisTimeout()) < 0
+                ? remaining
+                : properties.marketAnalysisTimeout();
+        return wait.isNegative() ? Duration.ZERO : wait;
+    }
+
+    private static String marketAnalysisSkipMessage(ProductAnalysisResponse result) {
+        if (result.analysisStatus() == AnalysisStatus.ANALYZING) {
+            return "시세 분석이 길어지고 있어요. 판매 관리에서 결과를 확인해 주세요.";
+        }
+        if (result.analysisSkipMessage() != null) {
+            return result.analysisSkipMessage();
+        }
+        return "시세 분석을 하지 못했어요. 판매 관리에서 다시 시도해 주세요.";
+    }
+
     private void deleteUploadedFiles(RegisterStream stream) {
         if (stream.uploadedKeys.isEmpty()) {
             return;
@@ -445,7 +527,9 @@ public class ProductRegisterStreamService implements DisposableBean {
         private final List<String> uploadedKeys = new ArrayList<>();
         // 단계별 최종 결과(DONE/SKIP). complete 이벤트의 analysis를 만들 때 쓴다
         private final List<ProductRegisterStepEvent> completedSteps = new CopyOnWriteArrayList<>();
+        private final long startedAt = System.nanoTime();
         private volatile ProductRegisterStep currentStep;
+        private volatile ProductAnalysisResponse marketAnalysis; // 시세 분석 결과(withMarketAnalysis일 때만)
         private boolean closed;
         private boolean cancelled; // 시간 초과·연결 끊김으로 저장하지 않기로 함
         private boolean saving; // 저장을 시작함(이후에는 취소하지 않음)
@@ -467,7 +551,19 @@ public class ProductRegisterStreamService implements DisposableBean {
         }
 
         void skip(ProductRegisterStep step, String message) {
-            finish(message, ProductRegisterStepEvent.of(step, "SKIP", indexOf(step), steps.size(), null));
+            skip(step, message, null);
+        }
+
+        void skip(ProductRegisterStep step, String message, Object result) {
+            finish(message, ProductRegisterStepEvent.of(step, "SKIP", indexOf(step), steps.size(), result));
+        }
+
+        /** 단계 안의 진행 상황을 보낸다(단계 결과로 기록하지 않음). */
+        void progress(ProductRegisterStep step, String message, Object result) {
+            send(ApiResponse.success(
+                    message,
+                    ProductRegisterStepEvent.of(
+                            step, ProductRegisterStepEvent.PROGRESS, indexOf(step), steps.size(), result)));
         }
 
         /** 단계 결과를 기록하고(최종 analysis 계산용) 바로 step 이벤트로 보낸다. */
@@ -550,6 +646,10 @@ public class ProductRegisterStreamService implements DisposableBean {
 
         synchronized void markClosed() {
             closed = true;
+        }
+
+        synchronized boolean isClosed() {
+            return closed;
         }
 
         synchronized void complete() {

@@ -182,6 +182,7 @@ product:
     queue-capacity: 20 # 대기열 크기(가득 차면 503)
     timeout: ${PRODUCT_REGISTER_STREAM_TIMEOUT:180s} # 스트림 최대 유지 시간(지나면 error 이벤트 — 저장 전이면 요청 취소, 저장 중이면 저장은 끝까지 진행) — AI 사진 분석 지연(재시도·GPT 대체)으로 90초를 넘는 경우가 있어 늘림
     keep-alive-interval: 15s # 연결 유지용 주석 이벤트 간격
+    market-analysis-timeout: ${PRODUCT_REGISTER_MARKET_ANALYSIS_TIMEOUT:90s} # 등록 후 시세 분석(withMarketAnalysis=true)을 기다리는 최대 시간 — 넘으면 등록은 끝내고 시세 분석 단계만 SKIP(분석은 계속 진행)
 
 # 지금이니 AI 대화 답변 스트림(SSE, Accept: text/event-stream)
 ai-chat:
