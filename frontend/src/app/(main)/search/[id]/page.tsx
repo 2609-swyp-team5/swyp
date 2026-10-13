@@ -1,9 +1,137 @@
-import { SearchProductDetailPage } from "@/features/search/components/detail/SearchProductDetailPage";
+import { isAxiosError } from "axios";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cache } from "react";
+
+import { siteOrigin } from "@/common/lib/siteUrl";
+import {
+    createPublicPageMetadata,
+    defaultSiteDescription,
+    noIndexMetadata,
+} from "@/common/seo/metadata";
+import { searchApi } from "@/features/search/api/searchApi";
+import { SearchProductDetailPage } from "@/features/search/components/detail/SearchProductDetailPage";
+import type { SearchProductDetail } from "@/features/search/types";
+
+type ProductLookup =
+    | { status: "found"; product: SearchProductDetail }
+    | { status: "not-found" }
+    | { status: "unavailable" };
+
+function parseTargetId(id: string) {
+    const targetId = Number(id);
+    return Number.isSafeInteger(targetId) && targetId > 0 ? targetId : null;
+}
+
+const lookupProduct = cache(async (id: number): Promise<ProductLookup> => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
+    try {
+        const { data } = await searchApi.searchProductDetail(id, controller.signal);
+        return data.success ? { status: "found", product: data.data } : { status: "not-found" };
+    } catch (error) {
+        if (isAxiosError(error) && error.response?.status === 404) {
+            return { status: "not-found" };
+        }
+
+        return { status: "unavailable" };
+    } finally {
+        clearTimeout(timeout);
+    }
+});
+
+function ProductStructuredData({ product }: { product: SearchProductDetail }) {
+    const productUrl = new URL(`/search/${product.id}`, siteOrigin).toString();
+    const title = product.title.trim();
+    const description = product.description?.trim();
+    const images = product.imageUrls.filter(
+        (imageUrl) => /^https?:\/\//.test(imageUrl) && !/[{}]/.test(imageUrl),
+    );
+    const productJsonLd = {
+        "@type": "Product",
+        name: title,
+        url: productUrl,
+        ...(description ? { description } : {}),
+        ...(images.length > 0 ? { image: images } : {}),
+        ...(product.category.name ? { category: product.category.name } : {}),
+    };
+    const breadcrumbJsonLd = {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+            {
+                "@type": "ListItem",
+                position: 1,
+                name: "홈",
+                item: new URL("/home", siteOrigin).toString(),
+            },
+            {
+                "@type": "ListItem",
+                position: 2,
+                name: "상품 검색",
+                item: new URL("/search", siteOrigin).toString(),
+            },
+            {
+                "@type": "ListItem",
+                position: 3,
+                name: title,
+                item: productUrl,
+            },
+        ],
+    };
+    const jsonLd = {
+        "@context": "https://schema.org",
+        "@graph": [productJsonLd, breadcrumbJsonLd],
+    };
+
+    return (
+        <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+                __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
+            }}
+        />
+    );
+}
+
+export async function generateMetadata({
+    params,
+}: {
+    params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+    const { id } = await params;
+    const targetId = parseTargetId(id);
+
+    if (targetId === null) {
+        return noIndexMetadata;
+    }
+
+    const lookup = await lookupProduct(targetId);
+    if (lookup.status !== "found" || !lookup.product.title.trim()) {
+        return noIndexMetadata;
+    }
+
+    return createPublicPageMetadata({
+        title: lookup.product.title.trim(),
+        description: lookup.product.description?.trim() || defaultSiteDescription,
+        pathname: `/search/${targetId}`,
+    });
+}
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
-    const targetId = Number(id);
-    if (!Number.isSafeInteger(targetId) || targetId <= 0) notFound();
-    return <SearchProductDetailPage key={targetId} targetId={targetId} />;
+    const targetId = parseTargetId(id);
+    if (targetId === null) notFound();
+
+    const lookup = await lookupProduct(targetId);
+    if (lookup.status === "not-found") {
+        notFound();
+    }
+
+    return (
+        <>
+            {lookup.status === "found" && <ProductStructuredData product={lookup.product} />}
+            <SearchProductDetailPage key={targetId} targetId={targetId} />
+        </>
+    );
 }
