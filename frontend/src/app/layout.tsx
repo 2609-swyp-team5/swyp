@@ -46,7 +46,7 @@ export const metadata: Metadata = {
         images: [defaultOgImage.url],
     },
     icons: {
-        icon: "/brand/favicon.svg",
+        icon: "/favicon.svg",
     },
 };
 
