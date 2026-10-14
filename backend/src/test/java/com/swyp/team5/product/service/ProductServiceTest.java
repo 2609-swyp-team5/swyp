@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -35,6 +36,7 @@ import com.swyp.team5.item.entity.ListingSource;
 import com.swyp.team5.item.repository.ItemRepository;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.repository.MemberRepository;
+import com.swyp.team5.notification.repository.NotificationRepository;
 import com.swyp.team5.platform.entity.MemberPlatform;
 import com.swyp.team5.platform.entity.Platform;
 import com.swyp.team5.platform.entity.PlatformListing;
@@ -67,6 +69,7 @@ import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.product.repository.ProductSearchRepository;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
+import com.swyp.team5.productanalysis.repository.PriceForecastRepository;
 import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
 import com.swyp.team5.productanalysis.service.ProductAnalysisService;
 import com.swyp.team5.search.service.SearchLogService;
@@ -74,6 +77,7 @@ import com.swyp.team5.tag.entity.Tag;
 import com.swyp.team5.tag.repository.TagRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -126,6 +130,12 @@ class ProductServiceTest {
     private ProductPlatformRepository productPlatformRepository;
 
     @Mock
+    private PriceForecastRepository priceForecastRepository;
+
+    @Mock
+    private NotificationRepository notificationRepository;
+
+    @Mock
     private ProductViewCounter productViewCounter;
 
     @Mock
@@ -147,6 +157,8 @@ class ProductServiceTest {
                 productAnalysisService,
                 targetPriceAlertService,
                 productPlatformRepository,
+                priceForecastRepository,
+                notificationRepository,
                 productViewCounter,
                 eventPublisher);
     }
@@ -1107,7 +1119,20 @@ class ProductServiceTest {
 
         service().delete(1L, 1L);
 
-        verify(productRepository).delete(product);
+        // FK 순서대로(감가 예측 → 분석 → 알림·관심 → 게시 기록) 지운 뒤 상품을 지운다
+        InOrder inOrder = inOrder(
+                priceForecastRepository,
+                productAnalysisRepository,
+                notificationRepository,
+                interestRepository,
+                productPlatformRepository,
+                productRepository);
+        inOrder.verify(priceForecastRepository).deleteAllByItemId(1L);
+        inOrder.verify(productAnalysisRepository).deleteAllByItemId(1L);
+        inOrder.verify(notificationRepository).deleteAllByItemId(1L);
+        inOrder.verify(interestRepository).deleteAllByItemId(1L);
+        inOrder.verify(productPlatformRepository).deleteAllByProductId(1L);
+        inOrder.verify(productRepository).delete(product);
     }
 
     // 상품 삭제 실패 - 소유자가 아님

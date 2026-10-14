@@ -9,6 +9,7 @@ import java.util.Set;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -44,4 +45,9 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     long countByMemberIdAndTypeInAndCreatedAtGreaterThanEqual(
             Long memberId, Collection<NotificationType> types, LocalDateTime from);
+
+    /** 상품 삭제 전 정리용 — 이 상품을 대상으로 한 알림(모든 회원)을 지운다. */
+    @Modifying(flushAutomatically = true)
+    @Query("DELETE FROM Notification n WHERE n.item.id = :itemId")
+    int deleteAllByItemId(@Param("itemId") Long itemId);
 }
