@@ -33,7 +33,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class PriceCollectionServiceTest {
 
-    private static final BunjangCrawlProperties PROPERTIES = new BunjangCrawlProperties(5);
+    private static final BunjangCrawlProperties PROPERTIES = new BunjangCrawlProperties(5, 0L);
 
     @Mock
     private BunjangCategoryClient bunjangCategoryClient;
@@ -163,7 +163,7 @@ class PriceCollectionServiceTest {
         when(platformListingBatchWriter.write(eq(platform), anyList()))
                 .thenReturn(new PlatformListingBatchWriter.Result(1, 0));
 
-        service(new BunjangCrawlProperties(1)).collectAll();
+        service(new BunjangCrawlProperties(1, 0L)).collectAll();
 
         verify(bunjangCategoryClient, times(1)).fetchPage(eq("999"), any());
         assertThat(writtenObservations()).hasSize(1);

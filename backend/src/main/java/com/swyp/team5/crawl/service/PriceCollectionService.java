@@ -20,7 +20,8 @@ import com.swyp.team5.product.entity.ProductStatus;
 /**
  * 번개장터 카테고리별 매물을 광범위 수집해 {@link PlatformListing}으로 upsert한다. 수집하는 동안은 메모리에만 모으고 모든 카테고리를 다
  * 돈 뒤 {@link PlatformListingBatchWriter}로 한꺼번에 저장한다(번개장터 호출 간격 때문에 수집이 길어도 DB는 저장하는 잠깐만 쓰도록 —
- * Neon 컴퓨트 시간 절감). 수집 도중 서버가 꺼지면 그 회차 결과는 저장되지 않는다.
+ * Neon 컴퓨트 시간 절감). 번개장터 페이지 호출마다 {@code call-interval-ms}만큼 쉬어 요청을 연달아 보내지 않는다. 수집 도중 서버가
+ * 꺼지면 그 회차 결과는 저장되지 않는다.
  */
 @Slf4j
 @Service
@@ -80,6 +81,7 @@ public class PriceCollectionService {
         boolean hasMorePages = false;
         for (int page = 0; page < properties.pageLimit(); page++) {
             BunjangCategoryPage result = bunjangCategoryClient.fetchPage(bunjangCategoryId, cursor);
+            sleepBetweenCalls();
             for (BunjangProductItem item : result.items()) {
                 if (item.ad()) {
                     continue; // 광고 매물은 검색 연관도/입찰가로 노출돼 시세를 왜곡할 수 있어 제외
@@ -107,6 +109,14 @@ public class PriceCollectionService {
                     properties.pageLimit());
         } else {
             log.info("카테고리 {}(번개장터 {}) 매물 {}건 수집", categoryId, bunjangCategoryId, count);
+        }
+    }
+
+    private void sleepBetweenCalls() {
+        try {
+            Thread.sleep(properties.callIntervalMs());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 

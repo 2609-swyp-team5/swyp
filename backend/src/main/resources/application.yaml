@@ -162,6 +162,7 @@ crawl:
     enabled: ${CRAWL_BUNJANG_ENABLED:true}
     cron: ${CRAWL_BUNJANG_CRON:0 0 */3 * * *} # 3시간마다 정각(00/03/06…) — 비교 매물은 최근 168시간을 쓰므로 충분하고, 매시 수집은 Neon 컴퓨트를 쉬지 못하게 해 늘림(2026-10-13)
     page-limit: ${CRAWL_BUNJANG_PAGE_LIMIT:8} # 한 번에 크롤링할 페이지 수 제한(60건 * 페이지)
+    call-interval-ms: ${CRAWL_BUNJANG_CALL_INTERVAL_MS:500} # 카테고리 페이지 호출 간 최소 대기 시간(번개장터에 요청을 연달아 보내지 않도록)
     reconcile:
       enabled: ${CRAWL_BUNJANG_RECONCILE_ENABLED:true}
       cron: ${CRAWL_BUNJANG_RECONCILE_CRON:0 30 5 * * *} # 매일 새벽 5시 30분(다른 크롤링과 겹치지 않는 시간대)

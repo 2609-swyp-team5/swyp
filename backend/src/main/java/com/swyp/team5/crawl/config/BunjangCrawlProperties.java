@@ -13,4 +13,5 @@ import org.springframework.validation.annotation.Validated;
  */
 @Validated
 @ConfigurationProperties(prefix = "crawl.bunjang")
-public record BunjangCrawlProperties(@NotNull Integer pageLimit) {}
+public record BunjangCrawlProperties(
+        @NotNull Integer pageLimit, @NotNull Long callIntervalMs) {} // 카테고리 페이지 호출 간 최소 대기 시간
