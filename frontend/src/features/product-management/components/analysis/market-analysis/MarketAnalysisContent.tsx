@@ -147,7 +147,7 @@ export function MarketAnalysisContent({
                         )}
                     >
                         <MarketAnalysisPriceDistribution
-                            analysis={analysis}
+                            variant={variant}
                             query={priceDistributionQuery}
                         />
                         <ProductPriceTrendSection query={priceTrendQuery} />
@@ -220,7 +220,7 @@ export function MarketAnalysisContent({
                         </div>
                     </div>
                     <MarketAnalysisPriceDistribution
-                        analysis={analysis}
+                        variant={variant}
                         query={priceDistributionQuery}
                     />
                 </div>

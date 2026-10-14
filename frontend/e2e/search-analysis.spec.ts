@@ -5,6 +5,7 @@ import { detailProduct } from "./product-detail-fixture";
 import {
     createProductCompetitionMock,
     createProductMarketAnalysisMock,
+    createProductPriceDistributionMock,
     createProductPriceTrendMock,
     createProductValuationForecastMock,
 } from "../src/features/product-management/mocks/productManagementMock";
@@ -28,6 +29,11 @@ async function mockDetailAnalysis(
     },
 ) {
     const result = { ...createProductMarketAnalysisMock(productId, "BUY", "BUY"), ...prices };
+    const baseDistribution = createProductPriceDistributionMock(productId);
+    const distribution = {
+        ...baseDistribution,
+        onSale: { ...baseDistribution.onSale, ...prices },
+    };
     const similar = createProductCompetitionMock(productId, "BUY");
     const calls = { analysis: 0, details: 0, requested: 0 };
     let analyzed = hasAnalysis;
@@ -93,6 +99,15 @@ async function mockDetailAnalysis(
             json: { success: true, data: createProductPriceTrendMock(productId), error: null },
         });
     });
+    await page.route(
+        (url) => url.pathname === `/products/${productId}/analysis/distribution`,
+        (route) => {
+            calls.details++;
+            return route.fulfill({
+                json: { success: true, data: distribution, error: null },
+            });
+        },
+    );
     await page.route(`**/products/${productId}/analysis/forecast`, (route) => {
         calls.details++;
         return route.fulfill({
@@ -147,7 +162,7 @@ test("members see the shared AI analysis right away and load details only from �
     await expect(page.getByRole("region", { name: "경쟁 상품 수", exact: true })).toContainText(
         similar.competition.items[0].title,
     );
-    expect(calls.details).toBe(3);
+    expect(calls.details).toBe(4);
 });
 
 test("price distribution keeps every point inside the bar when the suggested price is below the lowest", async ({

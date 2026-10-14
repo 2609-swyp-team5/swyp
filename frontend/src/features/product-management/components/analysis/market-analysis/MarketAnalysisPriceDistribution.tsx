@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+
 import {
     Card,
     CardContent,
@@ -8,7 +12,7 @@ import {
 } from "@/common/components/ui/Card";
 import { cn } from "@/common/lib/utils";
 
-import type { ProductMarketAnalysis, ProductPriceDistribution } from "../../../types";
+import type { ProductPriceDistribution } from "../../../types";
 import type { StreamingQueryState } from "../../shared/streaming/productManagementStreamingTypes";
 import {
     toPriceDistributionViewModel,
@@ -97,17 +101,81 @@ function toReferencePoints(
     });
 }
 
-function DistributionStateCard({ message, role }: { message: string; role?: "alert" | "status" }) {
+type DistributionTab = "onSale" | "soldOut";
+
+function DistributionTabs({
+    selectedTab,
+    onTabChange,
+}: {
+    selectedTab: DistributionTab;
+    onTabChange: (tab: DistributionTab) => void;
+}) {
+    return (
+        <div
+            className="mt-4 flex w-fit rounded-[5px] bg-[#f0efff] p-1"
+            role="tablist"
+            aria-label="거래 가격 분포 기준"
+        >
+            {(
+                [
+                    ["onSale", "판매 중"],
+                    ["soldOut", "판매 완료"],
+                ] as const
+            ).map(([tab, label]) => (
+                <button
+                    key={tab}
+                    type="button"
+                    role="tab"
+                    aria-selected={selectedTab === tab}
+                    className={cn(
+                        "rounded-[3px] px-3 py-1.5 text-[12px] leading-4 transition-colors",
+                        selectedTab === tab
+                            ? "bg-white font-semibold text-[#6653fb] shadow-sm"
+                            : "text-[#83889e]",
+                    )}
+                    onClick={() => onTabChange(tab)}
+                >
+                    {label}
+                </button>
+            ))}
+        </div>
+    );
+}
+
+function DistributionCardHeader({
+    selectedTab,
+    onTabChange,
+}: {
+    selectedTab: DistributionTab;
+    onTabChange: (tab: DistributionTab) => void;
+}) {
+    return (
+        <CardHeader className="gap-[5px] rounded-none p-5">
+            <CardTitle className="text-[20px] leading-[25px] font-semibold tracking-[0.5px] text-[#363636]">
+                거래 가격 분포
+            </CardTitle>
+            <CardDescription className="text-[12px] leading-[15px] text-[#a1a3ae]">
+                비슷한 상품의 가격과 비교해 보세요.
+            </CardDescription>
+            <DistributionTabs selectedTab={selectedTab} onTabChange={onTabChange} />
+        </CardHeader>
+    );
+}
+
+function DistributionStateCard({
+    message,
+    role,
+    selectedTab,
+    onTabChange,
+}: {
+    message: string;
+    role?: "alert" | "status";
+    selectedTab: DistributionTab;
+    onTabChange: (tab: DistributionTab) => void;
+}) {
     return (
         <Card className="min-w-0 gap-0 rounded-[10px] border border-[#6653fb] bg-white p-0 text-[#2f3037] ring-0">
-            <CardHeader className="gap-[5px] rounded-none p-5">
-                <CardTitle className="text-[20px] leading-[25px] font-semibold tracking-[0.5px] text-[#363636]">
-                    거래 가격 분포
-                </CardTitle>
-                <CardDescription className="text-[12px] leading-[15px] text-[#a1a3ae]">
-                    비슷한 상품의 가격과 비교해 보세요.
-                </CardDescription>
-            </CardHeader>
+            <DistributionCardHeader selectedTab={selectedTab} onTabChange={onTabChange} />
             <CardContent
                 role={role}
                 className="flex min-h-[150px] flex-col items-center justify-center gap-3 rounded-none bg-[#fafbff] px-5 py-8 text-center text-[14px] leading-5 text-[#83889e]"
@@ -119,28 +187,55 @@ function DistributionStateCard({ message, role }: { message: string; role?: "ale
 }
 
 export function MarketAnalysisPriceDistribution({
-    analysis,
+    variant = "default",
     query,
 }: {
-    analysis: ProductMarketAnalysis;
+    variant?: "default" | "management" | "sold";
     query?: StreamingQueryState<ProductPriceDistribution>;
 }) {
-    const data: PriceDistributionViewModel | null = query?.data
-        ? toPriceDistributionViewModel(analysis, query.data)
+    const [selectedTab, setSelectedTab] = useState<DistributionTab>(
+        variant === "sold" ? "soldOut" : "onSale",
+    );
+    const selectedDistribution = query?.data?.[selectedTab];
+    const data: PriceDistributionViewModel | null = selectedDistribution
+        ? toPriceDistributionViewModel(selectedDistribution)
         : null;
+    const emptyMessage =
+        selectedTab === "soldOut"
+            ? "최근 판매 완료된 유사 상품이 없어요."
+            : "현재 판매 중인 유사 상품이 없어요.";
+    const onTabChange = (tab: DistributionTab) => setSelectedTab(tab);
 
     if (query?.isPending) {
         return (
-            <DistributionStateCard message="거래 가격 분포를 불러오는 중이에요." role="status" />
+            <DistributionStateCard
+                message="거래 가격 분포를 불러오는 중이에요."
+                role="status"
+                selectedTab={selectedTab}
+                onTabChange={onTabChange}
+            />
         );
     }
 
     if (query?.error) {
-        return <DistributionStateCard message="거래 가격 분포를 불러오지 못했어요." role="alert" />;
+        return (
+            <DistributionStateCard
+                message="거래 가격 분포를 불러오지 못했어요."
+                role="alert"
+                selectedTab={selectedTab}
+                onTabChange={onTabChange}
+            />
+        );
     }
 
     if (!data) {
-        return <DistributionStateCard message="최근 판매 완료된 유사 상품이 없어요." />;
+        return (
+            <DistributionStateCard
+                message={emptyMessage}
+                selectedTab={selectedTab}
+                onTabChange={onTabChange}
+            />
+        );
     }
 
     // 추천가가 최저가보다 낮거나 최고가보다 높을 수 있어 눈금 범위에 함께 포함한다.
@@ -156,14 +251,7 @@ export function MarketAnalysisPriceDistribution({
 
     return (
         <Card className="min-w-0 gap-0 rounded-[10px] border border-[#6653fb] bg-white p-0 text-[#2f3037] ring-0">
-            <CardHeader className="gap-[5px] rounded-none p-5">
-                <CardTitle className="text-[20px] leading-[25px] font-semibold tracking-[0.5px] text-[#363636]">
-                    거래 가격 분포
-                </CardTitle>
-                <CardDescription className="text-[12px] leading-[15px] text-[#a1a3ae]">
-                    비슷한 상품의 가격과 비교해 보세요.
-                </CardDescription>
-            </CardHeader>
+            <DistributionCardHeader selectedTab={selectedTab} onTabChange={onTabChange} />
             <CardContent className="flex flex-col gap-[13px] rounded-none bg-[#fafbff] px-5 pt-5 pb-5">
                 <div className="relative h-[52px] w-full">
                     <div

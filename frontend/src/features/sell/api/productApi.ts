@@ -66,7 +66,7 @@ const requestProductAnalysis = (id: number, force = false) =>
 const getProductPriceTrend = (id: number) =>
     api.get<ApiResponse<ProductPriceTrendResponse>>(`/products/${id}/analysis/trend`);
 
-const getProductPriceDistribution = (id: number, days = 30) =>
+const getProductPriceDistribution = (id: number, days = 90) =>
     api.get<ApiResponse<ProductPriceDistributionResponse>>(
         `/products/${id}/analysis/distribution`,
         { params: { days } },

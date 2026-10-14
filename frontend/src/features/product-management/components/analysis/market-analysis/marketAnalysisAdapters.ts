@@ -1,5 +1,4 @@
 import type {
-    ProductMarketAnalysis,
     ProductPriceDistribution,
     ProductPriceTrend,
     ProductValuationForecast,
@@ -12,14 +11,17 @@ export type PriceDistributionViewModel = {
     maxPrice: number;
 };
 
+export type PriceDistributionSection =
+    ProductPriceDistribution["onSale"] | ProductPriceDistribution["soldOut"];
+
 export function toPriceDistributionViewModel(
-    analysis: ProductMarketAnalysis,
-    distribution: ProductPriceDistribution,
+    distribution: PriceDistributionSection,
 ): PriceDistributionViewModel | null {
     if (
-        distribution.minPrice === null ||
-        distribution.averagePrice === null ||
-        distribution.maxPrice === null
+        distribution.minPrice == null ||
+        distribution.averagePrice == null ||
+        distribution.suggestedPrice == null ||
+        distribution.maxPrice == null
     ) {
         return null;
     }
@@ -27,7 +29,7 @@ export function toPriceDistributionViewModel(
     return {
         minPrice: distribution.minPrice,
         averagePrice: distribution.averagePrice,
-        suggestedPrice: analysis.suggestedPrice,
+        suggestedPrice: distribution.suggestedPrice,
         maxPrice: distribution.maxPrice,
     };
 }
