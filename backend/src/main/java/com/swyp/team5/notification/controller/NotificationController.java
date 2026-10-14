@@ -19,6 +19,7 @@ import com.swyp.team5.common.common.ApiResponse;
 import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.common.passport.PrincipalMember;
 import com.swyp.team5.notification.dto.NotificationCategory;
+import com.swyp.team5.notification.dto.NotificationDeleteAllResponse;
 import com.swyp.team5.notification.dto.NotificationReadResponse;
 import com.swyp.team5.notification.dto.NotificationResponse;
 import com.swyp.team5.notification.dto.NotificationSettingResponse;
@@ -102,6 +103,21 @@ public class NotificationController {
             @AuthenticationPrincipal PrincipalMember currentMember, @PathVariable Long notificationId) {
         return ResponseEntity.ok(
                 ApiResponse.success(notificationService.markRead(currentMember.memberId(), notificationId)));
+    }
+
+    /**
+     * 본인 알림을 한꺼번에 지운다(남의 알림은 지우지 않음).
+     *
+     * @param category 지울 탭 하나(선택, SELL/BUY/PRICE/PLATFORM/NOTICE — 생략하면 전체)
+     * @return 200 OK + 지운 알림 수
+     */
+    @Operation(summary = "알림 전체 삭제")
+    @DeleteMapping
+    public ResponseEntity<ApiResponse<NotificationDeleteAllResponse>> deleteAll(
+            @AuthenticationPrincipal PrincipalMember currentMember,
+            @RequestParam(required = false) NotificationCategory category) {
+        return ResponseEntity.ok(
+                ApiResponse.success(notificationService.deleteAll(currentMember.memberId(), category)));
     }
 
     @Operation(summary = "알림 삭제")
