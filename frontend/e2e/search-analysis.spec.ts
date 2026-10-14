@@ -250,6 +250,10 @@ test("members can request an analysis when none exists yet", async ({ page }) =>
     await expect(section).toContainText("구매 타이밍을 분석하고 있어요");
     await section.getByRole("button", { name: "AI 분석 재시도" }).click();
 
+    const completedDialog = page.getByRole("dialog", { name: "시세 분석이 완료됐어요" });
+    await expect(completedDialog).toBeVisible();
+    await completedDialog.getByRole("button", { name: "닫기", exact: true }).click();
+    await expect(completedDialog).toBeHidden();
     await expect(section).toContainText(result.description);
     expect(calls.requested).toBe(1);
 });
