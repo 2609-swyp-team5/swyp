@@ -29,6 +29,18 @@ public interface InterestRepository extends JpaRepository<Interest, Long> {
 
     long countByItemId(Long itemId);
 
+    /** 회원이 주어진 상품·매물 중 관심 등록한 것의 대상 ID와 관심 ID(목록·상세의 하트 표시용 — 한 번에 조회). */
+    @Query("SELECT i.item.id AS itemId, i.id AS interestId FROM Interest i "
+            + "WHERE i.member.id = :memberId AND i.item.id IN :itemIds")
+    List<InterestedItem> findInterestedItems(
+            @Param("memberId") Long memberId, @Param("itemIds") Collection<Long> itemIds);
+
+    interface InterestedItem {
+        Long getItemId();
+
+        Long getInterestId();
+    }
+
     Optional<Interest> findByIdAndMemberId(Long interestId, Long memberId);
 
     /** 목표가가 설정된 관심상품 전체(대상 상품/매물과 함께) — 목표가 도달 알림 배치용. */

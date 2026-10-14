@@ -99,7 +99,9 @@ class AiChatSuggestionServiceTest {
                         null,
                         null,
                         null,
-                        LocalDateTime.now()))
+                        LocalDateTime.now(),
+                        false,
+                        null))
                 .toList();
         when(productService.getMyProducts(eq(MEMBER_ID), isNull(), isNull(), any(), isNull(), anyInt()))
                 .thenReturn(CursorPageResponse.of(items, 10, ProductSummaryResponse::id));

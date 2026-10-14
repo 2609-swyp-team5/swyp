@@ -741,7 +741,7 @@ class ProductServiceTest {
                 .thenReturn(List.of());
         when(productRepository.findAllById(List.of(1L, 2L))).thenReturn(List.of(lessPopular, popular));
 
-        List<ProductSummaryResponse> response = service().getPopularProducts();
+        List<ProductSummaryResponse> response = service().getPopularProducts(null);
 
         assertThat(response).extracting(ProductSummaryResponse::id).containsExactly(1L, 2L);
     }
@@ -760,7 +760,7 @@ class ProductServiceTest {
                 .thenReturn(List.of(1L, 3L));
         when(productRepository.findAllById(List.of(1L, 3L))).thenReturn(List.of(filler, recent));
 
-        assertThat(service().getPopularProducts())
+        assertThat(service().getPopularProducts(null))
                 .extracting(ProductSummaryResponse::id)
                 .containsExactly(1L, 3L);
     }
@@ -773,7 +773,7 @@ class ProductServiceTest {
         when(interestRepository.findProductIdsByInterestAndViews(any(), any(Pageable.class)))
                 .thenReturn(List.of());
 
-        assertThat(service().getPopularProducts()).isEmpty();
+        assertThat(service().getPopularProducts(null)).isEmpty();
     }
 
     // 상품 수정 성공 - 소유자 본인 (구매일시는 등록 시점 값 그대로 유지됨)

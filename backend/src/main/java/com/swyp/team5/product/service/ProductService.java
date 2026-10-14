@@ -3,6 +3,7 @@ package com.swyp.team5.product.service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +29,7 @@ import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.component.entity.Component;
 import com.swyp.team5.component.repository.ComponentRepository;
 import com.swyp.team5.interest.repository.InterestRepository;
+import com.swyp.team5.interest.repository.InterestRepository.InterestedItem;
 import com.swyp.team5.interest.service.TargetPriceAlertService;
 import com.swyp.team5.item.entity.Item;
 import com.swyp.team5.item.entity.ListingSource;
@@ -284,7 +286,8 @@ public class ProductService {
                     .calculateMarketAveragePrice(listing)
                     .orElse(null));
             return ProductResponse.fromListing(listing, recommendation, averagePrice)
-                    .withStats(null, interestRepository.countByItemId(listing.getId()), null);
+                    .withStats(null, interestRepository.countByItemId(listing.getId()), null)
+                    .withInterest(findInterestId(memberId, itemId));
         }
         Product product = (Product) Hibernate.unproxy(item);
         Long averagePrice =
@@ -295,7 +298,8 @@ public class ProductService {
                         .toList()
                 : null;
         return ProductResponse.from(product, recommendation, averagePrice, product.isRegisteredBy(memberId))
-                .withStats(platforms, interestRepository.countByItemId(product.getId()), product.getViewCount());
+                .withStats(platforms, interestRepository.countByItemId(product.getId()), product.getViewCount())
+                .withInterest(findInterestId(memberId, itemId));
     }
 
     /**
@@ -404,16 +408,22 @@ public class ProductService {
                         .collect(Collectors.toMap(PlatformListing::getId, listing -> listing));
         Map<Long, ProductAnalysis> productAnalyses = findLatestAnalyses(List.copyOf(products.values()));
         Map<Long, ProductAnalysis> listingAnalyses = findLatestListingAnalyses(List.copyOf(listings.keySet()));
+        Map<Long, Long> interestIds = findInterestIds(
+                memberId, pageHits.stream().map(ProductSearchHit::id).toList());
 
         // 조회 사이에 삭제된 항목은 건너뛴다(정렬 순서는 검색 결과 순서를 그대로 따른다).
         List<ProductListItemResponse> content = pageHits.stream()
                 .map(hit -> hit.source() == ListingSource.OUR
                         ? Optional.ofNullable(products.get(hit.id()))
                                 .map(product -> ProductListItemResponse.fromProduct(
-                                        product, productAnalyses.get(product.getId())))
+                                        product,
+                                        productAnalyses.get(product.getId()),
+                                        interestIds.get(product.getId())))
                         : Optional.ofNullable(listings.get(hit.id()))
                                 .map(listing -> ProductListItemResponse.fromListing(
-                                        listing, listingAnalyses.get(listing.getId()))))
+                                        listing,
+                                        listingAnalyses.get(listing.getId()),
+                                        interestIds.get(listing.getId()))))
                 .flatMap(Optional::stream)
                 .toList();
         CursorPageResponse<ProductListItemResponse> page =
@@ -486,10 +496,11 @@ public class ProductService {
      * 조회한다(외부 플랫폼 매물·임시저장·판매완료는 제외). {@value #POPULAR_LIMIT}개가 안 되면 나머지를 누적 관심 등록 수 → 조회수 →
      * 최신 순으로 채운다. 각 상품의 가장 최근 시세 분석 스냅샷도 함께 포함한다.
      *
+     * @param memberId 조회하는 회원 ID(관심 등록 여부 표시용, 비로그인이면 null)
      * @return 인기 상품 목록(최근 관심 등록 순, 이어서 보충분). 판매중·예약중 상품이 없으면 빈 목록
      */
     @Transactional(readOnly = true)
-    public List<ProductSummaryResponse> getPopularProducts() {
+    public List<ProductSummaryResponse> getPopularProducts(Long memberId) {
         LocalDateTime since = LocalDateTime.now().minusDays(POPULAR_WINDOW_DAYS);
         List<Long> popularProductIds = new ArrayList<>(
                 interestRepository.findPopularProductIds(since, POPULAR_STATUSES, PageRequest.of(0, POPULAR_LIMIT)));
@@ -511,9 +522,25 @@ public class ProductService {
                 .filter(product -> product != null)
                 .toList();
         Map<Long, ProductAnalysis> analyses = findLatestAnalyses(products);
+        Map<Long, Long> interestIds = findInterestIds(memberId, productsById.keySet());
         return products.stream()
-                .map(product -> ProductSummaryResponse.from(product, analyses.get(product.getId()), false))
+                .map(product -> ProductSummaryResponse.from(
+                        product, analyses.get(product.getId()), false, interestIds.get(product.getId())))
                 .toList();
+    }
+
+    /** 조회자가 관심 등록한 대상이면 그 관심 ID, 아니거나 비로그인이면 null. */
+    private Long findInterestId(Long memberId, Long itemId) {
+        return findInterestIds(memberId, List.of(itemId)).get(itemId);
+    }
+
+    /** 조회자가 관심 등록한 대상 ID → 관심 ID(한 번의 쿼리, 비로그인이거나 대상이 없으면 빈 맵). */
+    private Map<Long, Long> findInterestIds(Long memberId, Collection<Long> itemIds) {
+        if (memberId == null || itemIds.isEmpty()) {
+            return Map.of();
+        }
+        return interestRepository.findInterestedItems(memberId, itemIds).stream()
+                .collect(Collectors.toMap(InterestedItem::getItemId, InterestedItem::getInterestId));
     }
 
     private CursorPageResponse<ProductSummaryResponse> findProducts(Specification<Product> spec, int size) {
