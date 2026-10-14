@@ -10,6 +10,7 @@ const {
     replace,
     searchParamsValue,
     useDeleteProductMutation,
+    useProductCompetitionQuery,
     useMyPlatformsQuery,
     useProductAnalysisQuery,
     useProductQuery,
@@ -20,6 +21,7 @@ const {
     replace: vi.fn(),
     searchParamsValue: { current: "method=direct" },
     useDeleteProductMutation: vi.fn(),
+    useProductCompetitionQuery: vi.fn(),
     useMyPlatformsQuery: vi.fn(),
     useProductAnalysisQuery: vi.fn(),
     useProductQuery: vi.fn(),
@@ -39,6 +41,10 @@ vi.mock("@/features/sell/hooks/queries/useProductQuery", () => ({
 
 vi.mock("@/features/sell/hooks/mutations/useDeleteProductMutation", () => ({
     useDeleteProductMutation,
+}));
+
+vi.mock("@/features/product-management/hooks/useProductCompetitionQuery", () => ({
+    useProductCompetitionQuery,
 }));
 
 vi.mock("@/features/my/hooks/queries/useMyPlatformsQuery", () => ({
@@ -130,6 +136,7 @@ describe("ProductReviewPage", () => {
         });
         // 기본은 시세 분석 결과 없음 → 사진 기반 AI 추정값으로 표시
         useProductAnalysisQuery.mockReturnValue({ data: null });
+        useProductCompetitionQuery.mockReturnValue({ data: null });
         push.mockReset();
         replace.mockReset();
         searchParamsValue.current = "method=direct";
@@ -138,17 +145,33 @@ describe("ProductReviewPage", () => {
     it("fills the price analysis card with the market analysis saved at registration", () => {
         const analysis = createProductMarketAnalysisMock(product.id, "SELL", "SELL");
         useProductAnalysisQuery.mockReturnValue({ data: analysis });
+        useProductCompetitionQuery.mockReturnValue({ data: { competition: { count: 24 } } });
 
         render(<ProductReviewPage />);
 
         expect(screen.getByRole("heading", { name: "AI 가격 분석" })).toBeInTheDocument();
         expect(screen.getByText("SELL")).toBeInTheDocument();
-        expect(screen.getByText("지금 판매 추천")).toBeInTheDocument();
+        expect(screen.getByText("+4.9%")).toBeInTheDocument();
+        expect(screen.getByText("24개")).toBeInTheDocument();
+        expect(screen.getByText("2026.10.02 12:00")).toBeInTheDocument();
         expect(screen.getByText(analysis.description)).toBeInTheDocument();
         expect(
-            screen.getByText("비슷한 매물 시세로 분석한 적정 판매 가격이에요."),
+            screen.getByText("최근 시세와 거래 데이터를 바탕으로 분석했어요."),
         ).toBeInTheDocument();
         expect(useProductAnalysisQuery).toHaveBeenCalledWith(product.id);
+    });
+
+    it("hides the recommendation badge when no recommendation status exists", () => {
+        useProductQuery.mockReturnValue({
+            data: { ...product, recommendation: null },
+            error: null,
+            isPending: false,
+        });
+
+        render(<ProductReviewPage />);
+
+        expect(screen.queryByText("HOLD")).not.toBeInTheDocument();
+        expect(screen.queryByText("판매 보류 추천")).not.toBeInTheDocument();
     });
 
     it("shows the completed registration view with action buttons", () => {
@@ -162,9 +185,8 @@ describe("ProductReviewPage", () => {
         expect(screen.getByText("별도")).toBeInTheDocument();
         expect(screen.getByText("body, charging-cable")).toBeInTheDocument();
         expect(screen.getByText("#니콘FM2")).toBeInTheDocument();
-        expect(screen.getByRole("heading", { name: "판매 타이밍" })).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "추천 이유" })).toBeInTheDocument();
         expect(screen.getByText("HOLD")).toBeInTheDocument();
-        expect(screen.getByText("판매 보류 추천")).toBeInTheDocument();
         expect(screen.getByText("분석 결과가 없습니다.", { exact: true })).toBeInTheDocument();
 
         ["가격 분석 자세히 보기", "수정하기", "삭제하기", "판매 상품 목록 보기"].forEach((name) => {
@@ -175,6 +197,22 @@ describe("ProductReviewPage", () => {
             "type",
             "button",
         );
+    });
+
+    it("shows detail copy when entered from the product management list", () => {
+        searchParamsValue.current = "";
+
+        render(<ProductReviewPage />);
+
+        expect(
+            screen.getByRole("heading", { name: "등록한 판매글을 확인해보세요!" }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(/등록된 판매글의 상세 정보와 판매 현황을 확인할 수 있어요/),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole("heading", { name: "상품 등록이 완료되었어요!" }),
+        ).not.toBeInTheDocument();
     });
 
     it("navigates to product management from the completion action", async () => {

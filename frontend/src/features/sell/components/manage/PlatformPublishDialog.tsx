@@ -79,7 +79,7 @@ export function PlatformPublishDialog({
     const handleOpenChange = (open: boolean) => {
         if (isPublishing) return;
         setIsOpen(open);
-        if (!open) resetDialog();
+        if (open) resetDialog();
     };
 
     const togglePlatform = (platform: MyPlatformConnection) => {
