@@ -21,6 +21,8 @@ test("sell manage requests and renders the selected status tab", async ({ page }
         recommendation: null,
         marketAveragePrice: null,
         createdAt: "2026-10-04T10:00:00",
+        favorite: false,
+        interestId: null,
     });
     const onSale = createProduct(1001, "판매중 상품", "ON_SALE");
     const draft = createProduct(1002, "임시저장 상품", "DRAFT");

@@ -48,6 +48,21 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("search cards open product details while favorites stay on search", async ({ page }) => {
+    let saved = false;
+    await page.route("**/interests", (route) => {
+        if (route.request().method() === "POST") {
+            saved = true;
+            return route.fulfill({
+                status: 201,
+                json: { success: true, data: { interestId: 1001 }, error: null },
+            });
+        }
+        if (route.request().method() === "DELETE") {
+            saved = false;
+            return route.fulfill({ json: { success: true, data: null, error: null } });
+        }
+        return route.fallback();
+    });
     await page.route("**/products/1", (route) =>
         route.fulfill({
             json: {
@@ -75,6 +90,8 @@ test("search cards open product details while favorites stay on search", async (
                         marketAveragePrice: null,
                         categoryName: "전자기기",
                         createdAt: "2026-10-01T10:00:00",
+                        favorite: source === "OUR" && saved,
+                        interestId: source === "OUR" && saved ? 1001 : null,
                     })),
                     hasNext: false,
                     nextCursor: null,
@@ -98,6 +115,7 @@ test("search cards open product details while favorites stay on search", async (
     ).toBeVisible();
     await page.getByRole("link", { name: "← 이전 페이지", exact: true }).click();
     await expect(page).toHaveURL(/\/search$/);
+    await expect(favorite).toHaveAttribute("aria-pressed", "true");
 });
 
 test("detail gallery and favorite use product and interest APIs", async ({ page }) => {

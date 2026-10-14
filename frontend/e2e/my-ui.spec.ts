@@ -17,6 +17,8 @@ const productSummary = (id: number, status: ProductStatus, title = "상품") => 
     recommendation: null,
     marketAveragePrice: null,
     createdAt: "2026-10-03T00:00:00Z",
+    favorite: false,
+    interestId: null,
 });
 
 test.beforeEach(async ({ page }) => {

@@ -17,4 +17,6 @@ export const popularProducts: ProductSummaryResponse[] = Array.from({ length: 10
     recommendation: null,
     marketAveragePrice: index === 1 ? null : 20000,
     createdAt: "2026-10-04T10:00:00",
+    favorite: false,
+    interestId: null,
 }));

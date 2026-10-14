@@ -14,6 +14,21 @@ test("home popular favorites persist across reloads and can be removed", async (
         }),
     );
     let saved = false;
+    await page.route("**/products/popular", (route) =>
+        route.fulfill({
+            json: {
+                success: true,
+                data: [
+                    {
+                        ...popularProducts[0],
+                        favorite: saved,
+                        interestId: saved ? 1001 : null,
+                    },
+                ],
+                error: null,
+            },
+        }),
+    );
     await page.route(
         (url) => url.pathname === "/interests",
         (route) => {
