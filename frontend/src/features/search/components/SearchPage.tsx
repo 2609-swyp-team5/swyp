@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ScrollToTopButton } from "@/common/components/layout/ScrollToTopButton";
 import { useSmoothScroll } from "@/common/hooks/useSmoothScroll";
 import { SearchBar } from "@/features/search/components/SearchBar";
+import { InterestAddedDialog } from "@/features/search/components/detail/InterestAddedDialog";
 import { SearchFilters } from "@/features/search/components/SearchFilters";
 import { SearchResults } from "@/features/search/components/SearchResults";
 import { useAuthStore } from "@/features/auth/store/authStore";
@@ -45,6 +46,9 @@ export function SearchPage() {
         }
     }
     const interests = useInterestToggle();
+    // 관심상품 등록 안내 팝업(검색 상세와 같음) — 닫힐 때 문구가 바뀌지 않도록 가격은 열림 상태와 따로 둔다
+    const [interestDialogOpen, setInterestDialogOpen] = useState(false);
+    const [interestDialogPrice, setInterestDialogPrice] = useState(0);
     const handleScrollToTop = useSmoothScroll();
     const isInitialized = useAuthStore((state) => state.isInitialized);
     const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -100,6 +104,11 @@ export function SearchPage() {
                 open={interests.loginNoticeOpen}
                 onOpenChange={interests.onLoginNoticeOpenChange}
             />
+            <InterestAddedDialog
+                open={interestDialogOpen}
+                onOpenChange={setInterestDialogOpen}
+                price={interestDialogPrice}
+            />
             <SearchBar keyword={keyword} onKeywordChange={setKeyword} onSearch={submitSearch} />
             <div className="layout-container flex flex-col items-start gap-8 py-[60px] xl:flex-row xl:gap-[60px]">
                 <SearchFilters
@@ -133,7 +142,15 @@ export function SearchPage() {
                         onLike={(product) =>
                             interests.toggle(
                                 { source: product.source, targetId: product.id },
-                                { interestId: product.interestId },
+                                {
+                                    interestId: product.interestId,
+                                    // 하트와 함께 바로 띄우고, 등록이 실패하면 닫는다(오류는 위 alert로 표시)
+                                    onAdd: () => {
+                                        setInterestDialogPrice(product.price);
+                                        setInterestDialogOpen(true);
+                                    },
+                                    onAddFailed: () => setInterestDialogOpen(false),
+                                },
                             )
                         }
                         likeDisabled={interests.disabled}
