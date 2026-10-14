@@ -9,31 +9,119 @@ import type { ProductMarketAnalysis } from "@/features/product-management/types"
 import type { ProductResponse } from "@/features/sell/types";
 import { priceFormatter } from "@/features/sell/components/manage/productReviewUtils";
 
-const recommendationLabels: Record<string, string> = {
-    SELL: "지금 판매 추천",
-    HOLD: "판매 보류 추천",
-    BUY: "지금 구매 추천",
-    WAIT: "구매 보류 추천",
+const EMPTY_VALUE = "-";
+
+const recommendationBadgeClassNames: Record<string, string> = {
+    SELL: "bg-[#6653fb]",
+    HOLD: "bg-[#272727]",
+    BUY: "bg-[#6653fb]",
+    WAIT: "bg-[#272727]",
 };
 
-// 시세 분석 결과(marketAnalysis)가 있으면 그 추천가·판단·근거를, 없으면(분석 전·비교 매물 부족) 등록 때 사진 기반 AI 추정값을 보여 준다
+const formatSignedPercent = (value: number | null | undefined) => {
+    if (value === null || value === undefined) {
+        return EMPTY_VALUE;
+    }
+
+    return `${value > 0 ? "+" : ""}${value.toFixed(1)}%`;
+};
+
+const formatAnalyzedAt = (value: string | undefined) => {
+    if (!value) {
+        return EMPTY_VALUE;
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return EMPTY_VALUE;
+    }
+
+    const pad = (number: number) => String(number).padStart(2, "0");
+
+    return `${date.getFullYear()}.${pad(date.getMonth() + 1)}.${pad(date.getDate())} ${pad(
+        date.getHours(),
+    )}:${pad(date.getMinutes())}`;
+};
+
+const getPriceDiffClassName = (value: number | null | undefined) => {
+    if (value === null || value === undefined || value === 0) {
+        return "text-[#374151]";
+    }
+
+    return value > 0 ? "text-[#6653fb]" : "text-[#ef4444]";
+};
+
+function AnalysisMetric({
+    label,
+    value,
+    isFirst,
+    valueClassName,
+}: {
+    label: string;
+    value: string;
+    isFirst: boolean;
+    valueClassName?: string;
+}) {
+    return (
+        <div
+            className={`flex min-w-0 flex-col items-center justify-center gap-0.5 text-center ${
+                isFirst ? "" : "lg:border-l lg:border-[#d3d3d3]"
+            }`}
+        >
+            <span className="text-[12px] leading-5 tracking-[-0.5px] text-[#9aa0b0]">{label}</span>
+            <strong
+                className={`text-[20px] leading-[30px] font-semibold tracking-[0.5px] ${valueClassName ?? "text-[#374151]"}`}
+            >
+                {value}
+            </strong>
+        </div>
+    );
+}
+
 export function PriceAnalysis({
     product,
     marketAnalysis,
+    competitionCount,
 }: {
     product: ProductResponse;
     marketAnalysis?: ProductMarketAnalysis | null;
+    competitionCount?: number | null;
 }) {
     const router = useRouter();
-    const suggestedPrice = marketAnalysis ? marketAnalysis.suggestedPrice : product.suggestedPrice;
+    const suggestedPrice = marketAnalysis?.suggestedPrice ?? product.suggestedPrice;
     const recommendation = marketAnalysis ? marketAnalysis.recommendation : product.recommendation;
-    const recommendationValue = recommendation ?? "—";
-    const recommendationLabel = recommendation
-        ? (recommendationLabels[recommendation] ?? recommendation)
-        : "분석 결과 준비 중";
+    const recommendationBadgeClassName = recommendation
+        ? (recommendationBadgeClassNames[recommendation] ?? "bg-[#83889e]")
+        : "bg-[#83889e]";
     const analysisDescription =
         (marketAnalysis ? marketAnalysis.description : product.analysisDescription) ||
         "분석 결과가 없습니다.";
+    const confidenceScore =
+        marketAnalysis?.summary.type === "WAIT_RECOMMENDATION"
+            ? `${marketAnalysis.summary.confidenceScore}%`
+            : EMPTY_VALUE;
+    const metrics = [
+        {
+            label: "시세 대비 차이",
+            value: marketAnalysis
+                ? formatSignedPercent(marketAnalysis.marketPriceDiffRate)
+                : EMPTY_VALUE,
+            valueClassName: getPriceDiffClassName(marketAnalysis?.marketPriceDiffRate),
+        },
+        {
+            label: "비교 매물 수",
+            value:
+                competitionCount === null || competitionCount === undefined
+                    ? EMPTY_VALUE
+                    : `${competitionCount}개`,
+        },
+        { label: "신뢰도", value: confidenceScore },
+        {
+            label: "분석 시각",
+            value: formatAnalyzedAt(marketAnalysis?.analyzedAt),
+        },
+    ];
 
     return (
         <section
@@ -63,8 +151,8 @@ export function PriceAnalysis({
                 </Button>
             </div>
 
-            <div className="mt-7 grid gap-6 lg:grid-cols-[minmax(0,1fr)_520px] lg:items-center">
-                <div className="flex min-w-0 items-end gap-7 px-2.5">
+            <div className="mt-7 rounded-[10px] border border-[#d3d3d3] bg-white px-5 py-6 md:px-7">
+                <div className="grid gap-5 lg:grid-cols-[142px_minmax(0,1fr)_auto] lg:items-center lg:gap-7">
                     <Image
                         src="/sell/price-analysis-chart.svg"
                         alt=""
@@ -73,57 +161,44 @@ export function PriceAnalysis({
                         className="h-[126px] w-[142px] shrink-0"
                     />
                     <div className="min-w-0">
-                        <p className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-black">
-                            AI 추천가
-                        </p>
-                        <p className="mt-1 text-[30px] leading-[42px] font-bold text-[#6653fb]">
-                            {suggestedPrice === null
+                        <p className="text-[30px] leading-[42px] font-bold tracking-[0.5px] text-[#6653fb]">
+                            {suggestedPrice === null || suggestedPrice === undefined
                                 ? "분석 결과 준비 중"
                                 : `${priceFormatter.format(suggestedPrice)}원`}
                         </p>
-                        <p className="mt-2 text-[12px] leading-5 font-normal tracking-[-0.5px] text-[#83889e]">
+                        <p className="mt-1 text-[16px] leading-[25px] font-normal tracking-[0.5px] text-[#83889e]">
                             {marketAnalysis
-                                ? "비슷한 매물 시세로 분석한 적정 판매 가격이에요."
+                                ? "최근 시세와 거래 데이터를 바탕으로 분석했어요."
                                 : "AI가 분석한 적정 판매 가격이에요."}
                         </p>
                     </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                    <div className="flex min-h-[166px] flex-col gap-[30px] rounded-[10px] border border-[#d3d3d3] bg-white p-5">
-                        <div className="flex flex-col items-start gap-2.5">
-                            <Image src="/sell/timing.svg" alt="" width={32} height={32} />
-                            <h3 className="text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-black">
-                                판매 타이밍
-                            </h3>
-                        </div>
-                        <div className="flex items-center gap-5">
-                            <span className="rounded-full bg-[#83889e] px-5 py-[5px] text-[13px] leading-5 font-semibold tracking-[-0.5px] text-white">
-                                {recommendationValue}
-                            </span>
-                            <span className="text-[10px] leading-[15px] font-normal tracking-[-0.5px] whitespace-nowrap text-[#83889e]">
-                                {recommendationLabel}
+                    {recommendation ? (
+                        <div className="flex min-w-0 flex-col gap-2.5 lg:items-end lg:text-right">
+                            <span
+                                className={`w-fit rounded-full px-5 py-2.5 text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-white ${recommendationBadgeClassName}`}
+                            >
+                                {recommendation}
                             </span>
                         </div>
-                    </div>
-
-                    <div className="flex min-h-[166px] flex-col gap-[30px] rounded-[10px] border border-[#d3d3d3] bg-white p-5">
-                        <div className="flex flex-col items-start gap-2.5">
-                            <Image
-                                src="/sell/recommendation-reason.svg"
-                                alt=""
-                                width={32}
-                                height={32}
-                            />
-                            <h3 className="text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-black">
-                                추천 이유
-                            </h3>
-                        </div>
-                        <p className="min-w-0 text-[16px] leading-[25px] font-semibold tracking-[0.5px] break-words break-keep text-[#83889e]">
-                            {analysisDescription}
-                        </p>
-                    </div>
+                    ) : null}
                 </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-y-5 rounded-[10px] border border-[#d3d3d3] bg-white px-5 py-5 lg:grid-cols-4 lg:gap-y-0">
+                {metrics.map((metric, index) => (
+                    <AnalysisMetric key={metric.label} {...metric} isFirst={index === 0} />
+                ))}
+            </div>
+
+            <div className="mt-5 rounded-[10px] border border-[#d3d3d3] bg-white p-5 md:p-7">
+                <div className="flex items-center gap-2.5">
+                    <h3 className="text-[18px] leading-[28px] font-semibold tracking-[0.5px] text-[#6653fb]">
+                        추천 이유
+                    </h3>
+                </div>
+                <p className="mt-3 text-[16px] leading-[25px] font-normal tracking-[0.5px] break-keep text-[#363636]">
+                    {analysisDescription}
+                </p>
             </div>
         </section>
     );

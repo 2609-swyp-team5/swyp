@@ -8,6 +8,7 @@ import { NextActions } from "@/features/sell/components/manage/NextActions";
 import { PriceAnalysis } from "@/features/sell/components/manage/PriceAnalysis";
 import { ProductDetails } from "@/features/sell/components/manage/ProductDetails";
 import { ProductSummary } from "@/features/sell/components/manage/ProductSummary";
+import { useProductCompetitionQuery } from "@/features/product-management/hooks/useProductCompetitionQuery";
 import { useProductAnalysisQuery } from "@/features/product-management/hooks/useProductAnalysisQuery";
 import { useProductQuery } from "@/features/sell/hooks/queries/useProductQuery";
 
@@ -25,9 +26,14 @@ export default function ProductReviewPage() {
     const productId = Number(params.id);
     const registrationMethod = searchParams.get("method") === "direct" ? "direct" : "ai";
     const isUpdated = searchParams.get("updated") === "true";
+    const isDetailView = !searchParams.has("method") && !isUpdated;
     const { data: product, error, isPending } = useProductQuery(productId);
     // 등록 때 함께 진행해 저장한 시세 분석(판매자 관점) — 없으면 카드가 사진 기반 AI 추정값을 보여 준다
     const { data: marketAnalysis } = useProductAnalysisQuery(productId);
+    const { data: competition } = useProductCompetitionQuery(productId, {
+        enabled: Boolean(marketAnalysis),
+        perspective: "SELL",
+    });
 
     if (!Number.isInteger(productId) || productId <= 0) {
         return <ReviewStatus>올바르지 않은 상품입니다.</ReviewStatus>;
@@ -45,9 +51,13 @@ export default function ProductReviewPage() {
         <main className="flex flex-1 flex-col bg-white">
             <h1 className="sr-only">판매글 확인</h1>
             <section className="layout-container flex flex-1 flex-col gap-[80px] pt-10 pb-20 md:pt-16 md:pb-[120px]">
-                <CompletionSection isUpdated={isUpdated} />
+                <CompletionSection isUpdated={isUpdated} isDetailView={isDetailView} />
                 <ProductSummary product={product} registrationMethod={registrationMethod} />
-                <PriceAnalysis product={product} marketAnalysis={marketAnalysis} />
+                <PriceAnalysis
+                    product={product}
+                    marketAnalysis={marketAnalysis}
+                    competitionCount={competition?.competition.count}
+                />
                 <ProductDetails product={product} />
                 <NextActions productId={product.id} existingPlatforms={product.platforms ?? []} />
             </section>

@@ -17,7 +17,7 @@ export function NextActions({ productId, existingPlatforms }: NextActionsProps) 
     return (
         <section aria-labelledby="next-actions-title">
             <h2 id="next-actions-title" className="text-[22px] leading-8 font-bold text-[#161632]">
-                다음에 할 수 있는 것
+                다음 단계를 선택해주세요
             </h2>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
                 <PlatformPublishDialog productId={productId} existingPlatforms={existingPlatforms}>

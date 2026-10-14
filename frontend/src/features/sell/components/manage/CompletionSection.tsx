@@ -6,12 +6,26 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/common/components/ui/Button";
 
-export function CompletionSection({ isUpdated = false }: { isUpdated?: boolean }) {
+type CompletionSectionProps = {
+    isUpdated?: boolean;
+    isDetailView?: boolean;
+};
+
+export function CompletionSection({
+    isUpdated = false,
+    isDetailView = false,
+}: CompletionSectionProps) {
     const router = useRouter();
-    const title = isUpdated ? "상품 수정이 완료되었어요!" : "상품 등록이 완료되었어요!";
-    const description = isUpdated
-        ? "수정한 판매글이 정상적으로 등록되었습니다."
-        : "작성한 판매글이 정상적으로 등록되었습니다.";
+    const title = isDetailView
+        ? "등록한 판매글을 확인해보세요!"
+        : isUpdated
+          ? "상품 수정이 완료되었어요!"
+          : "상품 등록이 완료되었어요!";
+    const description = isDetailView
+        ? "등록된 판매글의 상세 정보와 판매 현황을 확인할 수 있어요."
+        : isUpdated
+          ? "수정한 판매글이 정상적으로 등록되었습니다."
+          : "작성한 판매글이 정상적으로 등록되었습니다.";
 
     return (
         <section
@@ -27,8 +41,12 @@ export function CompletionSection({ isUpdated = false }: { isUpdated?: boolean }
                 </h2>
                 <p className="mt-2 text-[16px] leading-[25px] font-normal text-[#464646]">
                     {description}
-                    <br />
-                    이제 판매 현황을 확인하거나 다른 플랫폼에도 등록해보세요.
+                    {!isDetailView ? (
+                        <>
+                            <br />
+                            이제 판매 현황을 확인하거나 다른 플랫폼에도 등록해보세요.
+                        </>
+                    ) : null}
                 </p>
                 <Button
                     type="button"
@@ -42,7 +60,11 @@ export function CompletionSection({ isUpdated = false }: { isUpdated?: boolean }
             <div className="relative hidden h-[604px] w-[557px] shrink-0 lg:block">
                 <Image
                     src="/sell/completion-illustration.png"
-                    alt={`${isUpdated ? "상품 수정" : "상품 등록"} 완료 일러스트`}
+                    alt={
+                        isDetailView
+                            ? "판매글 확인 일러스트"
+                            : `${isUpdated ? "상품 수정" : "상품 등록"} 완료 일러스트`
+                    }
                     fill
                     priority
                     className="object-cover"
