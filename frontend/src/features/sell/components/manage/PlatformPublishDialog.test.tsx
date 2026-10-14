@@ -155,4 +155,25 @@ describe("PlatformPublishDialog", () => {
         expect(screen.getByRole("checkbox", { name: "번개장터 게시 선택" })).not.toBeChecked();
         expect(screen.getByRole("button", { name: "선택한 플랫폼에 게시하기" })).toBeDisabled();
     });
+
+    it("closes the result view and starts from platform selection when reopened", async () => {
+        const user = userEvent.setup();
+
+        render(
+            <PlatformPublishDialog productId={42} existingPlatforms={[]}>
+                <Button type="button">다른 플랫폼에 등록하기</Button>
+            </PlatformPublishDialog>,
+        );
+
+        await user.click(screen.getByRole("button", { name: "다른 플랫폼에 등록하기" }));
+        await user.click(screen.getByRole("checkbox", { name: "번개장터 게시 선택" }));
+        await user.click(screen.getByRole("button", { name: "선택한 플랫폼에 게시하기" }));
+        expect(await screen.findByText("플랫폼에 등록됐어요")).toBeVisible();
+
+        await user.click(screen.getByRole("button", { name: "닫기" }));
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole("button", { name: "다른 플랫폼에 등록하기" }));
+        expect(screen.getByRole("dialog")).toHaveTextContent("게시할 플랫폼을 선택해주세요");
+    });
 });
