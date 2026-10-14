@@ -59,9 +59,7 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
         await requestAnalysisMutation.mutateAsync({ productId: targetId });
         await sections.productAnalysis.refetch();
     };
-    const liked = interests.interests.some(
-        (item) => item.source === product?.source && item.targetId === targetId,
-    );
+    const liked = product?.favorite ?? false;
     const imageIndex = selectedImage < (product?.imageUrls.length ?? 0) ? selectedImage : 0;
     const average = product?.marketAveragePrice;
     const difference =
@@ -347,6 +345,7 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                                                             targetId: product.id,
                                                         },
                                                         {
+                                                            interestId: product.interestId,
                                                             // 하트와 함께 바로 띄우고, 등록이 실패하면 닫는다(오류는 아래 alert로 표시)
                                                             onAdd: () =>
                                                                 setInterestDialogOpen(true),

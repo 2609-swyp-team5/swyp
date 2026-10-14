@@ -30,6 +30,8 @@ const recommendedPreviewProducts: CarouselProduct[] = Array.from({ length: 12 },
     thumbnailUrl: null,
     marketAveragePrice: 350000,
     platformName: ["당근마켓", "중고나라", "번개장터"][index % 3],
+    favorite: false,
+    interestId: null,
 }));
 
 export function HomePage() {
