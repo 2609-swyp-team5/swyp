@@ -5,9 +5,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/features/auth/store/authStore";
 
 import { notificationApi } from "../../api/notificationApi";
+import { notificationUnreadCountQueryKey } from "../../queryKeys";
 import { notificationUnreadCountSchema } from "../../schemas/notificationSchema";
 
-export const notificationUnreadCountQueryKey = ["notification-unread-count"] as const;
+export { notificationUnreadCountQueryKey } from "../../queryKeys";
 
 export function useUnreadNotificationCountQuery() {
     const isInitialized = useAuthStore((state) => state.isInitialized);

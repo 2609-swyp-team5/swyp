@@ -8,7 +8,7 @@ import { Menu, X } from "lucide-react";
 
 import { Button } from "@/common/components/ui/Button";
 import { Skeleton } from "@/common/components/ui/Skeleton";
-import { HEADER_LINKS } from "@/constants/routes";
+import { HEADER_LINKS, ROUTES } from "@/constants/routes";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { ProfileAvatar } from "@/features/member/components/ProfileAvatar";
 import { useMeQuery } from "@/features/member/hooks/queries/useMeQuery";
@@ -57,7 +57,11 @@ export function SiteHeader() {
     const unreadNotificationCount = unreadNotification?.count ?? 0;
     const isAuthPage =
         pathname === "/login" || pathname === "/signup" || pathname === "/account/reset-password";
-    const hideMenus = pathname === "/" || isAuthPage;
+    const isProtectedPath = ROUTES.some(
+        (route) => route.requiresAuth && isRouteActive(pathname, route.href),
+    );
+    const isUnauthenticatedProtectedPath = isInitialized && !isLoggedIn && isProtectedPath;
+    const hideMenus = pathname === "/" || isAuthPage || isUnauthenticatedProtectedPath;
     const isOnboardingPage = pathname === "/";
     const logoHref = isAuthPage || (pathname === "/" && !isLoggedIn) ? "/" : "/home";
     const isProfileLoading = !isAuthPage && (!isInitialized || (isLoggedIn && isPending));

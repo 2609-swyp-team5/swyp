@@ -30,6 +30,7 @@ it.each(["/home", "/search", "/sell/manage", "/sell/register", "/buy/wishlist", 
         expect(navigation.replace).not.toHaveBeenCalled();
         act(() => useAuthStore.getState().clearAuth());
         expect(navigation.replace).toHaveBeenCalledWith("/login");
+        expect(navigation.replace).toHaveBeenCalledTimes(1);
     },
 );
 
@@ -42,4 +43,21 @@ it("does not redirect an initial guest on search", () => {
         </QueryClientProvider>,
     );
     expect(navigation.replace).not.toHaveBeenCalled();
+});
+
+it("clears user-scoped notification caches when a session ends", () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(["notifications", "ALL"], { pages: [] });
+    queryClient.setQueryData(["notification-unread-count"], { count: 3 });
+
+    render(
+        <QueryClientProvider client={queryClient}>
+            <AuthInitializer />
+        </QueryClientProvider>,
+    );
+
+    act(() => useAuthStore.getState().clearAuth());
+
+    expect(queryClient.getQueryData(["notifications", "ALL"])).toBeUndefined();
+    expect(queryClient.getQueryData(["notification-unread-count"])).toBeUndefined();
 });

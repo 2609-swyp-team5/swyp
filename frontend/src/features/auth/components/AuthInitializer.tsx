@@ -6,6 +6,10 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { ROUTES } from "@/constants/routes";
 import { AUTH_LOGGED_OUT_KEY, useAuthStore } from "@/features/auth/store/authStore";
+import {
+    notificationUnreadCountQueryKey,
+    notificationsQueryKey,
+} from "@/features/notifications/queryKeys";
 
 export default function AuthInitializer() {
     const pathname = usePathname();
@@ -27,10 +31,14 @@ export default function AuthInitializer() {
                 if (previous.isLoggedIn && !state.isLoggedIn) {
                     void queryClient.cancelQueries({ queryKey: ["member", "me"] });
                     queryClient.removeQueries({ queryKey: ["member", "me"] });
-                    router.replace("/login");
+                    void queryClient.cancelQueries({ queryKey: notificationsQueryKey });
+                    queryClient.removeQueries({ queryKey: notificationsQueryKey });
+                    void queryClient.cancelQueries({ queryKey: notificationUnreadCountQueryKey });
+                    queryClient.removeQueries({ queryKey: notificationUnreadCountQueryKey });
+                    if (!requiresAuth) router.replace("/login");
                 }
             }),
-        [queryClient, router],
+        [queryClient, requiresAuth, router],
     );
 
     useEffect(() => {
