@@ -284,12 +284,15 @@ public class ProductController {
     /**
      * 최근 7일간 관심상품(찜) 등록 수 상위 10개 우리 상품을 조회한다.
      *
+     * @param currentMember 요청자(관심 등록 여부 표시용, 비로그인이면 null — 비로그인도 조회 가능)
      * @return 200 OK + 인기 상품 목록(관심상품 등록 수 내림차순)
      */
     @Operation(summary = "인기 상품 조회")
     @GetMapping("/popular")
-    public ResponseEntity<ApiResponse<List<ProductSummaryResponse>>> getPopularProducts() {
-        return ResponseEntity.ok(ApiResponse.success(productService.getPopularProducts()));
+    public ResponseEntity<ApiResponse<List<ProductSummaryResponse>>> getPopularProducts(
+            @AuthenticationPrincipal PrincipalMember currentMember) {
+        return ResponseEntity.ok(ApiResponse.success(
+                productService.getPopularProducts(currentMember == null ? null : currentMember.memberId())));
     }
 
     /**

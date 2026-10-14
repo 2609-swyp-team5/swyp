@@ -288,7 +288,9 @@ class AiChatAnswerServiceTest {
                 null,
                 "번개장터",
                 "https://example.com/" + id,
-                LocalDateTime.now());
+                LocalDateTime.now(),
+                false,
+                null);
     }
 
     private static ProductSummaryResponse myProduct(Long id, String title, Long price) {
@@ -307,7 +309,9 @@ class AiChatAnswerServiceTest {
                 null,
                 null,
                 null,
-                LocalDateTime.now());
+                LocalDateTime.now(),
+                false,
+                null);
     }
 
     private static ProductAnalysisResponse analysis(

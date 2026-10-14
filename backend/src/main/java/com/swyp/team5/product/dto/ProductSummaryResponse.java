@@ -24,7 +24,9 @@ public record ProductSummaryResponse(
         String thumbnailUrl, // 대표(첫 번째) 이미지 URL, 이미지 없으면 null
         AnalysisRecommendation recommendation, // 가장 최근 시세 분석 판단, 분석 이력 없으면 null
         Long marketAveragePrice, // 가장 최근 시세 분석의 비교 매물 평균가(수집 데이터 기반), 분석 이력 없으면 null
-        LocalDateTime createdAt) { // 등록 일시
+        LocalDateTime createdAt, // 등록 일시
+        boolean favorite, // 조회자 본인의 관심 등록 여부 — 인기 상품만 채우고 비로그인·내 상품 목록은 false
+        Long interestId) { // 조회자 본인의 관심 ID(관심 해제 DELETE /interests/{id}용) — favorite이 false면 null
 
     /** 시세 분석 이력이 없는 상품(신규 등록 직후 등)에 사용한다. */
     public static ProductSummaryResponse from(Product product) {
@@ -33,13 +35,15 @@ public record ProductSummaryResponse(
 
     /** 판매자 본인 목록(내 상품 목록)용 — 최종 판매 정보를 포함한다. */
     public static ProductSummaryResponse from(Product product, ProductAnalysis analysis) {
-        return from(product, analysis, true);
+        return from(product, analysis, true, null);
     }
 
     /**
      * @param includeSoldInfo 최종 판매 가격·플랫폼을 채울지(판매자 본인 목록일 때만 true, 인기 상품 등 공개 목록은 false)
+     * @param interestId 조회자 본인의 관심 ID(관심 등록 안 했거나 비로그인이면 null)
      */
-    public static ProductSummaryResponse from(Product product, ProductAnalysis analysis, boolean includeSoldInfo) {
+    public static ProductSummaryResponse from(
+            Product product, ProductAnalysis analysis, boolean includeSoldInfo, Long interestId) {
         String thumbnailUrl = product.getImages().isEmpty()
                 ? null
                 : product.getImages().get(0).getImageUrl();
@@ -58,6 +62,8 @@ public record ProductSummaryResponse(
                 thumbnailUrl,
                 analysis == null ? null : analysis.getRecommendation(),
                 analysis == null ? null : analysis.getAveragePrice(),
-                product.getCreatedAt());
+                product.getCreatedAt(),
+                interestId != null,
+                interestId);
     }
 }

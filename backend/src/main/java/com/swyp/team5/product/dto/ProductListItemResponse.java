@@ -32,9 +32,14 @@ public record ProductListItemResponse(
         Long marketAveragePrice, // 가장 최근 시세 분석 평균가, 없으면 null
         String platformName, // 우리 상품은 null, 외부 매물은 수집 플랫폼명(예: "번개장터")
         String externalUrl, // 우리 상품은 null, 외부 매물은 원본 매물 링크
-        LocalDateTime createdAt) {
+        LocalDateTime createdAt,
+        boolean favorite, // 조회자 본인의 관심 등록 여부(비로그인이면 false)
+        Long interestId) { // 조회자 본인의 관심 ID(관심 해제 DELETE /interests/{id}용) — favorite이 false면 null
 
-    public static ProductListItemResponse fromProduct(Product product, ProductAnalysis analysis) {
+    /**
+     * @param interestId 조회자 본인의 관심 ID(관심 등록 안 했거나 비로그인이면 null)
+     */
+    public static ProductListItemResponse fromProduct(Product product, ProductAnalysis analysis, Long interestId) {
         String thumbnailUrl = product.getImages().isEmpty()
                 ? null
                 : product.getImages().get(0).getImageUrl();
@@ -56,10 +61,16 @@ public record ProductListItemResponse(
                 analysis == null ? null : analysis.getAveragePrice(),
                 null,
                 null,
-                product.getCreatedAt());
+                product.getCreatedAt(),
+                interestId != null,
+                interestId);
     }
 
-    public static ProductListItemResponse fromListing(PlatformListing listing, ProductAnalysis analysis) {
+    /**
+     * @param interestId 조회자 본인의 관심 ID(관심 등록 안 했거나 비로그인이면 null)
+     */
+    public static ProductListItemResponse fromListing(
+            PlatformListing listing, ProductAnalysis analysis, Long interestId) {
         return new ProductListItemResponse(
                 ListingSource.EXTERNAL,
                 listing.getId(),
@@ -78,6 +89,8 @@ public record ProductListItemResponse(
                 analysis == null ? null : analysis.getAveragePrice(),
                 listing.getPlatform().getName(),
                 listing.getListingUrl(),
-                listing.getCreatedAt());
+                listing.getCreatedAt(),
+                interestId != null,
+                interestId);
     }
 }

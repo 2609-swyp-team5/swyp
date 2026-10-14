@@ -59,7 +59,9 @@ public record ProductResponse(
         LocalDateTime updatedAt, // 수정 일시(외부 매물은 마지막으로 판매 상태를 확인한 일시)
         List<ProductPlatformSummaryResponse> platforms, // 외부 플랫폼 게시 상태(연동 기록만, 없으면 []) — 판매자 본인 상세 조회만, 그 외 null
         Long interestCount, // 관심 등록한 회원 수 — 모든 조회자(우리 상품·외부 매물)
-        Long viewCount) { // 조회수(본인 제외, 회원·비회원 IP당 24시간 1회) — 모든 조회자, 외부 매물은 null
+        Long viewCount, // 조회수(본인 제외, 회원·비회원 IP당 24시간 1회) — 모든 조회자, 외부 매물은 null
+        boolean favorite, // 조회자 본인의 관심 등록 여부 — 상세 조회만 채우고 비로그인·그 외 응답(등록·수정 등)은 false
+        Long interestId) { // 조회자 본인의 관심 ID(관심 해제 DELETE /interests/{id}용) — favorite이 false면 null
 
     /** 시세 정보(판단/평균가) 없이 상품 정보만 내려줄 때 사용한다(수정/상태 변경 응답 — 판매자 본인이라 최종 판매 정보 포함). */
     public static ProductResponse from(Product product) {
@@ -121,6 +123,8 @@ public record ProductResponse(
                 product.getUpdatedAt(),
                 null,
                 null,
+                null,
+                false,
                 null);
     }
 
@@ -167,6 +171,8 @@ public record ProductResponse(
                 listing.getLastSeenAt(),
                 null,
                 null,
+                null,
+                false,
                 null);
     }
 
@@ -213,6 +219,54 @@ public record ProductResponse(
                 updatedAt,
                 platforms,
                 interestCount,
-                viewCount);
+                viewCount,
+                favorite,
+                interestId);
+    }
+
+    /**
+     * 조회자 본인의 관심 등록 여부를 채운 복사본을 만든다.
+     *
+     * @param interestId 조회자의 관심 ID(관심 등록 안 했거나 비로그인이면 null — 이때 favorite은 false)
+     */
+    public ProductResponse withInterest(Long interestId) {
+        return new ProductResponse(
+                source,
+                id,
+                memberId,
+                nickname,
+                category,
+                title,
+                brand,
+                description,
+                price,
+                soldPrice,
+                soldPlatform,
+                status,
+                condition,
+                defectStatus,
+                purchasedAt,
+                purchasedMonths,
+                allowPriceSuggestion,
+                tradeMethod,
+                deliveryType,
+                preferredTradeRegion,
+                imageUrls,
+                tags,
+                includedItems,
+                recommendation,
+                marketAveragePrice,
+                suggestedPrice,
+                analysisDescription,
+                platformName,
+                externalUrl,
+                externalStatus,
+                createdAt,
+                updatedAt,
+                platforms,
+                interestCount,
+                viewCount,
+                interestId != null,
+                interestId);
     }
 }

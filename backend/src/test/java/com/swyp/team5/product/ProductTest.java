@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
@@ -863,6 +864,66 @@ class ProductTest extends IntegrationTest {
                 .andExpect(jsonPath(
                         "$.data.content[*].title", contains(keyword + " 추천", keyword + " 최신", keyword + " 관심")))
                 .andExpect(jsonPath("$.data.content[0].recommendation").value("BUY"));
+    }
+
+    // 관심 여부 - 조회자가 관심 등록한 상품·매물은 목록·상세·인기 상품에 favorite true와 interestId, 미등록·비로그인은 false/null
+    @Test
+    void productResponsesShowViewerFavorite() throws Exception {
+        String keyword = uniqueKeyword();
+        Product likedProduct = saveProduct(keyword + " 관심 상품", 100_000L, ProductCondition.A, DefectStatus.NORMAL);
+        likedProduct.changeStatus(ProductStatus.ON_SALE);
+        productRepository.save(likedProduct);
+        PlatformListing likedListing = saveListing(keyword + " 관심 매물", 200_000L, "SELLING");
+        Product otherProduct = saveProduct(keyword + " 그 외", 300_000L, ProductCondition.A, DefectStatus.NORMAL);
+        Member buyer = memberRepository.save(
+                Member.ofLocalSignUp("buyer@example.com", null, "encoded-password", "구매자", "buyer", null));
+        String buyerToken = jwtTokenProvider.createAccessToken(buyer.getId(), MemberRole.USER);
+        Interest productInterest = interestRepository.save(Interest.ofProduct(buyer, likedProduct));
+        Interest listingInterest = interestRepository.save(Interest.ofListing(buyer, likedListing));
+        createdInterests.addAll(List.of(productInterest, listingInterest));
+
+        mockMvc.perform(get("/products")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + buyerToken)
+                        .param("keyword", keyword)
+                        .param("sort", "PRICE_LOW"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[*].favorite", contains(true, true, false)))
+                .andExpect(jsonPath("$.data.content[0].interestId").value(productInterest.getId()))
+                .andExpect(jsonPath("$.data.content[1].interestId").value(listingInterest.getId()))
+                .andExpect(jsonPath("$.data.content[2].interestId").value(nullValue()));
+        mockMvc.perform(get("/products").param("keyword", keyword))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[*].favorite", everyItem(is(false))));
+
+        mockMvc.perform(get("/products/{productId}", likedProduct.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + buyerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.favorite").value(true))
+                .andExpect(jsonPath("$.data.interestId").value(productInterest.getId()));
+        mockMvc.perform(get("/products/{productId}", likedListing.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + buyerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.favorite").value(true))
+                .andExpect(jsonPath("$.data.interestId").value(listingInterest.getId()));
+        mockMvc.perform(get("/products/{productId}", otherProduct.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + buyerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.favorite").value(false))
+                .andExpect(jsonPath("$.data.interestId").value(nullValue()));
+        mockMvc.perform(get("/products/{productId}", likedProduct.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.favorite").value(false));
+
+        String popularFavorite = "$.data[?(@.id == " + likedProduct.getId() + ")].favorite";
+        mockMvc.perform(get("/products/popular").header(HttpHeaders.AUTHORIZATION, "Bearer " + buyerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(popularFavorite, contains(true)))
+                .andExpect(jsonPath(
+                        "$.data[?(@.id == " + likedProduct.getId() + ")].interestId",
+                        contains(productInterest.getId().intValue())));
+        mockMvc.perform(get("/products/popular"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(popularFavorite, contains(false)));
     }
 
     // 상품 목록 조회(검색 필터) - 최소 가격이 최대 가격보다 크거나 커서를 해석할 수 없으면 400
