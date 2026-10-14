@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -60,6 +61,7 @@ import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.error.InvalidProductSearchException;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
+import com.swyp.team5.product.error.ProductDeleteConflictException;
 import com.swyp.team5.product.error.ProductImageRequiredException;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.event.ProductPriceChangedEvent;
@@ -751,6 +753,7 @@ public class ProductService {
      * @param productId 삭제할 상품 ID
      * @throws ProductNotFoundException 존재하지 않는 상품인 경우
      * @throws ProductAccessDeniedException 본인이 등록한 상품이 아닌 경우
+     * @throws ProductDeleteConflictException 삭제하는 사이 참조 기록이 새로 생겨 FK 위반이 난 경우(다시 시도하면 된다)
      */
     @Transactional
     public void delete(Long memberId, Long productId) {
@@ -762,6 +765,12 @@ public class ProductService {
         interestRepository.deleteAllByItemId(productId);
         productPlatformRepository.deleteAllByProductId(productId);
         productRepository.delete(product);
+        try {
+            // 커밋 때가 아니라 여기서 반영해, 그 사이 새로 생긴 참조 기록 때문에 막히면 상품 삭제 전용 오류로 알려 준다
+            productRepository.flush();
+        } catch (DataIntegrityViolationException e) {
+            throw new ProductDeleteConflictException(productId, e);
+        }
     }
 
     private Product getProductOrThrow(Long productId) {

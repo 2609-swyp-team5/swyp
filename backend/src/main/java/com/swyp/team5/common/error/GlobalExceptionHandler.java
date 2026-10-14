@@ -57,6 +57,7 @@ import com.swyp.team5.platform.error.ProductPlatformPublishInProgressException;
 import com.swyp.team5.platform.error.UnsupportedPlatformException;
 import com.swyp.team5.product.error.InvalidProductSearchException;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
+import com.swyp.team5.product.error.ProductDeleteConflictException;
 import com.swyp.team5.product.error.ProductImageRequiredException;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.error.ProductRegisterBusyException;
@@ -203,6 +204,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleProductAccessDenied(ProductAccessDeniedException e) {
         log.warn("상품 접근 권한 없음: {}", ErrorLogs.describe(e));
         return errorResponse(HttpStatus.FORBIDDEN, "FORBIDDEN", e.getMessage());
+    }
+
+    @ExceptionHandler(ProductDeleteConflictException.class)
+    public ResponseEntity<ApiResponse<Void>> handleProductDeleteConflict(ProductDeleteConflictException e) {
+        log.warn("상품 삭제 중 참조 기록 경합: {}", ErrorLogs.describe(e));
+        return errorResponse(HttpStatus.CONFLICT, "PRODUCT_DELETE_CONFLICT", e.getMessage());
     }
 
     @ExceptionHandler(InterestAlreadyExistsException.class)

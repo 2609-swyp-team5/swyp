@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -21,6 +22,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Pageable;
 
 import com.swyp.team5.category.entity.Category;
@@ -62,6 +64,7 @@ import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.error.InvalidProductSearchException;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
+import com.swyp.team5.product.error.ProductDeleteConflictException;
 import com.swyp.team5.product.error.ProductImageRequiredException;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.event.ProductRegisteredEvent;
@@ -1133,6 +1136,21 @@ class ProductServiceTest {
         inOrder.verify(interestRepository).deleteAllByItemId(1L);
         inOrder.verify(productPlatformRepository).deleteAllByProductId(1L);
         inOrder.verify(productRepository).delete(product);
+    }
+
+    // 상품 삭제 실패 - 지우는 사이 참조 기록이 새로 생겨 FK 위반이면 상품 삭제 전용 오류로 바꾼다
+    @Test
+    void deleteFailsWithConflictWhenReferenceAppears() {
+        Product product = newProduct(1L, newMember(1L), newCategory(1L, "전자기기"));
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        doThrow(new DataIntegrityViolationException("fk_product_analysis_item"))
+                .when(productRepository)
+                .flush();
+
+        assertThatThrownBy(() -> service().delete(1L, 1L))
+                .isInstanceOf(ProductDeleteConflictException.class)
+                .hasMessage("상품에 연결된 기록이 방금 생겨 삭제하지 못했어요. 잠시 후 다시 시도해 주세요.");
     }
 
     // 상품 삭제 실패 - 소유자가 아님

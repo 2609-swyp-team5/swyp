@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Button } from "@/common/components/ui/Button";
 import { Input } from "@/common/components/ui/Input";
+import { getApiErrorMessage } from "@/common/lib/api/error";
 import {
     Select,
     SelectContent,
@@ -325,7 +326,7 @@ export function ProductSummaryActions({
                         삭제한 상품은 다시 복구할 수 없습니다.
                         {deleteProductMutation.error && (
                             <span className="mt-2 block text-[#d65353]">
-                                {deleteProductMutation.error.message}
+                                {getApiErrorMessage(deleteProductMutation.error)}
                             </span>
                         )}
                     </>
