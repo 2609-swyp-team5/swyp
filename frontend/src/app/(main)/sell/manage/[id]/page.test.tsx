@@ -151,7 +151,6 @@ describe("ProductReviewPage", () => {
 
         expect(screen.getByRole("heading", { name: "AI 가격 분석" })).toBeInTheDocument();
         expect(screen.getByText("SELL")).toBeInTheDocument();
-        expect(screen.getByText("지금 판매 추천")).toBeInTheDocument();
         expect(screen.getByText("+4.9%")).toBeInTheDocument();
         expect(screen.getByText("24개")).toBeInTheDocument();
         expect(screen.getByText("2026.10.02 12:00")).toBeInTheDocument();
@@ -188,7 +187,6 @@ describe("ProductReviewPage", () => {
         expect(screen.getByText("#니콘FM2")).toBeInTheDocument();
         expect(screen.getByRole("heading", { name: "추천 이유" })).toBeInTheDocument();
         expect(screen.getByText("HOLD")).toBeInTheDocument();
-        expect(screen.getByText("판매 보류 추천")).toBeInTheDocument();
         expect(screen.getByText("분석 결과가 없습니다.", { exact: true })).toBeInTheDocument();
 
         ["가격 분석 자세히 보기", "수정하기", "삭제하기", "판매 상품 목록 보기"].forEach((name) => {

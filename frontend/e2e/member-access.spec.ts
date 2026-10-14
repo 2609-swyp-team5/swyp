@@ -39,15 +39,20 @@ test("a guest header menu opens the same login notice", async ({ page }) => {
     await expect(page.getByRole("alertdialog", { name: "로그인이 필요합니다" })).toBeVisible();
 });
 
-for (const action of ["AI 등록 시작하기", "직접 등록 시작하기"]) {
-    test(`guests can browse /sell/register but must log in to ${action}`, async ({ page }) => {
+const registerActions = [
+    { action: "AI 등록 시작하기", path: "/sell/register/ai" },
+    { action: "직접 등록 시작하기", path: "/sell/register/direct" },
+] as const;
+
+for (const { action, path } of registerActions) {
+    test(`guests can browse /sell/register before logging in from ${action}`, async ({ page }) => {
         await page.goto("/sell/register");
         await expect(page.getByRole("heading", { name: "어떻게 등록할까요?" })).toBeVisible();
         const dialog = page.getByRole("alertdialog", { name: "로그인이 필요합니다" });
         await expect(dialog).toHaveCount(0);
         await page.getByRole("link", { name: action }).click();
         await expect(dialog).toBeVisible();
-        await expect(page).toHaveURL(/\/sell\/register$/);
+        await expect(page).toHaveURL(new RegExp(`${path}$`));
         await dialog.getByRole("button", { name: "확인", exact: true }).click();
         await expect(page).toHaveURL(/\/login$/);
     });
