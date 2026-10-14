@@ -113,7 +113,7 @@ test("search cards open product details while favorites stay on search", async (
     await expect(
         page.getByRole("heading", { name: "아이폰 13 미니 128GB 미드나이트", exact: true }),
     ).toBeVisible();
-    await page.getByRole("link", { name: "← 이전 페이지", exact: true }).click();
+    await page.getByRole("link", { name: "이전 페이지", exact: true }).click();
     await expect(page).toHaveURL(/\/search$/);
     await expect(favorite).toHaveAttribute("aria-pressed", "true");
 });

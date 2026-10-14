@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ExternalLink, Heart, Info } from "lucide-react";
+import { ArrowLeft, ExternalLink, Heart, Info } from "lucide-react";
 
 import { Badge } from "@/common/components/ui/Badge";
 import { Button } from "@/common/components/ui/Button";
@@ -133,9 +133,10 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
             <div className="layout-container flex flex-col gap-[30px] py-10 lg:py-20">
                 <Link
                     href="/search"
-                    className="self-start text-[20px] leading-8 font-medium tracking-[0.5px] text-[#6b7395] hover:text-[#6653fb]"
+                    className="flex items-center gap-2 self-start text-[20px] leading-8 font-medium tracking-[0.5px] text-[#6b7395] hover:text-[#6653fb]"
                 >
-                    ← 이전 페이지
+                    <ArrowLeft aria-hidden="true" className="size-5 shrink-0" />
+                    <span>이전 페이지</span>
                 </Link>
 
                 {isPending && <SearchProductDetailSkeleton />}

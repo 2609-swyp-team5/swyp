@@ -172,7 +172,7 @@ test("restores all interest pages, uses source-specific IDs and shares state wit
         "aria-pressed",
         "false",
     );
-    await page.getByRole("link", { name: "← 이전 페이지" }).click();
+    await page.getByRole("link", { name: "이전 페이지", exact: true }).click();
     await expect(external).toHaveAttribute("aria-pressed", "false");
     await page.reload();
     await expect(external).toBeEnabled();
