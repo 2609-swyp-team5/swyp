@@ -177,6 +177,80 @@ it("관리 화면 헤더의 AI 분석 재시도 버튼은 분석 요청을 호�
     expect(request).toHaveBeenCalledTimes(1);
 });
 
+it("AI 분석 재시도 중에는 서버 단계가 표시되는 다이얼로그를 연다", () => {
+    const analysis = createProductMarketAnalysisMock(1, "SELL", "SELL");
+
+    render(
+        <MarketAnalysisSection
+            result={analysis}
+            error={null}
+            isPending={false}
+            priceTrendQuery={idleQuery}
+            valuationForecastQuery={idleQuery}
+            variant="management"
+            analysisRetry={{
+                isFetching: true,
+                isProcessing: true,
+                refetch: vi.fn(),
+                request: vi.fn(),
+                progress: {
+                    step: "AI_ANALYSIS",
+                    status: "START",
+                    index: 2,
+                    total: 5,
+                    message: "AI가 같은 물건을 고르고 시세를 판단하고 있어요.",
+                },
+            }}
+        />,
+    );
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText("시세 분석을 다시 하고 있어요")).toBeInTheDocument();
+    expect(screen.getByText("AI가 같은 물건을 고르고 시세를 판단하고 있어요.")).toBeInTheDocument();
+    expect(screen.getByText("비교할 매물 찾기")).toBeInTheDocument();
+    expect(screen.getByText("시세·추천 가격 계산")).toBeInTheDocument();
+});
+
+it("재분석 제한에 걸리면 진행 단계 대신 제한 안내를 보여준다", () => {
+    const analysis = createProductMarketAnalysisMock(1, "SELL", "SELL");
+
+    render(
+        <MarketAnalysisSection
+            result={analysis}
+            error={null}
+            isPending={false}
+            priceTrendQuery={idleQuery}
+            valuationForecastQuery={idleQuery}
+            variant="management"
+            analysisRetry={{
+                isFetching: false,
+                isProcessing: false,
+                refetch: vi.fn(),
+                request: vi.fn(),
+                progress: null,
+                notice: {
+                    kind: "blocked",
+                    status: "ANALYZED",
+                    message:
+                        "최근 10분 이내에 시세 분석이 이미 진행되어 새 분석을 시작하지 않았어요.",
+                },
+            }}
+        />,
+    );
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText("시세 분석 결과가 최신 상태예요")).toBeInTheDocument();
+    expect(
+        screen.getByText("최근 10분 이내에 시세 분석이 이미 진행되어 새 분석을 시작하지 않았어요."),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("시세 분석 진행 단계")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "확인" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "확인" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+
 it.each([
     ["HOLD", "추천 대기 기간", "SELL"],
     ["WAIT", "구매 대기 기간", "BUY"],

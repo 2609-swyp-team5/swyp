@@ -44,8 +44,15 @@ export function ProductManagementDetail({
         });
     };
     const handleAnalysisRetry = async () => {
-        await requestAnalysisMutation.mutateAsync({ productId, force: true });
-        await sections.productAnalysis.refetch();
+        try {
+            await requestAnalysisMutation.mutateAsync({
+                productId,
+                perspective: "SELL",
+                force: true,
+            });
+        } catch {
+            // mutation.error를 진행 다이얼로그에서 표시한다.
+        }
     };
 
     return (
@@ -85,8 +92,13 @@ export function ProductManagementDetail({
                             isFetching:
                                 sections.productAnalysis.isFetching ||
                                 requestAnalysisMutation.isPending,
+                            isProcessing: requestAnalysisMutation.isProcessing,
                             refetch: sections.productAnalysis.refetch,
                             request: currentStatus === "SOLD_OUT" ? undefined : handleAnalysisRetry,
+                            progress: requestAnalysisMutation.progress,
+                            notice: requestAnalysisMutation.notice,
+                            error: requestAnalysisMutation.error,
+                            reset: requestAnalysisMutation.reset,
                         }}
                         onRecommendedPriceChange={
                             currentStatus === "SOLD_OUT" ? undefined : handleRecommendedPriceChange

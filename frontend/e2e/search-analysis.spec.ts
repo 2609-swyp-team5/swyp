@@ -93,6 +93,43 @@ async function mockDetailAnalysis(
             });
         },
     );
+    await page.route(
+        (url) => url.pathname === `/products/${productId}/analysis/stream`,
+        (route) => {
+            expect(new URL(route.request().url()).searchParams.get("perspective")).toBe("BUY");
+            const events = [
+                {
+                    success: true,
+                    message: "AI가 같은 물건을 고르고 시세를 판단하고 있어요.",
+                    data: {
+                        event: "step",
+                        step: "AI_ANALYSIS",
+                        status: "START",
+                        index: 2,
+                        total: 5,
+                    },
+                    error: null,
+                },
+                {
+                    success: true,
+                    message: "시세 분석이 완료되었어요.",
+                    data: {
+                        event: "complete",
+                        ...result,
+                        analysisStatus: "ANALYZED",
+                        analysisSkipReason: null,
+                        analysisSkipMessage: null,
+                    },
+                    error: null,
+                },
+            ];
+            return route.fulfill({
+                status: 200,
+                headers: { "Content-Type": "text/event-stream" },
+                body: `${events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join("")}`,
+            });
+        },
+    );
     await page.route(`**/products/${productId}/analysis/trend`, (route) => {
         calls.details++;
         return route.fulfill({
