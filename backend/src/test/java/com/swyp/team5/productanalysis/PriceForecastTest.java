@@ -397,33 +397,32 @@ class PriceForecastTest extends IntegrationTest {
                             .header(HttpHeaders.AUTHORIZATION, bearer))
                     .andExpect(jsonPath("$.data.analysisStatus").value("UNAVAILABLE"));
 
-            // 방금 건너뛴 대상은 다시 분석하지 않음
+            // 방금(10분 안) 건너뛴 대상은 다시 분석하지 않음 — force 유무·요청자와 무관
             mockMvc.perform(post("/products/{productId}/analysis", skipped.getId())
                             .header(HttpHeaders.AUTHORIZATION, bearer))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.productId").value(skipped.getId()))
                     .andExpect(jsonPath("$.data.analysisStatus").value("SKIPPED"))
                     .andExpect(jsonPath("$.data.analysisSkipReason").value("NOT_ENOUGH_SIMILAR"));
+            mockMvc.perform(post("/products/{productId}/analysis", skipped.getId())
+                            .param("force", "true")
+                            .header(HttpHeaders.AUTHORIZATION, otherBearer))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.analysisStatus").value("SKIPPED"));
             mockMvc.perform(post("/products/{productId}/analysis", soldOut.getId())
                             .header(HttpHeaders.AUTHORIZATION, bearer))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.analysisStatus").value("UNAVAILABLE"));
-            // 테스트는 분석 대기열(관심 등록 직후 분석)이 꺼져 있어 분석하지 않고 현재 상태를 돌려줌
+            // 테스트는 분석 대기열(관심 등록 직후 분석)이 꺼져 있어 분석하지 않고 현재 상태를 돌려줌 — 남의 상품에 force를 붙여도 403 아님
             mockMvc.perform(post("/products/{productId}/analysis", fresh.getId())
                             .header(HttpHeaders.AUTHORIZATION, bearer))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.analysisStatus").value("NOT_ANALYZED"));
-
-            // 강제 재분석: 방금(10분 안) 건너뛴 본인 상품은 다시 분석하지 않고, 남의 상품이면 403
-            mockMvc.perform(post("/products/{productId}/analysis", skipped.getId())
-                            .param("force", "true")
-                            .header(HttpHeaders.AUTHORIZATION, bearer))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.data.analysisStatus").value("SKIPPED"));
             mockMvc.perform(post("/products/{productId}/analysis", fresh.getId())
                             .param("force", "true")
                             .header(HttpHeaders.AUTHORIZATION, otherBearer))
-                    .andExpect(status().isForbidden());
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.analysisStatus").value("NOT_ANALYZED"));
 
             mockMvc.perform(post("/products/{productId}/analysis", fresh.getId()))
                     .andExpect(status().isUnauthorized());

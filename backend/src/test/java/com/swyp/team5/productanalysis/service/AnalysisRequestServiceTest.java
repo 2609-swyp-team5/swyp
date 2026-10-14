@@ -20,7 +20,6 @@ import com.swyp.team5.item.entity.AnalysisSkipReason;
 import com.swyp.team5.item.repository.ItemRepository;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.product.entity.Product;
-import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.productanalysis.config.ProductAnalysisProperties;
 import com.swyp.team5.productanalysis.dto.AnalysisRequestResponse;
@@ -35,7 +34,6 @@ import org.junit.jupiter.api.Test;
 class AnalysisRequestServiceTest {
 
     private static final long ITEM_ID = 7L;
-    private static final long MEMBER_ID = 3L;
 
     private final ItemRepository itemRepository = mock(ItemRepository.class);
     private final ProductAnalysisRepository productAnalysisRepository = mock(ProductAnalysisRepository.class);
@@ -148,52 +146,43 @@ class AnalysisRequestServiceTest {
         verify(productAnalysisService, never()).analysisStatus(any(), anyBoolean());
     }
 
-    // 판매자의 강제 재분석은 6시간 안 결과가 있어도 다시 분석하고, force-retry-minutes(10분) 안이면 막음
+    // 화면 재시도는 6시간 안 결과가 있어도 다시 분석하고, force-retry-minutes(10분) 안이면 막음 — 외부 매물·남의 상품도 같음
     @Test
-    void forceReanalyzesOwnProductUnlessAnalyzedWithinMinutes() {
-        when(product.isRegisteredBy(MEMBER_ID)).thenReturn(true);
+    void retryReanalyzesUnlessAnalyzedWithinMinutes() {
         ProductAnalysis latest = mock(ProductAnalysis.class);
         when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(ITEM_ID))
                 .thenReturn(Optional.of(latest));
         when(productAnalysisService.analysisStatus(product, true)).thenReturn(AnalysisStatus.ANALYZED);
 
         when(latest.getAnalyzedAt()).thenReturn(LocalDateTime.now().minusMinutes(5));
-        assertThat(service(queue).request(ITEM_ID, MEMBER_ID, true).analysisStatus())
-                .isEqualTo(AnalysisStatus.ANALYZED);
+        assertThat(service(queue).retry(ITEM_ID).analysisStatus()).isEqualTo(AnalysisStatus.ANALYZED);
         verify(queue, never()).enqueue(anyLong(), anyBoolean());
 
         when(latest.getAnalyzedAt()).thenReturn(LocalDateTime.now().minusHours(1));
-        assertThat(service(queue).request(ITEM_ID, MEMBER_ID, true).analysisStatus())
-                .isEqualTo(AnalysisStatus.ANALYZING);
+        assertThat(service(queue).retry(ITEM_ID).analysisStatus()).isEqualTo(AnalysisStatus.ANALYZING);
         verify(queue).enqueue(ITEM_ID, true);
     }
 
-    // 강제 재분석은 건너뛴 지 request-retry-hours 안이어도 force-retry-minutes가 지났으면 다시 분석
+    // 화면 재시도는 건너뛴 지 request-retry-hours 안이어도 force-retry-minutes가 지났으면 다시 분석
     @Test
-    void forceRetriesSkippedProductAfterMinutes() {
-        when(product.isRegisteredBy(MEMBER_ID)).thenReturn(true);
+    void retryRetriesSkippedItemAfterMinutes() {
         givenStatus(AnalysisStatus.SKIPPED);
         when(product.getAnalysisSkippedAt()).thenReturn(LocalDateTime.now().minusMinutes(5));
-        assertThat(service(queue).request(ITEM_ID, MEMBER_ID, true).analysisStatus())
-                .isEqualTo(AnalysisStatus.SKIPPED);
+        assertThat(service(queue).retry(ITEM_ID).analysisStatus()).isEqualTo(AnalysisStatus.SKIPPED);
 
         when(product.getAnalysisSkippedAt()).thenReturn(LocalDateTime.now().minusHours(1));
-        assertThat(service(queue).request(ITEM_ID, MEMBER_ID, true).analysisStatus())
-                .isEqualTo(AnalysisStatus.ANALYZING);
+        assertThat(service(queue).retry(ITEM_ID).analysisStatus()).isEqualTo(AnalysisStatus.ANALYZING);
         verify(queue).enqueue(ITEM_ID, true);
     }
 
-    // 강제 재분석은 판매자 본인 상품만 — 남의 상품·외부 매물이면 403 예외
+    // 외부 매물도 화면 재시도로 바로 분석(소유자 확인 없음)
     @Test
-    void forceRejectsOtherMembersProductAndExternalListing() {
-        when(product.isRegisteredBy(MEMBER_ID)).thenReturn(false);
-        assertThatThrownBy(() -> service(queue).request(ITEM_ID, MEMBER_ID, true))
-                .isInstanceOf(ProductAccessDeniedException.class);
-
+    void retryAnalyzesExternalListing() {
         PlatformListing listing = mock(PlatformListing.class);
         when(itemRepository.findById(8L)).thenReturn(Optional.of(listing));
-        assertThatThrownBy(() -> service(queue).request(8L, MEMBER_ID, true))
-                .isInstanceOf(ProductAccessDeniedException.class);
-        verify(queue, never()).enqueue(anyLong(), anyBoolean());
+        when(productAnalysisService.analysisStatus(listing, false)).thenReturn(AnalysisStatus.NOT_ANALYZED);
+
+        assertThat(service(queue).retry(8L).analysisStatus()).isEqualTo(AnalysisStatus.ANALYZING);
+        verify(queue).enqueue(8L, true);
     }
 }

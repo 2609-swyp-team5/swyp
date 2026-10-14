@@ -208,7 +208,7 @@ analysis:
   interest-concurrency: ${PRICE_ANALYSIS_INTEREST_CONCURRENCY:3} # 관심 등록 직후 분석을 동시에 처리할 수(AI 호출 제한에 걸리면 줄임)
   interest-skip-hours: ${PRICE_ANALYSIS_INTEREST_SKIP_HOURS:6} # 관심 등록 직후 분석을 건너뛸 최근 분석 기준 시간(0이면 항상 분석 — 개발용)
   request-retry-hours: ${PRICE_ANALYSIS_REQUEST_RETRY_HOURS:6} # 화면에서 분석 요청 시, 비교 매물 부족으로 건너뛴 지 이 시간 안이면 다시 분석하지 않음(0이면 항상 다시 시도)
-  force-retry-minutes: ${PRICE_ANALYSIS_FORCE_RETRY_MINUTES:10} # 판매자가 자기 상품을 강제 재분석할 때, 이 시간(분) 안에 분석했거나 건너뛰었으면 다시 분석하지 않음(AI 비용 보호, 0이면 제한 없음)
+  force-retry-minutes: ${PRICE_ANALYSIS_FORCE_RETRY_MINUTES:10} # 화면 "AI 분석 재시도"(판매자·구매자 공통) 요청 시, 이 시간(분) 안에 분석했거나 건너뛰었으면 다시 분석하지 않음(AI 비용 보호, 0이면 제한 없음)
   stream: # 분석 완료 구독(SSE, GET /products/{id}/analysis/stream)
     timeout: ${PRICE_ANALYSIS_STREAM_TIMEOUT:180s} # 스트림 최대 유지 시간(지나면 그때의 분석 결과를 보내고 종료) — 분석 1건은 AI 최대 2회 + 호출 간격이라 수십 초가 걸릴 수 있음
     keep-alive-interval: 15s # 연결 유지용 주석 이벤트 간격

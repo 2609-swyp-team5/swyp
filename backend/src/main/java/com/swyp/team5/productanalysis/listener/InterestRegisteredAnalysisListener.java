@@ -70,7 +70,7 @@ public class InterestRegisteredAnalysisListener {
     }
 
     /**
-     * {@link #enqueue(Long)}와 같지만 {@code force}면 최근 분석 여부와 관계없이 분석한다(판매자의 재분석 요청용).
+     * {@link #enqueue(Long)}와 같지만 {@code force}면 최근 분석 여부와 관계없이 분석한다(화면 "AI 분석 재시도" 요청용).
      *
      * @return 새로 넣었으면 true
      */

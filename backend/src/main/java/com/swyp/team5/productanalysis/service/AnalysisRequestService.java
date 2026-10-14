@@ -11,8 +11,6 @@ import org.springframework.stereotype.Service;
 
 import com.swyp.team5.item.entity.Item;
 import com.swyp.team5.item.repository.ItemRepository;
-import com.swyp.team5.product.entity.Product;
-import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.productanalysis.config.ProductAnalysisProperties;
 import com.swyp.team5.productanalysis.dto.AnalysisRequestResponse;
@@ -32,8 +30,8 @@ import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
  *   <li>최근 {@code analysis.request-retry-hours}시간(기본 6) 안에 비교 매물 부족으로 건너뜀(0이면 항상 다시 시도)
  * </ul>
  *
- * <p>판매자가 자기 상품을 강제로 재분석하면({@code force}) 위 두 시간 제한 대신 {@code analysis.force-retry-minutes}분(기본 10)
- * 안에 분석했거나 건너뛴 경우만 막는다.
+ * <p>사용자가 화면에서 직접 누른 재시도({@link #retry})는 판매자·구매자 모두 위 두 시간 제한 대신
+ * {@code analysis.force-retry-minutes}분(기본 10) 안에 분석했거나 건너뛴 경우만 막는다.
  */
 @Slf4j
 @Service
@@ -65,30 +63,29 @@ public class AnalysisRequestService {
     }
 
     /**
-     * 상품(외부 매물 포함) 시세 분석을 요청한다. 분석은 별도 스레드에서 돌고, 결과는 {@code GET /products/{id}/analysis}로 확인한다.
+     * 상품(외부 매물 포함) 시세 분석을 요청한다(AI 대화 등 사용자가 직접 누르지 않은 요청). 분석은 별도 스레드에서 돌고, 결과는
+     * {@code GET /products/{id}/analysis}로 확인한다.
      *
      * @return 요청 후 상태(대기열에 넣었으면 ANALYZING)
      * @throws ProductNotFoundException 존재하지 않는 상품(외부 매물 포함)인 경우
      */
     public AnalysisRequestResponse request(Long productId) {
-        return request(productId, null, false);
+        return request(productId, false);
     }
 
     /**
-     * 시세 분석을 요청한다. {@code force}면 판매자 본인 상품만 최근 분석 여부와 관계없이 다시 분석한다(최소 간격
-     * {@code analysis.force-retry-minutes}분).
+     * 사용자가 화면에서 누른 "AI 분석 재시도"를 처리한다. 판매자·구매자 모두 최근 분석 여부와 관계없이 다시 분석하되, 최소 간격
+     * {@code analysis.force-retry-minutes}분 안에 분석했거나 건너뛰었으면 다시 분석하지 않는다(AI 비용 보호).
      *
-     * @param memberId 요청한 회원 ID({@code force}일 때 판매자 확인용)
-     * @param force true면 최근 분석·건너뜀 시간 제한을 무시하고 다시 분석
      * @return 요청 후 상태(대기열에 넣었으면 ANALYZING)
      * @throws ProductNotFoundException 존재하지 않는 상품(외부 매물 포함)인 경우
-     * @throws ProductAccessDeniedException {@code force}인데 요청 회원의 상품이 아닌 경우(외부 매물 포함)
      */
-    public AnalysisRequestResponse request(Long productId, Long memberId, boolean force) {
+    public AnalysisRequestResponse retry(Long productId) {
+        return request(productId, true);
+    }
+
+    private AnalysisRequestResponse request(Long productId, boolean retry) {
         Item item = itemRepository.findById(productId).orElseThrow(() -> new ProductNotFoundException(productId));
-        if (force && !(item instanceof Product product && product.isRegisteredBy(memberId))) {
-            throw new ProductAccessDeniedException(productId);
-        }
         Optional<ProductAnalysis> latest = productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(productId);
         AnalysisStatus current = productAnalysisService.analysisStatus(item, latest.isPresent());
         if (current == AnalysisStatus.ANALYZING || current == AnalysisStatus.UNAVAILABLE) {
@@ -96,13 +93,13 @@ public class AnalysisRequestService {
         }
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime analyzedAt = latest.map(ProductAnalysis::getAnalyzedAt).orElse(null);
-        boolean analyzedRecently = force
+        boolean analyzedRecently = retry
                 ? withinMinutes(analyzedAt, forceRetryMinutes, now)
                 : within(analyzedAt, properties.interestSkipHours(), now);
         if (analyzedRecently) {
             return AnalysisRequestResponse.of(item, AnalysisStatus.ANALYZED);
         }
-        boolean skippedRecently = force
+        boolean skippedRecently = retry
                 ? withinMinutes(item.getAnalysisSkippedAt(), forceRetryMinutes, now)
                 : within(item.getAnalysisSkippedAt(), retryHours, now);
         if (current == AnalysisStatus.SKIPPED && skippedRecently) {
@@ -114,7 +111,7 @@ public class AnalysisRequestService {
             return AnalysisRequestResponse.of(item, current);
         }
         // 이미 대기 중이면 false지만 그 분석이 곧 결과를 낸다
-        queue.enqueue(productId, force);
+        queue.enqueue(productId, retry);
         return AnalysisRequestResponse.of(item, AnalysisStatus.ANALYZING);
     }
 

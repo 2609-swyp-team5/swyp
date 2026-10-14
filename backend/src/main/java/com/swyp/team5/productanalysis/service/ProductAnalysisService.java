@@ -875,7 +875,7 @@ public class ProductAnalysisService {
     }
 
     /**
-     * {@link #analyzeInterestedItemById(Long)}와 같지만 {@code force}면 최근 분석 여부와 관계없이 분석한다(판매자의 재분석 요청용).
+     * {@link #analyzeInterestedItemById(Long)}와 같지만 {@code force}면 최근 분석 여부와 관계없이 분석한다(화면 "AI 분석 재시도" 요청용).
      *
      * @param itemId 분석할 대상 ID
      * @param force true면 최근 {@code analysis.interest-skip-hours}시간 안에 분석했어도 다시 분석
