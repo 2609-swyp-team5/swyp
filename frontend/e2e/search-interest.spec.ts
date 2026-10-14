@@ -154,9 +154,13 @@ test("restores all interest pages, uses source-specific IDs and shares state wit
     await external.click();
     await expect(page.locator("main").getByRole("alert")).toContainText("등록 실패");
     await expect(external).toHaveAttribute("aria-pressed", "false");
+    // 등록이 실패하면 관심상품 등록 팝업도 닫힌다
+    const addedDialog = page.getByRole("alertdialog", { name: "관심상품으로 등록했어요!" });
+    await expect(addedDialog).toHaveCount(0);
     fail = false;
     await external.click();
-    // 응답 전에 하트가 먼저 켜지고(낙관적 업데이트), 요청 중 다시 눌러도 추가 요청은 보내지 않는다
+    // 응답 전에 팝업과 하트가 먼저 켜지고(낙관적 업데이트), 요청 중 다시 눌러도 추가 요청은 보내지 않는다
+    await addedDialog.getByRole("button", { name: "확인", exact: true }).click();
     await expect(external).toHaveAttribute("aria-pressed", "true");
     await external.click();
     await expect(external).toHaveAttribute("aria-pressed", "true");
@@ -265,6 +269,11 @@ test("saved interests survive reload and revisits and appear in the wishlist", a
     await expect(favorite).toBeEnabled();
     await expect(favorite).toHaveAttribute("aria-pressed", "false");
     await favorite.click();
+    // 등록하면 관심상품 등록 팝업이 뜨고 모달 뒤 화면이 가려지므로 먼저 닫는다
+    await page
+        .getByRole("alertdialog", { name: "관심상품으로 등록했어요!" })
+        .getByRole("button", { name: "확인", exact: true })
+        .click();
     await expect(favorite).toHaveAttribute("aria-pressed", "true");
     await page.reload();
     await expect(favorite).toBeEnabled();
@@ -536,6 +545,72 @@ test("uses the search response interest ID when the full interest list is unavai
     await expect(favorite).toHaveAttribute("aria-pressed", "false");
     await favorite.click();
     await expect.poll(() => posted).toBe(true);
+    // 등록하면 관심상품 등록 팝업이 떠서(모달 뒤 화면은 가려짐) 닫고 확인한다
+    await page
+        .getByRole("alertdialog", { name: "관심상품으로 등록했어요!" })
+        .getByRole("button", { name: "확인", exact: true })
+        .click();
     await expect(favorite).toHaveAttribute("aria-pressed", "true");
     expect(interestListGets).toBe(0);
+});
+
+test("liking on the search page shows the interest dialog like the detail page", async ({
+    page,
+}) => {
+    await page.route("**/auth/refresh", (route) =>
+        route.fulfill({
+            json: { success: true, data: { accessToken: "interest-token" }, error: null },
+        }),
+    );
+    await page.route(
+        (url) => url.pathname === "/interests",
+        (route) =>
+            route.request().method() === "POST"
+                ? route.fulfill({
+                      json: { success: true, data: { interestId: 1001 }, error: null },
+                  })
+                : route.fulfill({
+                      json: {
+                          success: true,
+                          data: { content: [], nextCursor: null, hasNext: false, totalCount: 0 },
+                          error: null,
+                      },
+                  }),
+    );
+    await page.route("**/interests/1001", (route) =>
+        route.fulfill({ json: { success: true, data: null, error: null } }),
+    );
+    await page.route(
+        (url) => url.pathname === "/products",
+        (route) =>
+            route.fulfill({
+                json: {
+                    success: true,
+                    data: {
+                        content: [{ ...products[1], favorite: false, interestId: null }],
+                        nextCursor: null,
+                        hasNext: false,
+                        totalCount: 1,
+                    },
+                    error: null,
+                },
+            }),
+    );
+    await page.goto("/search");
+    const favorite = page.getByRole("button", { name: "EXTERNAL 상품 관심 상품", exact: true });
+    await expect(favorite).toBeEnabled();
+    await favorite.click();
+
+    const addedDialog = page.getByRole("alertdialog", { name: "관심상품으로 등록했어요!" });
+    await expect(addedDialog).toContainText(
+        `가격이 ${products[1].price.toLocaleString("ko-KR")}원 이하로 내려갈 때`,
+    );
+    await addedDialog.getByRole("button", { name: "확인", exact: true }).click();
+    await expect(addedDialog).toHaveCount(0);
+    await expect(favorite).toHaveAttribute("aria-pressed", "true");
+
+    // 해제할 때는 팝업을 띄우지 않는다
+    await favorite.click();
+    await expect(favorite).toHaveAttribute("aria-pressed", "false");
+    await expect(page.getByRole("alertdialog")).toHaveCount(0);
 });
