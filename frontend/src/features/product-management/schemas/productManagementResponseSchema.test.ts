@@ -4,6 +4,7 @@ import {
     productAnalysisResponseSchema,
     productCompetitionResponseSchema,
     productDetailSummaryResponseSchema,
+    productPriceDistributionResponseSchema,
     productPriceTrendResponseSchema,
     productValuationForecastResponseSchema,
 } from "./productManagementResponseSchema";
@@ -136,6 +137,61 @@ describe("백엔드 분석 응답 파싱", () => {
         });
 
         expect(result.priceTrend.points[1].change?.rate).toBe(-8.03);
+    });
+
+    it("판매 완료 가격 분포 응답을 파싱한다", () => {
+        const result = productPriceDistributionResponseSchema.parse({
+            productId: 7,
+            onSale: {
+                count: 5,
+                minPrice: 180000,
+                averagePrice: 274000,
+                suggestedPrice: 468000,
+                maxPrice: 420000,
+                comparisonBasis: "SAME",
+                analyzedAt: "2026-10-02T12:00:00",
+                buckets: [
+                    { from: 180000, to: 228000, count: 1 },
+                    { from: 228000, to: 276000, count: 2 },
+                    { from: 276000, to: 420000, count: 2 },
+                ],
+            },
+            soldOut: {
+                days: 90,
+                from: "2026-07-14",
+                to: "2026-10-13",
+                count: 4,
+                minPrice: 160000,
+                averagePrice: 250000,
+                suggestedPrice: 468000,
+                maxPrice: 390000,
+                buckets: [{ from: 160000, to: 390000, count: 4 }],
+            },
+        });
+
+        expect(result.onSale.buckets).toHaveLength(3);
+        expect(result.onSale.count).toBe(5);
+        expect(result.soldOut.suggestedPrice).toBe(468000);
+    });
+
+    it("가격이 없는 분포 응답은 nullable 필드가 생략되어도 파싱한다", () => {
+        const result = productPriceDistributionResponseSchema.parse({
+            productId: 7,
+            onSale: {
+                count: 0,
+                buckets: [],
+            },
+            soldOut: {
+                days: 90,
+                from: "2026-07-14",
+                to: "2026-10-13",
+                count: 0,
+                buckets: [],
+            },
+        });
+
+        expect(result.onSale.minPrice).toBeUndefined();
+        expect(result.soldOut.averagePrice).toBeUndefined();
     });
 
     it("감가 예측 응답을 파싱한다", () => {

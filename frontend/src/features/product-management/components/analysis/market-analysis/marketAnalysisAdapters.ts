@@ -1,5 +1,5 @@
 import type {
-    ProductMarketAnalysis,
+    ProductPriceDistribution,
     ProductPriceTrend,
     ProductValuationForecast,
 } from "../../../types";
@@ -11,14 +11,26 @@ export type PriceDistributionViewModel = {
     maxPrice: number;
 };
 
+export type PriceDistributionSection =
+    ProductPriceDistribution["onSale"] | ProductPriceDistribution["soldOut"];
+
 export function toPriceDistributionViewModel(
-    analysis: ProductMarketAnalysis,
-): PriceDistributionViewModel {
+    distribution: PriceDistributionSection,
+): PriceDistributionViewModel | null {
+    if (
+        distribution.minPrice == null ||
+        distribution.averagePrice == null ||
+        distribution.suggestedPrice == null ||
+        distribution.maxPrice == null
+    ) {
+        return null;
+    }
+
     return {
-        minPrice: analysis.minPrice,
-        averagePrice: analysis.averagePrice,
-        suggestedPrice: analysis.suggestedPrice,
-        maxPrice: analysis.maxPrice,
+        minPrice: distribution.minPrice,
+        averagePrice: distribution.averagePrice,
+        suggestedPrice: distribution.suggestedPrice,
+        maxPrice: distribution.maxPrice,
     };
 }
 
