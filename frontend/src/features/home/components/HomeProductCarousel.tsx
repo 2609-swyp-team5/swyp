@@ -18,7 +18,14 @@ const platforms = [
 
 export type CarouselProduct = Pick<
     ProductSummaryResponse,
-    "id" | "title" | "price" | "status" | "thumbnailUrl" | "marketAveragePrice"
+    | "id"
+    | "title"
+    | "price"
+    | "status"
+    | "thumbnailUrl"
+    | "marketAveragePrice"
+    | "favorite"
+    | "interestId"
 > & { platformName: string };
 
 const statusLabels = {
@@ -42,14 +49,12 @@ export function HomeProductCarousel({
     title: string;
     products: CarouselProduct[];
     interestActions?: {
-        liked: Record<number, boolean>;
         disabled: boolean;
-        toggle: (id: number) => void;
+        toggle: (product: CarouselProduct) => void;
     };
 }) {
     const [page, setPage] = useState(0);
     const [localLiked, setLiked] = useState<Record<number, boolean>>({});
-    const liked = interestActions?.liked ?? localLiked;
     const isDesktop = useSyncExternalStore(
         subscribeViewport,
         () => window.matchMedia("(min-width: 768px)").matches,
@@ -75,6 +80,7 @@ export function HomeProductCarousel({
                 <div className="grid max-w-[901px] min-w-0 flex-1 gap-5 md:grid-cols-3">
                     {visibleProducts.map((product) => {
                         const { id } = product;
+                        const liked = interestActions ? product.favorite : localLiked[id] === true;
                         const platformColor =
                             platforms.find((platform) => platform.name === product.platformName)
                                 ?.color ?? "bg-[#6653fb]";
@@ -120,11 +126,11 @@ export function HomeProductCarousel({
                                         variant="ghost"
                                         size="icon"
                                         aria-label={`${title} ${product.title} 관심 상품`}
-                                        aria-pressed={Boolean(liked[id])}
+                                        aria-pressed={liked}
                                         disabled={interestActions?.disabled}
                                         onClick={() =>
                                             interestActions
-                                                ? interestActions.toggle(id)
+                                                ? interestActions.toggle(product)
                                                 : setLiked((previous) => ({
                                                       ...previous,
                                                       [id]: !previous[id],
@@ -132,14 +138,14 @@ export function HomeProductCarousel({
                                         }
                                         className={cn(
                                             "absolute top-3 right-3 z-20 size-8 rounded-full bg-white shadow-sm transition-[color,scale] hover:bg-[#fafbff] motion-safe:active:scale-90",
-                                            liked[id]
+                                            liked
                                                 ? "text-[#fa503d] hover:text-[#fa503d]"
                                                 : "text-black",
                                         )}
                                     >
                                         <Heart
                                             className="size-4"
-                                            fill={liked[id] ? "currentColor" : "none"}
+                                            fill={liked ? "currentColor" : "none"}
                                             strokeWidth={1.5}
                                         />
                                     </Button>

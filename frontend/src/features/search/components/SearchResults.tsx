@@ -25,7 +25,6 @@ export function SearchResults({
     keyword,
     products,
     totalCount,
-    liked,
     onLike,
     likeDisabled,
     isLoading,
@@ -41,7 +40,6 @@ export function SearchResults({
     keyword: string;
     products: SearchResultItem[];
     totalCount: number | null;
-    liked: Record<string, boolean>;
     onLike: (product: SearchResultItem) => void;
     likeDisabled: boolean;
     isLoading: boolean;
@@ -132,12 +130,11 @@ export function SearchResults({
                     )}
                 >
                     {products.map((product) => {
-                        const key = `${product.source}:${product.id}`;
                         return (
                             <SearchResultCard
-                                key={key}
+                                key={`${product.source}:${product.id}`}
                                 product={product}
-                                liked={Boolean(liked[key])}
+                                liked={product.favorite}
                                 onLike={() => onLike(product)}
                                 likeDisabled={likeDisabled}
                                 now={now}

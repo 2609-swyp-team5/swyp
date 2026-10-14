@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ExternalLink, Heart, Info } from "lucide-react";
+import { ArrowLeft, ExternalLink, Heart, Info } from "lucide-react";
 
 import { Badge } from "@/common/components/ui/Badge";
 import { Button } from "@/common/components/ui/Button";
@@ -59,9 +59,7 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
         await requestAnalysisMutation.mutateAsync({ productId: targetId });
         await sections.productAnalysis.refetch();
     };
-    const liked = interests.interests.some(
-        (item) => item.source === product?.source && item.targetId === targetId,
-    );
+    const liked = product?.favorite ?? false;
     const imageIndex = selectedImage < (product?.imageUrls.length ?? 0) ? selectedImage : 0;
     const average = product?.marketAveragePrice;
     const difference =
@@ -135,9 +133,10 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
             <div className="layout-container flex flex-col gap-[30px] py-10 lg:py-20">
                 <Link
                     href="/search"
-                    className="self-start text-[20px] leading-8 font-medium tracking-[0.5px] text-[#6b7395] hover:text-[#6653fb]"
+                    className="flex items-center gap-2 self-start text-[20px] leading-8 font-medium tracking-[0.5px] text-[#6b7395] hover:text-[#6653fb]"
                 >
-                    ← 이전 페이지
+                    <ArrowLeft aria-hidden="true" className="size-5 shrink-0" />
+                    <span>이전 페이지</span>
                 </Link>
 
                 {isPending && <SearchProductDetailSkeleton />}
@@ -347,6 +346,7 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                                                             targetId: product.id,
                                                         },
                                                         {
+                                                            interestId: product.interestId,
                                                             // 하트와 함께 바로 띄우고, 등록이 실패하면 닫는다(오류는 아래 alert로 표시)
                                                             onAdd: () =>
                                                                 setInterestDialogOpen(true),

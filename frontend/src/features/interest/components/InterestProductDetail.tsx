@@ -41,9 +41,16 @@ export function InterestProductDetail({ interest }: { interest: InterestListItem
     });
 
     const handleDelete = () => {
-        deleteMutation.mutate(interest.interestId, {
-            onSuccess: clearSelectedProductId,
-        });
+        deleteMutation.mutate(
+            {
+                interestId: interest.interestId,
+                source: interest.source,
+                targetId: interest.targetId,
+            },
+            {
+                onSuccess: clearSelectedProductId,
+            },
+        );
     };
 
     const detailLabel =

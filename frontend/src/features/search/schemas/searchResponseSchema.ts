@@ -27,6 +27,9 @@ export const searchResultItemSchema = z.object({
     platformName: z.string().nullable(),
     externalUrl: z.string().nullable(),
     createdAt: z.string(),
+    // 로그인 사용자의 검색 결과별 관심 상태
+    favorite: z.boolean(),
+    interestId: z.number().nullable(),
 });
 
 export const searchResponseSchema = z.object({
@@ -55,4 +58,7 @@ export const searchProductDetailSchema = z.object({
     preferredTradeRegion: z.string().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
+    // 로그인 사용자의 상세 상품 관심 상태
+    favorite: z.boolean(),
+    interestId: z.number().nullable(),
 });

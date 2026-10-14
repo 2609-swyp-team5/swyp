@@ -1,5 +1,6 @@
 import { expect, test } from "./fixtures";
 import { detailProduct } from "./product-detail-fixture";
+import { createProductSummaryMock } from "../src/features/product-management/mocks/productManagementMock";
 
 const products = ["OUR", "EXTERNAL"].map((source) => ({
     source,
@@ -14,6 +15,8 @@ const products = ["OUR", "EXTERNAL"].map((source) => ({
     marketAveragePrice: null,
     categoryName: "전자기기",
     createdAt: "2026-10-01T10:00:00",
+    favorite: false,
+    interestId: null,
 }));
 
 test.beforeEach(async ({ page }) => {
@@ -53,11 +56,42 @@ test("restores all interest pages, uses source-specific IDs and shares state wit
     let fail = true;
     let posts = 0;
     let deletes = 0;
+    let interestListGets = 0;
     let release!: () => void;
     const ready = new Promise<void>((resolve) => {
         release = resolve;
     });
-    const cursors: (string | null)[] = [];
+    await page.route("**/products?*", (route) =>
+        route.fulfill({
+            json: {
+                success: true,
+                data: {
+                    content: products.map((product) =>
+                        product.source === "EXTERNAL"
+                            ? { ...product, favorite: saved, interestId: saved ? 1001 : null }
+                            : product,
+                    ),
+                    hasNext: false,
+                    nextCursor: null,
+                },
+                error: null,
+            },
+        }),
+    );
+    await page.route("**/products/42", (route) =>
+        route.fulfill({
+            json: {
+                success: true,
+                data: {
+                    ...detailProduct,
+                    id: 42,
+                    favorite: saved,
+                    interestId: saved ? 1001 : null,
+                },
+                error: null,
+            },
+        }),
+    );
     await page.route(
         (url) => url.pathname === "/interests",
         async (route) => {
@@ -82,25 +116,11 @@ test("restores all interest pages, uses source-specific IDs and shares state wit
                     },
                 });
             }
-            const cursor = new URL(request.url()).searchParams.get("cursor");
-            cursors.push(cursor);
+            interestListGets++;
             return route.fulfill({
                 json: {
                     success: true,
-                    data:
-                        cursor === null
-                            ? {
-                                  content: [{ source: "OUR", targetId: 999, interestId: 2000 }],
-                                  hasNext: true,
-                                  nextCursor: "2000",
-                              }
-                            : {
-                                  content: saved
-                                      ? [{ source: "EXTERNAL", targetId: 42, interestId: 1001 }]
-                                      : [],
-                                  hasNext: false,
-                                  nextCursor: null,
-                              },
+                    data: { content: [], hasNext: false, nextCursor: null },
                     error: null,
                 },
             });
@@ -123,7 +143,7 @@ test("restores all interest pages, uses source-specific IDs and shares state wit
     await expect(external).toBeEnabled();
     await expect(external).toHaveAttribute("aria-pressed", "true");
     await expect(our).toHaveAttribute("aria-pressed", "false");
-    expect(cursors.slice(0, 2)).toEqual([null, "2000"]);
+    expect(interestListGets).toBe(0);
     await external.click();
     await expect(page.locator("main").getByRole("alert")).toContainText("삭제 실패");
     await expect(external).toHaveAttribute("aria-pressed", "true");
@@ -152,7 +172,7 @@ test("restores all interest pages, uses source-specific IDs and shares state wit
         "aria-pressed",
         "false",
     );
-    await page.getByRole("link", { name: "← 이전 페이지" }).click();
+    await page.getByRole("link", { name: "이전 페이지", exact: true }).click();
     await expect(external).toHaveAttribute("aria-pressed", "false");
     await page.reload();
     await expect(external).toBeEnabled();
@@ -218,6 +238,23 @@ test("saved interests survive reload and revisits and appear in the wishlist", a
             });
         },
     );
+    await page.route("**/products?*", (route) =>
+        route.fulfill({
+            json: {
+                success: true,
+                data: {
+                    content: products.map((product) =>
+                        product.source === "EXTERNAL"
+                            ? { ...product, favorite: saved, interestId: saved ? 1001 : null }
+                            : product,
+                    ),
+                    hasNext: false,
+                    nextCursor: null,
+                },
+                error: null,
+            },
+        }),
+    );
     await page.route("**/interests/1001", (route) => {
         expect(route.request().method()).toBe("DELETE");
         saved = false;
@@ -246,6 +283,110 @@ test("saved interests survive reload and revisits and appear in the wishlist", a
     await expect(page.locator("main")).toContainText("관심상품이 없습니다.");
 });
 
+test("deleting from the wishlist immediately clears the cached search heart", async ({ page }) => {
+    await page.route("**/auth/refresh", (route) =>
+        route.fulfill({
+            json: { success: true, data: { accessToken: "interest-token" }, error: null },
+        }),
+    );
+
+    let saved = true;
+    let searchRequestCount = 0;
+    let releaseSearchResponse!: () => void;
+    const searchResponseReady = new Promise<void>((resolve) => {
+        releaseSearchResponse = resolve;
+    });
+    const interest = {
+        interestId: 1001,
+        source: "EXTERNAL",
+        targetId: 42,
+        title: "EXTERNAL 상품",
+        price: 1000,
+        status: "ON_SALE",
+        condition: null,
+        categoryName: "전자기기",
+        thumbnailUrl: null,
+        recommendation: "BUY",
+        interestStatus: "BUY",
+        marketAveragePrice: null,
+        platformName: "번개장터",
+        externalUrl: null,
+        targetPrice: null,
+        createdAt: "2026-10-04T10:00:00",
+    };
+
+    await page.route(
+        (url) => url.pathname === "/interests",
+        (route) => {
+            if (route.request().method() === "DELETE") return route.fallback();
+            return route.fulfill({
+                json: {
+                    success: true,
+                    data: {
+                        content: saved ? [interest] : [],
+                        nextCursor: null,
+                        hasNext: false,
+                        totalCount: saved ? 1 : 0,
+                        statusCounts: { BUY: saved ? 1 : 0, WAIT: 0, SOLD_OUT: 0, PENDING: 0 },
+                    },
+                    error: null,
+                },
+            });
+        },
+    );
+    await page.route("**/interests/1001", (route) => {
+        expect(route.request().method()).toBe("DELETE");
+        saved = false;
+        return route.fulfill({ json: { success: true, data: null, error: null } });
+    });
+    await page.route("**/products/42/summary", (route) =>
+        route.fulfill({
+            json: {
+                success: true,
+                data: {
+                    ...createProductSummaryMock(42),
+                    source: "EXTERNAL",
+                    title: interest.title,
+                },
+                error: null,
+            },
+        }),
+    );
+    await page.route("**/products?*", async (route) => {
+        searchRequestCount += 1;
+        if (searchRequestCount > 1 && !saved) {
+            await searchResponseReady;
+        }
+        return route.fulfill({
+            json: {
+                success: true,
+                data: {
+                    content: [{ ...products[1], favorite: saved, interestId: saved ? 1001 : null }],
+                    hasNext: false,
+                    nextCursor: null,
+                },
+                error: null,
+            },
+        });
+    });
+
+    await page.goto("/search");
+    const favorite = page.getByRole("button", { name: "EXTERNAL 상품 관심 상품", exact: true });
+    await expect(favorite).toHaveAttribute("aria-pressed", "true");
+
+    await page.getByRole("link", { name: "관심 상품", exact: true }).click();
+    await page.getByText(interest.title, { exact: true }).click();
+    const deleteButton = page.getByRole("button", { name: "관심 상품 삭제", exact: true });
+    await expect(deleteButton).toBeVisible();
+    await deleteButton.click();
+    await expect(page.getByRole("link", { name: "상품 검색하기", exact: true })).toBeVisible();
+
+    await page.getByRole("link", { name: "상품 검색하기", exact: true }).click();
+    // 검색 API 응답을 일부러 보류해도 이전 검색 캐시가 즉시 해제 상태여야 한다.
+    await expect(favorite).toHaveAttribute("aria-pressed", "false");
+    releaseSearchResponse();
+});
+
 test("guests can search but interest buttons require login without API writes", async ({
     page,
 }) => {
@@ -269,7 +410,9 @@ test("guests can search but interest buttons require login without API writes", 
     expect(requests).toBe(0);
 });
 
-test("an incomplete interest list disables toggles until a successful retry", async ({ page }) => {
+test("search response interest state does not depend on the full interest list", async ({
+    page,
+}) => {
     await page.route("**/auth/refresh", (route) =>
         route.fulfill({
             json: {
@@ -279,41 +422,111 @@ test("an incomplete interest list disables toggles until a successful retry", as
             },
         }),
     );
-    let fail = true;
+    let interestListGets = 0;
     await page.route(
         (url) => url.pathname === "/interests",
         (route) => {
-            expect(route.request().method()).toBe("GET");
-            const cursor = new URL(route.request().url()).searchParams.get("cursor");
-            if (cursor && fail)
-                return route.fulfill({
-                    status: 500,
-                    json: {
-                        success: false,
-                        message: "관심 목록 조회 실패",
-                        data: null,
-                        error: null,
-                    },
-                });
+            interestListGets++;
             return route.fulfill({
-                json: {
-                    success: true,
-                    data: {
-                        content: cursor ? [] : [{ source: "OUR", targetId: 42, interestId: 2000 }],
-                        hasNext: cursor === null,
-                        nextCursor: cursor === null ? "2000" : null,
-                    },
-                    error: null,
-                },
+                status: 500,
+                json: { success: false, message: "관심 목록 조회 실패", data: null, error: null },
             });
         },
     );
+    await page.route(
+        (url) => url.pathname === "/products" && url.searchParams.has("size"),
+        (route) =>
+            route.fulfill({
+                json: {
+                    success: true,
+                    data: {
+                        content: [{ ...products[0], favorite: true, interestId: 2000 }],
+                        hasNext: false,
+                        nextCursor: null,
+                        totalCount: 1,
+                    },
+                    error: null,
+                },
+            }),
+    );
     await page.goto("/search");
     const favorite = page.getByRole("button", { name: "OUR 상품 관심 상품", exact: true });
-    await expect(page.locator("main").getByRole("alert")).toContainText("관심 목록 조회 실패");
-    await expect(favorite).toBeDisabled();
-    fail = false;
-    await page.getByRole("button", { name: "관심상품 다시 조회" }).click();
     await expect(favorite).toBeEnabled();
     await expect(favorite).toHaveAttribute("aria-pressed", "true");
+    await favorite.click();
+    await expect(favorite).toHaveAttribute("aria-pressed", "false");
+    expect(interestListGets).toBe(0);
+});
+
+test("uses the search response interest ID when the full interest list is unavailable", async ({
+    page,
+}) => {
+    await page.route("**/auth/refresh", (route) =>
+        route.fulfill({
+            json: { success: true, data: { accessToken: "interest-token" }, error: null },
+        }),
+    );
+    let deleted = false;
+    let posted = false;
+    let interestListGets = 0;
+    await page.route(
+        (url) => url.pathname === "/interests" || url.pathname === "/interests/1001",
+        (route) => {
+            if (route.request().method() === "DELETE") {
+                expect(route.request().url()).toContain("/interests/1001");
+                deleted = true;
+                return route.fulfill({ json: { success: true, data: null, error: null } });
+            }
+            if (route.request().method() === "POST") {
+                expect(route.request().postDataJSON()).toEqual({
+                    source: "EXTERNAL",
+                    targetId: 42,
+                });
+                posted = true;
+                return route.fulfill({
+                    status: 201,
+                    json: { success: true, data: { interestId: 1002 }, error: null },
+                });
+            }
+            interestListGets++;
+            return route.fulfill({
+                status: 500,
+                json: { success: false, message: "관심 목록 조회 실패", data: null, error: null },
+            });
+        },
+    );
+    await page.route(
+        (url) => url.pathname === "/products" && url.searchParams.has("size"),
+        (route) =>
+            route.fulfill({
+                json: {
+                    success: true,
+                    data: {
+                        content: [
+                            {
+                                ...products[1],
+                                favorite: true,
+                                interestId: 1001,
+                            },
+                        ],
+                        hasNext: false,
+                        nextCursor: null,
+                        totalCount: 1,
+                    },
+                    error: null,
+                },
+            }),
+    );
+
+    await page.goto("/search");
+    const favorite = page.getByRole("button", { name: "EXTERNAL 상품 관심 상품", exact: true });
+    await expect(favorite).toBeEnabled();
+    await expect(favorite).toHaveAttribute("aria-pressed", "true");
+    await favorite.click();
+    await expect.poll(() => deleted).toBe(true);
+    await expect(favorite).toHaveAttribute("aria-pressed", "false");
+    await favorite.click();
+    await expect.poll(() => posted).toBe(true);
+    await expect(favorite).toHaveAttribute("aria-pressed", "true");
+    expect(interestListGets).toBe(0);
 });

@@ -22,6 +22,8 @@ const product: SearchResultItem = {
     platformName: null,
     externalUrl: null,
     createdAt: "2026-09-15T10:00:00",
+    favorite: false,
+    interestId: null,
 };
 
 async function authenticate(page: Page) {

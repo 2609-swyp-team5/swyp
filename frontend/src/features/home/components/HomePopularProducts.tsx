@@ -11,11 +11,6 @@ import { HomeProductCarousel } from "./HomeProductCarousel";
 export function HomePopularProducts() {
     const { data, isPending, error, refetch, isFetching } = usePopularProductsQuery();
     const interests = useInterestToggle();
-    const liked = Object.fromEntries(
-        interests.interests
-            .filter((item) => item.source === "OUR")
-            .map((item) => [item.targetId, true]),
-    );
 
     if (isPending) {
         return (
@@ -64,9 +59,12 @@ export function HomePopularProducts() {
                 title="인기 상품 모음"
                 products={data.map((product) => ({ ...product, platformName: "지금이니?!" }))}
                 interestActions={{
-                    liked,
                     disabled: interests.disabled,
-                    toggle: (id) => interests.toggle({ source: "OUR", targetId: id }),
+                    toggle: (product) =>
+                        interests.toggle(
+                            { source: "OUR", targetId: product.id },
+                            { interestId: product.interestId },
+                        ),
                 }}
             />
         </>
