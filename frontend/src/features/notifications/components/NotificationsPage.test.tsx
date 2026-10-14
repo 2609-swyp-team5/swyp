@@ -1,18 +1,21 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
 
 import { NotificationsPage } from "./NotificationsPage";
 
-const { getNotifications, markRead, deleteNotification } = vi.hoisted(() => ({
-    getNotifications: vi.fn(),
-    markRead: vi.fn(),
-    deleteNotification: vi.fn(),
-}));
+const { getNotifications, markRead, deleteNotification, deleteAllNotifications } = vi.hoisted(
+    () => ({
+        getNotifications: vi.fn(),
+        markRead: vi.fn(),
+        deleteNotification: vi.fn(),
+        deleteAllNotifications: vi.fn(),
+    }),
+);
 
 vi.mock("../api/notificationApi", () => ({
-    notificationApi: { getNotifications, markRead, deleteNotification },
+    notificationApi: { getNotifications, markRead, deleteNotification, deleteAllNotifications },
 }));
 
 vi.mock("@/features/auth/store/authStore", () => ({
@@ -33,6 +36,7 @@ beforeEach(() => {
     getNotifications.mockReset();
     markRead.mockReset();
     deleteNotification.mockReset();
+    deleteAllNotifications.mockReset();
     markRead.mockResolvedValue({
         data: { success: true, message: "", data: { notificationId: 1, isRead: true } },
     });
@@ -179,4 +183,80 @@ it("알림 삭제에 실패하면 알림을 복구하고 오류를 안내한다"
         "알림을 삭제하지 못했습니다. 네트워크 오류",
     );
     expect(screen.getByText("구매 추천 알림")).toBeInTheDocument();
+});
+
+function mockNotificationList(content: unknown[]) {
+    getNotifications.mockResolvedValue({
+        data: {
+            success: true,
+            message: "",
+            data: {
+                content,
+                nextCursor: null,
+                hasNext: false,
+                totalCount: content.length,
+                statusCounts: { SELL: 1, BUY: 0, PRICE: 0, PLATFORM: 0, NOTICE: 1 },
+            },
+        },
+    });
+}
+
+it("전체 탭에서 확인을 거쳐 알림을 모두 삭제하고 목록을 다시 불러온다", async () => {
+    mockNotificationList([sellNotification, noticeNotification]);
+    deleteAllNotifications.mockImplementation(async () => {
+        mockNotificationList([]);
+        return { data: { success: true, message: "", data: { deletedCount: 2 } } };
+    });
+    const user = userEvent.setup();
+
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "전체 삭제" }));
+    const dialog = await screen.findByRole("alertdialog", { name: "알림을 모두 삭제할까요?" });
+    await user.click(within(dialog).getByRole("button", { name: "삭제" }));
+
+    await waitFor(() => expect(deleteAllNotifications).toHaveBeenCalledWith(undefined));
+    expect(await screen.findByText("아직 받은 알림이 없습니다.")).toBeInTheDocument();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "전체 삭제" })).not.toBeInTheDocument();
+});
+
+it("탭을 고르면 그 탭 알림만 지우고, 취소하면 지우지 않는다", async () => {
+    mockNotificationList([sellNotification]);
+    deleteAllNotifications.mockResolvedValue({
+        data: { success: true, message: "", data: { deletedCount: 1 } },
+    });
+    const user = userEvent.setup();
+
+    renderPage();
+
+    await user.click(await screen.findByRole("tab", { name: /판매추천/ }));
+    await user.click(await screen.findByRole("button", { name: "판매추천 알림 전체 삭제" }));
+    let dialog = await screen.findByRole("alertdialog", {
+        name: "판매추천 알림을 모두 삭제할까요?",
+    });
+    await user.click(within(dialog).getByRole("button", { name: "취소" }));
+    expect(deleteAllNotifications).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "판매추천 알림 전체 삭제" }));
+    dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "삭제" }));
+    await waitFor(() => expect(deleteAllNotifications).toHaveBeenCalledWith("SELL"));
+});
+
+it("일괄 삭제에 실패하면 확인 창에 오류를 보여 주고 목록은 그대로 둔다", async () => {
+    mockNotificationList([sellNotification]);
+    deleteAllNotifications.mockRejectedValue(new Error("네트워크 오류"));
+    const user = userEvent.setup();
+
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "전체 삭제" }));
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "삭제" }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+        "알림을 삭제하지 못했습니다. 네트워크 오류",
+    );
+    expect(screen.getByText("아이폰 13, 지금 판매를 추천해요")).toBeInTheDocument();
 });
