@@ -132,11 +132,13 @@ export function MarketAnalysisPriceDistribution({ data }: { data: PriceDistribut
                                 aria-hidden="true"
                             />
                         </div>
-                        {[0, 25, 50, 75, 100].map((position) => (
+                        {/* 눈금선은 최저·평균·최고 점 위치에 그려 점·라벨과 한 줄로 맞춘다 */}
+                        {referencePoints.map((point) => (
                             <span
-                                key={position}
+                                key={point.key}
+                                data-testid={`price-distribution-tick-${point.key}`}
                                 className="absolute inset-y-0 w-px -translate-x-1/2 bg-[#e1e1e1]"
-                                style={{ left: trackLeft(position) }}
+                                style={{ left: trackLeft(point.position) }}
                                 aria-hidden="true"
                             />
                         ))}
