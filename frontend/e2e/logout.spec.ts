@@ -53,3 +53,42 @@ test("sidebar logout preserves the session on failure and clears it on success",
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.getByRole("heading", { name: "로그인", exact: true })).toBeVisible();
 });
+
+test("clears the unread notification badge before guest onboarding", async ({ page }) => {
+    await page.route("**/auth/refresh", (route) =>
+        route.fulfill({
+            status: 200,
+            json: { success: true, data: { accessToken: "test-access-token" }, error: null },
+        }),
+    );
+    await page.route("**/notifications/unread", (route) =>
+        route.fulfill({
+            status: 200,
+            json: { success: true, data: { count: 3 }, error: null },
+        }),
+    );
+    await page.goto("/home");
+
+    await expect(page.getByRole("link", { name: "알림 3개 읽지 않은 알림" })).toBeVisible();
+
+    await page.goto("/my");
+    await page.route("**/auth/logout", (route) =>
+        route.fulfill({
+            status: 200,
+            json: { success: true, message: "로그아웃 성공", data: null, error: null },
+        }),
+    );
+    await page
+        .getByRole("navigation", { name: "마이페이지 메뉴" })
+        .getByRole("button", {
+            name: "로그아웃",
+            exact: true,
+        })
+        .click();
+    await expect(page).toHaveURL(/\/login$/);
+
+    await page.goto("/");
+    await page.getByRole("link", { name: "시작하기", exact: true }).click();
+    await expect(page).toHaveURL(/\/home$/);
+    await expect(page.getByLabel("3개 읽지 않은 알림")).toHaveCount(0);
+});

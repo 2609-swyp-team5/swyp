@@ -43,3 +43,20 @@ it("does not redirect an initial guest on search", () => {
     );
     expect(navigation.replace).not.toHaveBeenCalled();
 });
+
+it("clears user-scoped notification caches when a session ends", () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(["notifications", "ALL"], { pages: [] });
+    queryClient.setQueryData(["notification-unread-count"], { count: 3 });
+
+    render(
+        <QueryClientProvider client={queryClient}>
+            <AuthInitializer />
+        </QueryClientProvider>,
+    );
+
+    act(() => useAuthStore.getState().clearAuth());
+
+    expect(queryClient.getQueryData(["notifications", "ALL"])).toBeUndefined();
+    expect(queryClient.getQueryData(["notification-unread-count"])).toBeUndefined();
+});
