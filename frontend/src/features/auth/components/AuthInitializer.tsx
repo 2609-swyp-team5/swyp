@@ -35,10 +35,10 @@ export default function AuthInitializer() {
                     queryClient.removeQueries({ queryKey: notificationsQueryKey });
                     void queryClient.cancelQueries({ queryKey: notificationUnreadCountQueryKey });
                     queryClient.removeQueries({ queryKey: notificationUnreadCountQueryKey });
-                    router.replace("/login");
+                    if (!requiresAuth) router.replace("/login");
                 }
             }),
-        [queryClient, router],
+        [queryClient, requiresAuth, router],
     );
 
     useEffect(() => {

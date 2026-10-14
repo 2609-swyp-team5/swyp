@@ -30,6 +30,7 @@ it.each(["/home", "/search", "/sell/manage", "/sell/register", "/buy/wishlist", 
         expect(navigation.replace).not.toHaveBeenCalled();
         act(() => useAuthStore.getState().clearAuth());
         expect(navigation.replace).toHaveBeenCalledWith("/login");
+        expect(navigation.replace).toHaveBeenCalledTimes(1);
     },
 );
 
