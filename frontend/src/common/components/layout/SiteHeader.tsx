@@ -71,6 +71,7 @@ export function SiteHeader() {
                         alt="지금이니?"
                         width={129}
                         height={71}
+                        loading="eager"
                         unoptimized
                         className="h-[55px] w-[100px] object-contain lg:h-[71px] lg:w-[129px]"
                     />
