@@ -11,6 +11,12 @@ import type {
     ProductValuationForecastResponse,
     ProductTargetPriceResponse,
 } from "@/features/product-management/schemas/productManagementResponseSchema";
+import { productAnalysisResponseSchema } from "@/features/product-management/schemas/productManagementResponseSchema";
+import {
+    productAnalysisStreamEventSchema,
+    type ProductAnalysisStreamResult,
+    type ProductAnalysisStreamStep,
+} from "@/features/product-management/schemas/productAnalysisStreamSchema";
 import {
     type MarketAnalysisProgress,
     marketAnalysisProgressSchema,
@@ -40,6 +46,11 @@ import type {
 import type { MyPlatformType } from "@/features/my/types";
 
 type ProductRegisterProgressHandler = (progress: ProductRegisterProgress) => void;
+type ProductAnalysisStreamProgressHandler = (
+    progress: Omit<ProductAnalysisStreamStep, "event"> & {
+        message: string;
+    },
+) => void;
 
 const productRegisterSteps: ProductRegisterStep[] = [
     "IMAGE_UPLOAD",
@@ -114,7 +125,10 @@ const getSseUrl = (path: string) => `${(api.defaults.baseURL ?? "").replace(/\/$
 const createRequestId = () =>
     globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-const parseErrorResponse = async (response: Response) => {
+const parseErrorResponse = async (
+    response: Response,
+    fallbackMessage = "상품 등록 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+) => {
     try {
         const body = (await response.json()) as ApiErrorResponse;
         if (typeof body.message === "string" && body.message.trim()) {
@@ -124,7 +138,138 @@ const parseErrorResponse = async (response: Response) => {
         // 스트림 시작 전 JSON이 아닌 응답은 일반 오류 문구로 처리
     }
 
-    return "상품 등록 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+    return fallbackMessage;
+};
+
+const readProductAnalysisStream = async (
+    response: Response,
+    onProgress?: ProductAnalysisStreamProgressHandler,
+): Promise<ProductAnalysisStreamResult> => {
+    if (!response.body) {
+        throw new Error("시세 분석 진행 결과를 받을 수 없습니다.");
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let result: ProductAnalysisStreamResult | null = null;
+
+    const handleBlock = (block: string) => {
+        const dataLine = block.split(/\r?\n/).find((line) => line.startsWith("data:"));
+
+        if (!dataLine) {
+            return;
+        }
+
+        const event = productAnalysisStreamEventSchema.parse(
+            JSON.parse(dataLine.slice("data:".length).trim()),
+        );
+
+        if (!event.success) {
+            throw new Error(event.error?.message || event.message || "시세 분석에 실패했습니다.");
+        }
+
+        if (event.data.event === "step") {
+            onProgress?.({
+                step: event.data.step,
+                status: event.data.status,
+                index: event.data.index,
+                total: event.data.total,
+                message: event.message,
+            });
+            return;
+        }
+
+        const { analysisStatus, analysisId, recommendation } = event.data;
+        const analysisResponse = Object.fromEntries(
+            Object.entries(event.data).filter(
+                ([key]) =>
+                    !["event", "analysisStatus", "analysisId", "recommendation"].includes(key),
+            ),
+        );
+        const hasAnalysis =
+            analysisStatus === "ANALYZED" && analysisId !== null && recommendation !== null;
+
+        result = {
+            analysisStatus,
+            analysis: hasAnalysis
+                ? productAnalysisResponseSchema.parse({
+                      ...analysisResponse,
+                      analysisId,
+                      recommendation,
+                  })
+                : null,
+            message: event.message,
+        };
+    };
+
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+            buffer += decoder.decode(value, { stream: !done });
+
+            const blocks = buffer.split(/\r?\n\r?\n/);
+            buffer = blocks.pop() ?? "";
+            blocks.forEach(handleBlock);
+
+            if (done) {
+                break;
+            }
+        }
+
+        if (buffer.trim()) {
+            handleBlock(buffer);
+        }
+    } catch (error) {
+        await reader.cancel();
+        throw error;
+    }
+
+    if (!result) {
+        throw new Error("시세 분석 결과를 받지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    }
+
+    return result;
+};
+
+const streamProductAnalysis = async (
+    id: number,
+    perspective: "SELL" | "BUY" = "SELL",
+    onProgress?: ProductAnalysisStreamProgressHandler,
+    signal?: AbortSignal,
+) => {
+    const request = () => {
+        const accessToken = useAuthStore.getState().accessToken;
+        const headers = new Headers({
+            Accept: "text/event-stream",
+            "X-Request-Id": createRequestId(),
+        });
+
+        if (accessToken) {
+            headers.set("Authorization", `Bearer ${accessToken}`);
+        }
+
+        return fetch(getSseUrl(`/products/${id}/analysis/stream?perspective=${perspective}`), {
+            method: "GET",
+            headers,
+            credentials: "include",
+            signal,
+        });
+    };
+
+    let response = await request();
+    if (response.status === 401 && useAuthStore.getState().accessToken && !signal?.aborted) {
+        await useAuthStore.getState().refresh();
+        response = await request();
+    }
+
+    if (!response.ok) {
+        throw new Error(
+            await parseErrorResponse(response, "시세 분석 진행 상황을 불러오지 못했습니다."),
+        );
+    }
+
+    return readProductAnalysisStream(response, onProgress);
 };
 
 const readSseStream = async (
@@ -361,6 +506,7 @@ export const productApi = {
     getProductManagementSummary,
     getProductAnalysis,
     requestProductAnalysis,
+    streamProductAnalysis,
     getProductPriceTrend,
     getProductPriceDistribution,
     getProductValuationForecast,
