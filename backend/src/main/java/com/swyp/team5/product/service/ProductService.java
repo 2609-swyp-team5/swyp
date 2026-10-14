@@ -36,6 +36,7 @@ import com.swyp.team5.item.entity.ListingSource;
 import com.swyp.team5.item.repository.ItemRepository;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.repository.MemberRepository;
+import com.swyp.team5.notification.repository.NotificationRepository;
 import com.swyp.team5.platform.entity.PlatformListing;
 import com.swyp.team5.platform.entity.ProductPlatformStatus;
 import com.swyp.team5.platform.repository.PlatformListingRepository;
@@ -69,6 +70,7 @@ import com.swyp.team5.productanalysis.dto.CompetitionSortType;
 import com.swyp.team5.productanalysis.dto.ProductCompetitionResponse;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
+import com.swyp.team5.productanalysis.repository.PriceForecastRepository;
 import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
 import com.swyp.team5.productanalysis.service.ProductAnalysisService;
 import com.swyp.team5.search.service.SearchLogService;
@@ -96,6 +98,8 @@ public class ProductService {
     private final ProductAnalysisService productAnalysisService;
     private final TargetPriceAlertService targetPriceAlertService;
     private final ProductPlatformRepository productPlatformRepository;
+    private final PriceForecastRepository priceForecastRepository;
+    private final NotificationRepository notificationRepository;
     private final ProductViewCounter productViewCounter;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -114,6 +118,8 @@ public class ProductService {
             ProductAnalysisService productAnalysisService,
             TargetPriceAlertService targetPriceAlertService,
             ProductPlatformRepository productPlatformRepository,
+            PriceForecastRepository priceForecastRepository,
+            NotificationRepository notificationRepository,
             ProductViewCounter productViewCounter,
             ApplicationEventPublisher eventPublisher) {
         this.productRepository = productRepository;
@@ -130,6 +136,8 @@ public class ProductService {
         this.productAnalysisService = productAnalysisService;
         this.targetPriceAlertService = targetPriceAlertService;
         this.productPlatformRepository = productPlatformRepository;
+        this.priceForecastRepository = priceForecastRepository;
+        this.notificationRepository = notificationRepository;
         this.productViewCounter = productViewCounter;
         this.eventPublisher = eventPublisher;
     }
@@ -735,6 +743,10 @@ public class ProductService {
     /**
      * 상품을 삭제한다. 본인이 등록한 상품만 삭제할 수 있다.
      *
+     * <p>상품을 참조하는 기록은 FK에 {@code ON DELETE}가 없어 먼저 지워야 한다(남아 있으면 FK 위반으로 409).
+     * 감가 예측 → 시세 분석 → 알림·관심(다른 회원 것 포함) → 외부 플랫폼 게시 기록 순으로 지운 뒤 상품을 지운다.
+     * 이미지·태그·구성품 연결은 엔티티 매핑으로 함께 지워진다. 외부 플랫폼에 올라간 매물 자체는 그대로 남는다.
+     *
      * @param memberId 요청한 회원 ID
      * @param productId 삭제할 상품 ID
      * @throws ProductNotFoundException 존재하지 않는 상품인 경우
@@ -744,6 +756,11 @@ public class ProductService {
     public void delete(Long memberId, Long productId) {
         Product product = getProductOrThrow(productId);
         validateRegisteredBy(product, memberId);
+        priceForecastRepository.deleteAllByItemId(productId);
+        productAnalysisRepository.deleteAllByItemId(productId);
+        notificationRepository.deleteAllByItemId(productId);
+        interestRepository.deleteAllByItemId(productId);
+        productPlatformRepository.deleteAllByProductId(productId);
         productRepository.delete(product);
     }
 
