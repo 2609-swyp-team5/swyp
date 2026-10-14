@@ -49,7 +49,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
  * 번개장터 전용이며, 두 번째 플랫폼이 추가되면 {@code platform} 값으로 플랫폼별 서비스를 고르도록 확장한다.
  * 지원하지 않는 값은 경로 바인딩 단계에서 400으로 거절된다.
  */
-@Tag(name = "Bunjang", description = "외부 플랫폼(번개장터 등) 연동")
+@Tag(name = "platforms", description = "외부 플랫폼(번개장터 등) 연동")
 @RestController
 @RequiredArgsConstructor
 public class BunjangController {
