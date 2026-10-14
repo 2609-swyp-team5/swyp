@@ -176,8 +176,13 @@ test("price distribution keeps every point inside the bar when the suggested pri
     expect(centerOf("suggested")).toBeLessThan(centerOf("min"));
     expect(centerOf("min")).toBeLessThan(centerOf("average"));
     expect(centerOf("average")).toBeLessThan(centerOf("max"));
-    for (const label of ["최저", "평균", "최고"]) {
-        await expect(card.getByText(label, { exact: true })).toBeVisible();
+    const labels = { min: "최저", average: "평균", max: "최고" } as const;
+    for (const [key, label] of Object.entries(labels)) {
+        const labelBox = await card.getByText(label, { exact: true }).boundingBox();
+        const tickBox = await card.getByTestId(`price-distribution-tick-${key}`).boundingBox();
+        // 눈금선·점·라벨이 같은 세로줄에 있어야 한다
+        expect(Math.abs(tickBox!.x + tickBox!.width / 2 - centerOf(key)), key).toBeLessThan(1);
+        expect(Math.abs(labelBox!.x + labelBox!.width / 2 - centerOf(key)), key).toBeLessThan(1);
     }
 });
 

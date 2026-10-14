@@ -42,6 +42,20 @@ it("추천가가 최저가보다 낮으면 눈금 범위를 넓혀 막대 안에
     expect(ratioOf("price-distribution-point-max")).toBe(1);
 });
 
+it("눈금선은 최저·평균·최고 점과 같은 위치에 그린다", () => {
+    render(
+        <MarketAnalysisPriceDistribution
+            data={{ minPrice: 20000, averagePrice: 24000, suggestedPrice: 19000, maxPrice: 27000 }}
+        />,
+    );
+
+    for (const key of ["min", "average", "max"]) {
+        expect(ratioOf(`price-distribution-tick-${key}`)).toBe(
+            ratioOf(`price-distribution-point-${key}`),
+        );
+    }
+});
+
 it("모든 가격이 같으면 가운데에 표시한다", () => {
     render(
         <MarketAnalysisPriceDistribution
