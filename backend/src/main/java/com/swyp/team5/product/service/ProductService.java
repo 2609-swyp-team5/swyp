@@ -273,8 +273,8 @@ public class ProductService {
     /**
      * 상품 상세 정보를 조회한다. 우리 상품과 외부 수집 매물은 같은 ID 체계({@code items})라 ID만으로 찾고, 외부 매물도 같은
      * 응답 형태로 내려준다({@code source}로 구분). 가장 최근 시세 분석 판단({@code recommendation})과 그 분석의 비교 매물
-     * 평균가({@code marketAveragePrice})도 함께 포함한다. 분석 이력이 없으면 판단은 {@code null}이고, 평균가는 같은 기준으로
-     * 지금 수집된 매물에서 계산한다(비교 매물이 부족하면 {@code null}). 외부 매물은 번개장터를 다시 조회하지 않고 수집·재확인
+     * 평균가({@code marketAveragePrice})도 함께 포함한다. 분석 이력이 없으면 둘 다 {@code null}이다 — AI가 같은 물건을 고르기
+     * 전의 단순 유사 매물 평균은 세트·낱개처럼 다른 물건이 섞여 "평균보다 몇 % 높아요" 같은 비교를 잘못 보여 줄 수 있어 쓰지 않는다. 외부 매물은 번개장터를 다시 조회하지 않고 수집·재확인
      * 배치가 저장한 값만 쓴다. 관심 수·조회수(외부 매물은 관심 수만)는 모든 조회자에게 채우고, 외부 플랫폼 게시 상태
      * ({@code platforms})는 판매자 본인이 조회할 때만 채운다.
      *
@@ -290,16 +290,13 @@ public class ProductService {
         AnalysisRecommendation recommendation =
                 latest.map(ProductAnalysis::getRecommendation).orElse(null);
         if (Hibernate.unproxy(item) instanceof PlatformListing listing) {
-            Long averagePrice = latest.map(ProductAnalysis::getAveragePrice).orElseGet(() -> productAnalysisService
-                    .calculateMarketAveragePrice(listing)
-                    .orElse(null));
+            Long averagePrice = latest.map(ProductAnalysis::getAveragePrice).orElse(null);
             return ProductResponse.fromListing(listing, recommendation, averagePrice)
                     .withStats(null, interestRepository.countByItemId(listing.getId()), null)
                     .withInterest(findInterestId(memberId, itemId));
         }
         Product product = (Product) Hibernate.unproxy(item);
-        Long averagePrice =
-                latest.map(ProductAnalysis::getAveragePrice).orElseGet(() -> calculateMarketAveragePrice(product));
+        Long averagePrice = latest.map(ProductAnalysis::getAveragePrice).orElse(null);
         List<ProductPlatformSummaryResponse> platforms = product.isRegisteredBy(memberId)
                 ? productPlatformRepository.findByProductId(product.getId()).stream()
                         .map(ProductPlatformSummaryResponse::from)
