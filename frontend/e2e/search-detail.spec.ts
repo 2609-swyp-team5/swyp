@@ -103,6 +103,11 @@ test("search cards open product details while favorites stay on search", async (
     await page.goto("/search");
     const favorite = page.getByRole("button", { name: "내부 상품 관심 상품", exact: true });
     await favorite.click();
+    // 등록하면 관심상품 등록 팝업이 뜨고 모달 뒤 화면이 가려지므로 먼저 닫는다
+    await page
+        .getByRole("alertdialog", { name: "관심상품으로 등록했어요!" })
+        .getByRole("button", { name: "확인", exact: true })
+        .click();
     await expect(favorite).toHaveAttribute("aria-pressed", "true");
     await expect(page).toHaveURL(/\/search$/);
     await expect(
