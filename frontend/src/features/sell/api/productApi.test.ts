@@ -85,6 +85,60 @@ const completeEvent = () => ({
     error: null,
 });
 
+const analysisStreamCompleteEvent = (analysisStatus: "ANALYZED" | "ANALYZING" = "ANALYZED") => ({
+    success: true,
+    message: "시세 분석 결과를 확인했어요.",
+    data:
+        analysisStatus === "ANALYZED"
+            ? {
+                  event: "complete",
+                  productId: 42,
+                  currentPrice: 800000,
+                  analysisId: 12,
+                  minPrice: 650000,
+                  averagePrice: 750000,
+                  maxPrice: 900000,
+                  marketPriceDiffRate: 6.7,
+                  changeRate: null,
+                  recommendation: "SELL",
+                  suggestedPrice: 780000,
+                  description: "지금 판매를 추천해요.",
+                  buyerRecommendation: "WAIT",
+                  buyerDescription: "조금 더 기다려 보세요.",
+                  analyzedAt: "2026-10-14T12:00:00",
+                  confidence: "HIGH",
+                  confidenceRate: 90,
+                  listingCount: 12,
+                  comparisonBasis: "SAME",
+                  waitPeriod: null,
+                  expectedPrice: 760000,
+                  expectedPriceChangeRate: -1.2,
+                  forecasts: [],
+                  marketExpectedPrice: 760000,
+                  priceDistribution: [],
+                  summary: {
+                      type: "SALE_STATS",
+                      salesDurationDays: 8,
+                      viewCount: 120,
+                      interestCount: 10,
+                  },
+                  analysisStatus: "ANALYZED",
+                  analysisSkipReason: null,
+                  analysisSkipMessage: null,
+              }
+            : {
+                  event: "complete",
+                  productId: 42,
+                  currentPrice: 800000,
+                  analysisId: null,
+                  recommendation: null,
+                  analysisStatus: "ANALYZING",
+                  analysisSkipReason: null,
+                  analysisSkipMessage: null,
+              },
+    error: null,
+});
+
 describe("productApi", () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -141,6 +195,75 @@ describe("productApi", () => {
             },
         });
         expect(get).toHaveBeenCalledWith("/products/42");
+    });
+
+    it("gets completed-sale price distribution for a product", async () => {
+        await expect(productApi.getProductPriceDistribution(42)).resolves.toMatchObject({
+            data: { success: true },
+        });
+
+        expect(get).toHaveBeenCalledWith("/products/42/analysis/distribution", {
+            params: { days: 90 },
+        });
+    });
+
+    it("subscribes to market-analysis SSE and parses steps and the completed analysis", async () => {
+        const onProgress = vi.fn();
+        fetchMock.mockResolvedValue(
+            sseResponse(
+                {
+                    success: true,
+                    message: "비교할 매물을 찾고 있어요.",
+                    data: {
+                        event: "step",
+                        step: "CANDIDATE_SEARCH",
+                        status: "START",
+                        index: 1,
+                        total: 5,
+                    },
+                    error: null,
+                },
+                analysisStreamCompleteEvent(),
+            ),
+        );
+
+        await expect(
+            productApi.streamProductAnalysis(42, "SELL", onProgress),
+        ).resolves.toMatchObject({
+            analysisStatus: "ANALYZED",
+            analysis: {
+                analysisId: 12,
+                recommendation: "SELL",
+                suggestedPrice: 780000,
+            },
+        });
+
+        expect(onProgress).toHaveBeenCalledWith({
+            step: "CANDIDATE_SEARCH",
+            status: "START",
+            index: 1,
+            total: 5,
+            message: "비교할 매물을 찾고 있어요.",
+        });
+        expect(fetchMock).toHaveBeenCalledWith(
+            "https://api.test/products/42/analysis/stream?perspective=SELL",
+            expect.objectContaining({
+                method: "GET",
+                credentials: "include",
+            }),
+        );
+        const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
+        expect((request.headers as Headers).get("Accept")).toBe("text/event-stream");
+    });
+
+    it("keeps a timeout completion without an analysis as an analyzing result", async () => {
+        fetchMock.mockResolvedValue(sseResponse(analysisStreamCompleteEvent("ANALYZING")));
+
+        await expect(productApi.streamProductAnalysis(42)).resolves.toEqual({
+            analysisStatus: "ANALYZING",
+            analysis: null,
+            message: "시세 분석 결과를 확인했어요.",
+        });
     });
 
     it("deletes a product by id", async () => {

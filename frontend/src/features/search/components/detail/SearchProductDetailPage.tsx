@@ -56,8 +56,15 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
     });
     const requestAnalysisMutation = useRequestProductAnalysisMutation();
     const handleAnalysisRetry = async () => {
-        await requestAnalysisMutation.mutateAsync({ productId: targetId });
-        await sections.productAnalysis.refetch();
+        try {
+            await requestAnalysisMutation.mutateAsync({
+                productId: targetId,
+                perspective: "BUY",
+                force: true,
+            });
+        } catch {
+            // mutation.error를 진행 다이얼로그에서 표시한다.
+        }
     };
     const liked = product?.favorite ?? false;
     const imageIndex = selectedImage < (product?.imageUrls.length ?? 0) ? selectedImage : 0;
@@ -399,6 +406,7 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                         error={sections.productAnalysis.error}
                         isPending={sections.productAnalysis.isPending}
                         competitionQuery={sections.productCompetition}
+                        priceDistributionQuery={sections.productPriceDistribution}
                         priceTrendQuery={sections.productPriceTrend}
                         valuationForecastQuery={sections.productValuationForecast}
                         perspective="BUY"
@@ -409,9 +417,14 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                             isFetching:
                                 sections.productAnalysis.isFetching ||
                                 requestAnalysisMutation.isPending,
+                            isProcessing: requestAnalysisMutation.isProcessing,
                             refetch: sections.productAnalysis.refetch,
                             request:
                                 product.status === "SOLD_OUT" ? undefined : handleAnalysisRetry,
+                            progress: requestAnalysisMutation.progress,
+                            notice: requestAnalysisMutation.notice,
+                            error: requestAnalysisMutation.error,
+                            reset: requestAnalysisMutation.reset,
                         }}
                     />
                 )}

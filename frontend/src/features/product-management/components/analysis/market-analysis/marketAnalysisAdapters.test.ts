@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 
 import {
-    createProductMarketAnalysisMock,
+    createProductPriceDistributionMock,
     createProductPriceTrendMock,
     createProductValuationForecastMock,
 } from "../../../mocks/productManagementMock";
@@ -12,15 +12,20 @@ import {
 } from "./marketAnalysisAdapters";
 
 it("가격 분포는 최저가·평균 거래가·추천가·최고가를 각각 보존한다", () => {
-    const analysis = createProductMarketAnalysisMock(1, "SELL", "HOLD");
+    const distribution = createProductPriceDistributionMock(1);
 
-    expect(toPriceDistributionViewModel(analysis)).toEqual({
+    expect(toPriceDistributionViewModel(distribution.onSale)).toEqual({
         minPrice: 180000,
         averagePrice: 274000,
         suggestedPrice: 468000,
         maxPrice: 420000,
     });
-    expect(analysis.marketExpectedPrice).toBe(308000);
+});
+
+it("판매 완료 가격이 없으면 가격 분포 화면 모델을 만들지 않는다", () => {
+    const distribution = createProductPriceDistributionMock(1, true);
+
+    expect(toPriceDistributionViewModel(distribution.soldOut)).toBeNull();
 });
 
 it("가격 추이는 API의 일별 포인트를 월 집계하지 않고 차트 모델로 변환한다", () => {

@@ -7,6 +7,7 @@ import { cn } from "@/common/lib/utils";
 import type {
     ProductCompetition,
     ProductMarketAnalysis,
+    ProductPriceDistribution,
     ProductPriceTrend,
     ProductValuationForecast,
 } from "../../../types";
@@ -18,7 +19,6 @@ import { formatPrice, formatSignedPercent } from "./formatters";
 import { MarketAnalysisPriceDistribution } from "./MarketAnalysisPriceDistribution";
 import { MarketAnalysisRecommendation } from "./MarketAnalysisRecommendation";
 import { MarketAnalysisSummaryMetrics } from "./MarketAnalysisSummaryMetrics";
-import { toPriceDistributionViewModel } from "./marketAnalysisAdapters";
 
 function MetricRow({
     label,
@@ -42,6 +42,7 @@ function MetricRow({
 export function MarketAnalysisContent({
     analysis,
     competitionQuery,
+    priceDistributionQuery,
     priceTrendQuery,
     valuationForecastQuery,
     variant = "default",
@@ -53,6 +54,7 @@ export function MarketAnalysisContent({
 }: {
     analysis: ProductMarketAnalysis;
     competitionQuery?: StreamingQueryState<ProductCompetition>;
+    priceDistributionQuery?: StreamingQueryState<ProductPriceDistribution>;
     priceTrendQuery: StreamingQueryState<ProductPriceTrend>;
     valuationForecastQuery: StreamingQueryState<ProductValuationForecast>;
     variant?: "default" | "management" | "sold";
@@ -63,8 +65,6 @@ export function MarketAnalysisContent({
     canChangeRecommendedPrice?: boolean;
 }) {
     const isBuyerView = analysis.recommendation === "BUY" || analysis.recommendation === "WAIT";
-    const priceDistribution = toPriceDistributionViewModel(analysis);
-
     if (variant === "management" || variant === "sold") {
         return (
             <div className="flex flex-col bg-white">
@@ -146,7 +146,10 @@ export function MarketAnalysisContent({
                                 : "gap-5 px-[20px] pb-[20px]",
                         )}
                     >
-                        <MarketAnalysisPriceDistribution data={priceDistribution} />
+                        <MarketAnalysisPriceDistribution
+                            variant={variant}
+                            query={priceDistributionQuery}
+                        />
                         <ProductPriceTrendSection query={priceTrendQuery} />
                         <ProductValuationForecastSection query={valuationForecastQuery} />
                         {variant !== "sold" && competitionQuery ? (
@@ -216,7 +219,10 @@ export function MarketAnalysisContent({
                             />
                         </div>
                     </div>
-                    <MarketAnalysisPriceDistribution data={priceDistribution} />
+                    <MarketAnalysisPriceDistribution
+                        variant={variant}
+                        query={priceDistributionQuery}
+                    />
                 </div>
                 <ProductPriceTrendSection query={priceTrendQuery} />
                 <ProductValuationForecastSection query={valuationForecastQuery} />

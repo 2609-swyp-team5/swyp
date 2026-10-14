@@ -10,6 +10,7 @@ import type {
     ProductCompetition,
     ProductMarketAnalysis,
     ProductManagementPerspective,
+    ProductPriceDistribution,
     ProductPriceTrend,
     ProductValuationForecast,
 } from "../../../types";
@@ -17,11 +18,15 @@ import type { StreamingQueryState } from "../../shared/streaming/productManageme
 import { MarketAnalysisContent } from "./MarketAnalysisContent";
 import { MarketAnalysisManagementSkeleton } from "./MarketAnalysisManagementSkeleton";
 import { MarketAnalysisSkeleton } from "./MarketAnalysisSkeleton";
+import { ProductAnalysisRetryDialog } from "./ProductAnalysisRetryDialog";
 import { formatPrice } from "./formatters";
+import type { ProductAnalysisStreamStep } from "../../../schemas/productAnalysisStreamSchema";
+import type { ProductAnalysisRetryNotice } from "../../../hooks/useRequestProductAnalysisMutation";
 
 type MarketAnalysisSectionProps = {
     result: ProductMarketAnalysis | null | undefined;
     competitionQuery?: StreamingQueryState<ProductCompetition>;
+    priceDistributionQuery?: StreamingQueryState<ProductPriceDistribution>;
     error: unknown;
     isPending: boolean;
     priceTrendQuery: StreamingQueryState<ProductPriceTrend>;
@@ -35,17 +40,24 @@ type MarketAnalysisSectionProps = {
     canChangeRecommendedPrice?: boolean;
     analysisRetry?: {
         isFetching: boolean;
+        isProcessing?: boolean;
         refetch: () => Promise<unknown>;
         request?: () => Promise<unknown>;
+        progress?: (Omit<ProductAnalysisStreamStep, "event"> & { message: string }) | null;
+        notice?: ProductAnalysisRetryNotice | null;
+        error?: unknown;
+        reset?: () => void;
     };
 };
 
 function AnalysisHeader({
     variant,
     analysisRetry,
+    onRequest,
 }: {
     variant: "default" | "management";
     analysisRetry?: MarketAnalysisSectionProps["analysisRetry"];
+    onRequest?: () => Promise<unknown> | undefined;
 }) {
     return (
         <div className="flex w-full items-center justify-between gap-4">
@@ -69,7 +81,7 @@ function AnalysisHeader({
                     type="button"
                     className="flex h-[31px] shrink-0 cursor-pointer items-center justify-center gap-[5px] rounded-[50px] border-[0.5px] border-[#83889e] px-[15px] py-[5px] text-[12px] leading-5 tracking-[-0.5px] text-[#83889e] disabled:cursor-wait disabled:opacity-50"
                     disabled={analysisRetry.isFetching}
-                    onClick={() => void analysisRetry.request?.()}
+                    onClick={() => void onRequest?.()}
                 >
                     <Image src="/sell/ai-analysis-retry.svg" alt="" width={12} height={12} />
                     {analysisRetry.isFetching ? "재시도 중..." : "AI 분석 재시도"}
@@ -168,6 +180,7 @@ function SoldAnalysisTrigger({ onClick }: { onClick: () => void }) {
 export function MarketAnalysisSection({
     result,
     competitionQuery,
+    priceDistributionQuery,
     error,
     isPending,
     priceTrendQuery,
@@ -182,6 +195,7 @@ export function MarketAnalysisSection({
     analysisRetry,
 }: MarketAnalysisSectionProps) {
     const [uncontrolledIsDetailsOpen, setUncontrolledIsDetailsOpen] = useState(false);
+    const [isRetryDialogDismissed, setIsRetryDialogDismissed] = useState(false);
     const [priceChangeFeedback, setPriceChangeFeedback] = useState<{
         type: "success" | "error";
         message: string;
@@ -251,6 +265,7 @@ export function MarketAnalysisSection({
         <MarketAnalysisContent
             analysis={result}
             competitionQuery={competitionQuery}
+            priceDistributionQuery={priceDistributionQuery}
             priceTrendQuery={priceTrendQuery}
             valuationForecastQuery={valuationForecastQuery}
             variant={variant}
@@ -273,6 +288,15 @@ export function MarketAnalysisSection({
             </p>
         )
     ) : null;
+
+    const retryDialogOpen =
+        !isRetryDialogDismissed &&
+        Boolean(analysisRetry?.isProcessing || analysisRetry?.error || analysisRetry?.notice);
+
+    const handleAnalysisRetryRequest = () => {
+        setIsRetryDialogDismissed(false);
+        return analysisRetry?.request?.();
+    };
 
     const priceChangeToast = priceChangeFeedback ? (
         <div
@@ -323,13 +347,32 @@ export function MarketAnalysisSection({
     if (isManagementVariant) {
         return (
             <>
+                <ProductAnalysisRetryDialog
+                    open={retryDialogOpen}
+                    progress={analysisRetry?.progress ?? null}
+                    notice={analysisRetry?.notice ?? null}
+                    error={analysisRetry?.error}
+                    onClose={() => {
+                        setIsRetryDialogDismissed(true);
+                    }}
+                    onClosed={() => analysisRetry?.reset?.()}
+                    onRetry={() => {
+                        setIsRetryDialogDismissed(false);
+                        analysisRetry?.reset?.();
+                        void analysisRetry?.request?.();
+                    }}
+                />
                 {priceChangeToast}
                 <section
                     aria-labelledby="product-market-analysis-title"
                     className="w-full overflow-hidden rounded-[16px] border border-[#83889e] bg-white shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]"
                 >
                     <div className="px-[30px] pt-10 pb-5">
-                        <AnalysisHeader variant="management" analysisRetry={analysisRetry} />
+                        <AnalysisHeader
+                            variant="management"
+                            analysisRetry={analysisRetry}
+                            onRequest={handleAnalysisRetryRequest}
+                        />
                     </div>
                     {analysisBody}
                 </section>

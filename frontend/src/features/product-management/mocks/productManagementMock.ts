@@ -3,6 +3,7 @@ import type {
     ProductMarketAnalysis,
     AnalysisRecommendation,
     ProductManagementPerspective,
+    ProductPriceDistribution,
     ProductPriceTrend,
     ProductValuationForecast,
 } from "../types";
@@ -35,6 +36,48 @@ const saleStatsSummary: ProductMarketAnalysis["summary"] = {
     viewCount: 128,
     interestCount: 14,
 };
+
+export function createProductPriceDistributionMock(
+    productId: number,
+    empty = false,
+): ProductPriceDistribution {
+    return {
+        productId,
+        onSale: {
+            count: empty ? 0 : 5,
+            minPrice: empty ? null : 180000,
+            averagePrice: empty ? null : 274000,
+            suggestedPrice: empty ? null : 468000,
+            maxPrice: empty ? null : 420000,
+            comparisonBasis: empty ? null : "SAME",
+            analyzedAt: empty ? null : "2026-10-02T12:00:00",
+            buckets: empty
+                ? []
+                : [
+                      { from: 180000, to: 228000, count: 1 },
+                      { from: 228000, to: 276000, count: 2 },
+                      { from: 276000, to: 420000, count: 2 },
+                  ],
+        },
+        soldOut: {
+            days: 90,
+            from: "2026-07-14",
+            to: "2026-10-13",
+            count: empty ? 0 : 4,
+            minPrice: empty ? null : 160000,
+            averagePrice: empty ? null : 250000,
+            suggestedPrice: empty ? null : 468000,
+            maxPrice: empty ? null : 390000,
+            buckets: empty
+                ? []
+                : [
+                      { from: 160000, to: 237000, count: 1 },
+                      { from: 237000, to: 314000, count: 2 },
+                      { from: 314000, to: 390000, count: 1 },
+                  ],
+        },
+    };
+}
 
 type ProductPriceTrendPoint = ProductPriceTrend["priceTrend"]["points"][number];
 

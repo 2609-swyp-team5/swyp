@@ -5,6 +5,7 @@ import { detailProduct } from "./product-detail-fixture";
 import {
     createProductCompetitionMock,
     createProductMarketAnalysisMock,
+    createProductPriceDistributionMock,
     createProductPriceTrendMock,
     createProductValuationForecastMock,
 } from "../src/features/product-management/mocks/productManagementMock";
@@ -28,6 +29,11 @@ async function mockDetailAnalysis(
     },
 ) {
     const result = { ...createProductMarketAnalysisMock(productId, "BUY", "BUY"), ...prices };
+    const baseDistribution = createProductPriceDistributionMock(productId);
+    const distribution = {
+        ...baseDistribution,
+        onSale: { ...baseDistribution.onSale, ...prices },
+    };
     const similar = createProductCompetitionMock(productId, "BUY");
     const calls = { analysis: 0, details: 0, requested: 0 };
     let analyzed = hasAnalysis;
@@ -87,12 +93,58 @@ async function mockDetailAnalysis(
             });
         },
     );
+    await page.route(
+        (url) => url.pathname === `/products/${productId}/analysis/stream`,
+        (route) => {
+            expect(new URL(route.request().url()).searchParams.get("perspective")).toBe("BUY");
+            const events = [
+                {
+                    success: true,
+                    message: "AI가 같은 물건을 고르고 시세를 판단하고 있어요.",
+                    data: {
+                        event: "step",
+                        step: "AI_ANALYSIS",
+                        status: "START",
+                        index: 2,
+                        total: 5,
+                    },
+                    error: null,
+                },
+                {
+                    success: true,
+                    message: "시세 분석이 완료되었어요.",
+                    data: {
+                        event: "complete",
+                        ...result,
+                        analysisStatus: "ANALYZED",
+                        analysisSkipReason: null,
+                        analysisSkipMessage: null,
+                    },
+                    error: null,
+                },
+            ];
+            return route.fulfill({
+                status: 200,
+                headers: { "Content-Type": "text/event-stream" },
+                body: `${events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join("")}`,
+            });
+        },
+    );
     await page.route(`**/products/${productId}/analysis/trend`, (route) => {
         calls.details++;
         return route.fulfill({
             json: { success: true, data: createProductPriceTrendMock(productId), error: null },
         });
     });
+    await page.route(
+        (url) => url.pathname === `/products/${productId}/analysis/distribution`,
+        (route) => {
+            calls.details++;
+            return route.fulfill({
+                json: { success: true, data: distribution, error: null },
+            });
+        },
+    );
     await page.route(`**/products/${productId}/analysis/forecast`, (route) => {
         calls.details++;
         return route.fulfill({
@@ -147,7 +199,7 @@ test("members see the shared AI analysis right away and load details only from �
     await expect(page.getByRole("region", { name: "경쟁 상품 수", exact: true })).toContainText(
         similar.competition.items[0].title,
     );
-    expect(calls.details).toBe(3);
+    expect(calls.details).toBe(4);
 });
 
 test("price distribution keeps every point inside the bar when the suggested price is below the lowest", async ({
@@ -198,6 +250,10 @@ test("members can request an analysis when none exists yet", async ({ page }) =>
     await expect(section).toContainText("구매 타이밍을 분석하고 있어요");
     await section.getByRole("button", { name: "AI 분석 재시도" }).click();
 
+    const completedDialog = page.getByRole("dialog", { name: "시세 분석이 완료됐어요" });
+    await expect(completedDialog).toBeVisible();
+    await completedDialog.getByRole("button", { name: "닫기", exact: true }).click();
+    await expect(completedDialog).toBeHidden();
     await expect(section).toContainText(result.description);
     expect(calls.requested).toBe(1);
 });
