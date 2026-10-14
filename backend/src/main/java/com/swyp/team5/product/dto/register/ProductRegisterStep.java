@@ -7,5 +7,6 @@ package com.swyp.team5.product.dto.register;
 public enum ProductRegisterStep {
     IMAGE_UPLOAD, // 상품 이미지를 스토리지에 업로드
     IMAGE_ANALYSIS, // AI(Gemini, 실패 시 GPT) 사진 분석
-    PRODUCT_SAVE // 상품 저장(+ 비교 매물 평균가 계산)
+    PRODUCT_SAVE, // 상품 저장(+ 비교 매물 평균가 계산)
+    MARKET_ANALYSIS // 시세 분석(등록 직후 분석 대기열의 진행을 기다림 — 요청에 withMarketAnalysis=true일 때만)
 }

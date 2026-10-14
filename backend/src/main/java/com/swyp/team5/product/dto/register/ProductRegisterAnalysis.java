@@ -22,7 +22,8 @@ import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
  * @param suggestedPrice AI 제안가(저장값)
  * @param analysisDescription AI 판단 근거(상태 등급·제안가 근거, 저장값)
  * @param marketAveragePrice 비교 매물(수집 데이터) 평균가(AI 제안가와 별개, 비교 매물이 3건 미만이면 null)
- * @param recommendation 시세 분석 판단(SELL/HOLD/BUY/WAIT). 정기 시세 분석 전이라 등록 직후에는 항상 null
+ * @param recommendation 시세 분석 판단(SELL/HOLD/BUY/WAIT). 등록 요청에 {@code withMarketAnalysis=true}이고 시세 분석이 끝났으면 그
+ *     결과, 그 밖에는 등록 직후라 null
  */
 public record ProductRegisterAnalysis(
         String status,

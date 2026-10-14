@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -27,8 +28,17 @@ import com.swyp.team5.file.service.FileStorageService;
 import com.swyp.team5.product.config.ProductRegisterStreamProperties;
 import com.swyp.team5.product.dto.ProductAiAnalysisResult;
 import com.swyp.team5.product.dto.ProductResponse;
+import com.swyp.team5.product.dto.register.ProductRegisterResponse;
+import com.swyp.team5.product.dto.register.ProductRegisterStep;
+import com.swyp.team5.product.dto.register.ProductRegisterStepEvent;
 import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.ProductCondition;
+import com.swyp.team5.productanalysis.dto.AnalysisStatus;
+import com.swyp.team5.productanalysis.dto.AnalysisStep;
+import com.swyp.team5.productanalysis.dto.AnalysisStepEvent;
+import com.swyp.team5.productanalysis.dto.ProductAnalysisResponse;
+import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
+import com.swyp.team5.productanalysis.service.AnalysisCompletionWaiter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +52,7 @@ class ProductRegisterStreamServiceTest {
     private final ProductService productService = mock(ProductService.class);
     private final ProductAiService productAiService = mock(ProductAiService.class);
     private final FileStorageService fileStorageService = mock(FileStorageService.class);
+    private final AnalysisCompletionWaiter analysisCompletionWaiter = mock(AnalysisCompletionWaiter.class);
     private final SseEmitter emitter = mock(SseEmitter.class);
 
     private ProductRegisterStreamService service;
@@ -49,14 +60,15 @@ class ProductRegisterStreamServiceTest {
     @BeforeEach
     void setUp() {
         // keepalive는 테스트 중 돌지 않도록 길게
-        ProductRegisterStreamProperties properties =
-                new ProductRegisterStreamProperties(1, 1, 1, Duration.ofSeconds(180), Duration.ofHours(1));
+        ProductRegisterStreamProperties properties = new ProductRegisterStreamProperties(
+                1, 1, 1, Duration.ofSeconds(180), Duration.ofHours(1), Duration.ofSeconds(90));
         service =
                 new ProductRegisterStreamService(
                         productService,
                         productAiService,
                         fileStorageService,
                         mock(ProductImageLoader.class),
+                        analysisCompletionWaiter,
                         properties) {
                     @Override
                     SseEmitter createEmitter(long timeoutMillis) {
@@ -73,9 +85,61 @@ class ProductRegisterStreamServiceTest {
     }
 
     private SseEmitter registerWithAi() {
+        return registerWithAi(false);
+    }
+
+    private SseEmitter registerWithAi(boolean withMarketAnalysis) {
         List<MultipartFile> images =
                 List.of(InMemoryMultipartFile.of("images", "a.png", "image/png", new byte[] {1, 2, 3}));
-        return service.registerWithAi(1L, images, null, DefectStatus.NORMAL, null);
+        return service.registerWithAi(1L, images, null, DefectStatus.NORMAL, null, withMarketAnalysis);
+    }
+
+    /** 지금까지 보낸 이벤트의 ApiResponse 목록(ping 주석 제외). */
+    private List<ApiResponse<?>> sentResponses() throws IOException {
+        ArgumentCaptor<SseEmitter.SseEventBuilder> captor = ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
+        verify(emitter, org.mockito.Mockito.atLeast(0)).send(captor.capture());
+        return captor.getAllValues().stream()
+                .flatMap(builder -> builder.build().stream())
+                .<ApiResponse<?>>map(data -> data.getData() instanceof ApiResponse<?> response ? response : null)
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    /** 시세 분석 단계 이벤트의 "상태" 목록. */
+    private List<String> marketAnalysisStatuses() throws IOException {
+        return sentResponses().stream()
+                .map(ApiResponse::data)
+                .filter(data -> data instanceof ProductRegisterStepEvent event
+                        && event.step() == ProductRegisterStep.MARKET_ANALYSIS)
+                .map(data -> ((ProductRegisterStepEvent) data).status())
+                .toList();
+    }
+
+    private ProductRegisterResponse sentComplete() throws IOException {
+        return sentResponses().stream()
+                .map(ApiResponse::data)
+                .filter(ProductRegisterResponse.class::isInstance)
+                .map(ProductRegisterResponse.class::cast)
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private ProductResponse savedProduct() {
+        ProductResponse product = mock(ProductResponse.class);
+        when(product.id()).thenReturn(10L);
+        when(productAiService.analyze(anyList())).thenReturn(analysis());
+        when(productService.saveFromAnalysis(anyLong(), any(), anyList(), any(), any(), any()))
+                .thenReturn(product);
+        return product;
+    }
+
+    private static ProductAnalysisResponse marketAnalysis(AnalysisStatus status, String skipMessage) {
+        ProductAnalysisResponse analysis = mock(ProductAnalysisResponse.class);
+        when(analysis.analysisStatus()).thenReturn(status);
+        when(analysis.analysisSkipMessage()).thenReturn(skipMessage);
+        when(analysis.recommendation())
+                .thenReturn(status == AnalysisStatus.ANALYZED ? AnalysisRecommendation.SELL : null);
+        return analysis;
     }
 
     private Runnable timeoutCallback() {
@@ -159,5 +223,79 @@ class ProductRegisterStreamServiceTest {
         verify(emitter, timeout(WAIT_MS)).complete();
         verify(productService).saveFromAnalysis(anyLong(), any(), anyList(), any(), any(), any());
         verify(fileStorageService, never()).deleteAll(anyList());
+    }
+
+    // 시세 분석 - 저장 뒤 분석 대기열 진행을 PROGRESS로 보내고, 끝나면 DONE + 상품 재조회(판단 반영) + complete에 marketAnalysis
+    @Test
+    @SuppressWarnings("unchecked")
+    void marketAnalysisStreamsProgressAndCompletesWithResult() throws IOException {
+        savedProduct();
+        ProductResponse refreshed = mock(ProductResponse.class);
+        when(productService.getProduct(10L, 1L)).thenReturn(refreshed);
+        ProductAnalysisResponse result = marketAnalysis(AnalysisStatus.ANALYZED, null);
+        when(analysisCompletionWaiter.await(eq(10L), any(), any(), any())).thenAnswer(invocation -> {
+            Consumer<AnalysisStepEvent> onStep = invocation.getArgument(2);
+            onStep.accept(AnalysisStepEvent.waiting());
+            onStep.accept(AnalysisStepEvent.of(AnalysisStep.CANDIDATE_SEARCH, AnalysisStepEvent.START));
+            return result;
+        });
+
+        registerWithAi(true);
+
+        verify(emitter, timeout(WAIT_MS)).complete();
+        assertThat(marketAnalysisStatuses()).containsExactly("START", "PROGRESS", "PROGRESS", "DONE");
+        ProductRegisterResponse complete = sentComplete();
+        assertThat(complete.marketAnalysis()).isSameAs(result);
+        assertThat(complete.product()).isSameAs(refreshed);
+        // 대기 시간은 설정값(90초)과 스트림 남은 시간(180초 - 여유 10초) 중 짧은 쪽
+        ArgumentCaptor<Duration> wait = ArgumentCaptor.forClass(Duration.class);
+        verify(analysisCompletionWaiter).await(eq(10L), wait.capture(), any(), any());
+        assertThat(wait.getValue()).isEqualTo(Duration.ofSeconds(90));
+    }
+
+    // 시세 분석 - 비교 매물 부족이면 등록은 성공하고 시세 분석 단계만 SKIP(건너뛴 사유 문구), 상품은 다시 조회하지 않음
+    @Test
+    void marketAnalysisSkipsWhenNotAnalyzed() throws IOException {
+        ProductResponse product = savedProduct();
+        ProductAnalysisResponse result = marketAnalysis(AnalysisStatus.SKIPPED, "비슷한 매물이 부족해요.");
+        when(analysisCompletionWaiter.await(eq(10L), any(), any(), any())).thenReturn(result);
+
+        registerWithAi(true);
+
+        verify(emitter, timeout(WAIT_MS)).complete();
+        assertThat(marketAnalysisStatuses()).containsExactly("START", "SKIP");
+        assertThat(sentResponses().stream().map(ApiResponse::message)).contains("비슷한 매물이 부족해요.");
+        assertThat(sentComplete().marketAnalysis()).isSameAs(result);
+        assertThat(sentComplete().product()).isSameAs(product);
+        verify(productService, never()).getProduct(anyLong(), anyLong());
+        assertThat(sentErrorCodes()).isEmpty();
+    }
+
+    // 시세 분석 - 결과 확인 중 오류가 나도 등록은 성공(SKIP 후 complete, marketAnalysis는 null)
+    @Test
+    void marketAnalysisFailureDoesNotFailRegistration() throws IOException {
+        savedProduct();
+        when(analysisCompletionWaiter.await(eq(10L), any(), any(), any())).thenThrow(new IllegalStateException("x"));
+
+        registerWithAi(true);
+
+        verify(emitter, timeout(WAIT_MS)).complete();
+        assertThat(marketAnalysisStatuses()).containsExactly("START", "SKIP");
+        assertThat(sentComplete().marketAnalysis()).isNull();
+        assertThat(sentErrorCodes()).isEmpty();
+        verify(fileStorageService, never()).deleteAll(anyList());
+    }
+
+    // 시세 분석을 요청하지 않으면 기다리지 않고 단계도 붙이지 않음
+    @Test
+    void noMarketAnalysisByDefault() throws IOException {
+        savedProduct();
+
+        registerWithAi(false);
+
+        verify(emitter, timeout(WAIT_MS)).complete();
+        verify(analysisCompletionWaiter, never()).await(anyLong(), any(), any(), any());
+        assertThat(marketAnalysisStatuses()).isEmpty();
+        assertThat(sentComplete().marketAnalysis()).isNull();
     }
 }

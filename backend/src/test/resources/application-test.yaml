@@ -37,6 +37,7 @@ crawl:
 analysis:
   enabled: false
   analyze-on-register: false
+  ai-reason-on-price-change: false
   analyze-on-interest: false
   recovery:
     enabled: false # 테스트 중 분석 복구 스케줄러가 돌지 않도록

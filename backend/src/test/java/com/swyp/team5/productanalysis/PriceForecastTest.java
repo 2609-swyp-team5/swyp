@@ -3,6 +3,7 @@ package com.swyp.team5.productanalysis;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
@@ -17,6 +18,7 @@ import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -231,6 +233,30 @@ class PriceForecastTest extends IntegrationTest {
 
         mockMvc.perform(get("/products/{productId}/analysis/distribution", product.getId()))
                 .andExpect(status().isUnauthorized());
+    }
+
+    // 가격 변경 - 같은 요청 안에서 최근 시세 분석의 판매자 근거·구매자 추천을 새 가격 기준으로 다시 씀(시세는 그대로, AI 재작성은 테스트에서 꺼짐)
+    @Test
+    void priceChangeRewritesAnalysisReasons() throws Exception {
+        String token = jwtTokenProvider.createAccessToken(member.getId(), MemberRole.USER);
+
+        mockMvc.perform(patch("/products/{productId}/price", product.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"price\":1300000}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/products/{productId}/analysis", product.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.analysisId").value(analysis.getId()))
+                .andExpect(jsonPath("$.data.currentPrice").value(1_300_000))
+                .andExpect(jsonPath("$.data.averagePrice").value(1_000_000))
+                .andExpect(jsonPath("$.data.recommendation").value("HOLD"))
+                .andExpect(jsonPath("$.data.description").value(org.hamcrest.Matchers.not("설명")))
+                .andExpect(jsonPath("$.data.buyerRecommendation").value("WAIT"))
+                .andExpect(jsonPath("$.data.buyerDescription")
+                        .value("판매가가 같은 물건 평균 시세(1,000,000원)보다 30% 비싸요. 조금 더 기다려 보세요."));
     }
 
     private PlatformListing saveListing(Platform platform, Category category, String title, long price, String status) {
