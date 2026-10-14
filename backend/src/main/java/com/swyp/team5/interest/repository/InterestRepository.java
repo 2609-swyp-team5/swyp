@@ -7,6 +7,7 @@ import java.util.Optional;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -73,4 +74,9 @@ public interface InterestRepository extends JpaRepository<Interest, Long> {
             + "GROUP BY p.id, p.viewCount ORDER BY COUNT(i) DESC, p.viewCount DESC, p.id DESC")
     List<Long> findProductIdsByInterestAndViews(
             @Param("statuses") Collection<ProductStatus> statuses, Pageable pageable);
+
+    /** 상품 삭제 전 정리용 — 이 상품을 관심 등록한 기록(모든 회원)을 지운다. */
+    @Modifying(flushAutomatically = true)
+    @Query("DELETE FROM Interest i WHERE i.item.id = :itemId")
+    int deleteAllByItemId(@Param("itemId") Long itemId);
 }

@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -63,4 +64,9 @@ public interface ProductAnalysisRepository extends JpaRepository<ProductAnalysis
             ORDER BY it.id
             """)
     List<Long> findUnanalyzedInterestedItemIds(@Param("since") LocalDateTime since);
+
+    /** 상품 삭제 전 정리용 — 감가 예측을 먼저 지운 뒤 호출한다(price_forecasts가 분석을 참조). */
+    @Modifying(flushAutomatically = true)
+    @Query("DELETE FROM ProductAnalysis a WHERE a.item.id = :itemId")
+    int deleteAllByItemId(@Param("itemId") Long itemId);
 }

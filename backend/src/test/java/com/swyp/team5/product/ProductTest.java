@@ -55,12 +55,19 @@ import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.entity.MemberRole;
 import com.swyp.team5.member.repository.MemberRepository;
+import com.swyp.team5.notification.entity.Notification;
+import com.swyp.team5.notification.entity.NotificationType;
+import com.swyp.team5.notification.repository.NotificationRepository;
 import com.swyp.team5.platform.entity.CategoryPlatform;
+import com.swyp.team5.platform.entity.MemberPlatform;
 import com.swyp.team5.platform.entity.Platform;
 import com.swyp.team5.platform.entity.PlatformListing;
+import com.swyp.team5.platform.entity.ProductPlatform;
 import com.swyp.team5.platform.repository.CategoryPlatformRepository;
+import com.swyp.team5.platform.repository.MemberPlatformRepository;
 import com.swyp.team5.platform.repository.PlatformListingRepository;
 import com.swyp.team5.platform.repository.PlatformRepository;
+import com.swyp.team5.platform.repository.ProductPlatformRepository;
 import com.swyp.team5.product.dto.ProductAiAnalysisResult;
 import com.swyp.team5.product.dto.ProductCreateRequest;
 import com.swyp.team5.product.dto.ProductSearchCondition;
@@ -76,7 +83,10 @@ import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.product.service.ProductAiSearchService;
 import com.swyp.team5.productanalysis.entity.AnalysisRecommendation;
+import com.swyp.team5.productanalysis.entity.ForecastPeriod;
+import com.swyp.team5.productanalysis.entity.PriceForecast;
 import com.swyp.team5.productanalysis.entity.ProductAnalysis;
+import com.swyp.team5.productanalysis.repository.PriceForecastRepository;
 import com.swyp.team5.productanalysis.repository.ProductAnalysisRepository;
 import com.swyp.team5.search.repository.SearchLogRepository;
 import com.swyp.team5.support.IntegrationTest;
@@ -119,6 +129,18 @@ class ProductTest extends IntegrationTest {
 
     @Autowired
     private ProductAnalysisRepository productAnalysisRepository;
+
+    @Autowired
+    private PriceForecastRepository priceForecastRepository;
+
+    @Autowired
+    private NotificationRepository notificationRepository;
+
+    @Autowired
+    private MemberPlatformRepository memberPlatformRepository;
+
+    @Autowired
+    private ProductPlatformRepository productPlatformRepository;
 
     @Autowired
     private SearchLogRepository searchLogRepository;
@@ -1291,6 +1313,54 @@ class ProductTest extends IntegrationTest {
                 .andExpect(jsonPath("$.success").value(true));
 
         assertThat(productRepository.existsById(productId)).isFalse();
+    }
+
+    // 상품 삭제 성공 - 시세 분석·감가 예측·알림·다른 회원의 관심·외부 게시 기록이 있어도 함께 지워진다(FK 위반 409 없음)
+    @Test
+    void deleteSucceedsWithRelatedRecords() throws Exception {
+        Long productId = createProduct();
+        Product product = productRepository.findById(productId).orElseThrow();
+        Member seller = memberRepository.findById(sellerId).orElseThrow();
+        Member liker = memberRepository.save(
+                Member.ofLocalSignUp("liker@example.com", null, "encoded-password", "관심 회원", "liker", null));
+        ProductAnalysis analysis = productAnalysisRepository.save(ProductAnalysis.create(
+                product,
+                90_000L,
+                110_000L,
+                130_000L,
+                null,
+                AnalysisRecommendation.SELL,
+                110_000L,
+                "근거",
+                LocalDateTime.now()));
+        PriceForecast forecast =
+                priceForecastRepository.save(PriceForecast.of(analysis, ForecastPeriod.ONE_MONTH, 100_000L));
+        Notification notification = notificationRepository.save(
+                Notification.create(seller, product, NotificationType.SELL, "판매 추천", "지금 팔기 좋아요"));
+        Interest interest = interestRepository.save(Interest.ofProduct(liker, product));
+        MemberPlatform memberPlatform = memberPlatformRepository.save(MemberPlatform.connect(
+                seller, platformRepository.findByName("번개장터").orElseThrow(), "session-token"));
+        ProductPlatform productPlatform = productPlatformRepository.save(
+                ProductPlatform.link(memberPlatform, product, "123", "https://m.bunjang.co.kr/products/123"));
+
+        try {
+            mockMvc.perform(delete("/products/{productId}", productId)
+                            .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                    .andExpect(status().isOk());
+
+            assertThat(productRepository.existsById(productId)).isFalse();
+            assertThat(priceForecastRepository.existsById(forecast.getId())).isFalse();
+            assertThat(productAnalysisRepository.existsById(analysis.getId())).isFalse();
+            assertThat(notificationRepository.existsById(notification.getId())).isFalse();
+            assertThat(interestRepository.existsById(interest.getId())).isFalse();
+            assertThat(productPlatformRepository.existsById(productPlatform.getId()))
+                    .isFalse();
+        } finally {
+            // 다음 테스트의 회원 일괄 삭제가 막히지 않도록 연동 기록을 지운다
+            productPlatformRepository.deleteAll(
+                    productPlatformRepository.findAllById(List.of(productPlatform.getId())));
+            memberPlatformRepository.delete(memberPlatform);
+        }
     }
 
     // 상품 삭제 실패 - 소유자가 아님
