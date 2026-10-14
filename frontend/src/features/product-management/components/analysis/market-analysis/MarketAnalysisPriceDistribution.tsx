@@ -54,14 +54,55 @@ function PriceMarker() {
     );
 }
 
+// 막대 양 끝에서 점이 잘리지 않도록 눈금·점·채움을 모두 같은 안쪽 영역 기준으로 배치한다.
+const TRACK_INSET_PX = 15;
+// 기준 점 라벨이 이 간격(%)보다 가까우면 겹치므로 뒤의 라벨은 생략한다.
+const MIN_LABEL_GAP_PERCENT = 14;
+
+function trackLeft(position: number) {
+    return `calc(${TRACK_INSET_PX}px + (100% - ${TRACK_INSET_PX * 2}px) * ${position / 100})`;
+}
+
+type ReferencePoint = {
+    key: "min" | "average" | "max";
+    label: string;
+    position: number;
+    showLabel: boolean;
+};
+
+function toReferencePoints(
+    data: PriceDistributionViewModel,
+    toPosition: (price: number) => number,
+): ReferencePoint[] {
+    const points = [
+        { key: "min" as const, label: "최저", position: toPosition(data.minPrice) },
+        { key: "average" as const, label: "평균", position: toPosition(data.averagePrice) },
+        { key: "max" as const, label: "최고", position: toPosition(data.maxPrice) },
+    ];
+    const labeledPositions: number[] = [];
+
+    return points.map((point) => {
+        const showLabel = labeledPositions.every(
+            (position) => Math.abs(position - point.position) >= MIN_LABEL_GAP_PERCENT,
+        );
+        if (showLabel) {
+            labeledPositions.push(point.position);
+        }
+        return { ...point, showLabel };
+    });
+}
+
 export function MarketAnalysisPriceDistribution({ data }: { data: PriceDistributionViewModel }) {
-    const priceRange = Math.max(data.maxPrice - data.minPrice, 1);
-    const expectedPosition = clamp(
-        ((data.suggestedPrice - data.minPrice) / priceRange) * 100,
-        0,
-        100,
-    );
-    const labelPosition = `clamp(49px, ${expectedPosition}%, calc(100% - 49px))`;
+    // 추천가가 최저가보다 낮거나 최고가보다 높을 수 있어 눈금 범위에 함께 포함한다.
+    const scaleMin = Math.min(data.minPrice, data.averagePrice, data.suggestedPrice);
+    const scaleMax = Math.max(data.maxPrice, data.averagePrice, data.suggestedPrice);
+    const toPosition = (price: number) =>
+        scaleMax === scaleMin
+            ? 50
+            : clamp(((price - scaleMin) / (scaleMax - scaleMin)) * 100, 0, 100);
+    const expectedPosition = toPosition(data.suggestedPrice);
+    const referencePoints = toReferencePoints(data, toPosition);
+    const labelPosition = `clamp(49px, ${trackLeft(expectedPosition)}, calc(100% - 49px))`;
 
     return (
         <Card className="min-w-0 gap-0 rounded-[10px] border border-[#6653fb] bg-white p-0 text-[#2f3037] ring-0">
@@ -73,7 +114,7 @@ export function MarketAnalysisPriceDistribution({ data }: { data: PriceDistribut
                     비슷한 상품의 가격과 비교해 보세요.
                 </CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-[13px] rounded-none bg-[#fafbff] px-5 pt-5 pb-[30px]">
+            <CardContent className="flex flex-col gap-[13px] rounded-none bg-[#fafbff] px-5 pt-5 pb-5">
                 <div className="relative h-[52px] w-full">
                     <div
                         className="absolute top-0 -translate-x-1/2"
@@ -82,31 +123,54 @@ export function MarketAnalysisPriceDistribution({ data }: { data: PriceDistribut
                         <ExpectedPriceLabel price={formatManWon(data.suggestedPrice)} />
                     </div>
                 </div>
-                <div className="relative h-[15px] w-full">
-                    <div className="absolute inset-0 overflow-hidden rounded-[999px] bg-white shadow-[inset_0_1px_2px_0_rgba(0,0,0,0.1)]">
-                        <div
-                            className="absolute top-[-10px] left-[-5px] h-[50px] rounded-[999px] bg-gradient-to-r from-[#d1d6fe] to-[#c4b0f7]"
-                            style={{ width: `${Math.max(expectedPosition, 0)}%` }}
-                            aria-hidden="true"
-                        />
-                    </div>
-                    <div className="absolute inset-y-0 right-[50px] left-[50px]">
+                <div className="flex flex-col gap-2">
+                    <div className="relative h-[15px] w-full">
+                        <div className="absolute inset-0 overflow-hidden rounded-[999px] bg-white shadow-[inset_0_1px_2px_0_rgba(0,0,0,0.1)]">
+                            <div
+                                className="absolute inset-y-0 left-0 rounded-[999px] bg-gradient-to-r from-[#d1d6fe] to-[#c4b0f7]"
+                                style={{ width: trackLeft(expectedPosition) }}
+                                aria-hidden="true"
+                            />
+                        </div>
                         {[0, 25, 50, 75, 100].map((position) => (
                             <span
                                 key={position}
                                 className="absolute inset-y-0 w-px -translate-x-1/2 bg-[#e1e1e1]"
-                                style={{ left: `${position}%` }}
+                                style={{ left: trackLeft(position) }}
                                 aria-hidden="true"
                             />
                         ))}
+                        {referencePoints.map((point) => (
+                            <span
+                                key={point.key}
+                                data-testid={`price-distribution-point-${point.key}`}
+                                className="absolute top-1/2 size-[9px] -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] border-white bg-[#a1a3ae] shadow-[0_0_0_0.5px_rgba(0,0,0,0.1)]"
+                                style={{ left: trackLeft(point.position) }}
+                                aria-hidden="true"
+                            />
+                        ))}
+                        <span
+                            data-testid="price-distribution-point-suggested"
+                            className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2"
+                            style={{ left: trackLeft(expectedPosition) }}
+                            aria-hidden="true"
+                        >
+                            <PriceMarker />
+                        </span>
                     </div>
-                    <span
-                        className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2"
-                        style={{ left: `${expectedPosition}%` }}
-                        aria-hidden="true"
-                    >
-                        <PriceMarker />
-                    </span>
+                    <div className="relative h-[13px] w-full" aria-hidden="true">
+                        {referencePoints
+                            .filter((point) => point.showLabel)
+                            .map((point) => (
+                                <span
+                                    key={point.key}
+                                    className="absolute top-0 -translate-x-1/2 text-[11px] leading-[13px] whitespace-nowrap text-[#777987]"
+                                    style={{ left: trackLeft(point.position) }}
+                                >
+                                    {point.label}
+                                </span>
+                            ))}
+                    </div>
                 </div>
             </CardContent>
             <div className="flex items-center justify-between gap-[5px] bg-[#6b49fd] px-5 py-2.5 text-white">
