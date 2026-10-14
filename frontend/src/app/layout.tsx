@@ -4,8 +4,10 @@ import type { ReactNode } from "react";
 
 import { SiteFooter } from "@/common/components/layout/SiteFooter";
 import { SiteHeader } from "@/common/components/layout/SiteHeader";
-import AuthInitializer from "@/features/auth/components/AuthInitializer";
+import { siteOrigin } from "@/common/lib/siteUrl";
 import { QueryProvider } from "@/common/providers/QueryProvider";
+import { defaultOgImage, defaultSiteDescription, defaultSiteTitle } from "@/common/seo/metadata";
+import AuthInitializer from "@/features/auth/components/AuthInitializer";
 import { NotificationToaster } from "@/features/notifications/components/NotificationToaster";
 
 import "./globals.css";
@@ -23,8 +25,29 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-    title: "지금이니?",
-    description: "AI와 함께하는 똑똑한 중고거래 서비스",
+    metadataBase: siteOrigin,
+    title: {
+        default: "지금이니?",
+        template: "%s | 지금이니?",
+    },
+    description: defaultSiteDescription,
+    openGraph: {
+        type: "website",
+        locale: "ko_KR",
+        siteName: "지금이니?",
+        title: defaultSiteTitle,
+        description: defaultSiteDescription,
+        images: [defaultOgImage],
+    },
+    twitter: {
+        card: "summary",
+        title: defaultSiteTitle,
+        description: defaultSiteDescription,
+        images: [defaultOgImage.url],
+    },
+    icons: {
+        icon: "/favicon.svg",
+    },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
