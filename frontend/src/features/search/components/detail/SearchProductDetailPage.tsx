@@ -60,7 +60,6 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
             await requestAnalysisMutation.mutateAsync({
                 productId: targetId,
                 perspective: "BUY",
-                force: true,
             });
         } catch {
             // mutation.error를 진행 다이얼로그에서 표시한다.

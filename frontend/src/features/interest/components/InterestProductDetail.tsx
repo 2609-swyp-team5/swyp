@@ -80,7 +80,6 @@ export function InterestProductDetail({ interest }: { interest: InterestListItem
             await requestAnalysisMutation.mutateAsync({
                 productId: interest.targetId,
                 perspective: "BUY",
-                force: true,
             });
         } catch {
             // mutation.error를 진행 다이얼로그에서 표시한다.
