@@ -647,7 +647,7 @@ public class ProductAnalysisService {
     /**
      * 시세 분석 1단계와 같은 기준(같은 카테고리·판매중·최근 수집 매물 중 상품명 키워드가 겹치는 후보, 가격 이상치 제외,
      * 최소 {@code min-listings}건)으로 유사 매물 평균가만 계산한다(AI 호출·저장 없음 — AI 최종 선별이 없어 분석 스냅샷보다
-     * 오탐이 조금 섞일 수 있음). 등록 직후나 분석 이력이 없는 상품 상세처럼 시세 분석 스냅샷이 없을 때 사용한다.
+     * 오탐이 조금 섞일 수 있음). 등록 직후 응답처럼 시세 분석 스냅샷이 아직 없을 때 사용한다(상품 상세는 분석 결과만 쓴다).
      *
      * @param product 평균가를 계산할 상품(카테고리·제목·브랜드 사용)
      * @return 유사 매물이 {@code min-listings}보다 적으면 빈 값
@@ -658,23 +658,6 @@ public class ProductAnalysisService {
                 product.getTitle(),
                 product.getBrand(),
                 freshSellingListings(product.getCategory().getId()));
-    }
-
-    /**
-     * {@link #calculateMarketAveragePrice(Product)}와 같은 기준으로 외부 매물의 유사 매물 평균가를 계산한다(분석 이력이 없는
-     * 외부 매물 상세용). 비교 대상에서 자기 자신은 뺀다.
-     *
-     * @param listing 평균가를 계산할 외부 매물(카테고리·제목 사용 — 브랜드 정보는 없음)
-     * @return 유사 매물이 {@code min-listings}보다 적으면 빈 값
-     */
-    @Transactional(readOnly = true)
-    public Optional<Long> calculateMarketAveragePrice(PlatformListing listing) {
-        List<PlatformListing> others = freshSellingListings(
-                        listing.getCategory().getId())
-                .stream()
-                .filter(other -> !other.getId().equals(listing.getId()))
-                .toList();
-        return averageOfSimilarListings(listing.getTitle(), null, others);
     }
 
     private Optional<Long> averageOfSimilarListings(String title, String brand, List<PlatformListing> listings) {
