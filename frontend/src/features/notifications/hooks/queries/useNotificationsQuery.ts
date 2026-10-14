@@ -5,12 +5,13 @@ import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/features/auth/store/authStore";
 
 import { notificationApi } from "../../api/notificationApi";
+import { notificationsQueryKey } from "../../queryKeys";
 import {
     type NotificationCategoryParam,
     notificationPageSchema,
 } from "../../schemas/notificationSchema";
 
-export const notificationsQueryKey = ["notifications"] as const;
+export { notificationsQueryKey } from "../../queryKeys";
 
 const pageSize = 20;
 
