@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createProductMarketAnalysisMock } from "@/features/product-management/mocks/productManagementMock";
 import type { ProductResponse } from "@/features/sell/types";
 
 const {
@@ -10,6 +11,7 @@ const {
     searchParamsValue,
     useDeleteProductMutation,
     useMyPlatformsQuery,
+    useProductAnalysisQuery,
     useProductQuery,
     usePublishProductMutation,
     useUpdateProductStatusMutation,
@@ -19,6 +21,7 @@ const {
     searchParamsValue: { current: "method=direct" },
     useDeleteProductMutation: vi.fn(),
     useMyPlatformsQuery: vi.fn(),
+    useProductAnalysisQuery: vi.fn(),
     useProductQuery: vi.fn(),
     usePublishProductMutation: vi.fn(),
     useUpdateProductStatusMutation: vi.fn(),
@@ -48,6 +51,10 @@ vi.mock("@/features/sell/hooks/mutations/usePublishProductMutation", () => ({
 
 vi.mock("@/features/sell/hooks/mutations/useUpdateProductStatusMutation", () => ({
     useUpdateProductStatusMutation,
+}));
+
+vi.mock("@/features/product-management/hooks/useProductAnalysisQuery", () => ({
+    useProductAnalysisQuery,
 }));
 
 import ProductReviewPage from "./page";
@@ -121,9 +128,27 @@ describe("ProductReviewPage", () => {
             mutate: vi.fn(),
             reset: vi.fn(),
         });
+        // 기본은 시세 분석 결과 없음 → 사진 기반 AI 추정값으로 표시
+        useProductAnalysisQuery.mockReturnValue({ data: null });
         push.mockReset();
         replace.mockReset();
         searchParamsValue.current = "method=direct";
+    });
+
+    it("fills the price analysis card with the market analysis saved at registration", () => {
+        const analysis = createProductMarketAnalysisMock(product.id, "SELL", "SELL");
+        useProductAnalysisQuery.mockReturnValue({ data: analysis });
+
+        render(<ProductReviewPage />);
+
+        expect(screen.getByRole("heading", { name: "AI 가격 분석" })).toBeInTheDocument();
+        expect(screen.getByText("SELL")).toBeInTheDocument();
+        expect(screen.getByText("지금 판매 추천")).toBeInTheDocument();
+        expect(screen.getByText(analysis.description)).toBeInTheDocument();
+        expect(
+            screen.getByText("비슷한 매물 시세로 분석한 적정 판매 가격이에요."),
+        ).toBeInTheDocument();
+        expect(useProductAnalysisQuery).toHaveBeenCalledWith(product.id);
     });
 
     it("shows the completed registration view with action buttons", () => {

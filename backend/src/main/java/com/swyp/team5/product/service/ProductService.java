@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -58,6 +59,7 @@ import com.swyp.team5.product.error.InvalidProductSearchException;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductImageRequiredException;
 import com.swyp.team5.product.error.ProductNotFoundException;
+import com.swyp.team5.product.event.ProductPriceChangedEvent;
 import com.swyp.team5.product.event.ProductRegisteredEvent;
 import com.swyp.team5.product.repository.ProductRepository;
 import com.swyp.team5.product.repository.ProductSearchRepository;
@@ -602,6 +604,7 @@ public class ProductService {
         validateImageCount(request, newImageUrls.size());
         List<String> imageUrls = Stream.concat(keptImageUrls(request).stream(), newImageUrls.stream())
                 .toList();
+        Long previousPrice = product.getPrice();
 
         product.update(
                 category,
@@ -635,6 +638,10 @@ public class ProductService {
 
         // 가격이 바뀌었으면 이 상품에 목표가를 건 관심 회원에게 도달 알림(가격이 오르면 알림 기록 초기화)
         targetPriceAlertService.checkProduct(product.getId());
+        // 가격이 바뀌었으면 시세 분석의 가격 비교 근거도 새 가격 기준으로
+        if (!Objects.equals(previousPrice, product.getPrice())) {
+            eventPublisher.publishEvent(new ProductPriceChangedEvent(product.getId()));
+        }
 
         return ProductResponse.from(product);
     }
@@ -674,7 +681,8 @@ public class ProductService {
 
     /**
      * 상품의 판매 희망가만 변경한다. 본인이 등록한 상품만 변경할 수 있다. 외부 플랫폼에 게시된 글의 가격은 바꾸지 않고(상품 수정과
-     * 같음), 시세 대비 차이({@code marketPriceDiffRate})는 조회할 때 새 가격으로 다시 계산된다.
+     * 같음), 시세 대비 차이({@code marketPriceDiffRate})는 조회할 때 새 가격으로 다시 계산된다. 가격이 바뀌면 가장 최근 시세 분석의
+     * 가격 비교 근거도 새 가격 기준으로 다시 쓴다({@link ProductPriceChangedEvent}).
      *
      * @param memberId 요청한 회원 ID
      * @param productId 가격을 변경할 상품 ID
@@ -688,7 +696,11 @@ public class ProductService {
         Product product = getProductOrThrow(productId);
         validateRegisteredBy(product, memberId);
 
+        boolean priceChanged = !price.equals(product.getPrice());
         product.changePrice(price);
+        if (priceChanged) {
+            eventPublisher.publishEvent(new ProductPriceChangedEvent(product.getId()));
+        }
 
         return ProductResponse.from(product);
     }

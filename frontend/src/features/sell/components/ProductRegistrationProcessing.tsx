@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/common/components/ui/Button";
+import type { MarketAnalysisSubStep } from "@/features/sell/schemas/productRegisterStreamSchema";
 import type { ProductRegisterProgress } from "@/features/sell/types";
 
 type RegistrationProcessingKind = "ai" | "direct" | "edit";
@@ -94,7 +95,98 @@ const registerStepDefinitions = [
         startMessage: "상품 등록하는 중",
         doneMessage: "상품 등록 완료",
     },
+    // 등록(withMarketAnalysis=true)만 — 수정에는 없는 단계. 화면에는 아래 세부 단계로 펼쳐 보여 준다
+    {
+        step: "MARKET_ANALYSIS",
+        label: "AI 시세 분석",
+        startMessage: "AI 시세 분석하는 중",
+        doneMessage: "AI 시세 분석 완료",
+    },
 ] as const;
+
+// 시세 분석 세부 단계(판매 상품 관리의 시세 분석과 같은 처리 순서)
+const marketAnalysisStepDefinitions: {
+    step: MarketAnalysisSubStep;
+    label: string;
+    startMessage: string;
+    doneMessage: string;
+}[] = [
+    {
+        step: "CANDIDATE_SEARCH",
+        label: "비교 매물 찾기",
+        startMessage: "비교할 매물 찾는 중",
+        doneMessage: "비교 매물 찾기 완료",
+    },
+    {
+        step: "AI_ANALYSIS",
+        label: "AI 시세 판단",
+        startMessage: "AI가 같은 물건을 고르고 시세 판단하는 중",
+        doneMessage: "AI 시세 판단 완료",
+    },
+    {
+        step: "PRICE_CALCULATION",
+        label: "시세·추천 계산",
+        startMessage: "시세와 추천 계산하는 중",
+        doneMessage: "시세·추천 계산 완료",
+    },
+    {
+        step: "FORECAST",
+        label: "감가·가격 전망 계산",
+        startMessage: "감가와 가격 전망 계산하는 중",
+        doneMessage: "감가·가격 전망 계산 완료",
+    },
+    {
+        step: "SAVE",
+        label: "분석 결과 저장",
+        startMessage: "분석 결과 저장하는 중",
+        doneMessage: "분석 결과 저장 완료",
+    },
+];
+
+/**
+ * 시세 분석 세부 단계 한 줄의 상태와 문구. 세부 진행(PROGRESS)의 마지막 단계까지는 완료, 그다음이 진행 중이다.
+ * 건너뛰면(SKIP — 비교 매물 부족 등) 멈춘 단계에 사유를, 나머지는 건너뜀으로 표시한다.
+ */
+function getMarketAnalysisStepView(
+    index: number,
+    definition: (typeof marketAnalysisStepDefinitions)[number],
+    mainState: ProcessingStepProps["state"],
+    progress: ProductRegisterProgress | null | undefined,
+): ProcessingStepProps {
+    if (progress?.step !== "MARKET_ANALYSIS") {
+        return {
+            label: mainState === "done" ? definition.doneMessage : definition.label,
+            state: mainState === "done" ? "done" : "pending",
+        };
+    }
+    if (progress.status === "DONE") {
+        return { label: definition.doneMessage, state: "done" };
+    }
+
+    const current = progress.marketAnalysis;
+    // 끝난 세부 단계 수(진행 중인 단계는 제외)
+    const completed = current ? (current.status === "DONE" ? current.index : current.index - 1) : 0;
+    if (index < completed) {
+        return { label: definition.doneMessage, state: "done" };
+    }
+    if (progress.status === "SKIP") {
+        return {
+            label: index === completed ? progress.message : `${definition.label} 건너뜀`,
+            state: "skipped",
+        };
+    }
+    if (mainState === "error") {
+        return { label: definition.label, state: index === completed ? "error" : "pending" };
+    }
+    if (index === completed) {
+        return {
+            label:
+                current?.status === "WAITING" ? "분석 순서 기다리는 중" : definition.startMessage,
+            state: "active",
+        };
+    }
+    return { label: definition.label, state: "pending" };
+}
 
 function getRegisterStepState(
     index: number,
@@ -146,7 +238,7 @@ function getRegisterStepState(
         return "pending";
     }
 
-    return progress.status === "START" ? "active" : "done";
+    return progress.status === "START" || progress.status === "PROGRESS" ? "active" : "done";
 }
 
 function LoadingSteps({
@@ -166,51 +258,61 @@ function LoadingSteps({
 
     return (
         <div className="flex flex-col gap-3">
-            {registerStepDefinitions.map((definition, index) => {
-                const state = getRegisterStepState(index, progress, status, isTimeout);
-                const isCurrentStep = progress?.step === definition.step;
-                const stepProgress = progressHistory?.findLast(
-                    (item) => item.step === definition.step,
-                );
-                const baseLabel =
-                    kind === "edit" && definition.step === "PRODUCT_SAVE"
-                        ? "상품 수정"
-                        : definition.label;
-                const startMessage =
-                    kind === "edit" && definition.step === "PRODUCT_SAVE"
-                        ? "상품 수정하는 중"
-                        : definition.startMessage;
-                const doneMessage =
-                    kind === "edit" && definition.step === "PRODUCT_SAVE"
-                        ? "상품 수정 완료"
-                        : definition.doneMessage;
-                const isSkipped =
-                    kind === "edit" &&
-                    (stepProgress?.status ?? (isCurrentStep ? progress?.status : undefined)) ===
-                        "SKIP";
-                const label =
-                    state === "error"
-                        ? `${baseLabel} 실패`
-                        : isSkipped
-                          ? `${baseLabel} 건너뜀`
-                          : isCurrentStep
-                            ? isTimeout
-                                ? startMessage
-                                : progress.message
-                            : state === "done"
-                              ? doneMessage
-                              : state === "active"
-                                ? startMessage
-                                : baseLabel;
+            {registerStepDefinitions
+                .filter((definition) => kind !== "edit" || definition.step !== "MARKET_ANALYSIS")
+                .map((definition, index) => {
+                    const state = getRegisterStepState(index, progress, status, isTimeout);
+                    const isCurrentStep = progress?.step === definition.step;
+                    const stepProgress = progressHistory?.findLast(
+                        (item) => item.step === definition.step,
+                    );
+                    const baseLabel =
+                        kind === "edit" && definition.step === "PRODUCT_SAVE"
+                            ? "상품 수정"
+                            : definition.label;
+                    const startMessage =
+                        kind === "edit" && definition.step === "PRODUCT_SAVE"
+                            ? "상품 수정하는 중"
+                            : definition.startMessage;
+                    const doneMessage =
+                        kind === "edit" && definition.step === "PRODUCT_SAVE"
+                            ? "상품 수정 완료"
+                            : definition.doneMessage;
+                    if (definition.step === "MARKET_ANALYSIS") {
+                        return marketAnalysisStepDefinitions.map((subStep, subIndex) => (
+                            <ProcessingStep
+                                key={subStep.step}
+                                {...getMarketAnalysisStepView(subIndex, subStep, state, progress)}
+                            />
+                        ));
+                    }
+                    const isSkipped =
+                        kind === "edit" &&
+                        (stepProgress?.status ?? (isCurrentStep ? progress?.status : undefined)) ===
+                            "SKIP";
+                    const label =
+                        state === "error"
+                            ? `${baseLabel} 실패`
+                            : isSkipped
+                              ? `${baseLabel} 건너뜀`
+                              : isCurrentStep
+                                ? isTimeout
+                                    ? startMessage
+                                    : progress.message
+                                : state === "done"
+                                  ? doneMessage
+                                  : state === "active"
+                                    ? startMessage
+                                    : baseLabel;
 
-                return (
-                    <ProcessingStep
-                        key={definition.step}
-                        label={label}
-                        state={isSkipped ? "skipped" : state}
-                    />
-                );
-            })}
+                    return (
+                        <ProcessingStep
+                            key={definition.step}
+                            label={label}
+                            state={isSkipped ? "skipped" : state}
+                        />
+                    );
+                })}
         </div>
     );
 }

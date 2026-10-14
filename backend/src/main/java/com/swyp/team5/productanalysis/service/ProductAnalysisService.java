@@ -30,6 +30,7 @@ import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.swyp.team5.category.repository.CategoryRepository;
@@ -56,6 +57,8 @@ import com.swyp.team5.productanalysis.dto.CompetitionLevel;
 import com.swyp.team5.productanalysis.dto.CompetitionSortType;
 import com.swyp.team5.productanalysis.dto.MarketAnalysisResult;
 import com.swyp.team5.productanalysis.dto.PriceDistributionResponse;
+import com.swyp.team5.productanalysis.dto.PriceReasonResult;
+import com.swyp.team5.productanalysis.dto.PriceReasonUpdate;
 import com.swyp.team5.productanalysis.dto.PriceTrendResponse;
 import com.swyp.team5.productanalysis.dto.ProductAnalysisResponse;
 import com.swyp.team5.productanalysis.dto.ProductCompetitionResponse;
@@ -146,6 +149,39 @@ public class ProductAnalysisService {
 
             [이전 분석 추이(같은 물건 평균가, 최근 6개월 월별)]
             %s
+            """;
+
+    private static final String PRICE_REASON_SYSTEM_PROMPT =
+            """
+            너는 중고거래 플랫폼의 시세 분석 AI야. 판매자가 상품의 등록가를 바꿨어. 이미 끝난 시세 분석 결과(비교 매물 시세·추이)와
+            이미 정해진 추천을 줄 테니, 새 등록가 기준으로 추천의 근거 문장만 다시 써 줘. 추천은 바꾸지 마.
+            - description: 판매자 관점 추천(SELL/HOLD)의 근거 1~2문장. 새 등록가와 기준 시세(평균가)를 비교해 말하고,
+              SELL이면 중고는 시간이 지날수록 값이 떨어진다는 점, 등록가가 기준 시세보다 5% 이상 높으면 적정가로 낮추길 권해.
+              HOLD면 시세가 오르는 중이라 조금 기다리면 더 비싸게 팔 수 있다는 점을 밝혀.
+            - buyerDescription: 구매자 관점 추천(BUY/WAIT)의 근거 1~2문장. 새 등록가가 기준 시세보다 싼지·비싼지를 중심으로.
+            추세는 반드시 [이전 분석 추이]로만 말하고, 기록이 없거나 판단 보류면 추세를 지어내지 마.
+            비교 기준이 "비슷한 상품"이면 근거 문장에 "비슷한 상품 시세 기준"임을 밝혀. 금액은 원 단위로 쉼표를 넣어 써.
+            화면에 그대로 보여 줄 문장이야. 추천 코드(SELL/HOLD/BUY/WAIT)나 "새 등록가"·"기준 시세" 같은 입력 항목 이름은 쓰지 말고
+            "등록가", "평균 시세"처럼 자연스럽게 써. 판매자 근거는 판매자에게, 구매자 근거는 구매자에게 말하듯 "~해요" 체로 써.
+            """;
+
+    private static final String PRICE_REASON_USER_PROMPT_TEMPLATE =
+            """
+            [상품]
+            제목: %s
+            브랜드: %s
+            새 등록가: %d원
+            상태 등급: %s / 결함 여부: %s
+
+            [시세 분석 결과]
+            비교 기준: %s / 비교 매물 수: %s
+            최저가 %d원 / 평균가(기준 시세) %d원 / 최고가 %d원 / 시세 기반 추천가 %d원
+
+            [이전 분석 추이(같은 물건 평균가, 최근 6개월 월별)]
+            %s
+
+            [정해진 추천]
+            판매자 관점: %s / 구매자 관점: %s
             """;
 
     private static final String LISTING_SYSTEM_PROMPT =
@@ -719,6 +755,113 @@ public class ProductAnalysisService {
         } finally {
             executor.shutdownNow();
         }
+    }
+
+    /**
+     * 상품 가격이 바뀌었을 때 가장 최근 시세 분석의 가격 비교 근거를 새 가격 기준으로 다시 쓴다(AI 호출 없음). 시세(평균·최저·최고가,
+     * 분포, 감가 예측, 추천가)와 판매자 추천(SELL/HOLD — 시세 추세로만 정함)은 내 가격과 무관해 그대로 두고, 판매자 근거 문장과 구매자
+     * 관점 추천(BUY/WAIT — 가격 차이로 정함)·근거만 분석 때와 같은 규칙({@link RecommendationRule})으로 다시 정한다. 새 분석 기록은
+     * 만들지 않는다(가격 추이에 같은 시세 점이 늘지 않도록). 분석 이력이 없거나 외부 매물이면 아무것도 하지 않는다.
+     *
+     * @param productId 가격이 바뀐 상품 ID
+     */
+    @Transactional
+    public void refreshPriceReasons(Long productId) {
+        Optional<Product> product = productRepository.findById(productId);
+        Optional<ProductAnalysis> latest = productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(productId);
+        if (product.isEmpty() || latest.isEmpty()) {
+            return;
+        }
+        long price = product.get().getPrice();
+        ProductAnalysis analysis = latest.get();
+        long averagePrice = analysis.getAveragePrice();
+        ComparisonBasis basis = basisOf(analysis);
+        OptionalDouble monthlyRate = priceReasonTrend(analysis).monthlyRate();
+        analysis.changeDescription(basisText(
+                RecommendationRule.sellerReason(analysis.getRecommendation(), price, averagePrice, monthlyRate),
+                basis));
+        AnalysisRecommendation buyerRecommendation = RecommendationRule.forBuyer(price, averagePrice, monthlyRate);
+        analysis.assignBuyerView(
+                buyerRecommendation,
+                basisText(
+                        RecommendationRule.buyerReason(buyerRecommendation, price, averagePrice, monthlyRate), basis));
+    }
+
+    /**
+     * 가격이 바뀐 상품의 가장 최근 시세 분석 근거 문장을 AI에게 새 가격 기준으로 다시 써 달라고 한다(트랜잭션 밖 — AI 응답을 기다리는 동안
+     * DB 연결을 잡지 않도록). 추천은 {@link #refreshPriceReasons}가 규칙으로 정해 둔 값을 그대로 주고 문장만 받는다. 시세 수치·추이·비교 매물
+     * 수만 주고 매물 후보는 다시 고르지 않는다. 저장은 {@link #applyPriceReasons}로 한다.
+     *
+     * @param productId 가격이 바뀐 상품 ID
+     * @return 저장할 근거(분석 이력이 없거나 외부 매물이면 빈 값)
+     */
+    public Optional<PriceReasonUpdate> requestPriceReasons(Long productId) {
+        Optional<Product> product = productRepository.findById(productId);
+        Optional<ProductAnalysis> latest = productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(productId);
+        if (product.isEmpty() || latest.isEmpty()) {
+            return Optional.empty();
+        }
+        Product target = product.get();
+        ProductAnalysis analysis = latest.get();
+        ComparisonBasis basis = basisOf(analysis);
+        String userPrompt = PRICE_REASON_USER_PROMPT_TEMPLATE.formatted(
+                target.getTitle(),
+                target.getBrand() == null ? "알 수 없음" : target.getBrand(),
+                target.getPrice(),
+                target.getCondition(),
+                defectStatusLabel(target.getDefectStatus()),
+                basis == ComparisonBasis.RELATED ? "비슷한 상품(같은 종류·시리즈)" : "같은 물건",
+                analysis.getListingCount() == null ? "알 수 없음" : analysis.getListingCount() + "건",
+                analysis.getMinPrice(),
+                analysis.getAveragePrice(),
+                analysis.getMaxPrice(),
+                analysis.getSuggestedPrice() == null ? analysis.getAveragePrice() : analysis.getSuggestedPrice(),
+                priceReasonTrend(analysis).toPromptText(),
+                analysis.getRecommendation(),
+                analysis.getBuyerRecommendation());
+        PriceReasonResult result = aiChatExecutor.call("가격 변경 근거", client -> client.prompt()
+                .system(PRICE_REASON_SYSTEM_PROMPT)
+                .user(userPrompt)
+                .call()
+                .entity(PriceReasonResult.class));
+        if (result == null || isBlank(result.description()) || isBlank(result.buyerDescription())) {
+            return Optional.empty();
+        }
+        return Optional.of(new PriceReasonUpdate(
+                productId, analysis.getId(), target.getPrice(), result.description(), result.buyerDescription()));
+    }
+
+    /**
+     * AI가 다시 쓴 근거를 저장한다. AI 응답을 기다리는 사이 새 분석이 저장됐거나 가격이 또 바뀌었으면 버린다(그쪽 근거가 더 최신).
+     * 가격 변경 커밋 뒤(AFTER_COMMIT 리스너)에서 부르므로 새 트랜잭션으로 저장한다 — 기본 전파(REQUIRED)는 이미 끝난 트랜잭션에 합류해
+     * 변경이 커밋되지 않는다.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void applyPriceReasons(PriceReasonUpdate update) {
+        Optional<Product> product = productRepository.findById(update.productId());
+        Optional<ProductAnalysis> latest =
+                productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(update.productId());
+        if (product.isEmpty()
+                || latest.isEmpty()
+                || !latest.get().getId().equals(update.analysisId())
+                || product.get().getPrice() != update.price()) {
+            return;
+        }
+        latest.get().changeDescription(update.description());
+        latest.get().assignBuyerView(latest.get().getBuyerRecommendation(), update.buyerDescription());
+    }
+
+    /** 근거를 다시 쓸 때의 추세 — 분석 때와 같이 최근 분석들의 평균가(비슷한 물건 기준 분석이면 추세 없이). */
+    private PriceTrend priceReasonTrend(ProductAnalysis analysis) {
+        if (basisOf(analysis) == ComparisonBasis.RELATED) {
+            return PriceTrend.of(List.of()).plus(analysis.getAnalyzedAt(), analysis.getAveragePrice());
+        }
+        return PriceTrend.of(snapshots(productAnalysisRepository.findByItemIdAndAnalyzedAtAfterOrderByAnalyzedAtAsc(
+                analysis.getItem().getId(), LocalDateTime.now().minusMonths(TREND_MONTHS))));
+    }
+
+    private static boolean isBlank(String text) {
+        return text == null || text.isBlank();
     }
 
     /**

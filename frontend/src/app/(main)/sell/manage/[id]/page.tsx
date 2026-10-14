@@ -8,6 +8,7 @@ import { NextActions } from "@/features/sell/components/manage/NextActions";
 import { PriceAnalysis } from "@/features/sell/components/manage/PriceAnalysis";
 import { ProductDetails } from "@/features/sell/components/manage/ProductDetails";
 import { ProductSummary } from "@/features/sell/components/manage/ProductSummary";
+import { useProductAnalysisQuery } from "@/features/product-management/hooks/useProductAnalysisQuery";
 import { useProductQuery } from "@/features/sell/hooks/queries/useProductQuery";
 
 function ReviewStatus({ children }: { children: string }) {
@@ -25,6 +26,8 @@ export default function ProductReviewPage() {
     const registrationMethod = searchParams.get("method") === "direct" ? "direct" : "ai";
     const isUpdated = searchParams.get("updated") === "true";
     const { data: product, error, isPending } = useProductQuery(productId);
+    // 등록 때 함께 진행해 저장한 시세 분석(판매자 관점) — 없으면 카드가 사진 기반 AI 추정값을 보여 준다
+    const { data: marketAnalysis } = useProductAnalysisQuery(productId);
 
     if (!Number.isInteger(productId) || productId <= 0) {
         return <ReviewStatus>올바르지 않은 상품입니다.</ReviewStatus>;
@@ -44,7 +47,7 @@ export default function ProductReviewPage() {
             <section className="layout-container flex flex-1 flex-col gap-[80px] pt-10 pb-20 md:pt-16 md:pb-[120px]">
                 <CompletionSection isUpdated={isUpdated} />
                 <ProductSummary product={product} registrationMethod={registrationMethod} />
-                <PriceAnalysis product={product} />
+                <PriceAnalysis product={product} marketAnalysis={marketAnalysis} />
                 <ProductDetails product={product} />
                 <NextActions productId={product.id} existingPlatforms={product.platforms ?? []} />
             </section>

@@ -8,7 +8,8 @@ test("direct registration keeps the product information while moving to status a
             json: { success: true, data: { accessToken: "direct-register-preview" }, error: null },
         }),
     );
-    await page.route("**/products", (route) => {
+    // 등록 요청은 ?withMarketAnalysis=true가 붙으므로 쿼리까지 허용
+    await page.route(/\/products(\?.*)?$/, (route) => {
         if (route.request().method() !== "POST") {
             return route.continue();
         }

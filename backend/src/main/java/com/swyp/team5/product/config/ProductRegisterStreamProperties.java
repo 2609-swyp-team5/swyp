@@ -16,4 +16,7 @@ public record ProductRegisterStreamProperties(
         @NotNull @Positive Integer maxPoolSize, // 등록 처리 스레드 최대 수
         @NotNull Integer queueCapacity, // 대기열 크기(가득 차면 503)
         @NotNull Duration timeout, // 스트림 최대 유지 시간(지나면 error 이벤트 후 종료 — 저장 전이면 요청 취소, 저장 중이면 저장은 끝까지 진행)
-        @NotNull Duration keepAliveInterval) {} // 연결 유지용 주석 이벤트 전송 간격
+        @NotNull Duration keepAliveInterval, // 연결 유지용 주석 이벤트 전송 간격
+        @NotNull
+                Duration marketAnalysisTimeout) {} // 등록 후 시세 분석(withMarketAnalysis=true)을 기다리는 최대 시간(스트림 남은 시간이 더 짧으면 그
+                                                  // 안에서)

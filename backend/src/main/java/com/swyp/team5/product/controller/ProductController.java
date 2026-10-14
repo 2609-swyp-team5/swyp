@@ -84,14 +84,18 @@ public class ProductController {
      * <pre>
      * 모든 이벤트는 SSE {@code data:} 한 줄로 오며, 내용은 기존 API 응답과 같은 형태다. 이벤트 종류는 {@code data.event}로 구분한다.
      * data:{"success":true,"message":"진행 문구","data":{"event":"step","step":"IMAGE_UPLOAD","status":"START|DONE|SKIP","index":1,"total":3,"result":...},"error":null}
-     * (SKIP은 수정에서만 — 새 이미지 없음, 이미지 변경 없음, 재분석 실패)
-     * data:{"success":true,"message":"...","data":{"event":"complete",상품 필드,"analysis":{가격·분석 정보}},"error":null}
+     * (SKIP은 수정 — 새 이미지 없음, 이미지 변경 없음, 재분석 실패 / 시세 분석 — 비교 매물 부족·대기 시간 초과 등)
+     * withMarketAnalysis=true면 PRODUCT_SAVE 뒤에 MARKET_ANALYSIS 단계가 이어진다(START → PROGRESS 여러 번 → DONE|SKIP,
+     * PROGRESS의 result = {"step":"CANDIDATE_SEARCH","status":"WAITING|START|DONE","index":1,"total":5})
+     * data:{"success":true,"message":"...","data":{"event":"complete",상품 필드,"analysis":{가격·분석 정보},"marketAnalysis":{시세 분석 결과 또는 null}},"error":null}
      * data:{"success":false,"message":"...","data":{"event":"error","step":"IMAGE_ANALYSIS"},"error":{"status":"502","code":"AI_ANALYSIS_FAILED"}}
      * </pre>
      *
      * @param currentMember 인증된 요청자
      * @param images 등록할 상품 이미지 목록(순서대로 저장)
      * @param request 등록 요청 정보(JSON, {@code data} 파트)
+     * @param withMarketAnalysis 저장 뒤 시세 분석까지 기다려 같은 스트림으로 보낼지(기본 false — 등록 직후 분석은 어느 쪽이든 실행되며,
+     *     true면 끝날 때까지 기다려 {@code complete}의 {@code marketAnalysis}에 결과를 담는다)
      * @return 진행 상황 SSE 스트림
      */
     @Operation(
@@ -102,8 +106,10 @@ public class ProductController {
     public ResponseEntity<SseEmitter> create(
             @AuthenticationPrincipal PrincipalMember currentMember,
             @RequestPart("images") @NotEmpty List<MultipartFile> images,
-            @RequestPart("data") @Valid ProductCreateRequest request) {
-        return stream(productRegisterStreamService.registerDirect(currentMember.memberId(), request, images));
+            @RequestPart("data") @Valid ProductCreateRequest request,
+            @RequestParam(defaultValue = "false") boolean withMarketAnalysis) {
+        return stream(productRegisterStreamService.registerDirect(
+                currentMember.memberId(), request, images, withMarketAnalysis));
     }
 
     /**
@@ -117,6 +123,7 @@ public class ProductController {
      * @param purchasedMonths 사용자가 입력한 구매 후 경과 개월 수(선택, 0~6, 등록 시점 기준 구매일시로 변환)
      * @param defectStatus 사용자가 입력한 결함(하자) 상태(NORMAL/ISSUES/UNKNOWN, 대소문자 무관)
      * @param includedItems 사용자가 추가로 입력한 구성품 이름 목록(선택, AI 추론 결과와 합쳐짐)
+     * @param withMarketAnalysis 저장 뒤 시세 분석까지 기다려 같은 스트림으로 보낼지({@link #create}와 같음)
      * @return 진행 상황 SSE 스트림
      */
     @Operation(
@@ -132,9 +139,10 @@ public class ProductController {
             @RequestParam("images") @NotEmpty List<MultipartFile> images,
             @RequestParam(required = false) @PositiveOrZero @Max(6) Integer purchasedMonths,
             @RequestParam DefectStatus defectStatus,
-            @RequestParam(required = false) List<@NotBlank @Size(max = 50) String> includedItems) {
+            @RequestParam(required = false) List<@NotBlank @Size(max = 50) String> includedItems,
+            @RequestParam(defaultValue = "false") boolean withMarketAnalysis) {
         return stream(productRegisterStreamService.registerWithAi(
-                currentMember.memberId(), images, purchasedMonths, defectStatus, includedItems));
+                currentMember.memberId(), images, purchasedMonths, defectStatus, includedItems, withMarketAnalysis));
     }
 
     /**

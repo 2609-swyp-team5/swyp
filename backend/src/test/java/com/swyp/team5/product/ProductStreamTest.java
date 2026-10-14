@@ -146,6 +146,7 @@ class ProductStreamTest extends IntegrationTest {
         assertThat(analysis.get("title").asText()).isEqualTo("AI 제목"); // 상품엔 저장 안 된 AI 추론값
         assertThat(analysis.get("condition").asText()).isEqualTo("A");
         assertThat(analysis.has("aiResult")).isFalse(); // AI 추론값은 analysis에 바로 펼쳐짐
+        assertThat(product.get("marketAnalysis").isNull()).isTrue(); // 시세 분석은 withMarketAnalysis=true일 때만
         assertThat(product.get("title").asText()).isEqualTo("아이폰 13"); // 직접 등록은 사용자 입력 우선
         assertThat(product.get("price").asLong()).isEqualTo(500_000L);
         assertThat(product.get("suggestedPrice").asLong()).isEqualTo(470_000L);
@@ -153,6 +154,41 @@ class ProductStreamTest extends IntegrationTest {
         assertThat(product.at("/imageUrls/0").asText()).isEqualTo("https://image.example.com/1.png");
         assertThat(productRepository.count()).isEqualTo(1);
         verify(fileStorageService, never()).deleteAll(anyList());
+    }
+
+    // 직접 등록 + 시세 분석 - 저장 뒤 MARKET_ANALYSIS 단계가 이어지고 complete에 시세 분석 결과(marketAnalysis)를 담음.
+    // 테스트 프로필은 등록 직후 분석이 꺼져 있어 분석 중이 아니므로 기다리지 않고 SKIP(등록은 성공)
+    @Test
+    void createWithMarketAnalysisAppendsMarketAnalysisStep() throws Exception {
+        when(productAiService.analyze(anyList())).thenReturn(analysis(category.getId()));
+
+        List<SseEvent> events =
+                streamEvents(directRequest(createRequest(category.getId())).param("withMarketAnalysis", "true"));
+
+        assertThat(events)
+                .extracting(SseEvent::name, SseEvent::stepStatus)
+                .containsExactly(
+                        tuple("step", "IMAGE_UPLOAD:START"),
+                        tuple("step", "IMAGE_UPLOAD:DONE"),
+                        tuple("step", "IMAGE_ANALYSIS:START"),
+                        tuple("step", "IMAGE_ANALYSIS:DONE"),
+                        tuple("step", "PRODUCT_SAVE:START"),
+                        tuple("step", "PRODUCT_SAVE:DONE"),
+                        tuple("step", "MARKET_ANALYSIS:START"),
+                        tuple("step", "MARKET_ANALYSIS:SKIP"),
+                        tuple("complete", null));
+        assertThat(events.get(0).data().at("/data/total").asInt()).isEqualTo(4);
+        assertThat(events.get(6).data().at("/data/index").asInt()).isEqualTo(4);
+        assertThat(events.get(7).data().at("/data/result/analysisStatus").asText())
+                .isEqualTo("NOT_ANALYZED");
+        JsonNode product = events.getLast().data().get("data");
+        assertThat(product.get("event").asText()).isEqualTo("complete");
+        assertThat(product.get("title").asText()).isEqualTo("아이폰 13");
+        assertThat(product.at("/marketAnalysis/productId").asLong())
+                .isEqualTo(product.get("id").asLong());
+        assertThat(product.at("/marketAnalysis/analysisStatus").asText()).isEqualTo("NOT_ANALYZED");
+        assertThat(product.at("/marketAnalysis/currentPrice").asLong()).isEqualTo(500_000L);
+        assertThat(productRepository.count()).isEqualTo(1);
     }
 
     // 직접 등록 - AI 분석은 필수라 실패하면 SKIP 없이 업로드 파일을 지우고 error 이벤트로 취소
