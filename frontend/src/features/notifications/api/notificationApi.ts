@@ -24,6 +24,10 @@ const markRead = (notificationId: number) =>
 const deleteNotification = (notificationId: number) =>
     api.delete<ApiResponse<null>>(`/notifications/${notificationId}`);
 
+/** 전체(카테고리 없음) 또는 탭별 알림을 한 번에 지운다. */
+const deleteAllNotifications = (category?: NotificationCategoryParam) =>
+    api.delete<ApiResponse<{ deletedCount: number }>>("/notifications", { params: { category } });
+
 const getSettings = (signal?: AbortSignal) =>
     api.get<ApiResponse<NotificationSettings>>("/notifications/settings", { signal });
 
@@ -35,6 +39,7 @@ export const notificationApi = {
     getUnreadCount,
     markRead,
     deleteNotification,
+    deleteAllNotifications,
     getSettings,
     updateSettings,
 };

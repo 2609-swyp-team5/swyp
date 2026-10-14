@@ -123,18 +123,7 @@ public class BunjangProductUploader {
         try {
             Path screenshot = Files.createTempFile("bunjang-upload-failed-", ".png");
             page.screenshot(new Page.ScreenshotOptions().setPath(screenshot).setFullPage(true));
-            String alerts = String.join(
-                    " | ",
-                    page
-                            .locator(
-                                    "[role='alert'], [role='dialog'], [class*='error' i], [class*='warning' i], [class*='toast' i]")
-                            .allInnerTexts()
-                            .stream()
-                            .map(String::strip)
-                            .filter(text -> !text.isEmpty())
-                            .distinct()
-                            .limit(10)
-                            .toList());
+            String alerts = String.join(" | ", pageNotices(page));
             log.warn(
                     "번개장터 등록 실패 화면을 저장했습니다. screenshot={}, url={}, 화면 안내={}", screenshot, page.url(), truncate(alerts));
         } catch (IOException | PlaywrightException e) {
@@ -420,7 +409,7 @@ public class BunjangProductUploader {
         Locator submit = page.locator("button:has-text('등록하기'), button:has-text('등록'), button[type='submit']")
                 .last();
         if (!exists(submit) || !submit.isEnabled()) {
-            throw new PlatformPublishFailedException("번개장터 등록 버튼이 활성화되지 않았어요. 상품 정보에 빠진 항목이 없는지 확인해 주세요.");
+            throw new PlatformPublishFailedException(missingFieldsMessage(pageNotices(page)));
         }
 
         // 생성 응답을 못 잡았을 때 원인을 볼 수 있도록 제출 중 번개장터 POST 응답을 모아 둔다
@@ -434,6 +423,7 @@ public class BunjangProductUploader {
         page.onResponse(recordPost);
 
         String pid = null;
+        boolean createRequested = false;
         try {
             Response response = page.waitForResponse(
                     BunjangProductUploader::isProductCreateResponse,
@@ -447,6 +437,7 @@ public class BunjangProductUploader {
                         "번개장터 상품 등록 요청이 실패했어요. 잠시 후 다시 시도해 주세요.",
                         "status=" + response.status() + ", body=" + truncate(response.text()));
             }
+            createRequested = true;
             pid = findProductId(response.text());
         } catch (PlaywrightException e) {
             log.warn(
@@ -468,11 +459,48 @@ public class BunjangProductUploader {
         if (pid == null) {
             pid = findLatestMyShopProductId(page, form);
         }
+        if (pid == null && !createRequested && page.url().contains("/products/new")) {
+            // 등록 버튼을 눌러도 생성 요청이 나가지 않고 등록 화면에 그대로 있으면 번개장터 폼 검증(카테고리별 사이즈 등 필수 항목)에 막혀
+            // 등록되지 않은 것이다
+            throw new PlatformPublishFailedException(
+                    missingFieldsMessage(pageNotices(page)), "제출 중 POST 응답=" + postResponses);
+        }
         if (pid == null) {
             throw new PlatformPublishFailedException(
                     "번개장터 등록 결과를 확인하지 못했어요. 번개장터 내 상점에서 등록 여부를 확인한 뒤, 등록되어 있다면 매물 주소로 연동해 주세요.");
         }
         return pid;
+    }
+
+    /** 화면에 보이는 안내·오류 문구(폼 검증 안내, 토스트, 팝업 등). */
+    private static List<String> pageNotices(Page page) {
+        return page
+                .locator(
+                        "[role='alert'], [role='dialog'], [class*='error' i], [class*='warning' i], [class*='toast' i]")
+                .allInnerTexts()
+                .stream()
+                .map(String::strip)
+                .filter(text -> !text.isEmpty())
+                .distinct()
+                .limit(10)
+                .toList();
+    }
+
+    /**
+     * 번개장터 폼에 빠진 항목이 있어 등록되지 않았을 때의 안내. 우리 서비스는 카테고리별 추가 항목(의류 사이즈 등)을 입력하지 않으므로, 화면에
+     * 뜬 번개장터 안내 문구가 있으면 함께 보여 주고 번개장터에서 직접 등록하는 방법을 알려 준다.
+     */
+    static String missingFieldsMessage(List<String> notices) {
+        String base =
+                "번개장터에서 필수 항목이 빠져 등록되지 않았어요. 카테고리에 따라 사이즈 등 추가 항목이 필요할 수 있어요." + " 번개장터에서 직접 등록한 뒤 매물 주소로 연동해 주세요.";
+        if (notices.isEmpty()) {
+            return base;
+        }
+        String notice = String.join(" / ", notices);
+        if (notice.length() > 100) {
+            notice = notice.substring(0, 100) + "…";
+        }
+        return base + " (번개장터 안내: " + notice + ")";
     }
 
     private static boolean isProductCreateResponse(Response response) {

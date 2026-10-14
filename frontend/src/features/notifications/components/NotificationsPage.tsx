@@ -4,6 +4,16 @@ import { useState } from "react";
 import Link from "next/link";
 import { Bell, Trash2 } from "lucide-react";
 
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/common/components/ui/AlertDialog";
 import { Button } from "@/common/components/ui/Button";
 import { Card, CardContent } from "@/common/components/ui/Card";
 import { Skeleton } from "@/common/components/ui/Skeleton";
@@ -11,6 +21,7 @@ import { getApiErrorMessage } from "@/common/lib/api/error";
 import { cn } from "@/common/lib/utils";
 
 import { useReadNotificationMutation } from "../hooks/mutations/useReadNotificationMutation";
+import { useDeleteAllNotificationsMutation } from "../hooks/mutations/useDeleteAllNotificationsMutation";
 import { useDeleteNotificationMutation } from "../hooks/mutations/useDeleteNotificationMutation";
 import { useNotificationsQuery } from "../hooks/queries/useNotificationsQuery";
 import type { NotificationItem } from "../schemas/notificationSchema";
@@ -140,6 +151,64 @@ function NotificationCard({
     );
 }
 
+const dialogButtonFocusClassName =
+    "focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30";
+
+function DeleteAllNotificationsDialog({
+    open,
+    onOpenChange,
+    targetLabel,
+    onConfirm,
+    isPending,
+    errorMessage,
+}: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    targetLabel: string | null;
+    onConfirm: () => void;
+    isPending: boolean;
+    errorMessage: string | null;
+}) {
+    return (
+        <AlertDialog open={open} onOpenChange={onOpenChange}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>
+                        {targetLabel
+                            ? `${targetLabel} 알림을 모두 삭제할까요?`
+                            : "알림을 모두 삭제할까요?"}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>삭제한 알림은 되돌릴 수 없어요.</AlertDialogDescription>
+                </AlertDialogHeader>
+                {errorMessage && (
+                    <p role="alert" className="text-destructive text-sm">
+                        {errorMessage}
+                    </p>
+                )}
+                <AlertDialogFooter>
+                    <AlertDialogCancel
+                        disabled={isPending}
+                        className={`hover:!border-[#6653fb] hover:!bg-[#fafbff] hover:!text-[#6653fb] dark:hover:!bg-[#fafbff] ${dialogButtonFocusClassName}`}
+                    >
+                        취소
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                        disabled={isPending}
+                        onClick={(event) => {
+                            // 삭제가 끝날 때까지 창을 닫지 않는다
+                            event.preventDefault();
+                            onConfirm();
+                        }}
+                        className={`hover:!bg-[#5745e7] dark:hover:!bg-[#5745e7] ${dialogButtonFocusClassName}`}
+                    >
+                        {isPending ? "삭제 중..." : "삭제"}
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    );
+}
+
 function NotificationListSkeleton() {
     return (
         <div role="status" aria-label="알림 불러오는 중" className="space-y-3">
@@ -190,6 +259,8 @@ export function NotificationsPage() {
     const query = useNotificationsQuery(filter === "all" ? undefined : toCategoryParam(filter));
     const readMutation = useReadNotificationMutation();
     const deleteMutation = useDeleteNotificationMutation();
+    const deleteAllMutation = useDeleteAllNotificationsMutation();
+    const [deleteAllOpen, setDeleteAllOpen] = useState(false);
     const pages = query.data?.pages ?? [];
     // 탭을 바꾸는 동안은 이전 탭 목록(placeholder)을 감추고 탭 숫자만 유지한다
     const visible = query.isPlaceholderData ? [] : pages.flatMap((page) => page.content);
@@ -198,6 +269,15 @@ export function NotificationsPage() {
         value === "all"
             ? Object.values(statusCounts).reduce((sum, count) => sum + count, 0)
             : (statusCounts[toCategoryParam(value)] ?? 0);
+    const filterLabel =
+        filter === "all"
+            ? null
+            : (notificationFilters.find((item) => item.value === filter)?.label ?? null);
+    const canDeleteAll = !query.isPending && !query.isPlaceholderData && visible.length > 0;
+    const confirmDeleteAll = () =>
+        deleteAllMutation.mutate(filter === "all" ? undefined : toCategoryParam(filter), {
+            onSuccess: () => setDeleteAllOpen(false),
+        });
 
     return (
         <main className="flex-1 bg-white">
@@ -262,6 +342,23 @@ export function NotificationsPage() {
                         </p>
                     )}
                     <div className="max-w-[976px] space-y-6">
+                        {canDeleteAll && (
+                            <div className="flex justify-end">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="rounded-full border-[#dcd8ff] text-[13px] font-semibold text-[#83889e] hover:border-[#6653fb] hover:bg-[#fafbff] hover:text-[#6653fb] focus-visible:border-[#6653fb] focus-visible:ring-[#6653fb]/30"
+                                    onClick={() => {
+                                        deleteAllMutation.reset();
+                                        setDeleteAllOpen(true);
+                                    }}
+                                >
+                                    <Trash2 aria-hidden="true" />
+                                    {filterLabel ? `${filterLabel} 알림 전체 삭제` : "전체 삭제"}
+                                </Button>
+                            </div>
+                        )}
                         {query.isPending || query.isPlaceholderData ? (
                             <NotificationListSkeleton />
                         ) : query.isError ? (
@@ -320,6 +417,18 @@ export function NotificationsPage() {
                     </div>
                 </div>
             </div>
+            <DeleteAllNotificationsDialog
+                open={deleteAllOpen}
+                onOpenChange={setDeleteAllOpen}
+                targetLabel={filterLabel}
+                onConfirm={confirmDeleteAll}
+                isPending={deleteAllMutation.isPending}
+                errorMessage={
+                    deleteAllMutation.isError
+                        ? `알림을 삭제하지 못했습니다. ${getApiErrorMessage(deleteAllMutation.error)}`
+                        : null
+                }
+            />
         </main>
     );
 }
