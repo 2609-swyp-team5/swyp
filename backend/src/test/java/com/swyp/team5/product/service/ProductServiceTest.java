@@ -443,20 +443,20 @@ class ProductServiceTest {
         verify(productAnalysisService, never()).calculateMarketAveragePrice(any(Product.class));
     }
 
-    // 상품 상세 조회 - 시세 분석 이력이 없으면 유사 매물로 평균가를 바로 계산(유사 매물 부족 시 null)
+    // 상품 상세 조회 - 시세 분석 이력이 없으면 평균가도 비운다(AI 선별 전 단순 평균으로 "평균보다 몇 %"를 보여 주지 않음)
     @Test
-    void getProductCalculatesAveragePriceWhenNoAnalysis() {
+    void getProductLeavesAveragePriceEmptyWhenNoAnalysis() {
         Product product = newProduct(1L, newMember(1L), newCategory(1L, "전자기기"));
         when(itemRepository.findById(1L)).thenReturn(Optional.of(product));
         when(productAnalysisRepository.findFirstByItemIdOrderByAnalyzedAtDesc(1L))
                 .thenReturn(Optional.empty());
-        when(productAnalysisService.calculateMarketAveragePrice(product)).thenReturn(Optional.of(430_000L));
         when(interestRepository.countByItemId(1L)).thenReturn(2L);
 
         ProductResponse response = service().getProduct(1L, 2L);
 
         assertThat(response.recommendation()).isNull();
-        assertThat(response.marketAveragePrice()).isEqualTo(430_000L);
+        assertThat(response.marketAveragePrice()).isNull();
+        verifyNoInteractions(productAnalysisService);
         assertThat(response.analysisDescription()).isNull();
         // 판매자 본인이 아니어도 관심 수·조회수는 보이고, 게시 플랫폼은 내려주지 않음
         assertThat(response.platforms()).isNull();
