@@ -45,9 +45,6 @@ export function SearchPage() {
         }
     }
     const interests = useInterestToggle();
-    const liked = Object.fromEntries(
-        interests.interests.map((item) => [`${item.source}:${item.targetId}`, true]),
-    );
     const handleScrollToTop = useSmoothScroll();
     const isInitialized = useAuthStore((state) => state.isInitialized);
     const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -133,9 +130,11 @@ export function SearchPage() {
                         keyword={submittedKeyword}
                         products={products}
                         totalCount={data?.pages[0]?.totalCount ?? null}
-                        liked={liked}
                         onLike={(product) =>
-                            interests.toggle({ source: product.source, targetId: product.id })
+                            interests.toggle(
+                                { source: product.source, targetId: product.id },
+                                { interestId: product.interestId },
+                            )
                         }
                         likeDisabled={interests.disabled}
                         isLoading={!isInitialized || isPending}

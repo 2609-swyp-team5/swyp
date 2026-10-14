@@ -84,6 +84,8 @@ export const productSummaryResponseSchema = z.object({
     recommendation: productRecommendationSchema.nullable(),
     marketAveragePrice: z.number().nullable(),
     createdAt: z.string(),
+    favorite: z.boolean(),
+    interestId: z.number().nullable(),
 });
 
 export const productSummaryPageResponseSchema = z.object({
