@@ -201,3 +201,94 @@ test("notifications filter their preview list and keep navigation working", asyn
     await main.getByRole("tab", { name: "전체 5", exact: true }).click();
     await expect(main.getByRole("heading", { name: "서비스 점검 안내" })).toBeVisible();
 });
+
+test("notifications can be deleted all at once or per tab after confirming", async ({
+    page,
+}, testInfo) => {
+    const now = new Date().toISOString();
+    let notifications = [
+        { notificationId: 3, type: "SELL", title: "아이폰 13 지금 판매 추천", productId: 10 },
+        { notificationId: 2, type: "BUY", title: "다이슨 에어랩 시세 하락 중", productId: null },
+        { notificationId: 1, type: "HOLD", title: "맥북 에어 판매 대기 추천", productId: 40 },
+    ].map((item) => ({
+        ...item,
+        message: `${item.title} 설명`,
+        listingId: item.productId === null ? 20 : null,
+        isRead: false,
+        createdAt: now,
+    }));
+    const categoryTypes: Record<string, string[]> = {
+        SELL: ["SELL", "HOLD"],
+        BUY: ["BUY"],
+        PRICE: [],
+        PLATFORM: [],
+        NOTICE: [],
+    };
+    const inCategory = (category: string | null) =>
+        category
+            ? notifications.filter((item) => categoryTypes[category].includes(item.type))
+            : notifications;
+    const deleteCalls: (string | null)[] = [];
+    await page.route("**/auth/refresh", (route) =>
+        route.fulfill({
+            json: { success: true, data: { accessToken: "notifications-delete" }, error: null },
+        }),
+    );
+    await page.route(
+        (url) => url.pathname === "/notifications",
+        (route) => {
+            if (route.request().isNavigationRequest()) return route.fallback();
+            const category = new URL(route.request().url()).searchParams.get("category");
+            if (route.request().method() === "DELETE") {
+                deleteCalls.push(category);
+                const deleted = inCategory(category);
+                notifications = notifications.filter((item) => !deleted.includes(item));
+                return route.fulfill({
+                    json: { success: true, data: { deletedCount: deleted.length }, error: null },
+                });
+            }
+            const content = inCategory(category);
+            return route.fulfill({
+                json: {
+                    success: true,
+                    data: {
+                        content,
+                        nextCursor: null,
+                        hasNext: false,
+                        totalCount: content.length,
+                        statusCounts: Object.fromEntries(
+                            Object.keys(categoryTypes).map((key) => [key, inCategory(key).length]),
+                        ),
+                    },
+                    error: null,
+                },
+            });
+        },
+    );
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/notifications");
+    const main = page.getByRole("main");
+    await expect(main.locator('[data-slot="card"]')).toHaveCount(3);
+
+    await main.getByRole("tab", { name: "판매추천 2", exact: true }).click();
+    await main.getByRole("button", { name: "판매추천 알림 전체 삭제" }).click();
+    const dialog = page.getByRole("alertdialog", { name: "판매추천 알림을 모두 삭제할까요?" });
+    await expect(dialog).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("notifications-delete-dialog.png") });
+    await dialog.getByRole("button", { name: "삭제", exact: true }).click();
+    await expect(dialog).toBeHidden();
+    await expect(main.getByText("해당하는 알림이 없습니다.")).toBeVisible();
+    await expect(main.getByRole("tab", { name: "전체 1", exact: true })).toBeVisible();
+
+    await main.getByRole("tab", { name: "전체 1", exact: true }).click();
+    await expect(main.locator('[data-slot="card"]')).toHaveCount(1);
+    await page.screenshot({ path: testInfo.outputPath("notifications-delete-all-button.png") });
+    await main.getByRole("button", { name: "전체 삭제", exact: true }).click();
+    await page
+        .getByRole("alertdialog", { name: "알림을 모두 삭제할까요?" })
+        .getByRole("button", { name: "삭제", exact: true })
+        .click();
+    await expect(main.getByText("아직 받은 알림이 없습니다.")).toBeVisible();
+    await expect(main.getByRole("button", { name: "전체 삭제", exact: true })).toHaveCount(0);
+    expect(deleteCalls).toEqual(["SELL", null]);
+});
