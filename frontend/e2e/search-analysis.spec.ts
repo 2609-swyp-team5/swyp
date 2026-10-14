@@ -12,9 +12,22 @@ import {
 async function mockDetailAnalysis(
     page: Page,
     productId: number,
-    { member, hasAnalysis = true }: { member: boolean; hasAnalysis?: boolean },
+    {
+        member,
+        hasAnalysis = true,
+        prices,
+    }: {
+        member: boolean;
+        hasAnalysis?: boolean;
+        prices?: {
+            minPrice: number;
+            averagePrice: number;
+            suggestedPrice: number;
+            maxPrice: number;
+        };
+    },
 ) {
-    const result = createProductMarketAnalysisMock(productId, "BUY", "BUY");
+    const result = { ...createProductMarketAnalysisMock(productId, "BUY", "BUY"), ...prices };
     const similar = createProductCompetitionMock(productId, "BUY");
     const calls = { analysis: 0, details: 0, requested: 0 };
     let analyzed = hasAnalysis;
@@ -135,6 +148,37 @@ test("members see the shared AI analysis right away and load details only from �
         similar.competition.items[0].title,
     );
     expect(calls.details).toBe(3);
+});
+
+test("price distribution keeps every point inside the bar when the suggested price is below the lowest", async ({
+    page,
+}) => {
+    const productId = 79;
+    await mockDetailAnalysis(page, productId, {
+        member: true,
+        prices: { minPrice: 20000, averagePrice: 24000, suggestedPrice: 19000, maxPrice: 27000 },
+    });
+    await page.goto(`/search/${productId}`);
+    await page.getByRole("button", { name: /상세 시세 분석 보기/ }).click();
+
+    const card = page.locator('[data-slot="card"]', { hasText: "거래 가격 분포" });
+    await expect(card).toBeVisible();
+    const cardBox = await card.boundingBox();
+    const boxes = new Map<string, NonNullable<typeof cardBox>>();
+    for (const key of ["min", "average", "max", "suggested"]) {
+        const box = await card.getByTestId(`price-distribution-point-${key}`).boundingBox();
+        expect(box, key).not.toBeNull();
+        expect(box!.x, key).toBeGreaterThanOrEqual(cardBox!.x);
+        expect(box!.x + box!.width, key).toBeLessThanOrEqual(cardBox!.x + cardBox!.width);
+        boxes.set(key, box!);
+    }
+    const centerOf = (key: string) => boxes.get(key)!.x + boxes.get(key)!.width / 2;
+    expect(centerOf("suggested")).toBeLessThan(centerOf("min"));
+    expect(centerOf("min")).toBeLessThan(centerOf("average"));
+    expect(centerOf("average")).toBeLessThan(centerOf("max"));
+    for (const label of ["최저", "평균", "최고"]) {
+        await expect(card.getByText(label, { exact: true })).toBeVisible();
+    }
 });
 
 test("members can request an analysis when none exists yet", async ({ page }) => {
