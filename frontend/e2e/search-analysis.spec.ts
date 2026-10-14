@@ -35,7 +35,7 @@ async function mockDetailAnalysis(
         onSale: { ...baseDistribution.onSale, ...prices },
     };
     const similar = createProductCompetitionMock(productId, "BUY");
-    const calls = { analysis: 0, details: 0, requested: 0 };
+    const calls = { analysis: 0, details: 0, requested: 0, forced: 0 };
     let analyzed = hasAnalysis;
 
     if (member) {
@@ -67,6 +67,10 @@ async function mockDetailAnalysis(
         (route) => {
             if (route.request().method() === "POST") {
                 calls.requested++;
+                // force=true는 판매자 본인 상품만 허용돼 구매자 화면에서 보내면 403이 난다
+                if (new URL(route.request().url()).searchParams.get("force") === "true") {
+                    calls.forced++;
+                }
                 analyzed = true;
                 return route.fulfill({
                     json: {
@@ -256,4 +260,5 @@ test("members can request an analysis when none exists yet", async ({ page }) =>
     await expect(completedDialog).toBeHidden();
     await expect(section).toContainText(result.description);
     expect(calls.requested).toBe(1);
+    expect(calls.forced).toBe(0);
 });
