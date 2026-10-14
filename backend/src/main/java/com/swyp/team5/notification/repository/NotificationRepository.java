@@ -46,6 +46,17 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     long countByMemberIdAndTypeInAndCreatedAtGreaterThanEqual(
             Long memberId, Collection<NotificationType> types, LocalDateTime from);
 
+    /** 회원의 알림을 모두 지운다(알림 전체 삭제). */
+    @Modifying(flushAutomatically = true)
+    @Query("DELETE FROM Notification n WHERE n.member.id = :memberId")
+    int deleteAllByMemberId(@Param("memberId") Long memberId);
+
+    /** 회원의 알림 중 주어진 종류만 지운다(탭 단위 전체 삭제). */
+    @Modifying(flushAutomatically = true)
+    @Query("DELETE FROM Notification n WHERE n.member.id = :memberId AND n.type IN :types")
+    int deleteAllByMemberIdAndTypeIn(
+            @Param("memberId") Long memberId, @Param("types") Collection<NotificationType> types);
+
     /** 상품 삭제 전 정리용 — 이 상품을 대상으로 한 알림(모든 회원)을 지운다. */
     @Modifying(flushAutomatically = true)
     @Query("DELETE FROM Notification n WHERE n.item.id = :itemId")

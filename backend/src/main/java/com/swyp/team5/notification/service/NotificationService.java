@@ -25,6 +25,7 @@ import com.swyp.team5.interest.entity.Interest;
 import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.notification.dto.NotificationCategory;
+import com.swyp.team5.notification.dto.NotificationDeleteAllResponse;
 import com.swyp.team5.notification.dto.NotificationReadResponse;
 import com.swyp.team5.notification.dto.NotificationResponse;
 import com.swyp.team5.notification.dto.NotificationUnreadCountResponse;
@@ -107,6 +108,20 @@ public class NotificationService {
      */
     public void delete(Long memberId, Long notificationId) {
         notificationRepository.delete(getNotificationOrThrow(memberId, notificationId));
+    }
+
+    /**
+     * 본인 알림을 한꺼번에 지운다. 탭을 주면 그 탭에 속한 알림만 지운다.
+     *
+     * @param category 지울 탭(선택, {@code null}이면 전체)
+     * @return 지운 알림 수
+     */
+    public NotificationDeleteAllResponse deleteAll(Long memberId, NotificationCategory category) {
+        int deleted = category == null
+                ? notificationRepository.deleteAllByMemberId(memberId)
+                : notificationRepository.deleteAllByMemberIdAndTypeIn(
+                        memberId, NotificationCategory.typesOf(Set.of(category)));
+        return new NotificationDeleteAllResponse(deleted);
     }
 
     /**

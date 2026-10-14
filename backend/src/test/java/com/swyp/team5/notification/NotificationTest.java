@@ -342,6 +342,38 @@ class NotificationTest extends IntegrationTest {
         assertThat(notificationRepository.existsById(notification.getId())).isFalse();
     }
 
+    // 전체 삭제 - 탭을 주면 그 탭만, 없으면 본인 알림 전부 지우고 남의 알림은 그대로
+    @Test
+    void deleteAllRemovesOwnNotificationsByCategory() throws Exception {
+        saveNotifications(
+                owner, NotificationType.SELL, NotificationType.HOLD, NotificationType.BUY, NotificationType.NOTICE);
+        saveNotifications(other, NotificationType.SELL, NotificationType.NOTICE);
+
+        mockMvc.perform(delete("/notifications")
+                        .param("category", "SELL")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.deletedCount").value(2));
+
+        mockMvc.perform(get("/notifications").header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
+                .andExpect(jsonPath("$.data.content[*].type").value(containsInAnyOrder("BUY", "NOTICE")));
+
+        mockMvc.perform(delete("/notifications").header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.deletedCount").value(2));
+
+        mockMvc.perform(get("/notifications").header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
+                .andExpect(jsonPath("$.data.totalCount").value(0));
+        mockMvc.perform(get("/notifications").header(HttpHeaders.AUTHORIZATION, "Bearer " + otherToken))
+                .andExpect(jsonPath("$.data.totalCount").value(2));
+    }
+
+    // 전체 삭제 - 인증 없으면 401
+    @Test
+    void deleteAllFailsWithoutAuthentication() throws Exception {
+        mockMvc.perform(delete("/notifications")).andExpect(status().isUnauthorized());
+    }
+
     // 추천 전환 알림 - SELL/HOLD는 판매자에게만, BUY/WAIT는 관심 등록 회원에게(실제 DB로 수신자 조회 쿼리와 enum 값 검증)
     @Test
     void recommendationChangeCreatesNotificationsForRecipients() throws Exception {
