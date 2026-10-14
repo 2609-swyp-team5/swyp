@@ -433,6 +433,14 @@ test("search response interest state does not depend on the full interest list",
             });
         },
     );
+    let deleted = false;
+    await page.route("**/interests/2000", (route) => {
+        expect(route.request().method()).toBe("DELETE");
+        deleted = true;
+        return route.fulfill({
+            json: { success: true, data: null, error: null },
+        });
+    });
     await page.route(
         (url) => url.pathname === "/products" && url.searchParams.has("size"),
         (route) =>
@@ -455,6 +463,7 @@ test("search response interest state does not depend on the full interest list",
     await expect(favorite).toHaveAttribute("aria-pressed", "true");
     await favorite.click();
     await expect(favorite).toHaveAttribute("aria-pressed", "false");
+    expect(deleted).toBe(true);
     expect(interestListGets).toBe(0);
 });
 
