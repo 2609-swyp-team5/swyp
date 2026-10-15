@@ -94,6 +94,7 @@ const product: ProductResponse = {
     allowPriceSuggestion: true,
     tradeMethod: "DELIVERY",
     deliveryType: "PREPAID",
+    deliveryFee: 3000,
     preferredTradeRegion: null,
     imageUrls: [
         "https://example.com/product-1.jpg",
@@ -237,7 +238,10 @@ describe("ProductReviewPage", () => {
         ).toBeInTheDocument();
         expect(screen.getAllByText(product.title)).toHaveLength(1);
         expect(screen.getAllByText("335,000원")).toHaveLength(3);
-        expect(screen.getByText("별도")).toBeInTheDocument();
+        expect(screen.getByText("배송비 별도 (3,000원)")).toBeInTheDocument();
+        expect(screen.getByText("카테고리")).toBeInTheDocument();
+        expect(screen.getByText("가격 제안")).toBeInTheDocument();
+        expect(screen.getByText("거래 희망 지역")).toBeInTheDocument();
         expect(screen.getByText("body, charging-cable")).toBeInTheDocument();
         expect(screen.getByText("#니콘FM2")).toBeInTheDocument();
         expect(screen.getByRole("heading", { name: "추천 이유" })).toBeInTheDocument();
