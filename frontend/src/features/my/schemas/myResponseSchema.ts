@@ -6,7 +6,7 @@ export const myProductSchema = productSummaryResponseSchema.extend({
     platformName: z.string().nullable(),
 });
 
-export const myPlatformTypeSchema = z.enum(["BUNJANG"]);
+export const myPlatformTypeSchema = z.enum(["BUNJANG", "JOONGNA"]);
 export const myPlatformStatusSchema = z.enum(["CONNECTED", "EXPIRED", "DISCONNECTED"]);
 
 export const bunjangCarrierSchema = z.enum([

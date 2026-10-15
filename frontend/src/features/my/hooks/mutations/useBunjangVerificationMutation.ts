@@ -43,7 +43,7 @@ export function useBunjangVerificationMutation() {
             }
 
             if (result.status !== "CONNECTED") {
-                throw new Error("번개장터 연결에 실패했습니다. 다시 시도해 주세요.");
+                throw new Error("플랫폼 연결에 실패했습니다. 다시 시도해 주세요.");
             }
 
             return result;

@@ -281,11 +281,17 @@ test("search filters send platform, prices, conditions and keywords across curso
     await expect.poll(() => requests.some((params) => params.has("cursor"))).toBe(true);
     await page.getByRole("checkbox", { name: "번개장터", exact: true }).check();
     await expect.poll(() => requests.at(-1)?.getAll("platform")).toEqual(["BUNJANG"]);
+    await page.getByRole("checkbox", { name: "중고나라", exact: true }).check();
+    await expect.poll(() => requests.at(-1)?.getAll("platform")).toEqual(["BUNJANG", "JOONGNA"]);
     await page.getByRole("checkbox", { name: "지금이니", exact: true }).check();
-    await expect.poll(() => requests.at(-1)?.getAll("platform")).toEqual(["BUNJANG", "OUR"]);
+    await expect
+        .poll(() => requests.at(-1)?.getAll("platform"))
+        .toEqual(["BUNJANG", "JOONGNA", "OUR"]);
     await expect(page.getByRole("checkbox", { name: "번개장터", exact: true })).toBeChecked();
     await expect(page.getByRole("checkbox", { name: "전체", exact: true })).not.toBeChecked();
     await page.getByRole("checkbox", { name: "번개장터", exact: true }).uncheck();
+    await expect.poll(() => requests.at(-1)?.getAll("platform")).toEqual(["JOONGNA", "OUR"]);
+    await page.getByRole("checkbox", { name: "중고나라", exact: true }).uncheck();
     await expect.poll(() => requests.at(-1)?.getAll("platform")).toEqual(["OUR"]);
     await page.getByRole("checkbox", { name: "전체", exact: true }).check();
     await expect.poll(() => requests.at(-1)?.has("platform")).toBe(false);

@@ -30,6 +30,13 @@ const connectedPlatform = {
     updatedAt: "2026-10-04T10:00:00",
 };
 
+const connectedJoongnaPlatform = {
+    platform: "JOONGNA" as const,
+    platformName: "중고나라",
+    status: "CONNECTED" as const,
+    updatedAt: "2026-10-04T10:00:00",
+};
+
 const postedProductPlatform = {
     platform: "BUNJANG" as const,
     platformName: "번개장터",
@@ -90,6 +97,43 @@ describe("PlatformPublishDialog", () => {
             "target",
             "_blank",
         );
+    });
+
+    it("shows and publishes a connected Joongna platform", async () => {
+        const user = userEvent.setup();
+        const mutateAsync = vi.fn().mockResolvedValue({
+            productPlatformId: 2,
+            productId: 42,
+            externalProductId: "joongna-42",
+            productUrl: "https://web.joongna.com/product/joongna-42",
+            status: "POSTED",
+            updatedAt: "2026-10-04T10:00:00",
+        });
+        useMyPlatformsQuery.mockReturnValue({
+            data: [connectedPlatform, connectedJoongnaPlatform],
+            error: null,
+            isPending: false,
+            refetch: vi.fn(),
+        });
+        usePublishProductMutation.mockReturnValue({
+            isPending: false,
+            mutateAsync,
+        });
+
+        render(
+            <PlatformPublishDialog productId={42} existingPlatforms={[]}>
+                <Button type="button">다른 플랫폼에 등록하기</Button>
+            </PlatformPublishDialog>,
+        );
+
+        await user.click(screen.getByRole("button", { name: "다른 플랫폼에 등록하기" }));
+        await user.click(screen.getByRole("checkbox", { name: "중고나라 게시 선택" }));
+        await user.click(screen.getByRole("button", { name: "선택한 플랫폼에 게시하기" }));
+
+        expect(
+            await screen.findByRole("link", { name: "중고나라 상품 페이지 바로가기" }),
+        ).toHaveAttribute("href", "https://web.joongna.com/product/joongna-42");
+        expect(mutateAsync).toHaveBeenCalledWith({ productId: 42, platform: "JOONGNA" });
     });
 
     it("hides the checkbox and shows a shortcut for an already posted platform", async () => {

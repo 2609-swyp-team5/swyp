@@ -32,10 +32,11 @@ test("search keyword, sort and filters are kept in the URL and restored on reloa
     await page.getByRole("option", { name: "낮은 가격순", exact: true }).click();
     await page.getByRole("checkbox", { name: "판매중", exact: true }).check();
     await page.getByRole("checkbox", { name: "번개장터", exact: true }).check();
+    await page.getByRole("checkbox", { name: "중고나라", exact: true }).check();
     // 연달아 바꿔도 마지막 상태가 URL에 남는다
     await expect
         .poll(() => new URL(page.url()).searchParams.getAll("platform"))
-        .toEqual(["BUNJANG"]);
+        .toEqual(["BUNJANG", "JOONGNA"]);
     const url = new URL(page.url()).searchParams;
     expect(url.get("keyword")).toBe("아이폰");
     expect(url.get("sort")).toBe("PRICE_LOW");
@@ -46,11 +47,12 @@ test("search keyword, sort and filters are kept in the URL and restored on reloa
     await expect(page.getByRole("combobox", { name: "정렬 기준" })).toContainText("낮은 가격순");
     await expect(page.getByRole("checkbox", { name: "판매중", exact: true })).toBeChecked();
     await expect(page.getByRole("checkbox", { name: "번개장터", exact: true })).toBeChecked();
+    await expect(page.getByRole("checkbox", { name: "중고나라", exact: true })).toBeChecked();
     const last = requests.at(-1)!;
     expect(last.get("keyword")).toBe("아이폰");
     expect(last.get("sort")).toBe("PRICE_LOW");
     expect(last.getAll("status")).toEqual(["ON_SALE"]);
-    expect(last.getAll("platform")).toEqual(["BUNJANG"]);
+    expect(last.getAll("platform")).toEqual(["BUNJANG", "JOONGNA"]);
 });
 
 test("going back returns to the previous search keyword", async ({ page }) => {
@@ -72,12 +74,12 @@ test("going back returns to the previous search keyword", async ({ page }) => {
 test("invalid URL values are ignored when searching", async ({ page }) => {
     const requests = await recordSearches(page);
     await page.goto(
-        "/search?keyword=노트북&sort=WRONG&platform=BUNJANG&platform=NOPE&minPrice=abc",
+        "/search?keyword=노트북&sort=WRONG&platform=BUNJANG&platform=JOONGNA&platform=NOPE&minPrice=abc",
     );
     await expect.poll(() => requests.length).toBeGreaterThan(0);
     const last = requests.at(-1)!;
     expect(last.get("keyword")).toBe("노트북");
     expect(last.get("sort")).toBe("LATEST");
-    expect(last.getAll("platform")).toEqual(["BUNJANG"]);
+    expect(last.getAll("platform")).toEqual(["BUNJANG", "JOONGNA"]);
     expect(last.has("minPrice")).toBe(false);
 });

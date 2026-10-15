@@ -16,6 +16,11 @@ export const platformDefinitions: Record<MyPlatformType, PlatformDefinition> = {
         icon: "/my/platforms/bunjang.png",
         description: "중고거래 플랫폼",
     },
+    JOONGNA: {
+        name: "중고나라",
+        icon: "/my/platforms/joongna.png",
+        description: "중고거래 플랫폼",
+    },
 };
 
 export function getPlatformDefinition(
