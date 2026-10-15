@@ -629,9 +629,10 @@ test("withdrawal disables repeat submissions and redirects after success", async
     await expect(dialog).toContainText("회원 탈퇴가 완료되었습니다.");
     await dialog.getByRole("button", { name: "확인", exact: true }).click();
     await expect(page).toHaveURL(/\/login$/);
+    await expect(page.locator('button[form="login-form"]')).toBeVisible();
     await expect(
-        page.getByRole("banner").getByRole("button", { name: "로그인", exact: true }),
-    ).toBeVisible();
+        page.getByRole("banner").getByRole("link", { name: "프로필", exact: true }),
+    ).toHaveCount(0);
     expect(requests).toBe(1);
 });
 

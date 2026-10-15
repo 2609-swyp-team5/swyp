@@ -50,11 +50,11 @@ export function AnalysisSection() {
                             titleClassName="typography-heading-01"
                             title={
                                 <>
-                                    <span className="xl:whitespace-nowrap">
+                                    <span className="break-keep xl:whitespace-nowrap">
                                         시세부터 실거래까지,
                                     </span>
                                     <br />
-                                    <span className="xl:whitespace-nowrap">
+                                    <span className="break-keep xl:whitespace-nowrap">
                                         타이밍의 근거를 확인하세요
                                     </span>
                                 </>

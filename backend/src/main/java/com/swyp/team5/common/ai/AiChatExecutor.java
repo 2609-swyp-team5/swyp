@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 import reactor.core.publisher.Flux;
@@ -19,6 +20,7 @@ import reactor.core.publisher.Flux;
  * suppressed로 붙여 던진다.
  */
 @Slf4j
+@Primary
 @Component
 public class AiChatExecutor {
 

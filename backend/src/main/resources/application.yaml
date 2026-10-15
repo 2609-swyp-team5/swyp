@@ -186,6 +186,7 @@ product:
 
 # 지금이니 AI 대화 답변 스트림(SSE, Accept: text/event-stream)
 ai-chat:
+  thinking-level: ${AI_CHAT_THINKING_LEVEL:MINIMAL} # Gemini 생각 정도(MINIMAL/LOW/MEDIUM/HIGH) — 대화는 응답 속도 우선
   stream:
     core-pool-size: 4 # 답변 처리 스레드 기본 수
     max-pool-size: 8 # 답변 처리 스레드 최대 수

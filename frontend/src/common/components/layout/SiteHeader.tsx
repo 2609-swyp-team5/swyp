@@ -152,7 +152,7 @@ export function SiteHeader() {
                                 <ProfileAvatar src={member?.profileImageUrl} size="header" />
                             </Link>
                         </Button>
-                    ) : (
+                    ) : isAuthPage ? null : (
                         <Button
                             type="button"
                             onClick={() => {

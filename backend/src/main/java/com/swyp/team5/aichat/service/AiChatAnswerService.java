@@ -12,8 +12,10 @@ import java.util.regex.Pattern;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
+import com.swyp.team5.aichat.config.AiChatModelConfig;
 import com.swyp.team5.aichat.dto.AiChatStep;
 import com.swyp.team5.aichat.dto.AiChatStreamEvent;
 import com.swyp.team5.aichat.entity.AiChatIntent;
@@ -89,7 +91,7 @@ public class AiChatAnswerService {
             ProductService productService,
             ProductAnalysisService productAnalysisService,
             AnalysisRequestService analysisRequestService,
-            AiChatExecutor aiChatExecutor) {
+            @Qualifier(AiChatModelConfig.EXECUTOR) AiChatExecutor aiChatExecutor) {
         this.interpreter = interpreter;
         this.productService = productService;
         this.productAnalysisService = productAnalysisService;

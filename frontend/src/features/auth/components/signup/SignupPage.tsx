@@ -144,7 +144,7 @@ export function SignupPage() {
                         type="submit"
                         form="signup-form"
                         disabled={isBusy}
-                        className="bg-primary text-primary-foreground typography-body-large ml-auto h-[58px] rounded-full px-[50px] font-semibold hover:bg-[#5745e7] focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30 dark:bg-[#6653fb] dark:text-white dark:hover:bg-[#5745e7]"
+                        className="bg-primary text-primary-foreground typography-body-large h-[52px] w-full rounded-full px-[50px] font-semibold hover:bg-[#5745e7] focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30 md:ml-auto md:h-[58px] md:w-auto dark:bg-[#6653fb] dark:text-white dark:hover:bg-[#5745e7]"
                     >
                         {isBusy ? "가입 중..." : "동의하고 가입하기"}
                     </Button>
