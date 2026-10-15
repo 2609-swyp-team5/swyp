@@ -183,7 +183,9 @@ describe("ProductReviewPage", () => {
         render(<ProductReviewPage />);
 
         expect(
-            screen.getByRole("heading", { name: "번개장터에 올리려면 사이즈 입력이 필요해요" }),
+            screen.getByRole("heading", {
+                name: "다른 플랫폼에 등록하려면 사이즈 입력이 필요해요",
+            }),
         ).toBeInTheDocument();
         expect(screen.getByRole("link", { name: "추가 항목 입력하기" })).toHaveAttribute(
             "href",

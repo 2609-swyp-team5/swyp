@@ -5,10 +5,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.core.io.ClassPathResource;
+
 import com.swyp.team5.category.dto.CategoryOptionGroupResponse;
+import com.swyp.team5.category.dto.CategoryOptionGroupResponse.Child;
+import com.swyp.team5.category.dto.CategoryOptionGroupResponse.Value;
 import com.swyp.team5.category.dto.CategoryOptionSelection;
 import com.swyp.team5.category.entity.CategoryOptionType;
 import com.swyp.team5.category.entity.SelectedCategoryOption;
@@ -19,6 +24,7 @@ import com.swyp.team5.platform.entity.CategoryPlatform;
 import com.swyp.team5.platform.repository.CategoryPlatformRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 // 카테고리별 추가 항목 검증 단위 테스트(옵션 정의는 실제 스냅샷 리소스 사용).
@@ -134,6 +140,79 @@ class CategoryOptionServiceTest {
         assertThat(groups).extracting(CategoryOptionGroupResponse::name).containsExactly("사이즈");
         assertThat(groups.getFirst().required()).isTrue();
         assertThatThrownBy(() -> service.getOptions(404L)).isInstanceOf(CategoryNotFoundException.class);
+    }
+
+    // 스냅샷의 모든 카테고리·항목·값 — 필수 항목을 다 채우면 통과하고, 각 값은 이름 그대로 저장되며, 필수 항목 하나라도 빠지면 거절
+    @Test
+    void everySnapshotOptionValueResolves() throws Exception {
+        JsonNode categories;
+        try (InputStream input = new ClassPathResource(CategoryOptionCatalog.RESOURCE_PATH).getInputStream()) {
+            categories = new JsonMapper().readTree(input).get("categories");
+        }
+        long categoryId = 1_000L;
+        int checkedValues = 0;
+        for (String bunjangCategoryId : categories.propertyNames()) {
+            categoryId++;
+            givenBunjangCategory(categoryId, bunjangCategoryId);
+            List<CategoryOptionGroupResponse> groups = CATALOG.groupsOf(bunjangCategoryId);
+            List<CategoryOptionSelection> firstOfEach =
+                    groups.stream().map(group -> selectionOf(group, 0, 0)).toList();
+
+            for (CategoryOptionGroupResponse group : groups) {
+                for (int c = 0; c < group.children().size(); c++) {
+                    Child child = group.children().get(c);
+                    for (int v = 0; v < child.values().size(); v++) {
+                        CategoryOptionSelection selection = selectionOf(group, c, v);
+                        List<CategoryOptionSelection> inputs = firstOfEach.stream()
+                                .map(other -> other.groupId().equals(group.groupId()) ? selection : other)
+                                .toList();
+                        SelectedCategoryOption saved = service.resolve(categoryId, inputs).stream()
+                                .filter(option -> option.groupId().equals(group.groupId()))
+                                .findFirst()
+                                .orElseThrow();
+                        assertThat(saved.groupName()).isEqualTo(group.name());
+                        assertThat(saved.childName()).isEqualTo(child.name());
+                        assertThat(saved.type()).isEqualTo(child.type());
+                        assertThat(saved.value())
+                                .isEqualTo(
+                                        child.type().needsText()
+                                                ? selection.text()
+                                                : child.values().get(v).value());
+                        checkedValues++;
+                    }
+                }
+                if (group.required()) {
+                    long id = categoryId;
+                    List<CategoryOptionSelection> missing = firstOfEach.stream()
+                            .filter(other -> !other.groupId().equals(group.groupId()))
+                            .toList();
+                    assertThatThrownBy(() -> service.resolve(id, missing))
+                            .isInstanceOf(InvalidCategoryOptionException.class)
+                            .hasMessage(group.title() + ".");
+                }
+            }
+            // 선택 항목은 비워도 통과
+            List<CategoryOptionSelection> requiredOnly = groups.stream()
+                    .filter(CategoryOptionGroupResponse::required)
+                    .map(group -> selectionOf(group, 0, 0))
+                    .toList();
+            assertThat(service.resolve(categoryId, requiredOnly)).hasSize(requiredOnly.size());
+        }
+        assertThat(categories.size()).isEqualTo(198);
+        assertThat(checkedValues).isEqualTo(4_742); // 스냅샷 전체 값 수(재수집하면 갱신)
+    }
+
+    private static CategoryOptionSelection selectionOf(
+            CategoryOptionGroupResponse group, int childIndex, int valueIndex) {
+        Child child = group.children().get(childIndex);
+        Value value = child.values().get(valueIndex);
+        String text =
+                switch (child.type()) {
+                    case DATE_TEXT_FIELD -> "20301231";
+                    case TEXT_FIELD -> "500×700×300mm";
+                    default -> null;
+                };
+        return new CategoryOptionSelection(group.groupId(), value.valueId(), text);
     }
 
     private void givenBunjangCategory(long categoryId, String bunjangCategoryId) {
