@@ -20,10 +20,13 @@ import com.swyp.team5.product.entity.TradeMethod;
 
 public record ProductUpdateRequest(
         @NotNull Long categoryId, // 카테고리 ID
-        @NotBlank @Size(max = 100) String title, // 상품 제목
+        @NotBlank @Size(min = 2, max = 100, message = "상품명은 2글자 이상 입력해 주세요.") String title, // 상품 제목
         @Size(max = 50) String brand, // 브랜드 (선택)
-        String description, // 상품 설명 (선택)
-        @NotNull @PositiveOrZero Long price, // 판매 희망가
+        @NotBlank @Size(min = 10, max = 2499, message = "상품 설명은 10자 이상 2500자 미만으로 입력해 주세요.") String description,
+        @NotNull
+                @Min(value = 500, message = "희망 가격은 500원 이상 1억 원 이하로 입력해 주세요.")
+                @Max(value = 100_000_000, message = "희망 가격은 500원 이상 1억 원 이하로 입력해 주세요.")
+                Long price, // 판매 희망가
         @NotNull ProductStatus status, // 게시 상태 (DRAFT/ON_SALE/SOLD_OUT)
         @NotNull ProductCondition condition, // 상품 상태 등급 (S/A/B/C/D)
         DefectStatus defectStatus, // 기존 요청 호환용(새 수정 화면에서는 사용하지 않음)
@@ -33,10 +36,11 @@ public record ProductUpdateRequest(
         DeliveryType deliveryType, // 배송비 부담 방식 (택배 거래 시)
         @Size(max = 100) String preferredTradeRegion, // 희망 거래 지역 (선택)
         List<@NotBlank String> imageUrls, // 유지할 기존 이미지 URL 목록 (새 파일(images 파트)은 이 뒤에 이어 붙어 전체 교체, 합쳐서 1장 이상)
-        List<@NotBlank @Size(max = 50) String> tags, // 태그 이름 목록 (전체 교체, 선택)
+        @Size(max = 5, message = "태그는 최대 5개까지 입력해 주세요.")
+                List<@NotBlank @Size(max = 50) String> tags, // 태그 이름 목록 (전체 교체, 선택)
         List<@NotBlank @Size(max = 50) String> includedItems, // 구성품 이름 목록 (전체 교체, 선택)
         List<@Valid CategoryOptionSelection> categoryOptions, // 카테고리별 추가 항목(미입력 시 서버 기본값 적용)
-        IncludedStatus includedStatus, // 구성품 상태(NONE/PARTIAL/ALL)
+        @NotNull(message = "구성품을 선택해 주세요.") IncludedStatus includedStatus, // 구성품 상태(NONE/PARTIAL/ALL)
         @Min(2700) @Max(17000) Long deliveryFee) { // 배송비 별도일 때 배송비
 
     /** 이전 클라이언트 요청과 기존 테스트 데이터도 읽을 수 있도록 구 요청 형태를 유지한다. */

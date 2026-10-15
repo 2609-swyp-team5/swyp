@@ -9,6 +9,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
@@ -143,9 +144,9 @@ public class ProductController {
             @RequestParam(required = false) @PositiveOrZero @Max(6) Integer purchasedMonths,
             @RequestParam(required = false) DefectStatus defectStatus,
             @RequestParam(required = false) List<@NotBlank @Size(max = 50) String> includedItems,
-            @RequestParam(required = false) ProductCondition condition,
-            @RequestParam(required = false) IncludedStatus includedStatus,
-            @RequestParam(required = false) TradeMethod tradeMethod,
+            @RequestParam @NotNull ProductCondition condition,
+            @RequestParam @NotNull IncludedStatus includedStatus,
+            @RequestParam @NotNull TradeMethod tradeMethod,
             @RequestParam(required = false) DeliveryType deliveryType,
             @RequestParam(required = false) @Min(2700) @Max(17000) Long deliveryFee,
             @RequestParam(required = false) @Size(max = 100) String preferredTradeRegion,

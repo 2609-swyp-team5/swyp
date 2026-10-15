@@ -64,6 +64,7 @@ import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.ProductImage;
 import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
+import com.swyp.team5.product.error.InvalidProductRequestException;
 import com.swyp.team5.product.error.InvalidProductSearchException;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductImageLimitExceededException;
@@ -162,6 +163,10 @@ public class ProductService {
      */
     @Transactional(readOnly = true)
     public void validateCreate(ProductCreateRequest request) {
+        ProductRegistrationPolicy.validateProductFields(
+                request.title(), request.description(), request.price(), request.tags(), request.includedStatus());
+        ProductRegistrationPolicy.validateTrade(
+                request.tradeMethod(), request.deliveryType(), request.deliveryFee(), request.preferredTradeRegion());
         getLeafCategoryOrThrow(request.categoryId());
         categoryOptionService.resolve(request.categoryId(), request.categoryOptions());
     }
@@ -221,7 +226,7 @@ public class ProductService {
             Integer purchasedMonths,
             DefectStatus defectStatus,
             List<String> includedItems) {
-        return saveFromAnalysis(
+        return saveFromAnalysisInternal(
                 memberId,
                 analysis,
                 imageUrls,
@@ -236,9 +241,43 @@ public class ProductService {
                 null);
     }
 
-    /** 새 AI 등록 화면의 상태·구성품·거래 방식을 저장한다. 구 요청 값은 하위 호환용으로만 사용한다. */
+    /** 새 AI 등록 화면의 상태·구성품·거래 방식을 저장한다. */
     @Transactional
     public ProductResponse saveFromAnalysis(
+            Long memberId,
+            ProductAiAnalysisResult analysis,
+            List<String> imageUrls,
+            Integer purchasedMonths,
+            DefectStatus defectStatus,
+            List<String> includedItems,
+            ProductCondition selectedCondition,
+            IncludedStatus includedStatus,
+            TradeMethod tradeMethod,
+            DeliveryType deliveryType,
+            Long deliveryFee,
+            String preferredTradeRegion) {
+        ProductRegistrationPolicy.validateAiAnalysis(analysis, includedStatus);
+        if (selectedCondition == null) {
+            throw new InvalidProductRequestException("condition", "상품 상태를 선택해 주세요.");
+        }
+        ProductRegistrationPolicy.validateTrade(tradeMethod, deliveryType, deliveryFee, preferredTradeRegion);
+        return saveFromAnalysisInternal(
+                memberId,
+                analysis,
+                imageUrls,
+                purchasedMonths,
+                defectStatus,
+                includedItems,
+                selectedCondition,
+                includedStatus,
+                tradeMethod,
+                deliveryType,
+                deliveryFee,
+                preferredTradeRegion);
+    }
+
+    @Transactional
+    private ProductResponse saveFromAnalysisInternal(
             Long memberId,
             ProductAiAnalysisResult analysis,
             List<String> imageUrls,
@@ -670,6 +709,10 @@ public class ProductService {
     public List<String> validateUpdate(Long memberId, Long productId, ProductUpdateRequest request, int newImageCount) {
         Product product = getProductOrThrow(productId);
         validateRegisteredBy(product, memberId);
+        ProductRegistrationPolicy.validateProductFields(
+                request.title(), request.description(), request.price(), request.tags(), request.includedStatus());
+        ProductRegistrationPolicy.validateTrade(
+                request.tradeMethod(), request.deliveryType(), request.deliveryFee(), request.preferredTradeRegion());
         getLeafCategoryOrThrow(request.categoryId());
         categoryOptionService.resolve(request.categoryId(), request.categoryOptions());
         validateImageCount(request, newImageCount);
@@ -809,6 +852,7 @@ public class ProductService {
      */
     @Transactional
     public ProductResponse updatePrice(Long memberId, Long productId, Long price) {
+        ProductRegistrationPolicy.validatePrice(price);
         Product product = getProductOrThrow(productId);
         validateRegisteredBy(product, memberId);
 

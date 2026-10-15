@@ -216,6 +216,7 @@ public class ProductRegisterStreamService implements DisposableBean {
             Long deliveryFee,
             String preferredTradeRegion,
             boolean withMarketAnalysis) {
+        ProductRegistrationPolicy.validateTrade(tradeMethod, deliveryType, deliveryFee, preferredTradeRegion);
         List<MultipartFile> copies = copyImages(images);
         return start(steps(AI_STEPS, withMarketAnalysis), stream -> {
             List<String> imageUrls = uploadImages(stream, copies);

@@ -56,6 +56,7 @@ import com.swyp.team5.platform.error.ProductPlatformAlreadyLinkedException;
 import com.swyp.team5.platform.error.ProductPlatformNotFoundException;
 import com.swyp.team5.platform.error.ProductPlatformPublishInProgressException;
 import com.swyp.team5.platform.error.UnsupportedPlatformException;
+import com.swyp.team5.product.error.InvalidProductRequestException;
 import com.swyp.team5.product.error.InvalidProductSearchException;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductImageLimitExceededException;
@@ -158,6 +159,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleInvalidProductSearch(InvalidProductSearchException e) {
         log.warn("상품 검색 조건 오류: {}", ErrorLogs.describe(e));
         return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
+    }
+
+    @ExceptionHandler(InvalidProductRequestException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidProductRequest(InvalidProductRequestException e) {
+        log.warn("상품 등록·수정 정책 위반: {}", ErrorLogs.describe(e));
+        return errorResponse(
+                HttpStatus.BAD_REQUEST,
+                "INVALID_INPUT_VALUE",
+                e.getMessage(),
+                List.of(new ErrorDetail(e.field(), e.getMessage())));
     }
 
     @ExceptionHandler(InvalidAiChatCursorException.class)
