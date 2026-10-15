@@ -33,10 +33,13 @@ export type DirectStatusPriceState = {
     allowPriceProposal: boolean;
     tradeMethod: DirectTradeMethod;
     deliveryType: DirectDeliveryType;
+    deliveryFee?: string;
     tradeLocation: string;
 };
 
 export type DirectStatusPriceErrors = {
     price: string;
     deliveryType: string;
+    deliveryFee: string;
+    tradeLocation: string;
 };

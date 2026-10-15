@@ -314,16 +314,14 @@ describe("productApi", () => {
             request: {
                 categoryId: 12,
                 title: "아이패드 프로 11인치",
-                brand: "Apple",
                 description: "스크래치가 거의 없습니다.",
                 price: 800000,
                 condition: "B",
-                defectStatus: "NORMAL",
-                purchasedMonths: 6,
-                includedItems: ["body", "charging-cable"],
+                includedStatus: "ALL",
                 allowPriceSuggestion: false,
                 tradeMethod: "DIRECT",
                 deliveryType: null,
+                deliveryFee: null,
                 preferredTradeRegion: "서울 강남구",
                 tags: ["애플", "아이패드"],
                 categoryOptions: [{ groupId: "100", valueId: 5, text: null }],
@@ -346,8 +344,8 @@ describe("productApi", () => {
         expect(requestPart).toBeInstanceOf(Blob);
         expect(JSON.parse(await readBlob(requestPart as Blob))).toMatchObject({
             categoryId: 12,
-            brand: "Apple",
-            includedItems: ["body", "charging-cable"],
+            includedStatus: "ALL",
+            deliveryFee: null,
             tags: ["애플", "아이패드"],
             categoryOptions: [{ groupId: "100", valueId: 5, text: null }],
             title: "아이패드 프로 11인치",
@@ -362,9 +360,12 @@ describe("productApi", () => {
 
         await productApi.createAiProduct({
             images,
-            purchasedMonths: 6,
-            operationStatus: "normal",
-            includedItems: ["body", "charging-cable"],
+            condition: "A",
+            includedStatus: "PARTIAL",
+            tradeMethod: "DELIVERY",
+            deliveryType: "INCLUDED",
+            deliveryFee: null,
+            preferredTradeRegion: null,
         });
 
         const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -374,9 +375,14 @@ describe("productApi", () => {
             expect.any(Object),
         );
         expect(formData.getAll("images")).toEqual(images);
-        expect(formData.get("purchasedMonths")).toBe("6");
-        expect(formData.get("defectStatus")).toBe("normal");
-        expect(formData.getAll("includedItems")).toEqual(["body", "charging-cable"]);
+        expect(formData.get("purchasedMonths")).toBeNull();
+        expect(formData.get("defectStatus")).toBe("unknown");
+        expect(formData.get("includedStatus")).toBe("PARTIAL");
+        expect(formData.get("condition")).toBe("A");
+        expect(formData.get("tradeMethod")).toBe("DELIVERY");
+        expect(formData.get("deliveryType")).toBe("INCLUDED");
+        expect(formData.get("deliveryFee")).toBeNull();
+        expect(formData.get("preferredTradeRegion")).toBeNull();
     });
 
     it("passes SSE step messages to the progress handler and resolves on complete", async () => {

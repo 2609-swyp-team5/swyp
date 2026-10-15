@@ -92,7 +92,7 @@ const initialValue: DirectRegisterInfoState = {
     subCategoryId: "",
     title: "아이패드 프로",
     brand: "Apple",
-    description: "상품 설명",
+    description: "상품 설명을 충분히 입력합니다.",
     tags: [],
     categoryOptions: [],
 };
@@ -179,9 +179,9 @@ describe("DirectRegisterInfoStep", () => {
         );
     });
 
-    it("shows an error instead of adding an eleventh tag", async () => {
+    it("shows an error instead of adding a sixth tag", async () => {
         const user = userEvent.setup();
-        const tags = Array.from({ length: 10 }, (_, index) => `태그${index + 1}`);
+        const tags = Array.from({ length: 5 }, (_, index) => `태그${index + 1}`);
 
         render(
             <DirectRegisterInfoStepHarness onNext={vi.fn()} initial={{ ...initialValue, tags }} />,
@@ -192,7 +192,7 @@ describe("DirectRegisterInfoStep", () => {
         await user.keyboard("{Enter}");
 
         expect(screen.getByRole("alert")).toHaveTextContent(
-            "태그는 최대 10개까지 추가할 수 있습니다.",
+            "태그는 최대 5개까지 추가할 수 있습니다.",
         );
     });
 

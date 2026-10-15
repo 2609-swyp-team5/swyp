@@ -439,14 +439,31 @@ const createDirectProduct = async (
 };
 
 const createAiProduct = async (
-    { images, purchasedMonths, operationStatus, includedItems }: AiProductCreateInput,
+    {
+        images,
+        condition,
+        purchasedMonths,
+        operationStatus,
+        includedItems,
+        includedStatus,
+        tradeMethod,
+        deliveryType,
+        deliveryFee,
+        preferredTradeRegion,
+    }: AiProductCreateInput,
     onProgress?: ProductRegisterProgressHandler,
 ) => {
     const parsedInput = aiProductCreateInputSchema.safeParse({
         images,
+        condition,
         purchasedMonths,
         operationStatus,
         includedItems,
+        includedStatus,
+        tradeMethod,
+        deliveryType,
+        deliveryFee,
+        preferredTradeRegion,
     });
 
     if (!parsedInput.success) {
@@ -459,12 +476,37 @@ const createAiProduct = async (
 
     parsedInput.data.images.forEach((image) => formData.append("images", image));
 
-    if (parsedInput.data.purchasedMonths !== null) {
+    if (parsedInput.data.condition) {
+        formData.append("condition", parsedInput.data.condition);
+    }
+
+    if (parsedInput.data.purchasedMonths != null) {
         formData.append("purchasedMonths", String(parsedInput.data.purchasedMonths));
     }
 
-    formData.append("defectStatus", parsedInput.data.operationStatus);
-    parsedInput.data.includedItems.forEach((item) => formData.append("includedItems", item));
+    // 현재 AI API의 필수 파라미터와 호환시키되, 화면에서는 하자 여부를 받지 않는다.
+    formData.append("defectStatus", parsedInput.data.operationStatus ?? "unknown");
+    parsedInput.data.includedItems?.forEach((item) => formData.append("includedItems", item));
+
+    if (parsedInput.data.includedStatus) {
+        formData.append("includedStatus", parsedInput.data.includedStatus);
+    }
+
+    if (tradeMethod) {
+        formData.append("tradeMethod", tradeMethod === "DIRECT" ? "DIRECT" : "DELIVERY");
+    }
+
+    if (deliveryType) {
+        formData.append("deliveryType", deliveryType);
+    }
+
+    if (deliveryFee != null) {
+        formData.append("deliveryFee", String(deliveryFee));
+    }
+
+    if (preferredTradeRegion?.trim()) {
+        formData.append("preferredTradeRegion", preferredTradeRegion.trim());
+    }
 
     return createProductWithSse("/products/analyze?withMarketAnalysis=true", formData, onProgress);
 };

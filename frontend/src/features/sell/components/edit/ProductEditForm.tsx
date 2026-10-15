@@ -36,6 +36,8 @@ type RegistrationMethod = "ai" | "direct";
 const initialStatusPriceErrors: DirectStatusPriceErrors = {
     price: "",
     deliveryType: "",
+    deliveryFee: "",
+    tradeLocation: "",
 };
 
 function RegistrationStepper({ currentStep }: { currentStep: EditStep }) {
@@ -211,6 +213,11 @@ export function ProductEditForm({
                 statusPrice.tradeMethod === "delivery" && !statusPrice.deliveryType
                     ? "배송비 부담 방식을 선택해 주세요."
                     : "",
+            deliveryFee: "",
+            tradeLocation:
+                statusPrice.tradeMethod === "direct" && !statusPrice.tradeLocation.trim()
+                    ? "거래 희망 지역을 선택해 주세요."
+                    : "",
         };
 
         setStatusPriceErrors(nextErrors);
@@ -383,12 +390,18 @@ export function ProductEditForm({
                                                       value === "direct"
                                                           ? null
                                                           : current.deliveryType,
+                                                  tradeLocation:
+                                                      value === "delivery"
+                                                          ? ""
+                                                          : current.tradeLocation,
                                               }
                                             : current,
                                     );
                                     setStatusPriceErrors((current) => ({
                                         ...current,
                                         deliveryType: "",
+                                        deliveryFee: "",
+                                        tradeLocation: "",
                                     }));
                                 }}
                                 onDeliveryTypeChange={(value) => {
@@ -396,11 +409,16 @@ export function ProductEditForm({
                                     setStatusPriceErrors((current) => ({
                                         ...current,
                                         deliveryType: "",
+                                        deliveryFee: "",
                                     }));
                                 }}
-                                onTradeLocationChange={(value) =>
-                                    updateStatusPrice("tradeLocation", value)
-                                }
+                                onTradeLocationChange={(value) => {
+                                    updateStatusPrice("tradeLocation", value);
+                                    setStatusPriceErrors((current) => ({
+                                        ...current,
+                                        tradeLocation: "",
+                                    }));
+                                }}
                             />
                             <DirectRegisterActions
                                 primaryLabel="수정 완료"

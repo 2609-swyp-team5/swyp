@@ -33,7 +33,9 @@ describe("DirectRegisterPage", () => {
         render(<DirectRegisterPage initialStep="status" />);
 
         await user.click(screen.getByRole("button", { name: "AI 분석 & 등록확인" }));
-        expect(screen.getByText("희망 가격을 입력해 주세요.")).toBeInTheDocument();
+        expect(
+            screen.getByText("희망 가격은 500원 이상 1억 원 이하로 입력해 주세요."),
+        ).toBeInTheDocument();
 
         await user.type(screen.getByLabelText("희망 가격"), "800000");
         await user.click(screen.getByRole("radio", { name: "택배 거래" }));

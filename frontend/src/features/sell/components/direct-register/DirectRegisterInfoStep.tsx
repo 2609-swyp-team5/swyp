@@ -114,8 +114,8 @@ export function DirectRegisterInfoStep({
             return;
         }
 
-        if (value.tags.length >= 10) {
-            setTagError("태그는 최대 10개까지 추가할 수 있습니다.");
+        if (value.tags.length >= 5) {
+            setTagError("태그는 최대 5개까지 추가할 수 있습니다.");
             return;
         }
 
@@ -148,9 +148,11 @@ export function DirectRegisterInfoStep({
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
+        const titleLength = Array.from(value.title.trim()).length;
+        const descriptionLength = Array.from(value.description.trim()).length;
         const nextErrors: FieldErrors = {
             images: value.images.length > 0 ? "" : "상품 사진을 1장 이상 업로드해주세요.",
-            title: value.title.trim() ? "" : "상품명을 입력해 주세요.",
+            title: titleLength >= 2 ? "" : "상품명은 2글자 이상 입력해 주세요.",
             parentCategory: value.parentCategoryId ? "" : "대분류를 선택해 주세요.",
             childCategory: value.childCategoryId || isParentLeaf ? "" : "중분류를 선택해 주세요.",
             subCategory:
@@ -158,7 +160,12 @@ export function DirectRegisterInfoStep({
                 (!value.childCategoryId || (hasSubCategories && !value.subCategoryId))
                     ? "소분류를 선택해 주세요."
                     : "",
-            description: value.description.trim() ? "" : "상품 설명을 입력해 주세요.",
+            description:
+                descriptionLength < 10
+                    ? "상품 설명은 10자 이상 입력해 주세요."
+                    : descriptionLength >= 2500
+                      ? "상품 설명은 2500자 미만으로 입력해 주세요."
+                      : "",
         };
 
         const nextOptionErrors = validateCategoryOptions(optionGroups, value.categoryOptions);
@@ -428,18 +435,6 @@ export function DirectRegisterInfoStep({
             />
 
             <section className="flex flex-col gap-1.5">
-                <FieldLabel htmlFor="brand">브랜드</FieldLabel>
-                <Input
-                    id="brand"
-                    name="brand"
-                    value={value.brand}
-                    placeholder="브랜드 검색 또는 직접 입력"
-                    className={fieldClassName}
-                    onChange={(event) => onChange("brand", event.target.value)}
-                />
-            </section>
-
-            <section className="flex flex-col gap-1.5">
                 <FieldLabel htmlFor="description" required>
                     상품 설명
                 </FieldLabel>
@@ -447,8 +442,9 @@ export function DirectRegisterInfoStep({
                     id="description"
                     name="description"
                     required
+                    maxLength={2499}
                     value={value.description}
-                    placeholder="상품의 특징, 사용 기간, 상태를 자세히 작성해 주세요."
+                    placeholder="상품의 특징과 상태를 자세히 작성해 주세요. 하자 여부와 구매 시기도 함께 적어주세요."
                     className="typography-body-medium [field-sizing:fixed] h-[140px] max-h-[140px] min-h-[140px] resize-none overflow-y-auto rounded-[8px] border-[1.5px] border-[#d3d3d3] bg-[#fafbff] px-4 py-3 text-[#6b6c7b] shadow-none placeholder:text-[#d3d3d3] focus-visible:border-[#6653fb] focus-visible:ring-0"
                     aria-invalid={Boolean(fieldErrors.description)}
                     onChange={(event) => {
@@ -456,6 +452,9 @@ export function DirectRegisterInfoStep({
                         setFieldErrors((current) => ({ ...current, description: "" }));
                     }}
                 />
+                <div className="flex items-center justify-end gap-4 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6b6c7b]">
+                    <span aria-live="polite">{Array.from(value.description).length}/2499</span>
+                </div>
                 <FieldError message={fieldErrors.description} />
             </section>
 
@@ -463,7 +462,7 @@ export function DirectRegisterInfoStep({
                 <div className="flex items-center gap-[5px]">
                     <FieldLabel>태그</FieldLabel>
                     <span className="typography-caption text-[#545d82]">
-                        *최대 10개까지 추가 가능합니다.
+                        *최대 5개까지 추가 가능합니다.
                     </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 pt-0.5">
