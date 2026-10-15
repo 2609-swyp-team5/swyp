@@ -187,10 +187,10 @@ export function ProductPriceTrendChart({ data }: { data: PriceTrendChartData }) 
             className={cn(styles.chart, "relative min-w-0")}
             aria-label="최근 30일 일 평균 거래가 차트"
         >
-            <div className="mb-3 flex items-center justify-between gap-3 px-1">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1">
                 <div className="flex flex-col items-start justify-center gap-[5px]">
                     <div className="flex items-center gap-2">
-                        <p className="typography-heading-03 font-semibold text-[#363636]">
+                        <p className="typography-heading-03 font-semibold whitespace-nowrap text-[#363636]">
                             일 평균 거래가
                         </p>
                     </div>
@@ -198,7 +198,7 @@ export function ProductPriceTrendChart({ data }: { data: PriceTrendChartData }) 
                         실거래 {totalTransactionCount.toLocaleString("ko-KR")}건 기준
                     </p>
                 </div>
-                <p className="typography-body-bold-small flex items-center gap-[7px] font-semibold text-[#5140dd]">
+                <p className="typography-body-bold-small flex items-center gap-[7px] font-semibold whitespace-nowrap text-[#5140dd]">
                     <TrendingUp aria-hidden="true" className="size-5" strokeWidth={2.5} />
                     {isLatestHighest ? "최근 1개월 최고가 갱신" : "최근 시세 반영"}
                 </p>

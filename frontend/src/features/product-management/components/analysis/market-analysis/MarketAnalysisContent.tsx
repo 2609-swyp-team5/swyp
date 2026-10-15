@@ -144,8 +144,8 @@ export function MarketAnalysisContent({
                         className={cn(
                             "flex flex-col",
                             variant === "management"
-                                ? "gap-5 px-[30px] pb-[30px]"
-                                : "gap-5 px-[20px] pb-[20px]",
+                                ? "gap-4 px-3 pb-4 md:gap-5 md:px-[30px] md:pb-[30px]"
+                                : "gap-4 px-3 pb-4 md:gap-5 md:px-[20px] md:pb-[20px]",
                         )}
                     >
                         <MarketAnalysisPriceDistribution

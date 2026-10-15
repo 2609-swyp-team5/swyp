@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, ImageOff } from "lucide-react";
 
 import {
@@ -83,6 +83,7 @@ export function ProductGallery({
     const [viewerIndex, setViewerIndex] = useState(0);
     const selectedImage = product.imageUrls[selectedIndex];
     const viewerImage = product.imageUrls[viewerIndex] ?? selectedImage;
+    const touchStartX = useRef<number | null>(null);
     const visibleImageIndexes = product.imageUrls
         .slice(0, previewImageCount)
         .map((_, index) => index);
@@ -261,7 +262,7 @@ export function ProductGallery({
                             선택한 상품 사진을 원본 비율로 크게 보고 있습니다. 화살표 키로 사진을
                             이동할 수 있습니다.
                         </DialogDescription>
-                        <div className="flex w-full shrink-0 items-start justify-between">
+                        <div className="flex w-full shrink-0 items-start justify-between gap-3">
                             <div className="flex flex-col gap-0.5">
                                 <div className="flex items-center gap-2.5">
                                     <Image
@@ -274,11 +275,11 @@ export function ProductGallery({
                                         상품 이미지
                                     </span>
                                 </div>
-                                <span className="typography-body-medium font-normal text-white/72">
+                                <span className="typography-body-medium hidden font-normal text-white/72 md:inline">
                                     방향키로도 이동할 수 있어요
                                 </span>
                             </div>
-                            <div className="typography-heading-03 flex items-center gap-2 rounded-full bg-[rgba(37,38,44,0.8)] px-3.5 py-2">
+                            <div className="typography-heading-03 flex shrink-0 items-center gap-2 rounded-full bg-[rgba(37,38,44,0.8)] px-3 py-1.5 md:px-3.5 md:py-2">
                                 <span className="font-semibold text-white">{viewerIndex + 1}</span>
                                 <span className="font-medium text-white/48">/</span>
                                 <span className="font-medium text-white/72">
@@ -289,7 +290,7 @@ export function ProductGallery({
                                 <button
                                     type="button"
                                     aria-label="상품 이미지 크게 보기 닫기"
-                                    className="flex h-11 items-center gap-2 rounded-full bg-white px-4 text-[#0b0c0f] shadow-[0_8px_24px_rgba(0,0,0,0.3)] hover:bg-[#f2f2f6] focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#111216]"
+                                    className="flex h-11 shrink-0 items-center gap-2 rounded-full bg-white px-4 whitespace-nowrap text-[#0b0c0f] shadow-[0_8px_24px_rgba(0,0,0,0.3)] hover:bg-[#f2f2f6] focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#111216]"
                                 >
                                     <Image
                                         src="/sell/viewer-close.svg"
@@ -298,28 +299,55 @@ export function ProductGallery({
                                         height={20}
                                     />
                                     <span className="typography-body-bold font-semibold">닫기</span>
-                                    <span className="typography-caption rounded-[5px] bg-[#f2f2f6] px-1.5 py-0.5 font-semibold text-[#6b6c7b]">
+                                    <span className="typography-caption hidden rounded-[5px] bg-[#f2f2f6] px-1.5 py-0.5 font-semibold text-[#6b6c7b] md:inline">
                                         ESC
                                     </span>
                                 </button>
                             </DialogClose>
                         </div>
-                        <div className="flex min-h-0 w-full flex-1 items-center justify-between gap-4 px-0 md:px-8 lg:px-[88px] xl:px-[128px]">
+                        <div
+                            className="relative flex min-h-0 w-full flex-1 items-center justify-center gap-4 px-0 md:justify-between md:px-8 lg:px-[88px] xl:px-[128px]"
+                            onTouchStart={(event) => {
+                                touchStartX.current = event.touches[0]?.clientX ?? null;
+                            }}
+                            onTouchEnd={(event) => {
+                                // 휴대폰에서 좌우로 밀어 사진을 넘긴다
+                                const startX = touchStartX.current;
+                                const endX = event.changedTouches[0]?.clientX;
+                                touchStartX.current = null;
+                                if (
+                                    startX === null ||
+                                    endX === undefined ||
+                                    Math.abs(endX - startX) < 40
+                                )
+                                    return;
+                                setViewerIndex((current) =>
+                                    endX < startX
+                                        ? Math.min(current + 1, product.imageUrls.length - 1)
+                                        : Math.max(current - 1, 0),
+                                );
+                            }}
+                        >
                             <button
                                 type="button"
                                 aria-label="이전 상품 사진"
                                 disabled={viewerIndex === 0}
-                                className="flex shrink-0 flex-col items-center gap-2.5 text-white/72 transition hover:text-white focus-visible:ring-2 focus-visible:ring-white disabled:pointer-events-none disabled:opacity-40"
+                                className="absolute left-0 z-10 flex shrink-0 flex-col items-center gap-2.5 rounded-full bg-black/30 p-1 text-white/72 transition hover:text-white focus-visible:ring-2 focus-visible:ring-white disabled:pointer-events-none disabled:opacity-40 md:static md:bg-transparent md:p-0"
                                 onClick={() =>
                                     setViewerIndex((current) => Math.max(current - 1, 0))
                                 }
                             >
-                                <span className="relative size-14">
-                                    <ChevronLeft aria-hidden="true" className="size-14" />
+                                <span className="relative size-10 md:size-14">
+                                    <ChevronLeft
+                                        aria-hidden="true"
+                                        className="size-10 md:size-14"
+                                    />
                                 </span>
-                                <span className="typography-body-bold font-semibold">이전</span>
+                                <span className="typography-body-bold hidden font-semibold md:inline">
+                                    이전
+                                </span>
                             </button>
-                            <div className="relative aspect-square h-full max-h-[680px] w-auto max-w-[680px]">
+                            <div className="relative aspect-square max-h-full w-full max-w-[680px] md:h-full md:max-h-[680px] md:w-auto">
                                 <GalleryImage
                                     src={viewerImage}
                                     alt={`${product.title} 상품 사진 ${viewerIndex + 1} 크게 보기`}
@@ -331,17 +359,22 @@ export function ProductGallery({
                                 type="button"
                                 aria-label="다음 상품 사진"
                                 disabled={viewerIndex === product.imageUrls.length - 1}
-                                className="flex shrink-0 flex-col items-center gap-2.5 text-white/72 transition hover:text-white focus-visible:ring-2 focus-visible:ring-white disabled:pointer-events-none disabled:opacity-40"
+                                className="absolute right-0 z-10 flex shrink-0 flex-col items-center gap-2.5 rounded-full bg-black/30 p-1 text-white/72 transition hover:text-white focus-visible:ring-2 focus-visible:ring-white disabled:pointer-events-none disabled:opacity-40 md:static md:bg-transparent md:p-0"
                                 onClick={() =>
                                     setViewerIndex((current) =>
                                         Math.min(current + 1, product.imageUrls.length - 1),
                                     )
                                 }
                             >
-                                <span className="relative size-14">
-                                    <ChevronRight aria-hidden="true" className="size-14" />
+                                <span className="relative size-10 md:size-14">
+                                    <ChevronRight
+                                        aria-hidden="true"
+                                        className="size-10 md:size-14"
+                                    />
                                 </span>
-                                <span className="typography-body-bold font-semibold">다음</span>
+                                <span className="typography-body-bold hidden font-semibold md:inline">
+                                    다음
+                                </span>
                             </button>
                         </div>
                         <div className="flex h-[86px] max-w-full shrink-0 items-center justify-center gap-2.5 self-center overflow-x-auto px-[18px]">

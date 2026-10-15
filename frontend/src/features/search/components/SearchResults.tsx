@@ -76,7 +76,7 @@ export function SearchResults({
                             ? "상품 검색"
                             : totalCount === null
                               ? "검색결과"
-                              : `검색결과 ${totalCount}개`}
+                              : `검색결과 ${totalCount.toLocaleString("ko-KR")}개`}
                     </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">

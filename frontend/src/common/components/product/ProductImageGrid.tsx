@@ -39,13 +39,14 @@ const sizeStyles = {
         imageSizes: "100px",
         remove: "top-[-8px] right-[-8px] size-5",
     },
+    // 휴대폰은 3열 정사각형 격자, 태블릿 이상은 200px 칸을 이어 붙인다
     direct: {
-        grid: "flex w-full flex-wrap gap-3",
-        item: "size-[200px] rounded-[8px]",
-        add: "size-[200px] rounded-[8px]",
-        badge: "h-[29px] rounded-none rounded-b-[8px] typography-body-medium",
-        imageSizes: "200px",
-        remove: "top-[-12px] right-[-12px] size-[25px]",
+        grid: "grid w-full grid-cols-3 gap-2 md:flex md:flex-wrap md:gap-3",
+        item: "aspect-square w-full rounded-[8px] md:size-[200px]",
+        add: "aspect-square h-auto w-full rounded-[8px] md:size-[200px]",
+        badge: "h-6 rounded-none rounded-b-[8px] typography-body-small md:h-[29px]",
+        imageSizes: "(min-width: 768px) 200px, 33vw",
+        remove: "top-[-8px] right-[-8px] size-[22px] md:top-[-12px] md:right-[-12px] md:size-[25px]",
     },
     review: {
         grid: "grid w-full grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5",
