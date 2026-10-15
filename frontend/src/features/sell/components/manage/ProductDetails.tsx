@@ -1,8 +1,6 @@
 import type { ProductResponse } from "@/features/sell/types";
 import {
     conditionLabels,
-    defectLabels,
-    formatPurchasePeriod,
     priceFormatter,
     tradeMethodLabels,
 } from "@/features/sell/components/manage/productReviewUtils";
@@ -23,9 +21,7 @@ export function ProductDetails({ product }: { product: ProductResponse }) {
     const descriptionLength = product.description?.length ?? 0;
     const details = [
         ["상품 상태", conditionLabels[product.condition]],
-        ["구매 시기", formatPurchasePeriod(product.purchasedMonths)],
         ["구성품", product.includedItems.length > 0 ? product.includedItems.join(", ") : "없음"],
-        ["하자 여부", defectLabels[product.defectStatus]],
         ["거래 방식", tradeMethodLabels[product.tradeMethod]],
         [
             "배송비",

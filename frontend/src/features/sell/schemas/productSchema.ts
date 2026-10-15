@@ -6,7 +6,6 @@ export const defectStatusSchema = z.enum(["NORMAL", "ISSUES", "UNKNOWN"]);
 export const tradeMethodSchema = z.enum(["DIRECT", "DELIVERY"]);
 export const deliveryTypeSchema = z.enum(["INCLUDED", "PREPAID"]);
 export const includedItemStatusSchema = z.enum(["NONE", "PARTIAL", "ALL"]);
-export const operationStatusSchema = z.enum(["normal", "issues", "unknown"]);
 export const productPlatformStatusSchema = z.enum(["POSTING", "POSTED", "FAILED", "REMOVED"]);
 
 const productImageFileSchema = z
@@ -43,8 +42,6 @@ export const productCreateRequestSchema = z.object({
     description: z.string().trim().min(1, "상품 설명을 입력해 주세요."),
     price: z.number().int().nonnegative("희망 가격을 입력해 주세요."),
     condition: productConditionSchema,
-    defectStatus: defectStatusSchema,
-    purchasedMonths: z.number().int().min(0).max(6).nullable(),
     includedItems: z.array(z.string()).max(10, "구성품은 최대 10개까지 추가할 수 있습니다."),
     allowPriceSuggestion: z.boolean(),
     tradeMethod: tradeMethodSchema,
@@ -59,8 +56,6 @@ export const directProductCreateRequestSchema = productCreateRequestSchema
     .omit({
         imageUrls: true,
         brand: true,
-        purchasedMonths: true,
-        defectStatus: true,
         includedItems: true,
         categoryOptions: true,
     })
@@ -119,22 +114,56 @@ export const directProductCreateRequestSchema = productCreateRequestSchema
         }
     });
 
-export const productUpdateRequestSchema = productCreateRequestSchema.extend({
-    status: productStatusSchema,
-    imageUrls: z.array(z.string().trim().min(1)),
-});
+export const productUpdateRequestSchema = productCreateRequestSchema
+    .extend({
+        status: productStatusSchema,
+        imageUrls: z.array(z.string().trim().min(1)),
+        includedStatus: includedItemStatusSchema,
+        deliveryFee: z
+            .number()
+            .int()
+            .min(2_700, "배송비는 2,700원 이상 입력해 주세요.")
+            .max(17_000, "배송비는 17,000원 이하로 입력해 주세요.")
+            .nullable(),
+    })
+    .superRefine((request, context) => {
+        if (request.tradeMethod === "DELIVERY" && !request.deliveryType) {
+            context.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["deliveryType"],
+                message: "배송비 부담 방식을 선택해 주세요.",
+            });
+        }
+
+        if (request.tradeMethod === "DELIVERY" && request.deliveryType === "PREPAID") {
+            if (request.deliveryFee === null) {
+                context.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ["deliveryFee"],
+                    message: "배송비를 입력해 주세요.",
+                });
+            }
+        } else if (request.deliveryFee !== null) {
+            context.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["deliveryFee"],
+                message: "배송비는 배송비 별도일 때만 입력할 수 있어요.",
+            });
+        }
+
+        if (request.tradeMethod === "DIRECT" && !request.preferredTradeRegion?.trim()) {
+            context.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["preferredTradeRegion"],
+                message: "거래 희망 지역을 선택해 주세요.",
+            });
+        }
+    });
 
 export const aiProductCreateInputSchema = z.object({
     images: productImagesSchema,
     // AI가 분석한 상태 대신 사용자가 선택한 상품 상태를 우선 적용할 수 있도록 전달한다.
     condition: productConditionSchema.optional(),
-    // 이전 API 입력도 잠시 허용해 기존 호출부와의 호환성을 유지한다.
-    purchasedMonths: z.number().int().min(0).max(6).nullable().optional(),
-    operationStatus: operationStatusSchema.optional(),
-    includedItems: z
-        .array(z.string())
-        .max(10, "구성품은 최대 10개까지 추가할 수 있습니다.")
-        .optional(),
     includedStatus: includedItemStatusSchema.optional(),
     // AI 등록 거래 방식은 백엔드가 받을 수 있도록 먼저 FE 입력 모델에 반영한다.
     tradeMethod: tradeMethodSchema.optional(),

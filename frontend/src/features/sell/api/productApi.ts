@@ -442,9 +442,6 @@ const createAiProduct = async (
     {
         images,
         condition,
-        purchasedMonths,
-        operationStatus,
-        includedItems,
         includedStatus,
         tradeMethod,
         deliveryType,
@@ -456,9 +453,6 @@ const createAiProduct = async (
     const parsedInput = aiProductCreateInputSchema.safeParse({
         images,
         condition,
-        purchasedMonths,
-        operationStatus,
-        includedItems,
         includedStatus,
         tradeMethod,
         deliveryType,
@@ -479,14 +473,6 @@ const createAiProduct = async (
     if (parsedInput.data.condition) {
         formData.append("condition", parsedInput.data.condition);
     }
-
-    if (parsedInput.data.purchasedMonths != null) {
-        formData.append("purchasedMonths", String(parsedInput.data.purchasedMonths));
-    }
-
-    // 현재 AI API의 필수 파라미터와 호환시키되, 화면에서는 하자 여부를 받지 않는다.
-    formData.append("defectStatus", parsedInput.data.operationStatus ?? "unknown");
-    parsedInput.data.includedItems?.forEach((item) => formData.append("includedItems", item));
 
     if (parsedInput.data.includedStatus) {
         formData.append("includedStatus", parsedInput.data.includedStatus);

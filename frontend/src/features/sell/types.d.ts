@@ -7,7 +7,6 @@ import type {
     deliveryTypeSchema,
     directProductCreateRequestSchema,
     includedItemStatusSchema,
-    operationStatusSchema,
     productConditionSchema,
     productPlatformStatusSchema,
     productCreateRequestSchema,
@@ -26,7 +25,6 @@ export type ProductStatus = z.infer<typeof productStatusSchema>;
 export type DefectStatus = z.infer<typeof defectStatusSchema>;
 export type TradeMethod = z.infer<typeof tradeMethodSchema>;
 export type DeliveryType = z.infer<typeof deliveryTypeSchema>;
-export type OperationStatus = z.infer<typeof operationStatusSchema>;
 export type IncludedItemStatus = z.infer<typeof includedItemStatusSchema>;
 export type ProductCreateRequest = z.infer<typeof productCreateRequestSchema>;
 export type CategoryOptionSelection = z.infer<typeof categoryOptionSelectionSchema>;

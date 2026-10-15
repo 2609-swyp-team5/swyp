@@ -13,15 +13,19 @@ import { DirectRegisterActions } from "@/features/sell/components/direct-registe
 import { DirectRegisterInfoStep } from "@/features/sell/components/direct-register/DirectRegisterInfoStep";
 import { DirectStatusPriceStep } from "@/features/sell/components/direct-register/DirectStatusPriceStep";
 import type {
-    DirectDefectStatus,
     DirectImagePreview,
-    DirectPurchasePeriod,
     DirectRegisterInfoState,
     ProductEditInfoState,
     DirectStatusPriceErrors,
     DirectStatusPriceState,
 } from "@/features/sell/components/direct-register/types";
 import { SellAlertDialog } from "@/features/sell/components/shared/SellAlertDialog";
+import {
+    includedStatusApiValues,
+    includedStatusLabels,
+    type IncludedStatus,
+} from "@/features/sell/components/shared/IncludedStatusField";
+import { RegistrationStepper } from "@/features/sell/components/shared/RegistrationStepper";
 import { useUpdateProductMutation } from "@/features/sell/hooks/mutations/useUpdateProductMutation";
 import { productQueryKey } from "@/features/sell/hooks/queries/useProductQuery";
 import { toCategoryOptionSelections } from "@/features/sell/utils/categoryOptions";
@@ -40,46 +44,6 @@ const initialStatusPriceErrors: DirectStatusPriceErrors = {
     deliveryFee: "",
     tradeLocation: "",
 };
-
-function RegistrationStepper({ currentStep }: { currentStep: EditStep }) {
-    const steps = ["상품 정보", "상태·가격"];
-    const currentStepIndex = currentStep === "info" ? 0 : 1;
-
-    return (
-        <ol aria-label="상품 수정 단계" className="flex items-center gap-2.5">
-            {steps.map((step, index) => (
-                <li key={step} className="flex items-center gap-2.5">
-                    <div className="flex items-center gap-2">
-                        <span
-                            className={`typography-body-bold-small flex size-7 items-center justify-center rounded-full font-bold ${
-                                index <= currentStepIndex
-                                    ? "bg-[#272727] text-white"
-                                    : "bg-[#d3d3d3] text-[#6b6c7b]"
-                            }`}
-                        >
-                            {index + 1}
-                        </span>
-                        <span
-                            className={`typography-body-bold font-semibold ${
-                                index <= currentStepIndex ? "text-[#363636]" : "text-[#d3d3d3]"
-                            }`}
-                        >
-                            {step}
-                        </span>
-                    </div>
-                    {index < steps.length - 1 && (
-                        <span
-                            aria-hidden="true"
-                            className={`h-px w-[30px] ${
-                                index < currentStepIndex ? "bg-[#272727]" : "bg-[#d3d3d3]"
-                            }`}
-                        />
-                    )}
-                </li>
-            ))}
-        </ol>
-    );
-}
 
 function getInitialInfo(product: ProductResponse, categories: Category[]): ProductEditInfoState {
     const selectedCategory =
@@ -111,29 +75,30 @@ function getInitialInfo(product: ProductResponse, categories: Category[]): Produ
 }
 
 function getInitialStatusPrice(product: ProductResponse): DirectStatusPriceState {
-    const defectStatus: DirectDefectStatus =
-        product.defectStatus === "ISSUES"
-            ? "has-defect"
-            : product.defectStatus === "UNKNOWN"
-              ? "unknown"
-              : "none";
-
-    const purchasePeriod: DirectPurchasePeriod =
-        product.purchasedMonths === null
-            ? "unknown"
-            : (String(product.purchasedMonths) as DirectPurchasePeriod);
-
     return {
         productCondition: product.condition,
-        purchasePeriod,
-        includedItems: product.includedItems,
-        defectStatus,
+        includedStatus: getIncludedStatus(product.includedItems),
         price: String(product.price),
         allowPriceProposal: product.allowPriceSuggestion,
         tradeMethod: product.tradeMethod === "DIRECT" ? "direct" : "delivery",
         deliveryType: product.deliveryType,
+        deliveryFee: product.deliveryFee == null ? "" : String(product.deliveryFee),
         tradeLocation: product.preferredTradeRegion ?? "",
     };
+}
+
+function getIncludedStatus(includedItems: string[]): IncludedStatus {
+    const value = includedItems[0];
+
+    if (!value || value === includedStatusLabels.none) {
+        return "none";
+    }
+
+    if (value === includedStatusLabels.partial) {
+        return "partial";
+    }
+
+    return "all";
 }
 
 export function ProductEditForm({
@@ -208,13 +173,19 @@ export function ProductEditForm({
     };
 
     const handleStatusPriceSubmit = async () => {
+        const deliveryFee = Number(statusPrice.deliveryFee);
         const nextErrors: DirectStatusPriceErrors = {
             price: statusPrice.price ? "" : "희망 가격을 입력해 주세요.",
             deliveryType:
                 statusPrice.tradeMethod === "delivery" && !statusPrice.deliveryType
                     ? "배송비 부담 방식을 선택해 주세요."
                     : "",
-            deliveryFee: "",
+            deliveryFee:
+                statusPrice.tradeMethod === "delivery" && statusPrice.deliveryType === "PREPAID"
+                    ? deliveryFee >= 2_700 && deliveryFee <= 17_000
+                        ? ""
+                        : "배송비는 2,700원 이상 17,000원 이하로 입력해 주세요."
+                    : "",
             tradeLocation:
                 statusPrice.tradeMethod === "direct" && !statusPrice.tradeLocation.trim()
                     ? "거래 희망 지역을 선택해 주세요."
@@ -249,23 +220,23 @@ export function ProductEditForm({
                     price: Number(statusPrice.price),
                     status: product.status,
                     condition: statusPrice.productCondition,
-                    purchasedMonths:
-                        statusPrice.purchasePeriod === "unknown"
-                            ? null
-                            : Number(statusPrice.purchasePeriod),
-                    defectStatus:
-                        statusPrice.defectStatus === "has-defect"
-                            ? "ISSUES"
-                            : statusPrice.defectStatus === "unknown"
-                              ? "UNKNOWN"
-                              : "NORMAL",
+                    includedStatus: includedStatusApiValues[statusPrice.includedStatus],
                     allowPriceSuggestion: statusPrice.allowPriceProposal,
                     tradeMethod: statusPrice.tradeMethod === "direct" ? "DIRECT" : "DELIVERY",
-                    deliveryType: statusPrice.deliveryType,
-                    preferredTradeRegion: statusPrice.tradeLocation.trim() || null,
+                    deliveryType:
+                        statusPrice.tradeMethod === "delivery" ? statusPrice.deliveryType : null,
+                    deliveryFee:
+                        statusPrice.tradeMethod === "delivery" &&
+                        statusPrice.deliveryType === "PREPAID"
+                            ? deliveryFee
+                            : null,
+                    preferredTradeRegion:
+                        statusPrice.tradeMethod === "direct"
+                            ? statusPrice.tradeLocation.trim() || null
+                            : null,
                     imageUrls,
                     tags: info.tags,
-                    includedItems: statusPrice.includedItems,
+                    includedItems: [includedStatusLabels[statusPrice.includedStatus]],
                     categoryOptions: info.categoryOptions,
                 },
             });
@@ -325,7 +296,11 @@ export function ProductEditForm({
                 </header>
 
                 <div className="flex flex-col gap-8">
-                    <RegistrationStepper currentStep={step} />
+                    <RegistrationStepper
+                        steps={["상품 정보", "상태·가격"]}
+                        currentStepIndex={isInfoStep ? 0 : 1}
+                        ariaLabel="상품 수정 단계"
+                    />
 
                     {isInfoStep ? (
                         <>
@@ -352,27 +327,8 @@ export function ProductEditForm({
                                 onProductConditionChange={(value) =>
                                     updateStatusPrice("productCondition", value)
                                 }
-                                onPurchasePeriodChange={(value) =>
-                                    updateStatusPrice("purchasePeriod", value)
-                                }
-                                onIncludedItemChange={(value, checked) =>
-                                    setStatusPrice((current) =>
-                                        current
-                                            ? {
-                                                  ...current,
-                                                  includedItems: checked
-                                                      ? current.includedItems.includes(value)
-                                                          ? current.includedItems
-                                                          : [...current.includedItems, value]
-                                                      : current.includedItems.filter(
-                                                            (item) => item !== value,
-                                                        ),
-                                              }
-                                            : current,
-                                    )
-                                }
-                                onDefectStatusChange={(value) =>
-                                    updateStatusPrice("defectStatus", value)
+                                onIncludedStatusChange={(value) =>
+                                    updateStatusPrice("includedStatus", value)
                                 }
                                 onPriceChange={(value) => {
                                     updateStatusPrice("price", value);
@@ -391,6 +347,8 @@ export function ProductEditForm({
                                                       value === "direct"
                                                           ? null
                                                           : current.deliveryType,
+                                                  deliveryFee:
+                                                      value === "direct" ? "" : current.deliveryFee,
                                                   tradeLocation:
                                                       value === "delivery"
                                                           ? ""
@@ -406,10 +364,28 @@ export function ProductEditForm({
                                     }));
                                 }}
                                 onDeliveryTypeChange={(value) => {
-                                    updateStatusPrice("deliveryType", value);
+                                    setStatusPrice((current) =>
+                                        current
+                                            ? {
+                                                  ...current,
+                                                  deliveryType: value,
+                                                  deliveryFee:
+                                                      value === "INCLUDED"
+                                                          ? ""
+                                                          : current.deliveryFee,
+                                              }
+                                            : current,
+                                    );
                                     setStatusPriceErrors((current) => ({
                                         ...current,
                                         deliveryType: "",
+                                        deliveryFee: "",
+                                    }));
+                                }}
+                                onDeliveryFeeChange={(value) => {
+                                    updateStatusPrice("deliveryFee", value);
+                                    setStatusPriceErrors((current) => ({
+                                        ...current,
                                         deliveryFee: "",
                                     }));
                                 }}

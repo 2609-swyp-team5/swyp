@@ -18,7 +18,7 @@ type TradeMethodFieldProps = {
     tradeLocation: string;
     onTradeMethodChange: (value: TradeMethodValue) => void;
     onDeliveryTypeChange: (value: Exclude<DeliveryTypeValue, null>) => void;
-    onDeliveryFeeChange?: (value: string) => void;
+    onDeliveryFeeChange: (value: string) => void;
     onTradeLocationChange: (value: string) => void;
     errors: {
         tradeMethod?: string;
@@ -120,7 +120,7 @@ export function TradeMethodField({
                         </div>
                         <FieldError message={errors.deliveryType} />
                     </div>
-                    {deliveryType === "PREPAID" && onDeliveryFeeChange && (
+                    {deliveryType === "PREPAID" && (
                         <div className="mt-3 flex flex-col gap-2.5">
                             <FieldLabel htmlFor={`${idPrefix}-delivery-fee`} required>
                                 배송비

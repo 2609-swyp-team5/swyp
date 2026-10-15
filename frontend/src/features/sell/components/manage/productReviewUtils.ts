@@ -52,15 +52,3 @@ export function formatRegisteredAt(value: string) {
         date.getHours(),
     )}:${pad(date.getMinutes())}`;
 }
-
-export function formatPurchasePeriod(months: number | null) {
-    if (months === null) {
-        return "구매 시기 미상";
-    }
-
-    if (months === 0) {
-        return "구매 직후";
-    }
-
-    return `${months}개월 이내`;
-}

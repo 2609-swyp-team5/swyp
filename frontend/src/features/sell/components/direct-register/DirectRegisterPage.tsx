@@ -17,11 +17,7 @@ import type {
 import { ProductRegistrationProcessing } from "@/features/sell/components/ProductRegistrationProcessing";
 import { RegistrationStepper } from "@/features/sell/components/shared/RegistrationStepper";
 import { SellAlertDialog } from "@/features/sell/components/shared/SellAlertDialog";
-import {
-    includedStatusApiValues,
-    includedStatusLabels,
-    type IncludedStatus,
-} from "@/features/sell/components/shared/IncludedStatusField";
+import { includedStatusApiValues } from "@/features/sell/components/shared/IncludedStatusField";
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { useCategoriesQuery } from "@/features/sell/hooks/queries/useCategoriesQuery";
 import { useCreateDirectProductMutation } from "@/features/sell/hooks/mutations/useCreateDirectProductMutation";
@@ -46,9 +42,7 @@ const initialInfoState: DirectRegisterInfoState = {
 
 const initialStatusPriceState: DirectStatusPriceState = {
     productCondition: "B",
-    purchasePeriod: "unknown",
-    includedItems: [includedStatusLabels.all],
-    defectStatus: "unknown",
+    includedStatus: "all",
     price: "",
     allowPriceProposal: false,
     tradeMethod: "direct",
@@ -186,14 +180,7 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
                 description: info.description.trim(),
                 price: Number(statusPrice.price),
                 condition: statusPrice.productCondition,
-                includedStatus:
-                    includedStatusApiValues[
-                        (statusPrice.includedItems[0] === includedStatusLabels.none
-                            ? "none"
-                            : statusPrice.includedItems[0] === includedStatusLabels.partial
-                              ? "partial"
-                              : "all") as IncludedStatus
-                    ],
+                includedStatus: includedStatusApiValues[statusPrice.includedStatus],
                 allowPriceSuggestion: statusPrice.allowPriceProposal,
                 tradeMethod: statusPrice.tradeMethod === "direct" ? "DIRECT" : "DELIVERY",
                 deliveryType: statusPrice.deliveryType,
@@ -282,30 +269,8 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
                                 onProductConditionChange={(value) =>
                                     updateStatusPrice("productCondition", value)
                                 }
-                                onIncludedItemChange={(value, checked) =>
-                                    setStatusPrice((current) => ({
-                                        ...current,
-                                        includedItems: checked
-                                            ? current.includedItems.includes(value)
-                                                ? current.includedItems
-                                                : [...current.includedItems, value]
-                                            : current.includedItems.filter(
-                                                  (item) => item !== value,
-                                              ),
-                                    }))
-                                }
-                                includedStatus={
-                                    (statusPrice.includedItems[0] === includedStatusLabels.none
-                                        ? "none"
-                                        : statusPrice.includedItems[0] ===
-                                            includedStatusLabels.partial
-                                          ? "partial"
-                                          : "all") as IncludedStatus
-                                }
                                 onIncludedStatusChange={(value) =>
-                                    updateStatusPrice("includedItems", [
-                                        includedStatusLabels[value],
-                                    ])
+                                    updateStatusPrice("includedStatus", value)
                                 }
                                 onPriceChange={(value) => {
                                     updateStatusPrice("price", value);
