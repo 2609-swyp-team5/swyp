@@ -25,10 +25,20 @@ function parseTargetId(id: string) {
 }
 
 const metadataCrawlerPattern =
-    /(?:bot\b|crawler\b|spider\b|facebookexternalhit|google-inspectiontool|kakaotalk|whatsapp|yeti|bingpreview)/i;
+    /(?:bot\b|crawler\b|spider\b|facebookexternalhit|google-inspectiontool|kakaotalk|whatsapp|yeti|bingpreview|daum|tistory)/i;
 
 function isMetadataCrawler(userAgent: string) {
     return metadataCrawlerPattern.test(userAgent);
+}
+
+function normalizeProductImageUrl(imageUrl: string) {
+    const normalizedUrl = imageUrl.trim().replace(/\{res\}/gi, "360");
+
+    if (!/^https?:\/\//i.test(normalizedUrl) || /[{}]/.test(normalizedUrl)) {
+        return null;
+    }
+
+    return normalizedUrl;
 }
 
 const lookupProduct = cache(async (id: number): Promise<ProductLookup> => {
@@ -53,9 +63,9 @@ function ProductStructuredData({ product }: { product: SearchProductDetail }) {
     const productUrl = new URL(`/search/${product.id}`, siteOrigin).toString();
     const title = product.title.trim();
     const description = product.description?.trim();
-    const images = product.imageUrls.filter(
-        (imageUrl) => /^https?:\/\//.test(imageUrl) && !/[{}]/.test(imageUrl),
-    );
+    const images = product.imageUrls
+        .map(normalizeProductImageUrl)
+        .filter((imageUrl): imageUrl is string => imageUrl !== null);
     const productJsonLd = {
         "@type": "Product",
         name: title,
@@ -128,10 +138,15 @@ export async function generateMetadata({
         return noIndexMetadata;
     }
 
+    const imageUrl = lookup.product.imageUrls
+        .map(normalizeProductImageUrl)
+        .find((url): url is string => url !== null);
+
     return createPublicPageMetadata({
         title: lookup.product.title.trim(),
         description: lookup.product.description?.trim() || defaultSiteDescription,
         pathname: `/search/${targetId}`,
+        imageUrl,
     });
 }
 
