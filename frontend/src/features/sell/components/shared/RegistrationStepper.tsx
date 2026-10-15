@@ -10,7 +10,7 @@ export function RegistrationStepper({ steps, currentStepIndex }: RegistrationSte
                 <li key={step} className="flex items-center gap-2.5">
                     <div className="flex items-center gap-2">
                         <span
-                            className={`flex size-7 items-center justify-center rounded-full text-[13px] leading-[19px] font-bold ${
+                            className={`typography-body-bold-small flex size-7 items-center justify-center rounded-full font-bold ${
                                 index <= currentStepIndex
                                     ? "bg-[#6653fb] text-white"
                                     : "bg-[#d3d3d3] text-[#6b6c7b]"
@@ -19,7 +19,7 @@ export function RegistrationStepper({ steps, currentStepIndex }: RegistrationSte
                             {index + 1}
                         </span>
                         <span
-                            className={`text-[16px] leading-[25px] font-semibold tracking-[0.5px] ${
+                            className={`typography-body-bold font-semibold ${
                                 index <= currentStepIndex ? "text-[#6653fb]" : "text-[#d3d3d3]"
                             }`}
                         >

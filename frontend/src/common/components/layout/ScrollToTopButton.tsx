@@ -22,7 +22,7 @@ export function ScrollToTopButton({ onClick }: { onClick: () => void }) {
                 strokeWidth={2.5}
                 className="absolute top-2 left-1/2 size-8 -translate-x-1/2 motion-safe:transition-transform motion-safe:group-hover:-translate-y-1"
             />
-            <span className="absolute top-[43px] left-0 w-full text-center text-[11px] leading-none font-medium">
+            <span className="typography-body-small absolute top-[43px] left-0 w-full text-center font-medium">
                 바로가기
             </span>
         </Button>

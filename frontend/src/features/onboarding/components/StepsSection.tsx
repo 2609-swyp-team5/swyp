@@ -66,7 +66,7 @@ export function StepsSection() {
                         </div>
                         <div className="space-y-5 p-[30px]">
                             <div className="flex items-center gap-[15px]">
-                                <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#6653fb] text-[24px] leading-9 font-bold text-white">
+                                <span className="typography-heading-02 flex size-10 shrink-0 items-center justify-center rounded-full bg-[#6653fb] font-bold text-white">
                                     {index + 1}
                                 </span>
                                 <h3 className="typography-heading-03 leading-[45px] font-bold text-[#6653fb]">

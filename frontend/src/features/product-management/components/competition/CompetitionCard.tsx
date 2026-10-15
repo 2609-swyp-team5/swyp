@@ -72,29 +72,29 @@ export function CompetitionCard({
             <div className="relative">
                 <CompetitionImage imageUrl={item.imageUrl} title={item.title} />
                 <span
-                    className={`absolute top-2 left-[10px] rounded-full px-2 py-0.5 text-[11px] leading-[16px] font-bold text-white ${platformClassName}`}
+                    className={`typography-body-small absolute top-2 left-[10px] rounded-full px-2 py-0.5 font-bold text-white ${platformClassName}`}
                 >
                     {item.platformName}
                 </span>
             </div>
             <div className="flex min-h-0 flex-1 flex-col gap-[10px] bg-white p-[10px]">
-                <h3 className="truncate text-[13px] leading-5 font-semibold tracking-[-0.5px] text-black">
+                <h3 className="typography-body-bold-small truncate font-semibold text-black">
                     {item.title}
                 </h3>
                 <div className="whitespace-nowrap">
                     {item.marketAveragePrice !== null && (
-                        <p className="text-[13px] leading-[13px] font-semibold text-[#fa503d]">
+                        <p className="typography-body-bold-small font-semibold text-[#fa503d]">
                             평균가{" "}
                             <span className="line-through">
                                 {formatPrice(item.marketAveragePrice)}
                             </span>
                         </p>
                     )}
-                    <p className="mt-1 text-[20px] leading-5 font-bold text-[#464646]">
+                    <p className="typography-heading-03 mt-1 font-bold text-[#464646]">
                         {formatPrice(item.listingPrice)}
                     </p>
                 </div>
-                <p className="mt-auto truncate text-[10px] leading-[15px] tracking-[-0.5px] text-[#363636]">
+                <p className="typography-caption mt-auto truncate text-[#363636]">
                     {formatPriceComparison(item.priceDiffRate)}
                 </p>
             </div>

@@ -20,7 +20,7 @@ export function MyWithdrawPage() {
         <MyPageContent
             eyebrow="계정 관리"
             title="회원 탈퇴"
-            eyebrowClassName="text-[20px] leading-[30px] font-medium tracking-[0.5px] text-[#83889e]"
+            eyebrowClassName="typography-heading-03 font-medium text-[#83889e]"
             titleClassName="leading-[75px] text-[#363636]"
         >
             <WithdrawalContent

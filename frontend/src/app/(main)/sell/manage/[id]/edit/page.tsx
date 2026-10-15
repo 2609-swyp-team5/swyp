@@ -12,7 +12,9 @@ type RegistrationMethod = "ai" | "direct";
 function LoadingStatus({ children }: { children: string }) {
     return (
         <main className="flex flex-1 items-center justify-center bg-white px-6 py-24">
-            <p className="text-center text-lg font-semibold text-[#6b6c7b]">{children}</p>
+            <p className="typography-body-large text-center font-semibold text-[#6b6c7b]">
+                {children}
+            </p>
         </main>
     );
 }

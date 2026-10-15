@@ -5,8 +5,7 @@ import { Label } from "@/common/components/ui/Label";
 
 const checkboxClassName =
     "size-6 border-[#d3d3d3] bg-[#fafbff] data-[state=checked]:border-[#272727] data-[state=checked]:bg-[#272727] data-[state=checked]:text-white dark:bg-[#fafbff] dark:data-[state=checked]:bg-[#272727] [&_[data-slot=checkbox-indicator]>svg]:size-[18px]";
-const labelClassName =
-    "text-base leading-[25px] font-semibold tracking-[0.5px] break-keep text-[#6b6c7b]";
+const labelClassName = "typography-body-bold font-semibold break-keep text-[#6b6c7b]";
 
 export function SignupAgreements({ isBusy }: { isBusy: boolean }) {
     return (

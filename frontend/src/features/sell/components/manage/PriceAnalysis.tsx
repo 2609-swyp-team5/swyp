@@ -69,9 +69,9 @@ function AnalysisMetric({
                 isFirst ? "" : "lg:border-l lg:border-[#d3d3d3]"
             }`}
         >
-            <span className="text-[12px] leading-5 tracking-[-0.5px] text-[#9aa0b0]">{label}</span>
+            <span className="typography-body-small text-[#9aa0b0]">{label}</span>
             <strong
-                className={`text-[20px] leading-[30px] font-semibold tracking-[0.5px] ${valueClassName ?? "text-[#374151]"}`}
+                className={`typography-heading-03 font-semibold ${valueClassName ?? "text-[#374151]"}`}
             >
                 {value}
             </strong>
@@ -135,7 +135,7 @@ export function PriceAnalysis({
                     </span>
                     <h2
                         id="price-analysis-title"
-                        className="text-[28px] leading-[42px] font-bold tracking-[0.5px] text-[#6653fb] md:text-[30px]"
+                        className="typography-heading-02 font-bold text-[#6653fb]"
                     >
                         AI 가격 분석
                     </h2>
@@ -144,7 +144,7 @@ export function PriceAnalysis({
                     type="button"
                     variant="outline"
                     onClick={() => router.push(`/sell/manage?selected=${product.id}`)}
-                    className="h-auto rounded-full border-[#6653fb] bg-white px-5 py-1 text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#6653fb] hover:bg-[#f5f3ff] hover:text-[#5745e7]"
+                    className="typography-body-bold h-auto rounded-full border-[#6653fb] bg-white px-5 py-1 font-semibold text-[#6653fb] hover:bg-[#f5f3ff] hover:text-[#5745e7]"
                 >
                     가격 분석 자세히 보기
                     <ArrowRight aria-hidden="true" className="size-4" />
@@ -161,12 +161,12 @@ export function PriceAnalysis({
                         className="h-[126px] w-[142px] shrink-0"
                     />
                     <div className="min-w-0">
-                        <p className="text-[22px] leading-8 font-bold tracking-[0.5px] text-[#6653fb] md:text-[30px] md:leading-[42px]">
+                        <p className="typography-heading-02 font-bold text-[#6653fb]">
                             {suggestedPrice === null || suggestedPrice === undefined
                                 ? "분석 결과 준비 중"
                                 : `${priceFormatter.format(suggestedPrice)}원`}
                         </p>
-                        <p className="mt-1 text-[16px] leading-[25px] font-normal tracking-[0.5px] text-[#83889e]">
+                        <p className="typography-body-medium mt-1 font-normal text-[#83889e]">
                             {marketAnalysis
                                 ? "최근 시세와 거래 데이터를 바탕으로 분석했어요."
                                 : "AI가 분석한 적정 판매 가격이에요."}
@@ -175,7 +175,7 @@ export function PriceAnalysis({
                     {recommendation ? (
                         <div className="flex min-w-0 flex-col gap-2.5 lg:items-end lg:text-right">
                             <span
-                                className={`w-fit rounded-full px-5 py-2.5 text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-white ${recommendationBadgeClassName}`}
+                                className={`typography-body-bold w-fit rounded-full px-5 py-2.5 font-semibold text-white ${recommendationBadgeClassName}`}
                             >
                                 {recommendation}
                             </span>
@@ -192,11 +192,11 @@ export function PriceAnalysis({
 
             <div className="mt-5 rounded-[10px] border border-[#d3d3d3] bg-white p-5 md:p-7">
                 <div className="flex items-center gap-2.5">
-                    <h3 className="text-[18px] leading-[28px] font-semibold tracking-[0.5px] text-[#6653fb]">
+                    <h3 className="typography-body-large font-semibold text-[#6653fb]">
                         추천 이유
                     </h3>
                 </div>
-                <p className="mt-3 text-[16px] leading-[25px] font-normal tracking-[0.5px] break-keep text-[#363636]">
+                <p className="typography-body-medium mt-3 font-normal break-keep text-[#363636]">
                     {analysisDescription}
                 </p>
             </div>

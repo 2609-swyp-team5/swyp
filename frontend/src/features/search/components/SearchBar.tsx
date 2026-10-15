@@ -32,11 +32,11 @@ export function SearchBar({
                             placeholder="상품을 검색해 보세요"
                             value={keyword}
                             onChange={(event) => onKeywordChange(event.target.value)}
-                            className="h-7 min-w-0 flex-1 rounded-none border-0 p-0 text-base leading-7 font-medium tracking-[0.5px] text-[#6b6c7b] placeholder:text-[#d3d3d3] focus-visible:ring-0 sm:text-[18px] md:text-[18px] dark:bg-transparent"
+                            className="typography-body-large h-7 min-w-0 flex-1 rounded-none border-0 p-0 font-medium text-[#6b6c7b] placeholder:text-[#d3d3d3] focus-visible:ring-0 dark:bg-transparent"
                         />
                         <Button
                             type="submit"
-                            className="h-11 w-28 shrink-0 gap-1 self-end rounded-full bg-[#272727] px-3 text-[14px] leading-[normal] font-semibold text-white hover:bg-[#363636] sm:self-auto"
+                            className="typography-body-bold-small h-11 w-28 shrink-0 gap-1 self-end rounded-full bg-[#272727] px-3 font-semibold text-white hover:bg-[#363636] sm:self-auto"
                         >
                             <Image
                                 src="/figma/search/general-search.svg"

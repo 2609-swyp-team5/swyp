@@ -63,15 +63,15 @@ export function MyPlatformsPage() {
         <MyPageContent
             eyebrow="연동 관리"
             title="플랫폼 별 연동 확인"
-            eyebrowClassName="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#83889e]"
+            eyebrowClassName="typography-heading-03 font-semibold text-[#83889e]"
             titleClassName="text-[#363636]"
         >
             <section className="mb-5 border-l-3 border-[#6653fb] bg-[#fafbff] px-5 py-[15px]">
-                <h2 className="flex items-center gap-[5px] text-[13px] leading-[20px] font-semibold tracking-[-0.5px] text-[#6b6c7b]">
+                <h2 className="typography-body-bold-small flex items-center gap-[5px] font-semibold text-[#6b6c7b]">
                     <Image src="/figma/platforms/info.svg" alt="" width={15} height={15} />
                     플랫폼 연동 안내
                 </h2>
-                <ul className="mt-[5px] list-disc ps-[18px] text-[12px] leading-[20px] tracking-[-0.5px] text-[#6b6c7b]">
+                <ul className="typography-body-small mt-[5px] list-disc ps-[18px] text-[#6b6c7b]">
                     <li>연결이 만료되면 일부 연동 기능이 제한될 수 있어요</li>
                     <li>지금이니?에서 연결을 해제해도 외부 플랫폼의 판매글은 삭제되지 않아요</li>
                 </ul>
@@ -84,7 +84,10 @@ export function MyPlatformsPage() {
                 data && <PlatformSummary statuses={statuses} />
             )}
             {error && (
-                <div role="alert" className="text-destructive flex items-center gap-3 text-sm">
+                <div
+                    role="alert"
+                    className="text-destructive typography-body-small flex items-center gap-3"
+                >
                     <p>{getApiErrorMessage(error)}</p>
                     <Button variant="outline" onClick={() => void refetch()}>
                         다시 시도
@@ -94,10 +97,10 @@ export function MyPlatformsPage() {
             {data && (
                 <section className="mt-10 flex flex-col gap-[15px]">
                     <h2 className="flex items-center gap-[10px]">
-                        <span className="text-[22px] leading-[30px] font-semibold tracking-[0.5px] text-[#545d82]">
+                        <span className="typography-heading-bold font-semibold text-[#545d82]">
                             플랫폼 연결
                         </span>
-                        <span className="text-[16px] leading-[25px] text-[#b1a9ef]">
+                        <span className="typography-body-medium text-[#b1a9ef]">
                             {platforms.length}건
                         </span>
                     </h2>

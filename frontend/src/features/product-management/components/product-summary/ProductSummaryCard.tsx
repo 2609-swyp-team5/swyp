@@ -60,7 +60,7 @@ function DetailRow({
         <div className={cn("flex min-w-0 items-baseline gap-4", className)}>
             <dt
                 className={cn(
-                    "shrink-0 text-[13px] leading-5 font-normal text-[#9aa0b0]",
+                    "typography-body-small shrink-0 font-normal text-[#9aa0b0]",
                     labelClassName,
                 )}
             >
@@ -68,7 +68,7 @@ function DetailRow({
             </dt>
             <dd
                 className={cn(
-                    "min-w-0 truncate text-[13px] leading-5 font-normal text-[#464646]",
+                    "typography-body-small min-w-0 truncate font-normal text-[#464646]",
                     valueClassName,
                 )}
             >
@@ -81,10 +81,8 @@ function DetailRow({
 function SummaryStat({ label, value }: { label: string; value: string }) {
     return (
         <div className="flex flex-col items-center justify-center gap-0.5">
-            <span className="text-[13px] leading-5 font-normal text-[#9aa0b0]">{label}</span>
-            <span className="text-[17px] leading-[26px] font-medium text-[#374151] md:text-[20px] md:leading-[30px]">
-                {value}
-            </span>
+            <span className="typography-body-small font-normal text-[#9aa0b0]">{label}</span>
+            <span className="typography-heading-03 font-medium text-[#374151]">{value}</span>
         </div>
     );
 }
@@ -95,7 +93,7 @@ function formatTradeMethod(tradeMethod: TradeMethod | null | undefined) {
 
 function InterestPlatformBadge({ platformName }: { platformName: string }) {
     return (
-        <span className="inline-flex h-6 items-center rounded-full bg-[#fff4f4] px-2.5 text-[13px] leading-5 font-semibold text-[#fa503d]">
+        <span className="typography-body-bold-small inline-flex h-6 items-center rounded-full bg-[#fff4f4] px-2.5 font-semibold text-[#fa503d]">
             {platformName}
         </span>
     );
@@ -110,9 +108,7 @@ function InterestExternalLinkButton({ href, label }: { href: string; label: stri
         >
             <a href={href} target="_blank" rel="noreferrer">
                 <Image src="/sell/actions/shortcut.svg" alt="" width={25} height={25} />
-                <span className="text-[11px] leading-[16px] font-normal tracking-[-0.5px]">
-                    {label}
-                </span>
+                <span className="typography-body-small font-normal">{label}</span>
             </a>
         </Button>
     );
@@ -172,7 +168,7 @@ function ProductSummaryCardFrame({
                         ) : (
                             <span
                                 className={cn(
-                                    "inline-flex h-6 items-center rounded-full px-2.5 text-[13px] leading-5 font-semibold",
+                                    "typography-body-bold-small inline-flex h-6 items-center rounded-full px-2.5 font-semibold",
                                     detailStatusClassNames[product.status] ??
                                         "bg-[#fa503d] text-white",
                                 )}
@@ -180,27 +176,27 @@ function ProductSummaryCardFrame({
                                 {detailStatusLabels[product.status]}
                             </span>
                         )}
-                        <span className="text-[11px] leading-4 font-normal text-[#6b6c7b]">
+                        <span className="typography-body-small font-normal text-[#6b6c7b]">
                             {formatRegisteredAt(product.createdAt)}
                         </span>
                     </div>
                     <h2
                         id={titleId}
-                        className="mt-1 line-clamp-2 text-[20px] leading-8 font-medium tracking-[0.5px] break-keep text-[#363636] md:line-clamp-1 md:text-[25px] md:leading-10"
+                        className="typography-heading-02 mt-1 line-clamp-2 font-medium break-keep text-[#363636] md:line-clamp-1"
                     >
                         {product.title}
                     </h2>
-                    <p className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#6653fb] md:text-[22px]">
+                    <p className="typography-heading-bold font-semibold text-[#6653fb]">
                         {priceFormatter.format(product.price)}원
                     </p>
 
                     {isSoldVariant ? (
-                        <dl className="mt-5 flex flex-col text-[15px] leading-[24px] md:mt-[30px] md:text-[16px] md:leading-[25px]">
+                        <dl className="typography-body-medium mt-5 flex flex-col md:mt-[30px]">
                             <DetailRow
                                 label="팔린 플랫폼"
                                 value={product.soldPlatform ?? "정보 없음"}
                                 className="justify-between py-2.5"
-                                labelClassName="text-[16px] leading-[25px] text-[#374151]"
+                                labelClassName="typography-body-medium text-[#374151]"
                                 valueClassName="font-semibold tracking-[-0.5px] text-[#111827]"
                             />
                             <Separator className="bg-[#d3d3d3]" />
@@ -212,7 +208,7 @@ function ProductSummaryCardFrame({
                                         : `${priceFormatter.format(product.soldPrice)}원`
                                 }
                                 className="justify-between py-2.5"
-                                labelClassName="text-[16px] leading-[25px] text-[#374151]"
+                                labelClassName="typography-body-medium text-[#374151]"
                                 valueClassName="font-semibold tracking-[-0.5px] text-[#111827]"
                             />
                         </dl>
@@ -238,10 +234,10 @@ function ProductSummaryCardFrame({
                             <Separator className="my-5" />
 
                             <div className="min-h-0">
-                                <p className="text-[13px] leading-5 font-normal text-[#9aa0b0]">
+                                <p className="typography-body-small font-normal text-[#9aa0b0]">
                                     상품 설명
                                 </p>
-                                <p className="mt-2 line-clamp-2 text-[13px] leading-5 font-normal break-keep text-[#464646]">
+                                <p className="typography-body-small mt-2 line-clamp-2 font-normal break-keep text-[#464646]">
                                     {description}
                                 </p>
                             </div>
@@ -278,7 +274,7 @@ function ProductSummaryCardFrame({
                                         height={25}
                                         className="size-[25px] shrink-0"
                                     />
-                                    <span className="text-[11px] leading-[16px] font-normal tracking-[-0.5px]">
+                                    <span className="typography-body-small font-normal">
                                         관심 해제
                                     </span>
                                 </Button>

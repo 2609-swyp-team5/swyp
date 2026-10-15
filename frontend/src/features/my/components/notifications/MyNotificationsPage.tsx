@@ -83,13 +83,13 @@ export function MyNotificationsPage() {
         <MyPageContent
             eyebrow="계정 설정"
             title="알림 설정"
-            eyebrowClassName="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#83889e]"
+            eyebrowClassName="typography-heading-03 font-semibold text-[#83889e]"
             titleClassName="text-[#464646]"
         >
             <div className="w-full space-y-4">
                 {settingsQuery.isError && (
                     <div className="flex items-center gap-3">
-                        <p role="alert" className="text-destructive text-sm">
+                        <p role="alert" className="text-destructive typography-body-small">
                             {getApiErrorMessage(settingsQuery.error)}
                         </p>
                         <Button
@@ -102,7 +102,7 @@ export function MyNotificationsPage() {
                     </div>
                 )}
                 {updateMutation.isError && (
-                    <p role="alert" className="text-destructive text-sm">
+                    <p role="alert" className="text-destructive typography-body-small">
                         설정을 저장하지 못했습니다. {getApiErrorMessage(updateMutation.error)}
                     </p>
                 )}

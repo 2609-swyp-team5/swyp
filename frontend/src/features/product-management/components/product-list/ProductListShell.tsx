@@ -96,17 +96,15 @@ export function ProductListShell({
             <section className="layout-container flex flex-col gap-8 pt-6 pb-12 md:gap-12 md:pt-16 md:pb-24">
                 <div className="flex flex-col items-start justify-between gap-5 md:flex-row md:items-end md:gap-8">
                     <div className="flex flex-col gap-1">
-                        <p className="text-[16px] leading-6 font-semibold tracking-[0.5px] text-[#6b6c7b] md:text-[20px] md:leading-[30px]">
+                        <p className="typography-heading-03 font-semibold text-[#6b6c7b]">
                             {eyebrow}
                         </p>
-                        <h1 className="text-[30px] leading-[40px] font-bold tracking-[0.5px] text-[#363636] md:text-[48px] md:leading-[60px]">
-                            {title}
-                        </h1>
+                        <h1 className="typography-heading-01 font-bold text-[#363636]">{title}</h1>
                     </div>
                     {primaryAction ? (
                         <Button
                             asChild
-                            className="h-11 w-auto gap-2 rounded-full bg-[#5d55fe] px-5 text-[16px] font-semibold tracking-[0.5px] hover:bg-[#5148ed] md:h-[50px] md:w-[200px] md:gap-[10px] md:px-8 md:text-[20px]"
+                            className="typography-heading-03 h-11 w-auto gap-2 rounded-full bg-[#5d55fe] px-5 font-semibold hover:bg-[#5148ed] md:h-[50px] md:w-[200px] md:gap-[10px] md:px-8"
                         >
                             <Link href={primaryAction.href}>
                                 <Plus aria-hidden="true" className="size-[19px]" />
@@ -148,15 +146,15 @@ export function ProductListShell({
                                 >
                                     {isActive ? (
                                         <span className="flex items-center gap-1 tracking-[0.5px]">
-                                            <span className="text-[17px] leading-[26px] font-semibold md:text-[20px] md:leading-[30px]">
+                                            <span className="typography-heading-03 font-semibold">
                                                 {tab.label}
                                             </span>
-                                            <span className="inline-flex size-6 items-center justify-center rounded-full bg-[#363636] text-[14px] leading-6 font-semibold text-white md:size-[30px] md:text-[20px] md:leading-[30px]">
+                                            <span className="typography-heading-03 inline-flex size-6 items-center justify-center rounded-full bg-[#363636] font-semibold text-white md:size-[30px]">
                                                 {count}
                                             </span>
                                         </span>
                                     ) : (
-                                        <span className="text-[15px] leading-[25px] font-normal md:text-[16px]">
+                                        <span className="typography-body-medium font-normal">
                                             {tab.label} {count}
                                         </span>
                                     )}
@@ -169,10 +167,10 @@ export function ProductListShell({
                 <div className="grid items-start gap-5 md:gap-8 lg:grid-cols-[350px_minmax(0,1fr)] lg:gap-10 xl:grid-cols-[350px_826px]">
                     <aside className="h-fit overflow-hidden rounded-[20px] border border-[#d3d3d3] bg-white px-4 py-5 md:px-5 md:py-[30px]">
                         <div>
-                            <p className="text-[16px] leading-6 font-semibold text-[#6b6c7b] md:text-[20px] md:leading-[30px]">
+                            <p className="typography-heading-03 font-semibold text-[#6b6c7b]">
                                 {activeListCount}건
                             </p>
-                            <h2 className="text-[22px] leading-8 font-bold text-[#363636] md:text-[30px] md:leading-[42px]">
+                            <h2 className="typography-heading-02 font-bold text-[#363636]">
                                 {activeListTitle}
                             </h2>
                         </div>
@@ -182,12 +180,12 @@ export function ProductListShell({
                         >
                             {isLoading ? <ProductListSkeleton /> : null}
                             {!isLoading && errorMessage ? (
-                                <div className="px-5 py-12 text-center text-[14px] leading-5 font-medium text-[#d65353]">
+                                <div className="typography-body-small px-5 py-12 text-center font-medium text-[#d65353]">
                                     {errorMessage}
                                 </div>
                             ) : null}
                             {!isLoading && !errorMessage && filteredItems.length === 0 ? (
-                                <div className="px-5 py-14 text-center text-[14px] leading-6 font-medium text-[#83889e]">
+                                <div className="typography-body-small px-5 py-14 text-center font-medium text-[#83889e]">
                                     {emptyMessage}
                                 </div>
                             ) : null}
@@ -211,14 +209,17 @@ export function ProductListShell({
                             {isFetchingNextPage ? (
                                 <p
                                     role="status"
-                                    className="px-3 py-3 text-center text-[13px] text-[#83889e]"
+                                    className="typography-body-small px-3 py-3 text-center text-[#83889e]"
                                 >
                                     상품을 더 불러오는 중입니다.
                                 </p>
                             ) : null}
                             {isFetchNextPageError ? (
                                 <div className="flex flex-col items-center gap-2 px-3 py-3 text-center">
-                                    <p role="alert" className="text-[13px] text-[#d65353]">
+                                    <p
+                                        role="alert"
+                                        className="typography-body-small text-[#d65353]"
+                                    >
                                         상품을 더 불러오지 못했습니다.
                                     </p>
                                     {onRetryLoadMore ? (
@@ -241,14 +242,14 @@ export function ProductListShell({
                         <section className="flex min-h-[430px] items-center justify-center rounded-[14px] border border-dashed border-[#d3d3d3] bg-[#fafbff] px-6 py-16 text-center">
                             <div className="flex max-w-[360px] flex-col items-center gap-3">
                                 <div className="flex size-12 items-center justify-center rounded-full bg-[#eaeafd] text-[#6653fb]">
-                                    <span aria-hidden="true" className="text-xl">
+                                    <span aria-hidden="true" className="typography-heading-03">
                                         ✦
                                     </span>
                                 </div>
-                                <h2 className="text-[20px] leading-[30px] font-bold text-[#363636]">
+                                <h2 className="typography-heading-03 font-bold text-[#363636]">
                                     상품을 선택해 주세요
                                 </h2>
-                                <p className="text-[14px] leading-6 text-[#83889e]">
+                                <p className="typography-body-small text-[#83889e]">
                                     목록에서 상품을 선택하면 상품 정보와 시세 분석을 확인할 수
                                     있어요.
                                 </p>

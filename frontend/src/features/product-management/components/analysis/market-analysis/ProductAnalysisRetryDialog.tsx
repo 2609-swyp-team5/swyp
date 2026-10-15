@@ -149,13 +149,13 @@ export function ProductAnalysisRetryDialog({
                     ) : notice ? (
                         <CircleAlert aria-hidden="true" className="mb-5 size-12 text-[#6653fb]" />
                     ) : null}
-                    <DialogTitle className="text-[22px] leading-[30px] font-bold text-[#6653fb]">
+                    <DialogTitle className="typography-heading-bold font-bold text-[#6653fb]">
                         {title}
                     </DialogTitle>
                     <DialogDescription
                         id="product-analysis-retry-description"
                         aria-live="polite"
-                        className="pt-2 text-[14px] leading-[21px] text-[#6b7395]"
+                        className="typography-body-small pt-2 text-[#6b7395]"
                     >
                         {description}
                     </DialogDescription>
@@ -171,8 +171,8 @@ export function ProductAnalysisRetryDialog({
                                         key={step.key}
                                         className={
                                             state === "pending"
-                                                ? "flex items-center gap-3 text-[14px] leading-[21px] text-[#c9cad4]"
-                                                : "flex items-center gap-3 text-[14px] leading-[21px] font-semibold text-[#464646]"
+                                                ? "typography-body-small flex items-center gap-3 text-[#c9cad4]"
+                                                : "typography-body-bold-small flex items-center gap-3 font-semibold text-[#464646]"
                                         }
                                     >
                                         <StepIcon state={state} />

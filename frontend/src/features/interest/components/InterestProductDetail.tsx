@@ -108,13 +108,13 @@ export function InterestProductDetail({ interest }: { interest: InterestListItem
                 />
             ) : null}
             {deleteMutation.error ? (
-                <p className="-mt-4 text-right text-[13px] leading-5 text-[#d65353]">
+                <p className="typography-body-small -mt-4 text-right text-[#d65353]">
                     {getApiErrorMessage(deleteMutation.error)}
                 </p>
             ) : null}
             {sections.productSummary.error ? (
                 <section className="flex min-h-[539px] flex-col items-center justify-center gap-4 rounded-[20px] border border-[#d3d3d3] bg-white p-6 text-center">
-                    <p role="alert" className="text-[14px] leading-6 text-[#d65353]">
+                    <p role="alert" className="typography-body-small text-[#d65353]">
                         {getApiErrorMessage(sections.productSummary.error)}
                     </p>
                     <Button

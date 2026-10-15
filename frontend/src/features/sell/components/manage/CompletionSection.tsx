@@ -35,11 +35,11 @@ export function CompletionSection({
             <div className="relative z-10 md:py-8">
                 <h2
                     id="completion-title"
-                    className="text-[22px] leading-8 font-bold tracking-[0.5px] break-keep text-[#363636] md:text-[30px] md:leading-[42px]"
+                    className="typography-heading-02 font-bold break-keep text-[#363636]"
                 >
                     {title}
                 </h2>
-                <p className="mt-2 text-[14px] leading-[22px] font-normal break-keep text-[#464646] md:text-[16px] md:leading-[25px]">
+                <p className="typography-body-medium mt-2 font-normal break-keep text-[#464646]">
                     {description}
                     {!isDetailView ? (
                         <>
@@ -51,7 +51,7 @@ export function CompletionSection({
                 <Button
                     type="button"
                     onClick={() => router.push("/sell/manage")}
-                    className="mt-4 h-auto rounded-full border border-[#6653fb] bg-white px-4 py-2 text-[16px] leading-6 font-semibold tracking-[0.5px] text-[#6653fb] hover:bg-[#f5f3ff] hover:text-[#5745e7] md:px-5 md:py-2.5 md:text-[20px] md:leading-[30px]"
+                    className="typography-heading-03 mt-4 h-auto rounded-full border border-[#6653fb] bg-white px-4 py-2 font-semibold text-[#6653fb] hover:bg-[#f5f3ff] hover:text-[#5745e7] md:px-5 md:py-2.5"
                 >
                     판매 상품 목록 보기
                     <ArrowRight aria-hidden="true" className="size-4" />

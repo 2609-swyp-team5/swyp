@@ -7,12 +7,12 @@ import { Label } from "@/common/components/ui/Label";
 import type { MemberResponse } from "@/features/member/types";
 import { ProfileImageField } from "@/features/my/components/settings/ProfileImageField";
 
-const fieldErrorClassName = "text-destructive text-[13px]";
+const fieldErrorClassName = "text-destructive typography-body-small";
 
-const labelClassName = "text-[13px] font-semibold";
+const labelClassName = "typography-body-bold-small font-semibold";
 
 const fieldClassName =
-    "h-12 rounded-xl px-4 text-base md:text-base focus-visible:border-[#6653fb] focus-visible:ring-0 aria-invalid:focus-visible:border-destructive";
+    "h-12 rounded-xl px-4 typography-body-medium focus-visible:border-[#6653fb] focus-visible:ring-0 aria-invalid:focus-visible:border-destructive";
 
 export type MySettingsFormValues = { nickname: string; phone: string };
 type MySettingsFormProps = {
@@ -83,10 +83,7 @@ export function MySettingsForm({
                     aria-describedby="email-hint"
                     className={`bg-muted text-muted-foreground ${fieldClassName}`}
                 />
-                <p
-                    id="email-hint"
-                    className="text-[14px] leading-[15px] tracking-[-0.5px] text-[#fa503d]"
-                >
+                <p id="email-hint" className="typography-body-small text-[#fa503d]">
                     이메일은 변경할 수 없습니다.
                 </p>
             </div>
@@ -114,7 +111,7 @@ export function MySettingsForm({
             <Button
                 type="submit"
                 disabled={!member || isBusy}
-                className="h-[50px] w-full rounded-xl text-base font-semibold hover:bg-[#5745e7] focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30 dark:hover:bg-[#5745e7]"
+                className="typography-body-bold h-[50px] w-full rounded-xl font-semibold hover:bg-[#5745e7] focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30 dark:hover:bg-[#5745e7]"
             >
                 {isBusy ? "저장 중..." : "변경 사항 저장"}
             </Button>

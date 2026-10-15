@@ -10,11 +10,10 @@ import { SignupEmailField } from "@/features/auth/components/signup/SignupEmailF
 import type { SignUpFormValues } from "@/features/auth/schemas/authSchema";
 import type { SignUpRequest } from "@/features/auth/types";
 
-const labelClassName =
-    "typography-body-medium text-[length:var(--type-body-medium-size)] leading-[30px] font-semibold text-[#363636]";
+const labelClassName = "typography-body-medium font-semibold text-[#363636]";
 const fieldClassName =
-    "text-foreground h-12 rounded-xl px-4 text-base md:text-base focus-visible:border-[#6653fb] focus-visible:ring-0 aria-invalid:focus-visible:border-destructive";
-const fieldErrorClassName = "mt-2 text-[13px] leading-5 text-[#fa503d]";
+    "text-foreground h-12 rounded-xl px-4 typography-body-medium focus-visible:border-[#6653fb] focus-visible:ring-0 aria-invalid:focus-visible:border-destructive";
+const fieldErrorClassName = "mt-2 typography-body-small text-[#fa503d]";
 
 type SignupFormProps = {
     form: UseFormReturn<SignUpFormValues, unknown, SignUpRequest>;
@@ -140,7 +139,7 @@ export function SignupForm({
                     ) : (
                         <p
                             id="password-hint"
-                            className="mt-2 flex items-center gap-2.5 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#fa503d]"
+                            className="typography-body-bold-small mt-2 flex items-center gap-2.5 font-semibold text-[#fa503d]"
                         >
                             <CircleAlert aria-hidden="true" className="size-[15px] shrink-0" />
                             비밀번호는 영문과 숫자를 포함해 8~64자로 입력해 주세요.

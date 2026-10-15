@@ -46,12 +46,10 @@ export function ManagementTargetPriceCard({
         >
             <div className="flex w-full items-start justify-between gap-4">
                 <div className="flex min-w-0 flex-1 flex-col">
-                    <h3 className="text-[22px] leading-[30px] font-semibold tracking-[0.5px] text-[#363636]">
+                    <h3 className="typography-heading-bold font-semibold text-[#363636]">
                         {title}
                     </h3>
-                    <p className="text-[12px] leading-5 tracking-[-0.5px] text-[#6b6c7b]">
-                        {description}
-                    </p>
+                    <p className="typography-body-small text-[#6b6c7b]">{description}</p>
                 </div>
                 {targetPriceNotificationEnabled === false ? (
                     <Button
@@ -66,7 +64,7 @@ export function ManagementTargetPriceCard({
                                 width={20}
                                 height={20}
                             />
-                            <span className="text-[13px] leading-5 font-semibold tracking-[-0.5px]">
+                            <span className="typography-body-bold-small font-semibold">
                                 알림 활성화
                             </span>
                         </Link>
@@ -76,19 +74,17 @@ export function ManagementTargetPriceCard({
 
             <div className="mt-5 flex w-full items-center justify-between rounded-[10px] bg-[#fafbff] px-2.5 py-5">
                 <div className="flex min-w-0 flex-1 flex-col items-center text-center">
-                    <span
-                        className={`text-[12px] leading-5 tracking-[-0.5px] ${referenceLabelColor}`}
-                    >
+                    <span className={`typography-body-small ${referenceLabelColor}`}>
                         {reference.label}
                     </span>
                     <div className="flex flex-col items-center">
                         <strong
-                            className={`text-[22px] leading-[30px] font-semibold tracking-[0.5px] ${referenceColor}`}
+                            className={`typography-heading-bold font-semibold ${referenceColor}`}
                         >
                             {formatPrice(reference.price)}
                         </strong>
                         {reference.supportingText ? (
-                            <span className="text-[10px] leading-[15px] tracking-[-0.5px] text-[#a9adbd]">
+                            <span className="typography-caption text-[#a9adbd]">
                                 {reference.supportingText}
                             </span>
                         ) : null}
@@ -96,11 +92,9 @@ export function ManagementTargetPriceCard({
                 </div>
                 <Separator orientation="vertical" className="h-[52px]" />
                 <div className="flex min-w-0 flex-1 flex-col items-center text-center">
-                    <span className="text-[12px] leading-5 tracking-[-0.5px] text-[#6b6c7b]">
-                        목표 등록가
-                    </span>
+                    <span className="typography-body-small text-[#6b6c7b]">목표 등록가</span>
                     <strong
-                        className={`text-[22px] leading-[30px] font-semibold tracking-[0.5px] ${
+                        className={`typography-heading-bold font-semibold ${
                             targetPrice === null ? "text-[#83889e]" : "text-[#272727]"
                         }`}
                     >
@@ -111,7 +105,7 @@ export function ManagementTargetPriceCard({
                             type="button"
                             onClick={handleClear}
                             disabled={isSaving}
-                            className="cursor-pointer text-[10px] leading-[15px] tracking-[-0.5px] text-[#a9adbd] underline underline-offset-2 hover:text-[#6653fb] focus-visible:ring-2 focus-visible:ring-[#6653fb]/30 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                            className="typography-caption cursor-pointer text-[#a9adbd] underline underline-offset-2 hover:text-[#6653fb] focus-visible:ring-2 focus-visible:ring-[#6653fb]/30 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             삭제하기
                         </button>
@@ -134,22 +128,22 @@ export function ManagementTargetPriceCard({
                         placeholder="목표 가격 입력"
                         value={input}
                         onChange={handleInputChange}
-                        className="h-[52px] min-w-0 flex-1 bg-transparent text-left text-[14px] font-semibold tracking-[0.07px] text-[#272727] tabular-nums outline-none placeholder:font-normal placeholder:text-[#83889e]"
+                        className="typography-body-bold-small h-[52px] min-w-0 flex-1 bg-transparent text-left font-semibold text-[#272727] tabular-nums outline-none placeholder:font-normal placeholder:text-[#83889e]"
                     />
-                    <span className="shrink-0 text-[14px] font-semibold tracking-[0.07px] text-[#272727]">
+                    <span className="typography-body-bold-small shrink-0 font-semibold text-[#272727]">
                         원
                     </span>
                 </div>
                 <button
                     type="submit"
                     disabled={isSaving || unchanged}
-                    className="shrink-0 bg-[#6653fb] px-8 py-3 text-[16px] leading-6 font-semibold tracking-[0.08px] text-white transition-colors hover:bg-[#5745e7] focus-visible:ring-3 focus-visible:ring-[#6653fb]/30 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                    className="typography-body-bold shrink-0 bg-[#6653fb] px-8 py-3 font-semibold text-white transition-colors hover:bg-[#5745e7] focus-visible:ring-3 focus-visible:ring-[#6653fb]/30 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     저장하기
                 </button>
             </form>
             {message ? (
-                <p role="alert" className="mt-2 text-[13px] leading-5 text-[#d65353]">
+                <p role="alert" className="typography-body-small mt-2 text-[#d65353]">
                     {message}
                 </p>
             ) : null}

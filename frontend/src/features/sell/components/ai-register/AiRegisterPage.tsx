@@ -183,7 +183,7 @@ export function AiRegisterPage() {
             <div className="flex justify-end gap-2 md:gap-3">
                 <Button
                     type="button"
-                    className="h-12 shrink-0 rounded-full border-0 bg-[#d3d3d3] px-6 py-3 text-[16px] leading-6 font-semibold tracking-[0.5px] text-white hover:bg-[#c6c6c6] md:h-[54px] md:px-[50px] md:text-[20px] md:leading-[30px]"
+                    className="typography-heading-03 h-12 shrink-0 rounded-full border-0 bg-[#d3d3d3] px-6 py-3 font-semibold text-white hover:bg-[#c6c6c6] md:h-[54px] md:px-[50px]"
                     onClick={() => setIsExitDialogOpen(true)}
                 >
                     나가기
@@ -192,7 +192,7 @@ export function AiRegisterPage() {
                     <Button
                         key="upload-next"
                         type="button"
-                        className="h-12 min-w-0 flex-1 rounded-full bg-[#6653fb] px-5 py-3 text-[16px] leading-6 font-semibold tracking-[0.5px] text-white hover:bg-[#5745e7] md:h-[54px] md:flex-none md:px-[50px] md:text-[20px] md:leading-[30px]"
+                        className="typography-heading-03 h-12 min-w-0 flex-1 rounded-full bg-[#6653fb] px-5 py-3 font-semibold text-white hover:bg-[#5745e7] md:h-[54px] md:flex-none md:px-[50px]"
                         onClick={handleNextStep}
                     >
                         다음단계
@@ -201,7 +201,7 @@ export function AiRegisterPage() {
                     <Button
                         key="additional-info-create"
                         type="button"
-                        className="h-12 min-w-0 flex-1 rounded-full bg-[#6653fb] px-5 py-3 text-[16px] leading-6 font-semibold text-white hover:bg-[#5745e7] md:h-[54px] md:flex-none md:px-8"
+                        className="typography-body-bold h-12 min-w-0 flex-1 rounded-full bg-[#6653fb] px-5 py-3 font-semibold text-white hover:bg-[#5745e7] md:h-[54px] md:flex-none md:px-8"
                         onClick={handleCreate}
                     >
                         ✦ AI 판매 글 만들기
@@ -222,7 +222,7 @@ export function AiRegisterPage() {
                     {!isUploadStep && (
                         <button
                             type="button"
-                            className="flex w-fit items-center gap-1 text-[20px] leading-8 font-medium tracking-[0.5px] text-[#6b7395] transition-colors hover:text-[#6653fb]"
+                            className="typography-heading-03 flex w-fit items-center gap-1 font-medium text-[#6b7395] transition-colors hover:text-[#6653fb]"
                             onClick={handlePreviousStep}
                         >
                             <ArrowLeft aria-hidden="true" className="size-5" />
@@ -233,7 +233,7 @@ export function AiRegisterPage() {
                         <p className="typography-heading-02 col-start-1 row-start-1 self-start text-[#363636]">
                             AI로 빠르게
                         </p>
-                        <h1 className="col-start-1 row-start-1 mt-[38px] self-start text-[30px] leading-[40px] font-bold tracking-[0.5px] text-[#6653fb] md:mt-[52px] md:text-[48px] md:leading-[60px]">
+                        <h1 className="typography-heading-01 col-start-1 row-start-1 mt-[38px] self-start font-bold text-[#6653fb] md:mt-[52px]">
                             {isUploadStep ? "상품 사진을 올려주세요" : "조금만 더 알려주세요"}
                         </h1>
                     </div>

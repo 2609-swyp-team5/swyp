@@ -26,7 +26,7 @@ import { useRequestProductAnalysisMutation } from "@/features/product-management
 
 // Figma LinkCard: 판매글 바로가기·관심상품 추가를 같은 너비로 나란히 둔다
 const detailActionClass =
-    "h-[45px] min-w-0 flex-1 gap-2 rounded-[5px] border border-[#d3d3d3] bg-[#fafbff] px-5 py-2.5 text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#83889e] hover:bg-[#f1f2f8] hover:text-[#83889e] disabled:opacity-100";
+    "h-[45px] min-w-0 flex-1 gap-2 rounded-[5px] border border-[#d3d3d3] bg-[#fafbff] px-5 py-2.5 typography-body-bold font-semibold text-[#83889e] hover:bg-[#f1f2f8] hover:text-[#83889e] disabled:opacity-100";
 
 export function SearchProductDetailPage({ targetId }: { targetId: number }) {
     const [selectedImage, setSelectedImage] = useState(0);
@@ -139,7 +139,7 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
             <div className="layout-container flex flex-col gap-[30px] py-10 lg:py-20">
                 <Link
                     href="/search"
-                    className="flex items-center gap-2 self-start text-[20px] leading-8 font-medium tracking-[0.5px] text-[#6b7395] hover:text-[#6653fb]"
+                    className="typography-heading-03 flex items-center gap-2 self-start font-medium text-[#6b7395] hover:text-[#6653fb]"
                 >
                     <ArrowLeft aria-hidden="true" className="size-5 shrink-0" />
                     <span>이전 페이지</span>
@@ -147,7 +147,10 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
 
                 {isPending && <SearchProductDetailSkeleton />}
                 {error && (
-                    <div role="alert" className="text-destructive flex items-center gap-3 text-sm">
+                    <div
+                        role="alert"
+                        className="text-destructive typography-body-small flex items-center gap-3"
+                    >
                         <p>{getApiErrorMessage(error)}</p>
                         <Button
                             variant="outline"
@@ -177,7 +180,7 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                         />
                         <div>
                             {product.source === "EXTERNAL" && (
-                                <p className="mb-6 flex items-start gap-[5px] text-[12px] leading-5 tracking-[-0.5px] text-[#272727]">
+                                <p className="typography-body-small mb-6 flex items-start gap-[5px] text-[#272727]">
                                     <Info
                                         aria-hidden="true"
                                         strokeWidth={1.5}
@@ -256,7 +259,7 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                                         <div className="flex gap-2">
                                             <Badge
                                                 className={cn(
-                                                    "h-auto rounded-full border-0 px-3 py-1 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-white",
+                                                    "typography-body-bold-small h-auto rounded-full border-0 px-3 py-1 font-semibold text-white",
                                                     platform === "당근마켓"
                                                         ? "bg-[#ff6f0f]"
                                                         : platform === "번개장터"
@@ -268,19 +271,19 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                                             >
                                                 {platform}
                                             </Badge>
-                                            <Badge className="h-auto rounded-full border-0 bg-[#fafbff] px-3 py-1 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6653fb]">
+                                            <Badge className="typography-body-bold-small h-auto rounded-full border-0 bg-[#fafbff] px-3 py-1 font-semibold text-[#6653fb]">
                                                 {status}
                                             </Badge>
                                         </div>
                                         <div className="flex flex-col gap-2">
-                                            <h1 className="text-[26px] leading-[38px] font-bold tracking-[0.5px] break-words sm:text-[30px] sm:leading-[42px]">
+                                            <h1 className="typography-heading-02 font-bold break-words">
                                                 {product.title}
                                             </h1>
                                             <div className="flex flex-wrap items-center">
-                                                <p className="text-[22px] leading-8 font-bold tracking-[0.5px] text-[#fa503d] md:text-[30px] md:leading-[42px]">
+                                                <p className="typography-heading-02 font-bold text-[#fa503d]">
                                                     {product.price.toLocaleString("ko-KR")}원
                                                 </p>
-                                                <Badge className="font-brand h-auto rounded-full border-0 bg-[#fafbff] px-2.5 py-1 text-[12px] leading-[18px] font-semibold text-[#6653fb]">
+                                                <Badge className="font-brand typography-body-small h-auto rounded-full border-0 bg-[#fafbff] px-2.5 py-1 font-semibold text-[#6653fb]">
                                                     {comparison}
                                                 </Badge>
                                             </div>
@@ -288,7 +291,7 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                                     </div>
 
                                     <div className="flex flex-col gap-[15px]">
-                                        <dl className="grid grid-cols-1 gap-x-[30px] gap-y-2.5 text-[14px] leading-[22px] sm:grid-cols-[max-content_max-content]">
+                                        <dl className="typography-body-small grid grid-cols-1 gap-x-[30px] gap-y-2.5 sm:grid-cols-[max-content_max-content]">
                                             {productInfoRows.map(([label, value]) => (
                                                 <div key={label} className="flex min-w-0 gap-2.5">
                                                     <dt className="shrink-0 text-[#83889e]">
@@ -300,7 +303,7 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                                                 </div>
                                             ))}
                                         </dl>
-                                        <div className="flex flex-col gap-[5px] border-t border-[#d3d3d3] py-2.5 text-[14px] leading-[22px]">
+                                        <div className="typography-body-small flex flex-col gap-[5px] border-t border-[#d3d3d3] py-2.5">
                                             <h2 className="text-[#6b6c7b]">상품 설명</h2>
                                             <p className="break-words whitespace-pre-wrap text-[#464646]">
                                                 {product.description?.trim() ||
@@ -381,7 +384,7 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                                         {interests.errorMessage && (
                                             <div
                                                 role="alert"
-                                                className="text-destructive flex flex-col items-start gap-3 text-sm"
+                                                className="text-destructive typography-body-small flex flex-col items-start gap-3"
                                             >
                                                 <p>{interests.errorMessage}</p>
                                                 {interests.canRetry && (
@@ -440,15 +443,15 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                         >
                             <span
                                 aria-hidden="true"
-                                className="text-[22px] leading-[33px] font-normal tracking-[-0.2578px]"
+                                className="typography-heading-bold font-normal"
                             >
                                 ✦
                             </span>
-                            <span className="text-[20px] leading-[30px] font-semibold tracking-[0.5px]">
+                            <span className="typography-heading-03 font-semibold">
                                 AI 분석 보기
                             </span>
                         </Button>
-                        <p className="text-center text-[16px] leading-[25px] font-normal tracking-normal text-[#83889e]">
+                        <p className="typography-body-medium text-center font-normal text-[#83889e]">
                             AI가 시세 분석과 거래 타이밍을 종합해 알려드려요.
                         </p>
                     </div>

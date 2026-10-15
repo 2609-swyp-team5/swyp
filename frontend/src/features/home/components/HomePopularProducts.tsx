@@ -28,7 +28,9 @@ export function HomePopularProducts() {
     if (error) {
         return (
             <div role="alert" className="flex flex-col items-center gap-4 py-10">
-                <p className="text-destructive text-sm">{getApiErrorMessage(error)}</p>
+                <p className="text-destructive typography-body-small">
+                    {getApiErrorMessage(error)}
+                </p>
                 <Button variant="outline" disabled={isFetching} onClick={() => void refetch()}>
                     인기 상품 다시 조회
                 </Button>
@@ -47,7 +49,9 @@ export function HomePopularProducts() {
             />
             {interests.errorMessage && (
                 <div role="alert" className="flex flex-col items-center gap-4 py-4">
-                    <p className="text-destructive text-sm">{interests.errorMessage}</p>
+                    <p className="text-destructive typography-body-small">
+                        {interests.errorMessage}
+                    </p>
                     {interests.canRetry && (
                         <Button variant="outline" onClick={interests.retry}>
                             관심상품 다시 조회

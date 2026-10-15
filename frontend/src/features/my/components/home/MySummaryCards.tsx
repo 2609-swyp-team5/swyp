@@ -16,10 +16,10 @@ export function MySummaryCards() {
                     className="flex flex-col justify-between gap-2 rounded-[10px] border border-[#d3d3d3] bg-[#fafbff] p-4 md:gap-3 md:p-6"
                 >
                     <div>
-                        <h2 className="text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#464646]">
+                        <h2 className="typography-body-bold-small font-semibold text-[#464646]">
                             {item.title}
                         </h2>
-                        <p className="text-[22px] leading-8 font-medium tracking-[0.5px] text-[#6653fb] md:text-[25px] md:leading-[40px]">
+                        <p className="typography-heading-02 font-medium text-[#6653fb]">
                             {item.value}
                         </p>
                     </div>
@@ -34,7 +34,7 @@ export function MySummaryCards() {
                                           : undefined
                                     : undefined
                             }
-                            className="text-[13px] leading-5 break-keep text-[#464646] md:text-base md:leading-[25px]"
+                            className="typography-body-medium break-keep text-[#464646]"
                         >
                             {isError
                                 ? item.title === "등록한 물건"

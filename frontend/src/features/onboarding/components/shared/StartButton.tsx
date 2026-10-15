@@ -20,7 +20,7 @@ export function StartButton({
     return (
         <Button
             asChild
-            className="group relative h-[60px] overflow-hidden rounded-[50px] border-0 bg-[#6653fb] px-10 py-0 text-[22px] leading-8 font-bold tracking-[0.5px] text-white transition-[background-color,translate,scale,box-shadow] duration-300 hover:shadow-[0_12px_32px_rgba(108,83,255,0.3)] focus-visible:shadow-[0_12px_32px_rgba(108,83,255,0.3)] motion-safe:hover:-translate-y-1 motion-safe:active:scale-[0.96] motion-reduce:transition-none md:h-[74px] md:px-14 md:text-[30px] md:leading-[42px]"
+            className="group typography-heading-02 relative h-[60px] overflow-hidden rounded-[50px] border-0 bg-[#6653fb] px-10 py-0 font-bold text-white transition-[background-color,translate,scale,box-shadow] duration-300 hover:shadow-[0_12px_32px_rgba(108,83,255,0.3)] focus-visible:shadow-[0_12px_32px_rgba(108,83,255,0.3)] motion-safe:hover:-translate-y-1 motion-safe:active:scale-[0.96] motion-reduce:transition-none md:h-[74px] md:px-14"
         >
             <Link
                 href={href}

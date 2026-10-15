@@ -19,7 +19,7 @@ export function ProductPriceTrendSection({
         return (
             <div className="flex flex-col gap-[10px]">
                 <section className="flex min-h-[363px] items-center justify-center rounded-[10px] border border-[#6653fb] bg-white p-6">
-                    <p className="text-center text-[14px] leading-6 text-[#d65353]">
+                    <p className="typography-body-small text-center text-[#d65353]">
                         가격 변화 추이 데이터를 불러오지 못했습니다.
                     </p>
                 </section>
@@ -32,7 +32,7 @@ export function ProductPriceTrendSection({
     if (chartData.points.length === 0) {
         return (
             <section className="flex min-h-[363px] items-center justify-center rounded-[10px] border border-[#6653fb] bg-white p-6">
-                <p className="text-center text-[14px] leading-6 text-[#83889e]">
+                <p className="typography-body-small text-center text-[#83889e]">
                     최근 거래 가격 추이 데이터가 없습니다.
                 </p>
             </section>

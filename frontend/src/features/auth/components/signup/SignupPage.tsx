@@ -131,7 +131,7 @@ export function SignupPage() {
                 </div>
 
                 <div className="mt-[30px] flex flex-wrap items-center justify-between gap-5">
-                    <p className="flex items-center gap-[6px] text-base leading-[25px] font-semibold text-[#6b6c7b]">
+                    <p className="typography-body-bold flex items-center gap-[6px] font-semibold text-[#6b6c7b]">
                         <span>이미 계정이 있으신가요?</span>
                         <Link
                             href="/login"
@@ -144,7 +144,7 @@ export function SignupPage() {
                         type="submit"
                         form="signup-form"
                         disabled={isBusy}
-                        className="bg-primary text-primary-foreground ml-auto h-[58px] rounded-full px-[50px] text-lg leading-[30px] font-semibold tracking-[0.5px] hover:bg-[#5745e7] focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30 dark:bg-[#6653fb] dark:text-white dark:hover:bg-[#5745e7]"
+                        className="bg-primary text-primary-foreground typography-body-large ml-auto h-[58px] rounded-full px-[50px] font-semibold hover:bg-[#5745e7] focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30 dark:bg-[#6653fb] dark:text-white dark:hover:bg-[#5745e7]"
                     >
                         {isBusy ? "가입 중..." : "동의하고 가입하기"}
                     </Button>

@@ -19,7 +19,7 @@ export function NotificationGroup({
 }: NotificationGroupProps) {
     return (
         <MyPanel className="p-0">
-            <h2 className="bg-muted/50 text-muted-foreground border-b px-6 py-4 text-[13px] leading-5 font-semibold">
+            <h2 className="bg-muted/50 text-muted-foreground typography-body-bold-small border-b px-6 py-4 font-semibold">
                 {group.title}
             </h2>
             <div className="divide-y">
@@ -29,15 +29,12 @@ export function NotificationGroup({
                         className="flex items-center justify-between gap-5 px-6 py-5"
                     >
                         <div className="min-w-0">
-                            <Label
-                                htmlFor={item.id}
-                                className="text-base leading-[25px] font-semibold"
-                            >
+                            <Label htmlFor={item.id} className="typography-body-bold font-semibold">
                                 {item.title}
                             </Label>
                             <p
                                 id={item.id + "-description"}
-                                className="text-muted-foreground mt-1 text-[13px] leading-5"
+                                className="text-muted-foreground typography-body-small mt-1"
                             >
                                 {item.description}
                             </p>

@@ -146,16 +146,16 @@ function NotificationToast({
                 className="mt-0.5 size-6 shrink-0 text-[#6653fb]"
             />
             <div className="min-w-0 flex-1 space-y-1">
-                <p className="text-[15px] leading-6 font-semibold text-[#363364]">
+                <p className="typography-body-bold font-semibold text-[#363364]">
                     {notification.title}
                 </p>
-                <p className="line-clamp-3 text-sm leading-[22px] text-[#83889e]">
+                <p className="typography-body-small line-clamp-3 text-[#83889e]">
                     {notification.message}
                 </p>
                 {link && (
                     <Link
                         href={link.href}
-                        className="inline-block text-[13px] leading-5 font-semibold text-[#6653fb] underline"
+                        className="typography-body-bold-small inline-block font-semibold text-[#6653fb] underline"
                         onClick={() => {
                             onRead(notificationId);
                             onDismiss(notificationId);

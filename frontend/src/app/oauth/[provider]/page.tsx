@@ -71,14 +71,14 @@ export default function SocialOAuthCallbackPage() {
     return (
         <main className="bg-muted/20 flex flex-1 items-center justify-center px-6 py-14">
             <Card className="bg-background w-full max-w-[420px] rounded-2xl border p-8 text-center shadow-xl ring-0 shadow-black/5">
-                <h1 className="text-2xl font-bold">{providerLabel} 로그인</h1>
+                <h1 className="typography-heading-02 font-bold">{providerLabel} 로그인</h1>
                 {isPending ? (
-                    <p role="status" className="text-muted-foreground mt-5 text-sm">
+                    <p role="status" className="text-muted-foreground typography-body-small mt-5">
                         로그인 처리 중입니다...
                     </p>
                 ) : errorMessage ? (
                     <>
-                        <p role="alert" className="text-destructive mt-5 text-sm">
+                        <p role="alert" className="text-destructive typography-body-small mt-5">
                             {errorMessage}
                         </p>
                         <Button asChild variant="secondary" className="mt-6 w-full">
@@ -86,7 +86,7 @@ export default function SocialOAuthCallbackPage() {
                         </Button>
                     </>
                 ) : (
-                    <p className="text-muted-foreground mt-5 text-sm">
+                    <p className="text-muted-foreground typography-body-small mt-5">
                         로그인 정보를 확인 중입니다...
                     </p>
                 )}

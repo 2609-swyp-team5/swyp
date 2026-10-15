@@ -78,7 +78,9 @@ function NotificationCard({
                         <h3
                             className={cn(
                                 "leading-5 font-semibold text-[#363364]",
-                                today ? "text-[13px] tracking-[-0.5px]" : "font-brand text-[14px]",
+                                today
+                                    ? "typography-body-small"
+                                    : "font-brand typography-body-small",
                             )}
                         >
                             {notification.title}
@@ -86,8 +88,8 @@ function NotificationCard({
                         <div className="flex shrink-0 items-center gap-1">
                             <span
                                 className={cn(
-                                    "flex items-center gap-1 text-xs leading-5 text-[#9b9fb1]",
-                                    today && "text-[13px] font-semibold",
+                                    "typography-body-small flex items-center gap-1 text-[#9b9fb1]",
+                                    today && "typography-body-bold-small font-semibold",
                                 )}
                             >
                                 {unread && (
@@ -113,15 +115,13 @@ function NotificationCard({
                             </Button>
                         </div>
                     </div>
-                    <p className="text-xs leading-5 tracking-[-0.5px] text-[#83889e]">
-                        {notification.message}
-                    </p>
+                    <p className="typography-body-small text-[#83889e]">{notification.message}</p>
                     {(link || unread) && (
                         <div className="flex flex-wrap items-center gap-3 pt-2.5">
                             {link && (
                                 <Button
                                     asChild
-                                    className="h-auto rounded-full bg-[#6653fb] px-4 py-1.5 text-[13px] leading-5 font-semibold text-white hover:bg-[#5745e7] focus-visible:border-[#6653fb] focus-visible:ring-[#6653fb]/30"
+                                    className="typography-body-bold-small h-auto rounded-full bg-[#6653fb] px-4 py-1.5 font-semibold text-white hover:bg-[#5745e7] focus-visible:border-[#6653fb] focus-visible:ring-[#6653fb]/30"
                                 >
                                     <Link
                                         href={link.href}
@@ -137,7 +137,7 @@ function NotificationCard({
                                 <Button
                                     type="button"
                                     variant="link"
-                                    className="h-auto px-0 py-0 text-[13px] leading-5 font-semibold text-[#6653fb] underline hover:text-[#5745e7] focus-visible:border-[#6653fb] focus-visible:ring-[#6653fb]/30"
+                                    className="typography-body-bold-small h-auto px-0 py-0 font-semibold text-[#6653fb] underline hover:text-[#5745e7] focus-visible:border-[#6653fb] focus-visible:ring-[#6653fb]/30"
                                     onClick={() => onRead(notification.notificationId)}
                                 >
                                     읽음 처리
@@ -181,7 +181,7 @@ function DeleteAllNotificationsDialog({
                     <AlertDialogDescription>삭제한 알림은 되돌릴 수 없어요.</AlertDialogDescription>
                 </AlertDialogHeader>
                 {errorMessage && (
-                    <p role="alert" className="text-destructive text-sm">
+                    <p role="alert" className="text-destructive typography-body-small">
                         {errorMessage}
                     </p>
                 )}
@@ -239,7 +239,7 @@ function NotificationEmptyState({ filtered }: { filtered: boolean }) {
     return (
         <div className="flex flex-col items-center justify-center rounded-[20px] border border-dashed border-[#dcd8ff] bg-[#fafbff] px-6 py-16 text-center">
             <Bell aria-hidden="true" className="mb-4 size-9 text-[#b8b2ff]" />
-            <p className="text-sm leading-6 font-medium text-[#83889e]">
+            <p className="typography-body-small font-medium text-[#83889e]">
                 {filtered ? "해당하는 알림이 없습니다." : "아직 받은 알림이 없습니다."}
             </p>
             {!filtered && (
@@ -284,12 +284,10 @@ export function NotificationsPage() {
             <div className="layout-container flex flex-col gap-12 pt-16 pb-24">
                 <div className="flex flex-col items-start justify-between gap-8 md:flex-row md:items-end">
                     <div className="flex flex-col gap-1">
-                        <p className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#6b6c7b]">
+                        <p className="typography-heading-03 font-semibold text-[#6b6c7b]">
                             AI 시세 분석 결과와 중요 업데이트
                         </p>
-                        <h1 className="text-[40px] leading-[55px] font-bold tracking-[0.5px] text-[#363636] lg:text-[48px] lg:leading-[64px]">
-                            알림
-                        </h1>
+                        <h1 className="typography-heading-01 font-bold text-[#363636]">알림</h1>
                     </div>
                 </div>
                 <div className="space-y-6">
@@ -319,15 +317,15 @@ export function NotificationsPage() {
                                     >
                                         {isActive ? (
                                             <span className="flex items-center gap-1 tracking-[0.5px]">
-                                                <span className="text-[20px] leading-[30px] font-semibold">
+                                                <span className="typography-heading-03 font-semibold">
                                                     {item.label}
                                                 </span>
-                                                <span className="inline-flex size-[30px] items-center justify-center rounded-full bg-[#363636] text-[20px] leading-[30px] font-semibold text-white">
+                                                <span className="typography-heading-03 inline-flex size-[30px] items-center justify-center rounded-full bg-[#363636] font-semibold text-white">
                                                     {count}
                                                 </span>
                                             </span>
                                         ) : (
-                                            <span className="text-[16px] leading-[25px] font-normal">
+                                            <span className="typography-body-medium font-normal">
                                                 {item.label} {count}
                                             </span>
                                         )}
@@ -337,7 +335,10 @@ export function NotificationsPage() {
                         </div>
                     </div>
                     {deleteMutation.isError && (
-                        <p role="alert" className="text-sm font-medium text-[#d65353]">
+                        <p
+                            role="alert"
+                            className="typography-body-small font-medium text-[#d65353]"
+                        >
                             알림을 삭제하지 못했습니다. {getApiErrorMessage(deleteMutation.error)}
                         </p>
                     )}
@@ -348,7 +349,7 @@ export function NotificationsPage() {
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    className="rounded-full border-[#dcd8ff] text-[13px] font-semibold text-[#83889e] hover:border-[#6653fb] hover:bg-[#fafbff] hover:text-[#6653fb] focus-visible:border-[#6653fb] focus-visible:ring-[#6653fb]/30"
+                                    className="typography-body-bold-small rounded-full border-[#dcd8ff] font-semibold text-[#83889e] hover:border-[#6653fb] hover:bg-[#fafbff] hover:text-[#6653fb] focus-visible:border-[#6653fb] focus-visible:ring-[#6653fb]/30"
                                     onClick={() => {
                                         deleteAllMutation.reset();
                                         setDeleteAllOpen(true);
@@ -363,7 +364,7 @@ export function NotificationsPage() {
                             <NotificationListSkeleton />
                         ) : query.isError ? (
                             <div className="flex flex-col items-center gap-3 py-10">
-                                <p role="alert" className="text-destructive text-sm">
+                                <p role="alert" className="text-destructive typography-body-small">
                                     {getApiErrorMessage(query.error)}
                                 </p>
                                 <Button
@@ -388,7 +389,7 @@ export function NotificationsPage() {
                                         aria-label={today ? "오늘 알림" : "이전 알림"}
                                         className="space-y-3"
                                     >
-                                        <h2 className="text-xs leading-4 font-normal text-[#83889e]">
+                                        <h2 className="typography-body-small font-normal text-[#83889e]">
                                             {today ? "오늘" : "이전"}
                                         </h2>
                                         {items.map((item) => (

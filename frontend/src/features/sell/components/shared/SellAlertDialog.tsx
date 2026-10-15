@@ -67,10 +67,10 @@ export function SellAlertDialog({
                         className="size-[66px]"
                     />
                     <div className="flex w-full flex-col items-center gap-2">
-                        <AlertDialogTitle className="text-[22px] leading-8 font-bold tracking-[0.5px] text-[#545d82] md:text-[30px] md:leading-[42px]">
+                        <AlertDialogTitle className="typography-heading-02 font-bold text-[#545d82]">
                             {title}
                         </AlertDialogTitle>
-                        <AlertDialogDescription className="text-[16px] leading-[25px] text-[#6b7395]">
+                        <AlertDialogDescription className="typography-body-medium text-[#6b7395]">
                             {description}
                         </AlertDialogDescription>
                     </div>
@@ -81,7 +81,7 @@ export function SellAlertDialog({
                 <div className="mt-[30px] flex w-full items-center justify-center gap-3">
                     <AlertDialogAction
                         disabled={confirmDisabled}
-                        className="h-[35px] w-[120px] rounded-full !border-0 !bg-[#d3d3d3] px-8 py-1 text-[16px] leading-[25px] font-semibold tracking-[0.5px] !text-white hover:!bg-[#b8b8b8]"
+                        className="typography-body-bold h-[35px] w-[120px] rounded-full !border-0 !bg-[#d3d3d3] px-8 py-1 font-semibold !text-white hover:!bg-[#b8b8b8]"
                         onClick={(event) => {
                             if (preventCloseOnConfirm) event.preventDefault();
                             onConfirm();
@@ -91,7 +91,7 @@ export function SellAlertDialog({
                     </AlertDialogAction>
                     <AlertDialogCancel
                         disabled={cancelDisabled}
-                        className="h-[35px] rounded-full !border-0 !bg-[#6653fb] px-[30px] py-1 text-[16px] leading-[25px] font-semibold tracking-[0.5px] !text-white hover:!bg-[#5844e8]"
+                        className="typography-body-bold h-[35px] rounded-full !border-0 !bg-[#6653fb] px-[30px] py-1 font-semibold !text-white hover:!bg-[#5844e8]"
                     >
                         {cancelLabel}
                     </AlertDialogCancel>

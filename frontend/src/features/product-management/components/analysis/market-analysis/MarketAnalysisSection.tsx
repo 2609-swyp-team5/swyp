@@ -62,15 +62,15 @@ function AnalysisHeader({
     return (
         <div className="flex w-full items-center justify-between gap-4">
             <div className="flex items-center gap-[10px]">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-[12px] bg-gradient-to-b from-[#6653fb] to-[#b1a9ef] text-[20px] leading-[33px] text-white md:size-12 md:text-[22px]">
+                <span className="typography-heading-bold flex size-10 shrink-0 items-center justify-center rounded-[12px] bg-gradient-to-b from-[#6653fb] to-[#b1a9ef] text-white md:size-12">
                     ✦
                 </span>
                 <h2
                     id="product-market-analysis-title"
                     className={
                         variant === "management"
-                            ? "text-[20px] leading-[30px] font-semibold tracking-[0.5px] whitespace-nowrap text-[#6653fb] md:text-[22px]"
-                            : "text-[30px] leading-[42px] font-bold tracking-[0.5px] text-[#6653fb]"
+                            ? "typography-heading-bold font-semibold whitespace-nowrap text-[#6653fb]"
+                            : "typography-heading-02 font-bold text-[#6653fb]"
                     }
                 >
                     AI 시세 분석
@@ -79,7 +79,7 @@ function AnalysisHeader({
             {analysisRetry?.request ? (
                 <button
                     type="button"
-                    className="flex h-[31px] shrink-0 cursor-pointer items-center justify-center gap-[5px] rounded-[50px] border-[0.5px] border-[#83889e] px-[15px] py-[5px] text-[12px] leading-5 tracking-[-0.5px] text-[#83889e] disabled:cursor-wait disabled:opacity-50"
+                    className="typography-body-small flex h-[31px] shrink-0 cursor-pointer items-center justify-center gap-[5px] rounded-[50px] border-[0.5px] border-[#83889e] px-[15px] py-[5px] text-[#83889e] disabled:cursor-wait disabled:opacity-50"
                     disabled={analysisRetry.isFetching}
                     onClick={() => void onRequest?.()}
                 >
@@ -105,7 +105,7 @@ function RetryButton({
     return (
         <button
             type="button"
-            className="rounded-full border border-[#6653fb] px-5 py-2 text-[13px] leading-5 font-semibold text-[#6653fb] disabled:cursor-wait disabled:opacity-50"
+            className="typography-body-bold-small rounded-full border border-[#6653fb] px-5 py-2 font-semibold text-[#6653fb] disabled:cursor-wait disabled:opacity-50"
             disabled={analysisRetry.isFetching}
             onClick={() => void analysisRetry.refetch()}
         >
@@ -121,10 +121,10 @@ function PendingAnalysisCard({ perspective }: { perspective: ProductManagementPe
         <div className="relative min-h-[300px] overflow-hidden rounded-[16px] bg-[#fafbff]">
             <div className="relative z-10 flex min-h-[300px] items-center px-6 py-8 md:px-[30px] md:py-[30px]">
                 <div className="flex w-full flex-col gap-[10px] text-[#363636] md:w-[290px]">
-                    <h3 className="text-[22px] leading-[30px] font-semibold tracking-[0.5px]">
+                    <h3 className="typography-heading-bold font-semibold">
                         {timingLabel} 타이밍을 분석하고 있어요
                     </h3>
-                    <p className="text-[16px] leading-[25px]">
+                    <p className="typography-body-medium">
                         비슷한 매물과 최근 시세를 비교하고 있어요.
                         <br />
                         분석이 완료되면 결과를 보여드릴게요.
@@ -160,15 +160,15 @@ function SoldAnalysisTrigger({ onClick }: { onClick: () => void }) {
                 onClick={onClick}
             >
                 <span className="flex min-w-0 flex-col gap-2.5">
-                    <span className="flex items-center gap-2 text-[18px] leading-7 font-semibold tracking-[0.5px] break-keep text-[#363636] md:gap-2.5 md:text-[22px] md:leading-[30px]">
+                    <span className="typography-heading-bold flex items-center gap-2 font-semibold break-keep text-[#363636] md:gap-2.5">
                         <Sparkles aria-hidden="true" className="size-5 fill-[#363636]" />
                         상세 시세 분석 보기
                     </span>
-                    <span className="text-[14px] leading-[22px] break-keep text-[#464646] md:text-[16px] md:leading-[25px]">
+                    <span className="typography-body-medium break-keep text-[#464646]">
                         최근 30일 거래 데이터를 종합해 타이밍을 분석합니다.
                     </span>
                 </span>
-                <span className="flex shrink-0 items-center gap-[3px] text-[14px] leading-[25px] text-[#83889e] md:text-[16px]">
+                <span className="typography-body-medium flex shrink-0 items-center gap-[3px] text-[#83889e]">
                     <span className="sr-only md:not-sr-only">더보기</span>
                     <ChevronRight aria-hidden="true" className="size-4" />
                 </span>
@@ -253,11 +253,11 @@ export function MarketAnalysisSection({
     ) : error ? (
         isManagementVariant ? (
             <div className="flex min-h-[260px] flex-col items-center justify-center gap-4 bg-white px-6 py-16 text-center">
-                <p className="text-[14px] leading-6 text-[#d65353]">{getApiErrorMessage(error)}</p>
+                <p className="typography-body-small text-[#d65353]">{getApiErrorMessage(error)}</p>
                 <RetryButton analysisRetry={analysisRetry} label="다시 시도" />
             </div>
         ) : (
-            <p className="bg-white px-6 py-16 text-center text-[14px] leading-6 text-[#d65353]">
+            <p className="typography-body-small bg-white px-6 py-16 text-center text-[#d65353]">
                 시세 분석 데이터를 불러오지 못했습니다.
             </p>
         )
@@ -283,7 +283,7 @@ export function MarketAnalysisSection({
                 <PendingAnalysisCard perspective={perspective} />
             </div>
         ) : (
-            <p className="bg-white px-6 py-16 text-center text-[14px] leading-6 text-[#83889e]">
+            <p className="typography-body-small bg-white px-6 py-16 text-center text-[#83889e]">
                 아직 시세 분석 결과가 없어요. 비슷한 매물이 모이면 분석해 드릴게요.
             </p>
         )
@@ -304,25 +304,23 @@ export function MarketAnalysisSection({
             aria-live="polite"
             className={
                 priceChangeFeedback.type === "error"
-                    ? "fixed top-[calc(var(--header-height)+32px)] left-1/2 z-50 -translate-x-1/2 rounded-xl border border-[#f2b8b5] bg-[#fff4f4] px-5 py-3 text-[14px] leading-5 font-semibold text-[#d65353] shadow-[0_8px_24px_rgba(54,51,100,0.18)]"
+                    ? "typography-body-bold-small fixed top-[calc(var(--header-height)+32px)] left-1/2 z-50 -translate-x-1/2 rounded-xl border border-[#f2b8b5] bg-[#fff4f4] px-5 py-3 font-semibold text-[#d65353] shadow-[0_8px_24px_rgba(54,51,100,0.18)]"
                     : "fixed top-[calc(var(--header-height)+32px)] left-1/2 z-50 flex w-[min(calc(100vw-32px),422px)] -translate-x-1/2 flex-col items-center justify-center rounded-[16px] border border-[#dee5ed] bg-white p-[33px] shadow-[0_8px_24px_rgba(54,51,100,0.18)]"
             }
         >
             {priceChangeFeedback.type === "success" ? (
                 <div className="flex w-full max-w-[354px] flex-col items-center gap-[35px] text-center">
                     <div className="flex w-full flex-col items-center">
-                        <p className="text-[20px] leading-[30px] font-bold text-[#545d82]">
+                        <p className="typography-heading-03 font-bold text-[#545d82]">
                             {priceChangeFeedback.message}
                         </p>
-                        <p className="pt-1 text-[14px] leading-[21px] text-[#6b7395]">
+                        <p className="typography-body-small pt-1 text-[#6b7395]">
                             AI가 가격 변화를 추적하고 좋은 시점에 알려드릴게요.
                         </p>
                     </div>
                     <div className="flex w-full flex-col items-center justify-center bg-[#fafbff] py-2.5 text-[#6653fb]">
-                        <span className="text-[16px] leading-[25px] font-semibold tracking-[0.5px]">
-                            추천 가격
-                        </span>
-                        <strong className="text-[22px] leading-[30px] font-semibold tracking-[0.5px]">
+                        <span className="typography-body-bold font-semibold">추천 가격</span>
+                        <strong className="typography-heading-bold font-semibold">
                             {formatPrice(priceChangeFeedback.recommendedPrice ?? null)}
                         </strong>
                     </div>

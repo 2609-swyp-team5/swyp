@@ -44,7 +44,9 @@ function GalleryImage({
                 className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[#f5f5f7] text-[#8b91a8]"
             >
                 <ImageOff aria-hidden="true" className="size-7" />
-                <span className="text-[12px] font-semibold">이미지를 불러올 수 없습니다</span>
+                <span className="typography-body-small font-semibold">
+                    이미지를 불러올 수 없습니다
+                </span>
             </div>
         );
     }
@@ -107,7 +109,7 @@ export function ProductGallery({
     if (!selectedImage) {
         return (
             <div
-                className={`flex items-center justify-center rounded-[10px] bg-[#f5f5f7] text-[15px] font-medium text-[#6b7395] ${
+                className={`typography-body-medium flex items-center justify-center rounded-[10px] bg-[#f5f5f7] font-medium text-[#6b7395] ${
                     isBottomLayout && isManagementVariant
                         ? "h-[382px] w-full"
                         : "aspect-square min-h-[240px]"
@@ -162,7 +164,7 @@ export function ProductGallery({
                                 <button
                                     type="button"
                                     aria-label={`추가 상품 사진 ${hiddenImageCount}개 보기`}
-                                    className="flex aspect-square w-full items-center justify-center rounded-lg bg-[#f3f3ff] text-[20px] font-medium tracking-[0.5px] text-[#6b6c7b] hover:bg-[#eaeafd] focus-visible:ring-2 focus-visible:ring-[#6653fb] focus-visible:ring-offset-2"
+                                    className="typography-heading-03 flex aspect-square w-full items-center justify-center rounded-lg bg-[#f3f3ff] font-medium text-[#6b6c7b] hover:bg-[#eaeafd] focus-visible:ring-2 focus-visible:ring-[#6653fb] focus-visible:ring-offset-2"
                                 >
                                     +{hiddenImageCount}
                                 </button>
@@ -189,7 +191,7 @@ export function ProductGallery({
                                     </button>
                                 </div>
                                 <div className="flex w-full flex-col items-start">
-                                    <PopoverTitle className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#363636]">
+                                    <PopoverTitle className="typography-heading-03 font-semibold text-[#363636]">
                                         추가 상품 사진 {hiddenImageCount}개
                                     </PopoverTitle>
                                     <PopoverDescription className="sr-only">
@@ -268,15 +270,15 @@ export function ProductGallery({
                                         width={22}
                                         height={22}
                                     />
-                                    <span className="text-[20px] leading-[30px] font-semibold tracking-[0.5px]">
+                                    <span className="typography-heading-03 font-semibold">
                                         상품 이미지
                                     </span>
                                 </div>
-                                <span className="text-[16px] leading-[25px] font-normal text-white/72">
+                                <span className="typography-body-medium font-normal text-white/72">
                                     방향키로도 이동할 수 있어요
                                 </span>
                             </div>
-                            <div className="flex items-center gap-2 rounded-full bg-[rgba(37,38,44,0.8)] px-3.5 py-2 text-[20px] leading-[30px] tracking-[0.5px]">
+                            <div className="typography-heading-03 flex items-center gap-2 rounded-full bg-[rgba(37,38,44,0.8)] px-3.5 py-2">
                                 <span className="font-semibold text-white">{viewerIndex + 1}</span>
                                 <span className="font-medium text-white/48">/</span>
                                 <span className="font-medium text-white/72">
@@ -295,10 +297,8 @@ export function ProductGallery({
                                         width={20}
                                         height={20}
                                     />
-                                    <span className="text-[16px] leading-[25px] font-semibold tracking-[0.5px]">
-                                        닫기
-                                    </span>
-                                    <span className="rounded-[5px] bg-[#f2f2f6] px-1.5 py-0.5 text-[10px] leading-normal font-semibold text-[#6b6c7b]">
+                                    <span className="typography-body-bold font-semibold">닫기</span>
+                                    <span className="typography-caption rounded-[5px] bg-[#f2f2f6] px-1.5 py-0.5 font-semibold text-[#6b6c7b]">
                                         ESC
                                     </span>
                                 </button>
@@ -317,9 +317,7 @@ export function ProductGallery({
                                 <span className="relative size-14">
                                     <ChevronLeft aria-hidden="true" className="size-14" />
                                 </span>
-                                <span className="text-[16px] leading-[25px] font-semibold tracking-[0.5px]">
-                                    이전
-                                </span>
+                                <span className="typography-body-bold font-semibold">이전</span>
                             </button>
                             <div className="relative aspect-square h-full max-h-[680px] w-auto max-w-[680px]">
                                 <GalleryImage
@@ -343,9 +341,7 @@ export function ProductGallery({
                                 <span className="relative size-14">
                                     <ChevronRight aria-hidden="true" className="size-14" />
                                 </span>
-                                <span className="text-[16px] leading-[25px] font-semibold tracking-[0.5px]">
-                                    다음
-                                </span>
+                                <span className="typography-body-bold font-semibold">다음</span>
                             </button>
                         </div>
                         <div className="flex h-[86px] max-w-full shrink-0 items-center justify-center gap-2.5 self-center overflow-x-auto px-[18px]">

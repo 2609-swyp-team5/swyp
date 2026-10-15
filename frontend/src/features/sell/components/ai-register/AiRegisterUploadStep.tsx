@@ -27,11 +27,11 @@ export function AiRegisterUploadStep({
 
                 <section className="flex w-full flex-col justify-center gap-5 rounded-[12px] bg-white px-4 py-6 md:min-h-[322px] md:gap-[30px] md:px-6 md:py-[30px] lg:px-[80px]">
                     <div className="flex flex-col items-start gap-5">
-                        <h2 className="text-[22px] leading-8 font-bold tracking-[0.5px] text-[#545d82] md:text-[30px] md:leading-[42px]">
+                        <h2 className="typography-heading-02 font-bold text-[#545d82]">
                             <span aria-hidden="true">📌 </span>
                             사진 촬영 팁
                         </h2>
-                        <ul className="flex flex-col gap-[5px] text-[16px] leading-[26px] font-medium tracking-[0.5px] text-[#6b7395] md:text-[20px] md:leading-[32px]">
+                        <ul className="typography-heading-03 flex flex-col gap-[5px] font-medium text-[#6b7395]">
                             {[
                                 "상품 전체가 나오는 사진",
                                 "브랜드나 모델명이 보이는 사진",
@@ -49,7 +49,7 @@ export function AiRegisterUploadStep({
                     </div>
 
                     <div className="flex min-h-[57px] items-center justify-center rounded-[10px] bg-[#f1f1f1] px-5 py-4 text-center">
-                        <p className="text-[14px] leading-[22px] font-semibold tracking-[0.5px] break-keep text-[#363636] md:text-[16px] md:leading-[25px]">
+                        <p className="typography-body-bold font-semibold break-keep text-[#363636]">
                             AI 분석 결과는 사진을 기반으로 한 참고 정보입니다. 보이지 않는 하자나
                             실제 작동 상태는 판매자가 직접 확인해 주세요.
                         </p>

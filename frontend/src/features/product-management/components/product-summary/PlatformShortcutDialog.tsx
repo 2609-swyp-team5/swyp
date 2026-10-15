@@ -63,7 +63,7 @@ export function PlatformShortcutDialog({
                     variant="ghost"
                     className={cn(
                         compact
-                            ? "h-auto gap-1.5 rounded-[10px] border border-[#d3d3d3] bg-white text-[13px] text-[#6653fb] hover:border-[#6653fb] hover:bg-[#fafbff]"
+                            ? "typography-body-small h-auto gap-1.5 rounded-[10px] border border-[#d3d3d3] bg-white text-[#6653fb] hover:border-[#6653fb] hover:bg-[#fafbff]"
                             : isManagementVariant
                               ? "h-[52px] w-[52px] flex-col gap-[5px] rounded-none p-[5px] text-[#83889e] hover:bg-transparent hover:text-[#6653fb]"
                               : "h-auto flex-col gap-2 rounded-xl p-2.5 text-[#83889e] hover:bg-[#f5f3ff] hover:text-[#6653fb]",
@@ -93,8 +93,8 @@ export function PlatformShortcutDialog({
                         className={cn(
                             "leading-[25px] font-normal",
                             compact || isManagementVariant
-                                ? "text-[11px] leading-[16px] tracking-[-0.5px]"
-                                : "text-[16px]",
+                                ? "typography-body-small"
+                                : "typography-body-medium",
                         )}
                     >
                         {label}
@@ -109,10 +109,10 @@ export function PlatformShortcutDialog({
                     <X aria-hidden="true" className="size-4" />
                 </DialogClose>
                 <div className="space-y-1 pr-6">
-                    <DialogTitle className="text-[18px] leading-7 font-bold text-[#363636]">
+                    <DialogTitle className="typography-body-large font-bold text-[#363636]">
                         상품 바로가기
                     </DialogTitle>
-                    <DialogDescription className="text-[13px] leading-5 text-[#83889e]">
+                    <DialogDescription className="typography-body-small text-[#83889e]">
                         이동할 플랫폼을 선택해 주세요.
                     </DialogDescription>
                 </div>
@@ -150,11 +150,11 @@ export function PlatformShortcutDialog({
                                                     <Globe2 aria-hidden="true" className="size-4" />
                                                 </span>
                                             )}
-                                            <span className="truncate text-[14px] leading-5 font-semibold">
+                                            <span className="typography-body-bold-small truncate font-semibold">
                                                 {platformLabel}
                                             </span>
                                         </div>
-                                        <span className="text-[12px] leading-5">
+                                        <span className="typography-body-small">
                                             {platformStatusLabels[platform.status]}
                                         </span>
                                     </div>
@@ -183,11 +183,11 @@ export function PlatformShortcutDialog({
                                                     <Globe2 aria-hidden="true" className="size-4" />
                                                 </span>
                                             )}
-                                            <span className="truncate text-[14px] leading-5 font-semibold">
+                                            <span className="typography-body-bold-small truncate font-semibold">
                                                 {platformLabel}
                                             </span>
                                         </div>
-                                        <span className="flex items-center gap-1 text-[12px] leading-5 font-medium text-[#6653fb]">
+                                        <span className="typography-body-small flex items-center gap-1 font-medium text-[#6653fb]">
                                             바로가기
                                             <ArrowUpRight aria-hidden="true" className="size-3.5" />
                                         </span>
@@ -197,7 +197,7 @@ export function PlatformShortcutDialog({
                         })}
                     </div>
                 ) : (
-                    <p className="rounded-[10px] bg-[#fafbfc] px-4 py-6 text-center text-[13px] leading-5 text-[#83889e]">
+                    <p className="typography-body-small rounded-[10px] bg-[#fafbfc] px-4 py-6 text-center text-[#83889e]">
                         연동된 플랫폼이 없습니다.
                     </p>
                 )}

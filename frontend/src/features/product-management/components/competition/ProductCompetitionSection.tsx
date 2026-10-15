@@ -25,7 +25,7 @@ export function ProductCompetitionSection({
             {query.isPending ? (
                 <ProductCompetitionSkeleton />
             ) : isError ? (
-                <p className="bg-white px-6 py-16 text-center text-[14px] leading-6 text-[#d65353]">
+                <p className="typography-body-small bg-white px-6 py-16 text-center text-[#d65353]">
                     경쟁 상품 데이터를 불러오지 못했습니다.
                 </p>
             ) : query.data ? (

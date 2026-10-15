@@ -109,7 +109,7 @@ export function LoginPage() {
                         <div className="mt-6 flex justify-end">
                             <Link
                                 href="/home"
-                                className="group hover:text-primary focus-visible:text-primary inline-flex items-center gap-1.5 text-base leading-[25px] font-semibold text-[#6b6c7b]"
+                                className="group hover:text-primary focus-visible:text-primary typography-body-bold inline-flex items-center gap-1.5 font-semibold text-[#6b6c7b]"
                             >
                                 <span className="underline underline-offset-4">
                                     비회원으로 둘러보기

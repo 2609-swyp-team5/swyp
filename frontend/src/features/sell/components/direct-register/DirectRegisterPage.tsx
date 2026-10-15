@@ -214,7 +214,7 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
                     {!isInfoStep && (
                         <button
                             type="button"
-                            className="flex w-fit items-center gap-1 text-[20px] leading-8 font-medium tracking-[0.5px] text-[#6b7395] transition-colors hover:text-[#6653fb]"
+                            className="typography-heading-03 flex w-fit items-center gap-1 font-medium text-[#6b7395] transition-colors hover:text-[#6653fb]"
                             onClick={() => setStep("info")}
                         >
                             <ArrowLeft aria-hidden="true" className="size-5" />
@@ -225,7 +225,7 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
                         <p className="typography-heading-02 col-start-1 row-start-1 self-start text-[#363636]">
                             직접입력으로
                         </p>
-                        <h1 className="col-start-1 row-start-1 mt-[38px] self-start text-[30px] leading-[40px] font-bold tracking-[0.5px] text-[#6653fb] md:mt-[52px] md:text-[48px] md:leading-[60px]">
+                        <h1 className="typography-heading-01 col-start-1 row-start-1 mt-[38px] self-start font-bold text-[#6653fb] md:mt-[52px]">
                             상품 등록
                         </h1>
                     </div>

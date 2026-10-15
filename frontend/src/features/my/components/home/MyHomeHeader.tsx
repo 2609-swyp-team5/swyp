@@ -15,10 +15,10 @@ export function MyHomeHeader({ nickname, isError, isFetching, onRetry }: MyHomeH
         <>
             <header className="flex flex-col-reverse items-center gap-5 text-center sm:flex-row sm:justify-between sm:text-left">
                 <div className="flex min-w-0 flex-col gap-[10px] tracking-[0.5px] break-keep">
-                    <p className="text-[16px] leading-6 font-medium text-[#83889e] md:text-[20px] md:leading-[30px]">
+                    <p className="typography-heading-03 font-medium text-[#83889e]">
                         AI와 함께하는 똑똑한 중고거래
                     </p>
-                    <h1 className="text-[30px] leading-[40px] font-bold text-[#464646] sm:leading-[75px] md:text-[44px] md:leading-[52px]">
+                    <h1 className="typography-heading-01 font-bold text-[#464646]">
                         {nickname !== undefined ? `안녕하세요, ${nickname}님` : "안녕하세요"}
                     </h1>
                 </div>
@@ -36,7 +36,7 @@ export function MyHomeHeader({ nickname, isError, isFetching, onRetry }: MyHomeH
 
             {isError ? (
                 <div className="mt-6 flex items-center gap-3">
-                    <p role="alert" className="text-[13px] text-[#6b7395]">
+                    <p role="alert" className="typography-body-small text-[#6b7395]">
                         회원정보를 불러오지 못했습니다.
                     </p>
                     <Button

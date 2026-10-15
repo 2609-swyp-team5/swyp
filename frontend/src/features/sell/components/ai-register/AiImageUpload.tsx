@@ -138,19 +138,19 @@ export function AiImageUpload({ images, onError, onImagesChange }: AiImageUpload
                 {images.length === 0 ? (
                     <>
                         <span className="flex size-16 items-center justify-center rounded-full bg-[linear-gradient(34deg,#ededff_6%,#c7c4e3_94%)]">
-                            <span aria-hidden="true" className="text-[28px] leading-[42px]">
+                            <span aria-hidden="true" className="typography-heading-02">
                                 📷
                             </span>
                         </span>
                         <span className="flex flex-col items-center gap-2 text-center">
-                            <span className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#545d82]">
+                            <span className="typography-heading-03 font-semibold text-[#545d82]">
                                 사진을 끌어다 놓거나
                             </span>
-                            <span className="text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#6653fb] underline underline-offset-2">
+                            <span className="typography-body-bold font-semibold text-[#6653fb] underline underline-offset-2">
                                 파일에서 선택하기
                             </span>
                         </span>
-                        <span className="text-[10px] leading-[15px] tracking-[-0.5px] text-[#8ca2c0]">
+                        <span className="typography-caption text-[#8ca2c0]">
                             JPG, PNG · 최대 20MB · 최대 10장
                         </span>
                     </>

@@ -17,7 +17,7 @@ export function MyPageContent({
     titleClassName?: string;
 }) {
     return (
-        <main className="text-foreground px-6 py-12 text-base leading-[25px] font-normal break-keep sm:px-10 lg:py-[60px] xl:px-[min(7vw,var(--grid-margin))]">
+        <main className="text-foreground typography-body-medium px-6 py-12 font-normal break-keep sm:px-10 lg:py-[60px] xl:px-[min(7vw,var(--grid-margin))]">
             <div className="mx-auto w-full max-w-[960px]">
                 <header className="mb-10">
                     <p
@@ -28,12 +28,7 @@ export function MyPageContent({
                     >
                         {eyebrow}
                     </p>
-                    <h1
-                        className={cn(
-                            "typography-heading-03 text-[44px] leading-[52px] font-bold tracking-[0.5px]",
-                            titleClassName,
-                        )}
-                    >
+                    <h1 className={cn("typography-heading-01 font-bold", titleClassName)}>
                         {title}
                     </h1>
                 </header>
@@ -47,7 +42,7 @@ export function MyPanel({ children, className }: { children: ReactNode; classNam
     return (
         <Card
             className={cn(
-                "text-foreground border-border gap-0 rounded-2xl border p-6 text-base leading-[25px] shadow-[0_1px_2px_rgba(0,0,0,0.05)] ring-0",
+                "text-foreground border-border typography-body-medium gap-0 rounded-2xl border p-6 shadow-[0_1px_2px_rgba(0,0,0,0.05)] ring-0",
                 className,
             )}
         >

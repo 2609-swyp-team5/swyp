@@ -20,15 +20,8 @@ export function SectionHeading({
     return (
         <m.div id={id} {...revealMotion}>
             <div className="space-y-2.5">
-                <p className="typography-body-medium text-base leading-7 font-semibold text-[#6b6c7b] md:text-[20px] md:leading-[30px]">
-                    {eyebrow}
-                </p>
-                <h2
-                    className={cn(
-                        "typography-heading-01 text-[32px] leading-[42px] text-[#363636] md:text-[48px] md:leading-[60px] xl:text-[length:var(--type-heading-01-size)] xl:leading-[var(--type-heading-01-line-height)]",
-                        titleClassName,
-                    )}
-                >
+                <p className="typography-heading-03 font-semibold text-[#6b6c7b]">{eyebrow}</p>
+                <h2 className={cn("typography-heading-01 text-[#363636]", titleClassName)}>
                     {title}
                 </h2>
             </div>

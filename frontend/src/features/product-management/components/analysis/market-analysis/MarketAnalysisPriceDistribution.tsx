@@ -35,8 +35,8 @@ function PriceMetric({
 }) {
     return (
         <div className={cn("flex min-w-0 flex-1 flex-col items-center gap-1 p-[10px]", className)}>
-            <span className="text-[11px] leading-4 text-[#777987]">{label}</span>
-            <strong className="text-[15px] leading-[22px] font-bold text-[#2f3037]">{value}</strong>
+            <span className="typography-body-small text-[#777987]">{label}</span>
+            <strong className="typography-body-bold font-bold text-[#2f3037]">{value}</strong>
         </div>
     );
 }
@@ -44,8 +44,8 @@ function PriceMetric({
 function ExpectedPriceLabel({ price }: { price: string }) {
     return (
         <div className="flex h-[50px] w-[99px] flex-col items-center justify-center gap-[5px] rounded-[5px] border-[0.5px] border-[#e1e1e1] bg-white">
-            <span className="text-[11px] leading-[13px] font-bold text-[#9a84f3]">추천가격</span>
-            <strong className="text-[15px] leading-[18px] font-semibold whitespace-nowrap text-black">
+            <span className="typography-body-small font-bold text-[#9a84f3]">추천가격</span>
+            <strong className="typography-body-bold font-semibold whitespace-nowrap text-black">
                 {price}
             </strong>
         </div>
@@ -128,7 +128,7 @@ function DistributionTabs({
                     role="tab"
                     aria-selected={selectedTab === tab}
                     className={cn(
-                        "rounded-[3px] px-3 py-1.5 text-[12px] leading-4 transition-colors",
+                        "typography-body-small rounded-[3px] px-3 py-1.5 transition-colors",
                         selectedTab === tab
                             ? "bg-white font-semibold text-[#6653fb] shadow-sm"
                             : "text-[#83889e]",
@@ -151,10 +151,10 @@ function DistributionCardHeader({
 }) {
     return (
         <CardHeader className="gap-[5px] rounded-none p-5">
-            <CardTitle className="text-[20px] leading-[25px] font-semibold tracking-[0.5px] text-[#363636]">
+            <CardTitle className="typography-heading-03 font-semibold text-[#363636]">
                 거래 가격 분포
             </CardTitle>
-            <CardDescription className="text-[12px] leading-[15px] text-[#a1a3ae]">
+            <CardDescription className="typography-body-small text-[#a1a3ae]">
                 비슷한 상품의 가격과 비교해 보세요.
             </CardDescription>
             <DistributionTabs selectedTab={selectedTab} onTabChange={onTabChange} />
@@ -178,7 +178,7 @@ function DistributionStateCard({
             <DistributionCardHeader selectedTab={selectedTab} onTabChange={onTabChange} />
             <CardContent
                 role={role}
-                className="flex min-h-[150px] flex-col items-center justify-center gap-3 rounded-none bg-[#fafbff] px-5 py-8 text-center text-[14px] leading-5 text-[#83889e]"
+                className="typography-body-small flex min-h-[150px] flex-col items-center justify-center gap-3 rounded-none bg-[#fafbff] px-5 py-8 text-center text-[#83889e]"
             >
                 <p>{message}</p>
             </CardContent>
@@ -304,7 +304,7 @@ export function MarketAnalysisPriceDistribution({
                             .map((point) => (
                                 <span
                                     key={point.key}
-                                    className="absolute top-0 -translate-x-1/2 text-[11px] leading-[13px] whitespace-nowrap text-[#777987]"
+                                    className="typography-body-small absolute top-0 -translate-x-1/2 whitespace-nowrap text-[#777987]"
                                     style={{ left: trackLeft(point.position) }}
                                 >
                                     {point.label}
@@ -314,8 +314,8 @@ export function MarketAnalysisPriceDistribution({
                 </div>
             </CardContent>
             <div className="flex items-center justify-between gap-[5px] bg-[#6b49fd] px-5 py-2.5 text-white">
-                <span className="text-[18px] leading-5 font-semibold">추천 가격</span>
-                <strong className="text-[20px] leading-[25px] font-bold">
+                <span className="typography-body-large font-semibold">추천 가격</span>
+                <strong className="typography-heading-03 font-bold">
                     {formatManWon(data.suggestedPrice)}
                 </strong>
             </div>

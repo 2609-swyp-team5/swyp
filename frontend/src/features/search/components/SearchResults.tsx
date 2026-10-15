@@ -64,7 +64,7 @@ export function SearchResults({
             className="flex w-full min-w-0 flex-1 flex-col gap-[50px]"
         >
             <div className="flex items-start justify-between gap-4">
-                <div className="flex min-w-0 flex-col gap-[5px] text-base leading-[25px]">
+                <div className="typography-body-medium flex min-w-0 flex-col gap-[5px]">
                     <h1
                         id="search-results-title"
                         className="font-semibold tracking-[0.5px] break-words text-[#545d82]"
@@ -92,7 +92,7 @@ export function SearchResults({
                     >
                         <SelectTrigger
                             aria-label="정렬 기준"
-                            className="w-[126px] shrink-0 border-[#dedee6] bg-white text-[13px] font-semibold tracking-[-0.5px] text-[#83889e]"
+                            className="typography-body-bold-small w-[126px] shrink-0 border-[#dedee6] bg-white font-semibold text-[#83889e]"
                         >
                             <SelectValue />
                         </SelectTrigger>
@@ -118,7 +118,7 @@ export function SearchResults({
                     </div>
                 </>
             ) : !error && products.length === 0 ? (
-                <p role="status" className="text-base text-[#83889e]">
+                <p role="status" className="typography-body-medium text-[#83889e]">
                     검색 결과가 없습니다.
                 </p>
             ) : products.length > 0 ? (
@@ -149,7 +149,7 @@ export function SearchResults({
             ) : null}
             {Boolean(error) && (
                 <div className="flex flex-col items-start gap-4">
-                    <p role="alert" className="text-base text-[#fa503d]">
+                    <p role="alert" className="typography-body-medium text-[#fa503d]">
                         {getApiErrorMessage(error)}
                     </p>
                     <Button type="button" variant="outline" onClick={onRetry}>

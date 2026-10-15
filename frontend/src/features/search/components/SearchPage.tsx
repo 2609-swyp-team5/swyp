@@ -123,7 +123,7 @@ export function SearchPage() {
                     {interests.errorMessage && (
                         <div
                             role="alert"
-                            className="text-destructive flex items-center gap-3 text-sm"
+                            className="text-destructive typography-body-small flex items-center gap-3"
                         >
                             <p>{interests.errorMessage}</p>
                             {interests.canRetry && (

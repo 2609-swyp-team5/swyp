@@ -139,12 +139,12 @@ export function PlatformPublishDialog({
                 {isResultView ? (
                     <>
                         <div className="space-y-1 pr-8">
-                            <DialogTitle className="text-[24px] leading-9 font-bold text-[#363636]">
+                            <DialogTitle className="typography-heading-02 font-bold text-[#363636]">
                                 {resultTitle(results)}
                             </DialogTitle>
                             <DialogDescription
                                 id="platform-publish-description"
-                                className="text-[13px] leading-5 text-[#83889e]"
+                                className="typography-body-small text-[#83889e]"
                             >
                                 등록 결과를 확인하고, 실패한 플랫폼은 다시 시도해 보세요.
                             </DialogDescription>
@@ -165,11 +165,11 @@ export function PlatformPublishDialog({
                                             height={32}
                                             className="size-8 shrink-0 rounded-[8px] object-contain"
                                         />
-                                        <span className="min-w-0 flex-1 text-[14px] leading-5 font-semibold text-[#6b6c7b]">
+                                        <span className="typography-body-bold-small min-w-0 flex-1 font-semibold text-[#6b6c7b]">
                                             {definition.name}
                                         </span>
                                         <span
-                                            className={`flex items-center gap-1 text-[12px] leading-5 font-semibold ${result.success ? "text-[#6653fb]" : "text-[#fa503d]"}`}
+                                            className={`typography-body-small flex items-center gap-1 font-semibold ${result.success ? "text-[#6653fb]" : "text-[#fa503d]"}`}
                                         >
                                             {result.success ? (
                                                 <CheckCircle2
@@ -187,12 +187,12 @@ export function PlatformPublishDialog({
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 aria-label={`${definition.name} 상품 페이지 바로가기`}
-                                                className="rounded-full bg-[#272727] px-3 py-1 text-[11px] leading-4 font-semibold text-white transition-opacity hover:opacity-80"
+                                                className="typography-body-small rounded-full bg-[#272727] px-3 py-1 font-semibold text-white transition-opacity hover:opacity-80"
                                             >
                                                 바로가기
                                             </a>
                                         ) : (
-                                            <span className="rounded-full bg-[#272727] px-3 py-1 text-[11px] leading-4 font-semibold text-white">
+                                            <span className="typography-body-small rounded-full bg-[#272727] px-3 py-1 font-semibold text-white">
                                                 {result.success ? "연결됨" : "다시 시도"}
                                             </span>
                                         )}
@@ -200,7 +200,7 @@ export function PlatformPublishDialog({
                                 );
                             })}
                             {results.some((result) => !result.success) ? (
-                                <div className="my-4 flex items-start gap-2 rounded-[8px] border border-[#fa9b91] bg-[#fff8f7] px-3 py-2.5 text-[11px] leading-4 text-[#6b6c7b]">
+                                <div className="typography-body-small my-4 flex items-start gap-2 rounded-[8px] border border-[#fa9b91] bg-[#fff8f7] px-3 py-2.5 text-[#6b6c7b]">
                                     <CircleAlert
                                         aria-hidden="true"
                                         className="mt-0.5 size-4 shrink-0 text-[#fa503d]"
@@ -215,7 +215,7 @@ export function PlatformPublishDialog({
                         {failedPlatforms.length > 0 ? (
                             <Button
                                 type="button"
-                                className="h-11 rounded-[8px] bg-[#6653fb] text-[14px] font-semibold hover:bg-[#5745e7]"
+                                className="typography-body-bold-small h-11 rounded-[8px] bg-[#6653fb] font-semibold hover:bg-[#5745e7]"
                                 onClick={handleRetry}
                             >
                                 실패한 플랫폼 다시 시도
@@ -225,7 +225,7 @@ export function PlatformPublishDialog({
                             <Button
                                 type="button"
                                 variant="outline"
-                                className="h-11 rounded-[8px] border-transparent bg-[#f1f1f1] text-[14px] font-semibold text-[#6b6c7b] hover:bg-[#e8e8ed]"
+                                className="typography-body-bold-small h-11 rounded-[8px] border-transparent bg-[#f1f1f1] font-semibold text-[#6b6c7b] hover:bg-[#e8e8ed]"
                             >
                                 닫기
                             </Button>
@@ -234,12 +234,12 @@ export function PlatformPublishDialog({
                 ) : (
                     <>
                         <div className="space-y-1 pr-8">
-                            <DialogTitle className="text-[24px] leading-9 font-bold text-[#363636]">
+                            <DialogTitle className="typography-heading-02 font-bold text-[#363636]">
                                 게시할 플랫폼을 선택해주세요
                             </DialogTitle>
                             <DialogDescription
                                 id="platform-publish-description"
-                                className="text-[13px] leading-5 text-[#fa503d]"
+                                className="typography-body-small text-[#fa503d]"
                             >
                                 연결된 플랫폼을 선택하면 판매글을 바로 등록할 수 있어요.
                             </DialogDescription>
@@ -248,24 +248,24 @@ export function PlatformPublishDialog({
                             {platformsQuery.isPending ? (
                                 <p
                                     role="status"
-                                    className="py-8 text-center text-[13px] text-[#83889e]"
+                                    className="typography-body-small py-8 text-center text-[#83889e]"
                                 >
                                     연동된 플랫폼을 불러오는 중입니다.
                                 </p>
                             ) : platformsQuery.error ? (
-                                <div className="flex items-center justify-between gap-3 py-5 text-[13px] text-[#d65353]">
+                                <div className="typography-body-small flex items-center justify-between gap-3 py-5 text-[#d65353]">
                                     <p>{getApiErrorMessage(platformsQuery.error)}</p>
                                     <Button
                                         type="button"
                                         variant="outline"
-                                        className="h-8 shrink-0 rounded-full text-xs"
+                                        className="typography-body-small h-8 shrink-0 rounded-full"
                                         onClick={() => void platformsQuery.refetch()}
                                     >
                                         다시 시도
                                     </Button>
                                 </div>
                             ) : platforms.length === 0 ? (
-                                <p className="py-8 text-center text-[13px] text-[#83889e]">
+                                <p className="typography-body-small py-8 text-center text-[#83889e]">
                                     연동 가능한 플랫폼이 없습니다.
                                 </p>
                             ) : (
@@ -313,16 +313,16 @@ export function PlatformPublishDialog({
                                                 className={`size-8 shrink-0 rounded-[8px] object-contain ${isConnected ? "" : "opacity-60 grayscale"}`}
                                             />
                                             <div className="min-w-0 flex-1">
-                                                <p className="text-[14px] leading-5 font-semibold text-[#6b6c7b]">
+                                                <p className="typography-body-bold-small font-semibold text-[#6b6c7b]">
                                                     {definition.name}
                                                 </p>
-                                                <p className="text-[10px] leading-4 text-[#83889e]">
+                                                <p className="typography-caption text-[#83889e]">
                                                     {formatLastCheckedAt(platform.updatedAt)}
                                                 </p>
                                             </div>
                                             {isAlreadyPosted ? (
                                                 <div className="flex items-center gap-2">
-                                                    <span className="flex items-center gap-1 text-[12px] leading-5 font-semibold text-[#6653fb]">
+                                                    <span className="typography-body-small flex items-center gap-1 font-semibold text-[#6653fb]">
                                                         <CheckCircle2
                                                             aria-hidden="true"
                                                             className="size-4"
@@ -335,21 +335,21 @@ export function PlatformPublishDialog({
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             aria-label={`${definition.name} 상품 페이지 바로가기`}
-                                                            className="rounded-full bg-[#272727] px-3 py-1 text-[11px] leading-4 font-semibold text-white transition-opacity hover:opacity-80"
+                                                            className="typography-body-small rounded-full bg-[#272727] px-3 py-1 font-semibold text-white transition-opacity hover:opacity-80"
                                                         >
                                                             바로가기
                                                         </a>
                                                     ) : null}
                                                 </div>
                                             ) : isConnected ? (
-                                                <span className="rounded-full bg-[#272727] px-3 py-1 text-[11px] leading-4 font-semibold text-white">
+                                                <span className="typography-body-small rounded-full bg-[#272727] px-3 py-1 font-semibold text-white">
                                                     연결됨
                                                 </span>
                                             ) : (
                                                 <Button
                                                     type="button"
                                                     variant="outline"
-                                                    className="h-7 rounded-full border-[#9aa0b0] px-3 text-[11px] text-[#83889e] hover:border-[#6653fb] hover:bg-[#f5f3ff] hover:text-[#6653fb]"
+                                                    className="typography-body-small h-7 rounded-full border-[#9aa0b0] px-3 text-[#83889e] hover:border-[#6653fb] hover:bg-[#f5f3ff] hover:text-[#6653fb]"
                                                     onClick={() => {
                                                         setIsOpen(false);
                                                         resetDialog();
@@ -371,7 +371,7 @@ export function PlatformPublishDialog({
                                 isPublishing ||
                                 platformsQuery.isPending
                             }
-                            className="h-11 rounded-[8px] bg-[#6653fb] text-[14px] font-semibold hover:bg-[#5745e7]"
+                            className="typography-body-bold-small h-11 rounded-[8px] bg-[#6653fb] font-semibold hover:bg-[#5745e7]"
                             onClick={handlePublish}
                         >
                             {isPublishing ? "플랫폼에 등록 중..." : "선택한 플랫폼에 게시하기"}
@@ -381,7 +381,7 @@ export function PlatformPublishDialog({
                                 type="button"
                                 variant="outline"
                                 disabled={isPublishing}
-                                className="h-11 rounded-[8px] border-transparent bg-[#f1f1f1] text-[14px] font-semibold text-[#6b6c7b] hover:bg-[#e8e8ed]"
+                                className="typography-body-bold-small h-11 rounded-[8px] border-transparent bg-[#f1f1f1] font-semibold text-[#6b6c7b] hover:bg-[#e8e8ed]"
                             >
                                 취소
                             </Button>

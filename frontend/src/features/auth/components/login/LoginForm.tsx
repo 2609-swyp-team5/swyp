@@ -12,9 +12,8 @@ import { PasswordResetModal } from "@/features/auth/components/PasswordResetModa
 import { PasswordField } from "@/features/auth/components/shared/PasswordField";
 import type { LoginRequest } from "@/features/auth/types";
 
-const labelClassName =
-    "typography-body-medium text-[length:var(--type-body-medium-size)] leading-[30px] font-semibold text-[#363636]";
-const fieldErrorClassName = "mt-2 text-[13px] leading-5 text-[#fa503d]";
+const labelClassName = "typography-body-medium font-semibold text-[#363636]";
+const fieldErrorClassName = "mt-2 typography-body-small text-[#fa503d]";
 
 type LoginFormProps = {
     form: UseFormReturn<LoginRequest>;
@@ -62,7 +61,7 @@ export function LoginForm({
                             type="email"
                             autoComplete="email"
                             placeholder="이메일 주소를 입력해주세요"
-                            className="text-foreground aria-invalid:focus-visible:border-destructive h-12 rounded-xl px-4 text-base focus-visible:border-[#6653fb] focus-visible:ring-0 md:text-base"
+                            className="text-foreground aria-invalid:focus-visible:border-destructive typography-body-medium h-12 rounded-xl px-4 focus-visible:border-[#6653fb] focus-visible:ring-0"
                         />
                         {errors.email ? (
                             <p id="email-error" role="alert" className={fieldErrorClassName}>
@@ -93,7 +92,7 @@ export function LoginForm({
                         ) : (
                             <p
                                 id="password-hint"
-                                className="mt-2 flex items-center gap-2.5 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#fa503d]"
+                                className="typography-body-bold-small mt-2 flex items-center gap-2.5 font-semibold text-[#fa503d]"
                             >
                                 <CircleAlert
                                     aria-hidden="true"
@@ -110,12 +109,12 @@ export function LoginForm({
                 type="submit"
                 form="login-form"
                 disabled={isBusy}
-                className="typography-body-medium bg-primary text-primary-foreground mt-[60px] h-[70px] w-full rounded-lg text-lg leading-[30px] font-semibold hover:bg-[#5745e7] focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30 dark:bg-[#6653fb] dark:text-white dark:hover:bg-[#5745e7]"
+                className="bg-primary text-primary-foreground typography-body-large mt-[60px] h-[70px] w-full rounded-lg font-semibold hover:bg-[#5745e7] focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30 dark:bg-[#6653fb] dark:text-white dark:hover:bg-[#5745e7]"
             >
                 {isBusy ? "로그인 중..." : "로그인하기"}
             </Button>
 
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-x-5 gap-y-3 text-base leading-[25px] font-semibold tracking-[0.5px]">
+            <div className="typography-body-bold mt-5 flex flex-wrap items-center justify-between gap-x-5 gap-y-3 font-semibold">
                 <div className="flex flex-wrap items-center gap-4 sm:gap-6">
                     <div className="flex items-center gap-2">
                         <Checkbox
@@ -127,7 +126,7 @@ export function LoginForm({
                         />
                         <Label
                             htmlFor="remember-login"
-                            className="text-base leading-[25px] font-semibold text-[#6b6c7b]"
+                            className="typography-body-bold font-semibold text-[#6b6c7b]"
                         >
                             아이디 저장
                         </Label>

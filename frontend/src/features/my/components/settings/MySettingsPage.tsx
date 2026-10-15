@@ -126,7 +126,7 @@ export function MySettingsPage() {
         <MyPageContent
             eyebrow="계정 설정"
             title="사용자 정보 설정"
-            eyebrowClassName="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#83889e]"
+            eyebrowClassName="typography-heading-03 font-semibold text-[#83889e]"
             titleClassName="text-[#464646]"
         >
             <MyPanel className="w-full p-6 sm:p-8">
@@ -144,7 +144,7 @@ export function MySettingsPage() {
                         </Button>
                     </div>
                 ) : !member ? (
-                    <p role="status" className="text-muted-foreground mb-6 text-[13px]">
+                    <p role="status" className="text-muted-foreground typography-body-small mb-6">
                         회원정보를 불러오는 중입니다.
                     </p>
                 ) : null}

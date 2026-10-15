@@ -36,7 +36,7 @@ function HeaderLinkLabel({
             {showNotificationCount ? (
                 <span
                     aria-label={`${unreadCount}개 읽지 않은 알림`}
-                    className="inline-flex min-w-5 items-center justify-center rounded-full bg-[#6653fb] px-1.5 text-[11px] leading-5 font-bold text-white"
+                    className="typography-body-small inline-flex min-w-5 items-center justify-center rounded-full bg-[#6653fb] px-1.5 font-bold text-white"
                 >
                     {unreadCount > 99 ? "99+" : unreadCount}
                 </span>
@@ -90,7 +90,7 @@ export function SiteHeader() {
                                 key={link.href}
                                 asChild
                                 variant="ghost"
-                                className={`hover:text-primary h-auto rounded-lg px-3 py-2 text-[16px] leading-[25px] font-semibold tracking-[0.5px] whitespace-nowrap hover:bg-transparent ${
+                                className={`hover:text-primary typography-body-bold h-auto rounded-lg px-3 py-2 font-semibold whitespace-nowrap hover:bg-transparent ${
                                     isActive ? "text-primary" : "text-[#464646]"
                                 }`}
                             >
@@ -123,7 +123,7 @@ export function SiteHeader() {
                         >
                             <Bell aria-hidden="true" className="size-6" />
                             {unreadNotificationCount > 0 ? (
-                                <span className="absolute top-1 right-0.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#6653fb] px-1 text-[10px] leading-[18px] font-bold text-white">
+                                <span className="typography-caption absolute top-1 right-0.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#6653fb] px-1 font-bold text-white">
                                     {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
                                 </span>
                             ) : null}
@@ -204,7 +204,7 @@ export function SiteHeader() {
                                 key={link.href}
                                 asChild
                                 variant="ghost"
-                                className={`h-11 justify-start rounded-lg px-4 text-sm font-semibold ${isActive ? "text-primary bg-[#f0edff]" : "text-[#464646]"}`}
+                                className={`typography-body-bold-small h-11 justify-start rounded-lg px-4 font-semibold ${isActive ? "text-primary bg-[#f0edff]" : "text-[#464646]"}`}
                             >
                                 <Link
                                     href={link.href}

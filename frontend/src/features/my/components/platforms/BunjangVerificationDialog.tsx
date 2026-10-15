@@ -31,11 +31,10 @@ import { BunjangOtpStep } from "./BunjangOtpStep";
 const buttonFocusClassName =
     "focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30";
 const fieldClassName =
-    "h-[50px] rounded-[8px] border border-[#d3d3d3] bg-[#fafbff] px-4 py-3 text-[16px] leading-[25px] text-[#6b6c7b] shadow-none placeholder:text-[#d3d3d3] focus-visible:border-[#6653fb] focus-visible:ring-0";
+    "h-[50px] rounded-[8px] border border-[#d3d3d3] bg-[#fafbff] px-4 py-3 typography-body-medium text-[#6b6c7b] shadow-none placeholder:text-[#d3d3d3] focus-visible:border-[#6653fb] focus-visible:ring-0";
 const selectClassName =
-    "h-[50px] w-full rounded-[8px] border border-[#d3d3d3] bg-[#fafbff] px-4 text-[16px] leading-[25px] text-[#6b6c7b] shadow-none data-placeholder:text-[#d3d3d3] focus-visible:border-[#6653fb] focus-visible:ring-0";
-const fieldLabelClassName =
-    "text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#464646]";
+    "h-[50px] w-full rounded-[8px] border border-[#d3d3d3] bg-[#fafbff] px-4 typography-body-medium text-[#6b6c7b] shadow-none data-placeholder:text-[#d3d3d3] focus-visible:border-[#6653fb] focus-visible:ring-0";
+const fieldLabelClassName = "typography-body-bold font-semibold text-[#464646]";
 
 const carriers: { value: BunjangCarrier; label: string }[] = [
     { value: "SKT", label: "SKT" },
@@ -134,7 +133,7 @@ export function BunjangVerificationDialog({
                 </DialogDescription>
 
                 {errorMessage && (
-                    <p role="alert" className="text-destructive text-sm">
+                    <p role="alert" className="text-destructive typography-body-small">
                         {errorMessage}
                     </p>
                 )}
@@ -226,7 +225,10 @@ export function BunjangVerificationDialog({
                                     </SelectContent>
                                 </Select>
                                 {errors.carrier && (
-                                    <p role="alert" className="text-destructive text-xs">
+                                    <p
+                                        role="alert"
+                                        className="text-destructive typography-body-small"
+                                    >
                                         {errors.carrier}
                                     </p>
                                 )}
@@ -257,12 +259,15 @@ export function BunjangVerificationDialog({
                             <div>
                                 <Label
                                     htmlFor="bunjang-terms"
-                                    className="cursor-pointer text-[16px] leading-[25px] text-[#545d82]"
+                                    className="typography-body-medium cursor-pointer text-[#545d82]"
                                 >
                                     {platformName} 본인인증 필수 약관에 동의합니다.
                                 </Label>
                                 {errors.agreedToBunjangTerms && (
-                                    <p role="alert" className="text-destructive mt-1 text-xs">
+                                    <p
+                                        role="alert"
+                                        className="text-destructive typography-body-small mt-1"
+                                    >
                                         {errors.agreedToBunjangTerms}
                                     </p>
                                 )}
@@ -333,7 +338,7 @@ function Field({
                 className={fieldClassName}
             />
             {error && (
-                <p role="alert" className="text-destructive text-xs leading-4">
+                <p role="alert" className="text-destructive typography-body-small">
                     {error}
                 </p>
             )}

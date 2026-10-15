@@ -56,7 +56,7 @@ export function MyPasswordForm({
                     <div key={name} className="space-y-[5px]">
                         <Label
                             htmlFor={name}
-                            className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#363636]"
+                            className="typography-heading-03 font-semibold text-[#363636]"
                         >
                             {label}
                         </Label>
@@ -81,7 +81,7 @@ export function MyPasswordForm({
                                           ? "password-conditions"
                                           : undefined
                                 }
-                                className="aria-invalid:focus-visible:border-destructive h-[45px] rounded-[6px] border-[#dde5e9] bg-white pr-12 pl-5 text-[16px] placeholder:text-[#6b7588] focus-visible:border-[#6653fb] focus-visible:ring-0 md:text-[16px]"
+                                className="aria-invalid:focus-visible:border-destructive typography-body-medium h-[45px] rounded-[6px] border-[#dde5e9] bg-white pr-12 pl-5 placeholder:text-[#6b7588] focus-visible:border-[#6653fb] focus-visible:ring-0"
                             />
                             <Button
                                 type="button"
@@ -104,7 +104,7 @@ export function MyPasswordForm({
                             <p
                                 id={`${name}-error`}
                                 role="alert"
-                                className="text-destructive text-[13px] leading-5"
+                                className="text-destructive typography-body-small"
                             >
                                 {errors[name]?.message}
                             </p>
@@ -112,7 +112,7 @@ export function MyPasswordForm({
                     </div>
                 ))}
                 {Object.values(visible).some((value) => !value) && (
-                    <p className="flex items-center gap-2 pt-[10px] text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#fa503d]">
+                    <p className="typography-body-bold-small flex items-center gap-2 pt-[10px] font-semibold text-[#fa503d]">
                         <CircleAlert aria-hidden="true" className="size-4 shrink-0" />
                         비밀번호 숨김 모드가 활성화되어 있습니다.
                     </p>
@@ -120,7 +120,7 @@ export function MyPasswordForm({
             </div>
             <div
                 id="password-conditions"
-                className="space-y-2 rounded-[6px] bg-[#fafbff] p-4 text-[16px] leading-[25px] text-[#6b7588]"
+                className="typography-body-medium space-y-2 rounded-[6px] bg-[#fafbff] p-4 text-[#6b7588]"
             >
                 <p className="font-semibold tracking-[0.5px] text-[#6b6c7b]">비밀번호 조건</p>
                 <p>• 영문과 숫자를 포함해 8~64자로 입력해 주세요.</p>
@@ -130,7 +130,7 @@ export function MyPasswordForm({
                 <Button
                     type="submit"
                     disabled={isPending || isSuccess}
-                    className={`h-[41px] min-w-[160px] rounded-full bg-[#6653fb] px-6 text-[14px] font-semibold text-white hover:bg-[#5745e7] dark:hover:bg-[#5745e7] ${buttonFocusClassName}`}
+                    className={`typography-body-bold-small h-[41px] min-w-[160px] rounded-full bg-[#6653fb] px-6 font-semibold text-white hover:bg-[#5745e7] dark:hover:bg-[#5745e7] ${buttonFocusClassName}`}
                 >
                     {isPending ? "변경 중..." : "비밀번호 변경"}
                 </Button>
