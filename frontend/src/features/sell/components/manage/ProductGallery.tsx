@@ -125,7 +125,7 @@ export function ProductGallery({
         <div
             className={
                 isBottomLayout
-                    ? `flex w-full min-w-0 flex-col ${isManagementVariant ? "h-[382px] gap-5" : "gap-3"}`
+                    ? `flex w-full min-w-0 flex-col ${isManagementVariant ? "gap-3 lg:h-[382px] lg:gap-5" : "gap-3"}`
                     : "flex items-start gap-3 lg:gap-5"
             }
         >
@@ -133,7 +133,7 @@ export function ProductGallery({
                 <div
                     className={
                         isBottomLayout
-                            ? `order-2 grid w-full grid-cols-4 ${isManagementVariant ? "h-[70px] gap-2.5" : "gap-2"}`
+                            ? `order-2 grid w-full grid-cols-4 ${isManagementVariant ? "gap-2 lg:h-[70px] lg:gap-2.5" : "gap-2"}`
                             : "order-1 flex w-[72px] shrink-0 flex-col gap-3 lg:w-[100px] lg:gap-[10px]"
                     }
                 >
@@ -171,7 +171,7 @@ export function ProductGallery({
                                 side={isBottomLayout ? "top" : "right"}
                                 align="start"
                                 sideOffset={16}
-                                className="w-[494px] gap-5 rounded-[16px] border border-[#dee5ed] bg-white px-[30px] py-8 shadow-[0_12px_30px_rgba(54,54,54,0.14)]"
+                                className="w-[494px] max-w-[calc(100vw-32px)] gap-5 rounded-[16px] border border-[#dee5ed] bg-white px-5 py-6 shadow-[0_12px_30px_rgba(54,54,54,0.14)] md:px-[30px] md:py-8"
                             >
                                 <div className="flex w-full items-center justify-end">
                                     <button
@@ -208,7 +208,7 @@ export function ProductGallery({
                                                     type="button"
                                                     aria-label={`${imageIndex + 1}번 상품 사진 선택`}
                                                     aria-pressed={selectedIndex === imageIndex}
-                                                    className={`relative size-[100px] overflow-hidden rounded-[5px] bg-[#f5f5f7] focus-visible:ring-2 focus-visible:ring-[#6653fb] focus-visible:ring-offset-2 ${
+                                                    className={`relative aspect-square w-full overflow-hidden rounded-[5px] bg-[#f5f5f7] focus-visible:ring-2 focus-visible:ring-[#6653fb] focus-visible:ring-offset-2 md:size-[100px] ${
                                                         selectedIndex === imageIndex
                                                             ? "border-2 border-[#6653fb]"
                                                             : ""

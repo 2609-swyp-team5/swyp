@@ -241,9 +241,25 @@
 @media (max-width: 767px) {
     :root {
         --grid-columns: 2;
-        --grid-gutter: 5px;
-        --grid-margin: 40px;
-        --grid-content-width: 322px;
+        --grid-gutter: 12px;
+        /* 모바일: 좌우 20px 여백 안에서 화면 폭을 다 쓴다 */
+        --grid-margin: 20px;
+        --grid-content-width: 727px;
+        --header-height: 56px;
         --footer-height: 175px;
+        --mobile-tab-bar-height: 64px;
+
+        --type-heading-01-size: 32px;
+        --type-heading-01-line-height: 42px;
+        --type-heading-02-size: 26px;
+        --type-heading-02-line-height: 36px;
+        --type-heading-03-size: 20px;
+        --type-heading-03-line-height: 30px;
+        --type-body-large-size: 18px;
+        --type-body-large-line-height: 28px;
+        --type-body-medium-size: 16px;
+        --type-body-medium-line-height: 25px;
+        --type-body-small-size: 13px;
+        --type-body-small-line-height: 20px;
     }
 }

@@ -335,7 +335,7 @@ function ResultContent({
                     className="size-[72px] animate-spin rounded-full border-4 border-[#dedee6] border-t-[#6653fb]"
                 />
                 <div className="flex flex-col gap-2 text-center">
-                    <h1 className="text-[48px] leading-[60px] font-bold tracking-[0.5px] text-[#6653fb]">
+                    <h1 className="text-[30px] leading-[40px] font-bold tracking-[0.5px] text-[#6653fb] md:text-[48px] md:leading-[60px]">
                         {kind === "edit"
                             ? "상품을 수정하고 있어요"
                             : kind === "ai"

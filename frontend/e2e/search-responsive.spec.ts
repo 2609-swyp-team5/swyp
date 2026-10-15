@@ -1,6 +1,6 @@
 import { expect, test } from "./fixtures";
 
-test("small-screen header menus expand, close with Escape and navigate", async ({
+test("phones use the bottom tab bar and tablets use the header menu", async ({
     page,
 }, testInfo) => {
     await page.route("**/products?*", (route) =>
@@ -13,41 +13,45 @@ test("small-screen header menus expand, close with Escape and navigate", async (
         }),
     );
     await page.goto("/search");
-    for (const width of [320, 390, 768]) {
+    const tabBar = page.getByRole("navigation", { name: "하단 메뉴" });
+    const toggle = page.getByRole("button", { name: "메뉴 열기", exact: true });
+    for (const width of [320, 390]) {
         await page.setViewportSize({ width, height: 900 });
-        const toggle = page.getByRole("button", { name: "메뉴 열기", exact: true });
-        await toggle.click();
-        const menu = page.getByRole("navigation", { name: "모바일 주요 메뉴" });
-        await expect(menu.getByRole("link")).toHaveCount(6);
-        await expect(menu.getByRole("link", { name: "검색", exact: true })).toHaveAttribute(
+        await expect(tabBar.getByRole("link")).toHaveCount(5);
+        await expect(tabBar.getByRole("link", { name: "검색", exact: true })).toHaveAttribute(
             "aria-current",
             "page",
         );
+        await expect(toggle).toBeHidden();
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
             true,
         );
-        await page
-            .getByRole("banner")
-            .screenshot({ path: testInfo.outputPath(`header-${width}.png`) });
-        await menu.getByRole("link", { name: "검색", exact: true }).focus();
-        await page.keyboard.press("Escape");
-        await expect(toggle).toBeFocused();
-        await expect(menu).toBeHidden();
+        await page.screenshot({ path: testInfo.outputPath(`tab-bar-${width}.png`) });
     }
-    await page.getByRole("button", { name: "메뉴 열기", exact: true }).click();
-    await page
-        .getByRole("navigation", { name: "모바일 주요 메뉴" })
-        .getByRole("link", { name: "검색", exact: true })
-        .click();
-    await expect(page.getByRole("button", { name: "메뉴 열기", exact: true })).toHaveAttribute(
-        "aria-expanded",
-        "false",
+
+    await page.setViewportSize({ width: 768, height: 900 });
+    await expect(tabBar).toBeHidden();
+    await toggle.click();
+    const menu = page.getByRole("navigation", { name: "모바일 주요 메뉴" });
+    await expect(menu.getByRole("link")).toHaveCount(6);
+    await expect(menu.getByRole("link", { name: "검색", exact: true })).toHaveAttribute(
+        "aria-current",
+        "page",
     );
+    await menu.getByRole("link", { name: "검색", exact: true }).focus();
+    await page.keyboard.press("Escape");
+    await expect(toggle).toBeFocused();
+    await expect(menu).toBeHidden();
+    await toggle.click();
+    await menu.getByRole("link", { name: "검색", exact: true }).click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+
     await page.setViewportSize({ width: 1440, height: 900 });
     await expect(
         page.getByRole("navigation", { name: "주요 메뉴", exact: true }).getByRole("link"),
     ).toHaveCount(6);
-    await expect(page.getByRole("button", { name: "메뉴 열기", exact: true })).toBeHidden();
+    await expect(toggle).toBeHidden();
+    await expect(tabBar).toBeHidden();
 });
 
 test("responsive filters retain selection and request conditions after collapsing", async ({

@@ -161,7 +161,7 @@ export function PriceAnalysis({
                         className="h-[126px] w-[142px] shrink-0"
                     />
                     <div className="min-w-0">
-                        <p className="text-[30px] leading-[42px] font-bold tracking-[0.5px] text-[#6653fb]">
+                        <p className="text-[22px] leading-8 font-bold tracking-[0.5px] text-[#6653fb] md:text-[30px] md:leading-[42px]">
                             {suggestedPrice === null || suggestedPrice === undefined
                                 ? "분석 결과 준비 중"
                                 : `${priceFormatter.format(suggestedPrice)}원`}

@@ -67,7 +67,7 @@ export function SearchResultCard({
                 className="absolute inset-0 z-10 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6653fb]"
                 aria-label={`${product.title} 상세보기`}
             />
-            <div className="relative h-[180px] shrink-0 bg-[#dfdfdf]">
+            <div className="relative h-[140px] shrink-0 bg-[#dfdfdf] md:h-[180px]">
                 {product.thumbnailUrl && (
                     <Image
                         src={product.thumbnailUrl}
@@ -117,7 +117,10 @@ export function SearchResultCard({
                 </Badge>
             </div>
             <CardContent
-                className={cn("font-brand flex flex-col gap-2.5 p-4", sold && "opacity-70")}
+                className={cn(
+                    "font-brand flex flex-col gap-1.5 p-3 md:gap-2.5 md:p-4",
+                    sold && "opacity-70",
+                )}
             >
                 <Badge
                     className={cn(
@@ -130,12 +133,12 @@ export function SearchResultCard({
                     {status}
                 </Badge>
                 <h2
-                    className="truncate text-[15px] leading-[22px] font-semibold"
+                    className="truncate text-[14px] leading-5 font-semibold md:text-[15px] md:leading-[22px]"
                     title={product.title}
                 >
                     {product.title}
                 </h2>
-                <p className="text-xl leading-[30px] font-bold">
+                <p className="text-[17px] leading-6 font-bold md:text-xl md:leading-[30px]">
                     {product.price.toLocaleString("ko-KR")}원
                 </p>
                 <Badge

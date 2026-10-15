@@ -111,7 +111,7 @@ export function SearchResults({
                     <p role="status" className="sr-only">
                         상품을 불러오는 중입니다.
                     </p>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3">
                         {Array.from({ length: 6 }, (_, index) => (
                             <SearchResultCardSkeleton key={index} />
                         ))}
@@ -125,7 +125,7 @@ export function SearchResults({
                 <div
                     aria-busy={isRefreshing}
                     className={cn(
-                        "relative grid grid-cols-1 gap-4 transition-opacity sm:grid-cols-2 lg:grid-cols-3",
+                        "relative grid grid-cols-2 gap-3 transition-opacity md:gap-4 lg:grid-cols-3",
                         isRefreshing && "pointer-events-none opacity-50",
                     )}
                 >

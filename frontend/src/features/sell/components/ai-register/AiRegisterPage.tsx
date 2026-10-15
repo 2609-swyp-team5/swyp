@@ -180,10 +180,10 @@ export function AiRegisterPage() {
                     </AlertDescription>
                 </Alert>
             )}
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-end gap-2 md:gap-3">
                 <Button
                     type="button"
-                    className="h-[54px] rounded-full border-0 bg-[#d3d3d3] px-[50px] py-3 text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-white hover:bg-[#c6c6c6]"
+                    className="h-12 shrink-0 rounded-full border-0 bg-[#d3d3d3] px-6 py-3 text-[16px] leading-6 font-semibold tracking-[0.5px] text-white hover:bg-[#c6c6c6] md:h-[54px] md:px-[50px] md:text-[20px] md:leading-[30px]"
                     onClick={() => setIsExitDialogOpen(true)}
                 >
                     나가기
@@ -192,7 +192,7 @@ export function AiRegisterPage() {
                     <Button
                         key="upload-next"
                         type="button"
-                        className="h-[54px] rounded-full bg-[#6653fb] px-[50px] py-3 text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-white hover:bg-[#5745e7]"
+                        className="h-12 min-w-0 flex-1 rounded-full bg-[#6653fb] px-5 py-3 text-[16px] leading-6 font-semibold tracking-[0.5px] text-white hover:bg-[#5745e7] md:h-[54px] md:flex-none md:px-[50px] md:text-[20px] md:leading-[30px]"
                         onClick={handleNextStep}
                     >
                         다음단계
@@ -201,7 +201,7 @@ export function AiRegisterPage() {
                     <Button
                         key="additional-info-create"
                         type="button"
-                        className="h-[54px] rounded-full bg-[#6653fb] px-8 py-3 text-[16px] leading-6 font-semibold text-white hover:bg-[#5745e7]"
+                        className="h-12 min-w-0 flex-1 rounded-full bg-[#6653fb] px-5 py-3 text-[16px] leading-6 font-semibold text-white hover:bg-[#5745e7] md:h-[54px] md:flex-none md:px-8"
                         onClick={handleCreate}
                     >
                         ✦ AI 판매 글 만들기
@@ -214,11 +214,11 @@ export function AiRegisterPage() {
     return (
         <main className="flex flex-1 flex-col bg-white">
             <section
-                className={`layout-container flex flex-1 flex-col gap-[80px] py-16 ${
-                    isUploadStep ? "pb-[120px]" : "pb-[80px]"
+                className={`layout-container flex flex-1 flex-col gap-8 py-6 md:gap-[80px] md:py-16 ${
+                    isUploadStep ? "pb-10 md:pb-[120px]" : "pb-10 md:pb-[80px]"
                 }`}
             >
-                <header className="flex flex-col gap-[30px]">
+                <header className="flex flex-col gap-5 md:gap-[30px]">
                     {!isUploadStep && (
                         <button
                             type="button"
@@ -233,7 +233,7 @@ export function AiRegisterPage() {
                         <p className="typography-heading-02 col-start-1 row-start-1 self-start text-[#363636]">
                             AI로 빠르게
                         </p>
-                        <h1 className="col-start-1 row-start-1 mt-[52px] self-start text-[48px] leading-[60px] font-bold tracking-[0.5px] text-[#6653fb]">
+                        <h1 className="col-start-1 row-start-1 mt-[38px] self-start text-[30px] leading-[40px] font-bold tracking-[0.5px] text-[#6653fb] md:mt-[52px] md:text-[48px] md:leading-[60px]">
                             {isUploadStep ? "상품 사진을 올려주세요" : "조금만 더 알려주세요"}
                         </h1>
                     </div>

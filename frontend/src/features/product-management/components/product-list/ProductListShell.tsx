@@ -93,20 +93,20 @@ export function ProductListShell({
 
     return (
         <main className="flex flex-1 bg-white">
-            <section className="layout-container flex flex-col gap-12 pt-16 pb-24">
-                <div className="flex flex-col items-start justify-between gap-8 md:flex-row md:items-end">
+            <section className="layout-container flex flex-col gap-8 pt-6 pb-12 md:gap-12 md:pt-16 md:pb-24">
+                <div className="flex flex-col items-start justify-between gap-5 md:flex-row md:items-end md:gap-8">
                     <div className="flex flex-col gap-1">
-                        <p className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#6b6c7b]">
+                        <p className="text-[16px] leading-6 font-semibold tracking-[0.5px] text-[#6b6c7b] md:text-[20px] md:leading-[30px]">
                             {eyebrow}
                         </p>
-                        <h1 className="text-[40px] leading-[52px] font-bold tracking-[0.5px] text-[#363636] md:text-[48px] md:leading-[60px]">
+                        <h1 className="text-[30px] leading-[40px] font-bold tracking-[0.5px] text-[#363636] md:text-[48px] md:leading-[60px]">
                             {title}
                         </h1>
                     </div>
                     {primaryAction ? (
                         <Button
                             asChild
-                            className="h-[50px] w-[200px] gap-[10px] rounded-full bg-[#5d55fe] px-8 text-[20px] font-semibold tracking-[0.5px] hover:bg-[#5148ed]"
+                            className="h-11 w-auto gap-2 rounded-full bg-[#5d55fe] px-5 text-[16px] font-semibold tracking-[0.5px] hover:bg-[#5148ed] md:h-[50px] md:w-[200px] md:gap-[10px] md:px-8 md:text-[20px]"
                         >
                             <Link href={primaryAction.href}>
                                 <Plus aria-hidden="true" className="size-[19px]" />
@@ -120,7 +120,7 @@ export function ProductListShell({
                     <div
                         role="tablist"
                         aria-label={`${title} 필터`}
-                        className="flex min-w-max items-stretch gap-[39px]"
+                        className="flex min-w-max items-stretch gap-2 md:gap-[39px]"
                     >
                         {tabs.map((tab) => {
                             const isActive = tab.key === activeTabKey;
@@ -133,7 +133,7 @@ export function ProductListShell({
                                     role="tab"
                                     aria-selected={isActive}
                                     className={cn(
-                                        "flex h-[46px] w-[100px] shrink-0 items-center justify-center border-b-2 whitespace-nowrap transition-colors",
+                                        "flex h-[46px] min-w-[76px] shrink-0 items-center justify-center border-b-2 px-2 whitespace-nowrap transition-colors md:w-[100px] md:px-0",
                                         isActive
                                             ? "border-[#363636] text-[#363636]"
                                             : "border-transparent text-[#83889e] hover:text-[#363636]",
@@ -148,15 +148,15 @@ export function ProductListShell({
                                 >
                                     {isActive ? (
                                         <span className="flex items-center gap-1 tracking-[0.5px]">
-                                            <span className="text-[20px] leading-[30px] font-semibold">
+                                            <span className="text-[17px] leading-[26px] font-semibold md:text-[20px] md:leading-[30px]">
                                                 {tab.label}
                                             </span>
-                                            <span className="inline-flex size-[30px] items-center justify-center rounded-full bg-[#363636] text-[20px] leading-[30px] font-semibold text-white">
+                                            <span className="inline-flex size-6 items-center justify-center rounded-full bg-[#363636] text-[14px] leading-6 font-semibold text-white md:size-[30px] md:text-[20px] md:leading-[30px]">
                                                 {count}
                                             </span>
                                         </span>
                                     ) : (
-                                        <span className="text-[16px] leading-[25px] font-normal">
+                                        <span className="text-[15px] leading-[25px] font-normal md:text-[16px]">
                                             {tab.label} {count}
                                         </span>
                                     )}
@@ -166,19 +166,19 @@ export function ProductListShell({
                     </div>
                 </div>
 
-                <div className="grid items-start gap-8 lg:grid-cols-[350px_minmax(0,1fr)] lg:gap-10 xl:grid-cols-[350px_826px]">
-                    <aside className="h-fit overflow-hidden rounded-[20px] border border-[#d3d3d3] bg-white px-5 py-[30px]">
+                <div className="grid items-start gap-5 md:gap-8 lg:grid-cols-[350px_minmax(0,1fr)] lg:gap-10 xl:grid-cols-[350px_826px]">
+                    <aside className="h-fit overflow-hidden rounded-[20px] border border-[#d3d3d3] bg-white px-4 py-5 md:px-5 md:py-[30px]">
                         <div>
-                            <p className="text-[20px] leading-[30px] font-semibold text-[#6b6c7b]">
+                            <p className="text-[16px] leading-6 font-semibold text-[#6b6c7b] md:text-[20px] md:leading-[30px]">
                                 {activeListCount}건
                             </p>
-                            <h2 className="text-[30px] leading-[42px] font-bold text-[#363636]">
+                            <h2 className="text-[22px] leading-8 font-bold text-[#363636] md:text-[30px] md:leading-[42px]">
                                 {activeListTitle}
                             </h2>
                         </div>
                         <div
                             ref={listScrollRef}
-                            className="mt-[30px] max-h-[600px] overflow-y-auto"
+                            className="mt-4 max-h-[420px] overflow-y-auto md:mt-[30px] md:max-h-[600px]"
                         >
                             {isLoading ? <ProductListSkeleton /> : null}
                             {!isLoading && errorMessage ? (

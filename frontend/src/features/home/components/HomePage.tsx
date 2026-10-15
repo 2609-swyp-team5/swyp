@@ -67,13 +67,16 @@ export function HomePage() {
         search(keyword);
     };
     const headingClass =
-        "text-[32px] leading-[44px] font-bold break-keep lg:text-[48px] lg:leading-[60px]";
+        "text-[26px] leading-9 font-bold break-keep md:text-[32px] md:leading-[44px] lg:text-[48px] lg:leading-[60px]";
 
     return (
         <main className="font-brand flex-1 bg-white font-normal tracking-[0.5px]">
             <LoginRequiredDialog open={loginNoticeOpen} onOpenChange={setLoginNoticeOpen} />
             <div
-                className={cn("layout-container space-y-20 pb-[60px]", !isLoggedIn && "pt-[60px]")}
+                className={cn(
+                    "layout-container space-y-8 pb-10 md:space-y-20 md:pb-[60px]",
+                    !isLoggedIn && "pt-8 md:pt-[60px]",
+                )}
             >
                 {!isInitialized ? (
                     <div role="status" aria-label="로그인 상태 확인 중" className="py-20">
@@ -82,7 +85,7 @@ export function HomePage() {
                 ) : isLoggedIn ? (
                     <section
                         aria-label="나의 거래 요약"
-                        className="flex flex-col gap-10 pt-[60px] lg:gap-[60px]"
+                        className="flex flex-col gap-6 pt-8 md:gap-10 md:pt-[60px] lg:gap-[60px]"
                     >
                         <div className="space-y-2.5">
                             <p className="text-base leading-5 font-medium text-[#6b7395] md:text-[20px]">
@@ -96,18 +99,18 @@ export function HomePage() {
                                 </h1>
                             )}
                         </div>
-                        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:gap-[30px]">
+                        <div className="grid grid-cols-2 gap-3 md:gap-5 lg:grid-cols-4 lg:gap-[30px]">
                             {summaries.map((item, index) => (
                                 <Card
                                     key={item.title}
-                                    className="gap-2 rounded-[10px] border border-[#d3d3d3] bg-[#fafbff] px-6 py-5 ring-0"
+                                    className="gap-1.5 rounded-[10px] border border-[#d3d3d3] bg-[#fafbff] px-4 py-4 ring-0 md:gap-2 md:px-6 md:py-5"
                                 >
                                     <h2 className="text-[14px] leading-[21px] text-[#464646]">
                                         {item.title}
                                     </h2>
                                     <p
                                         className={cn(
-                                            "text-[28px] leading-9 font-bold",
+                                            "text-[22px] leading-8 font-bold md:text-[28px] md:leading-9",
                                             index === 1 || index === 2
                                                 ? "text-[#6653fb]"
                                                 : "text-[#363636]",
@@ -125,7 +128,7 @@ export function HomePage() {
                                                       : undefined
                                                 : undefined
                                         }
-                                        className="text-[13px] leading-[19.5px] font-medium text-[#464646]"
+                                        className="text-[12px] leading-[18px] font-medium break-keep text-[#464646] md:text-[13px] md:leading-[19.5px]"
                                     >
                                         {summary.isError
                                             ? index === 0
@@ -149,7 +152,7 @@ export function HomePage() {
                 ) : null}
                 <section
                     aria-labelledby="home-search-heading"
-                    className="flex min-h-[480px] flex-col items-center gap-16 pt-[60px] pb-10 lg:min-h-0 lg:gap-20 lg:pb-[60px]"
+                    className="flex flex-col items-center gap-8 pt-6 pb-4 md:min-h-[480px] md:gap-16 md:pt-[60px] md:pb-10 lg:min-h-0 lg:gap-20 lg:pb-[60px]"
                 >
                     {/* Figma 1989-14199: AI 검색이 왼쪽, 선택된 쪽만 채운 pill(AI 보라·일반 검정) */}
                     <div
@@ -188,7 +191,7 @@ export function HomePage() {
                             </Button>
                         ))}
                     </div>
-                    <div className="w-full space-y-10">
+                    <div className="w-full space-y-6 md:space-y-10">
                         <div className="space-y-2.5 text-center">
                             <h2
                                 id="home-search-heading"
@@ -202,10 +205,10 @@ export function HomePage() {
                                     : "자연어로 물어보세요. AI가 시세 분석과 거래 타이밍을 종합해 알려드려요."}
                             </p>
                         </div>
-                        <div className="space-y-[30px] lg:px-6">
+                        <div className="space-y-5 md:space-y-[30px] lg:px-6">
                             <form
                                 onSubmit={handleSearch}
-                                className="flex h-[70px] items-center gap-2 rounded-[50px] border-[1.5px] border-[#6b6c7b] bg-[#fafbff] pr-1 pl-5"
+                                className="flex h-14 items-center gap-2 rounded-[50px] border-[1.5px] border-[#6b6c7b] bg-[#fafbff] pr-1 pl-4 md:h-[70px] md:pl-5"
                             >
                                 <Search
                                     className="size-[23px] shrink-0 text-[#6b6c7b]"
@@ -227,7 +230,7 @@ export function HomePage() {
                                     type="submit"
                                     disabled={!isInitialized}
                                     aria-label={searchMode === "ai" ? "AI 검색" : "상품 검색"}
-                                    className="size-[60px] shrink-0 rounded-full bg-[#6653fb] p-0 text-white"
+                                    className="size-12 shrink-0 rounded-full bg-[#6653fb] p-0 text-white md:size-[60px]"
                                 >
                                     <Search className="size-6" />
                                 </Button>
@@ -260,7 +263,7 @@ export function HomePage() {
                 </section>
                 <section
                     aria-labelledby="popular-products-heading"
-                    className="flex flex-col gap-10 py-[60px] lg:min-h-[630px] lg:justify-between"
+                    className="flex flex-col gap-6 py-6 md:gap-10 md:py-[60px] lg:min-h-[630px] lg:justify-between"
                 >
                     <div className="space-y-2.5">
                         <p className="text-base leading-7 font-medium text-[#464646] md:text-[20px]">
@@ -277,7 +280,7 @@ export function HomePage() {
                 </section>
                 <section
                     aria-labelledby="home-audiences-heading"
-                    className="flex flex-col gap-10 py-[60px] lg:min-h-[630px] lg:justify-between"
+                    className="flex flex-col gap-6 py-6 md:gap-10 md:py-[60px] lg:min-h-[630px] lg:justify-between"
                 >
                     <div className="space-y-2.5">
                         <p className="text-base leading-7 font-medium text-[#464646] md:text-[20px]">
@@ -290,7 +293,7 @@ export function HomePage() {
                             파는 사람에게도, 사는 사람에게도
                         </h2>
                     </div>
-                    <div className="grid gap-8 lg:grid-cols-2 lg:gap-[60px]">
+                    <div className="grid gap-4 md:gap-8 lg:grid-cols-2 lg:gap-[60px]">
                         {[
                             {
                                 title: "판매자라면",
@@ -309,20 +312,20 @@ export function HomePage() {
                         ].map((item) => (
                             <Card
                                 key={item.title}
-                                className="relative h-[350px] gap-0 rounded-[20px] border border-[#464646] bg-white py-0 ring-0"
+                                className="relative h-[280px] gap-0 rounded-[20px] border border-[#464646] bg-white py-0 ring-0 md:h-[350px]"
                             >
-                                <CardContent className="space-y-5 px-6 py-[30px] text-center text-[#363636]">
-                                    <h3 className="text-[30px] leading-[30px] font-semibold">
+                                <CardContent className="space-y-3 px-5 py-6 text-center text-[#363636] md:space-y-5 md:px-6 md:py-[30px]">
+                                    <h3 className="text-[24px] leading-[30px] font-semibold md:text-[30px]">
                                         {item.title}
                                     </h3>
-                                    <p className="text-base leading-[35px] font-medium lg:text-[20px]">
+                                    <p className="text-[15px] leading-6 font-medium break-keep md:text-base md:leading-[35px] lg:text-[20px]">
                                         {item.description}
                                     </p>
                                 </CardContent>
                                 <div className="flex-1 rounded-[5px] bg-[#d3d3d3]" />
                                 <Button
                                     asChild
-                                    className="absolute right-6 bottom-[29px] left-6 h-[60px] rounded-full bg-[#6653fb] px-5 text-base leading-5 font-bold lg:right-auto lg:left-1/2 lg:w-[400px] lg:-translate-x-1/2 lg:text-[20px]"
+                                    className="absolute right-5 bottom-5 left-5 h-[52px] rounded-full bg-[#6653fb] px-5 text-base leading-5 font-bold md:right-6 md:bottom-[29px] md:left-6 md:h-[60px] lg:right-auto lg:left-1/2 lg:w-[400px] lg:-translate-x-1/2 lg:text-[20px]"
                                 >
                                     <Link href={isLoggedIn ? item.href : "/login"}>
                                         {item.button}
@@ -335,7 +338,7 @@ export function HomePage() {
                 {isInitialized && isLoggedIn && (
                     <section
                         aria-labelledby="recommended-products-heading"
-                        className="hidden flex-col gap-10 py-[60px] lg:min-h-[630px] lg:justify-between"
+                        className="hidden flex-col gap-6 py-6 md:gap-10 md:py-[60px] lg:min-h-[630px] lg:justify-between"
                     >
                         <div className="flex flex-wrap items-end justify-between gap-5 lg:pr-10">
                             <div className="space-y-2.5">

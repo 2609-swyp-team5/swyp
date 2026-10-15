@@ -60,12 +60,12 @@ export function MarketAnalysisSummaryMetrics({
                         ) : null}
                         <div className="flex min-w-0 flex-1 flex-col items-center justify-center text-center">
                             <span
-                                className={`text-[12px] leading-5 tracking-[-0.5px] ${metric.valueClassName ?? "text-[#6b6c7b]"}`}
+                                className={`text-[11px] leading-4 tracking-[-0.5px] break-keep md:text-[12px] md:leading-5 ${metric.valueClassName ?? "text-[#6b6c7b]"}`}
                             >
                                 {metric.label}
                             </span>
                             <strong
-                                className={`text-[22px] leading-[30px] font-semibold tracking-[0.5px] ${metric.valueClassName ?? "text-[#464646]"}`}
+                                className={`text-[15px] leading-6 font-semibold tracking-normal whitespace-nowrap md:text-[22px] md:leading-[30px] md:tracking-[0.5px] ${metric.valueClassName ?? "text-[#464646]"}`}
                             >
                                 {metric.value}
                             </strong>
@@ -101,15 +101,15 @@ export function MarketAnalysisSummaryMetrics({
               ];
 
     return (
-        <div className="flex h-[95px] w-full items-center rounded-[10px] border border-[#d3d3d3] bg-white px-[10px] py-5">
+        <div className="flex min-h-[80px] w-full items-center rounded-[10px] border border-[#d3d3d3] bg-white px-[6px] py-4 md:h-[95px] md:px-[10px] md:py-5">
             {metrics.map((metric, index) => (
                 <Fragment key={metric.label}>
                     {index > 0 ? <Separator orientation="vertical" className="h-[55px]" /> : null}
                     <div className="flex h-[55px] flex-1 flex-col items-center justify-center text-center">
-                        <span className="text-[16px] leading-[25px] text-[#9aa0b0]">
+                        <span className="text-[12px] leading-5 break-keep text-[#9aa0b0] md:text-[16px] md:leading-[25px]">
                             {metric.label}
                         </span>
-                        <strong className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#374151]">
+                        <strong className="text-[16px] leading-6 font-semibold tracking-[0.5px] text-[#374151] md:text-[20px] md:leading-[30px]">
                             {metric.value}
                         </strong>
                     </div>

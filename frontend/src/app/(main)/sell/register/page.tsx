@@ -32,13 +32,13 @@ export default function SellRegisterPage() {
         <main className="flex flex-1 flex-col bg-white">
             <section
                 aria-labelledby="register-page-title"
-                className="layout-container flex flex-1 flex-col gap-[80px] py-16 pb-[120px]"
+                className="layout-container flex flex-1 flex-col gap-8 py-8 pb-12 md:gap-[80px] md:py-16 md:pb-[120px]"
             >
                 <header className="flex flex-col gap-2.5">
                     <p className="typography-heading-02 text-[#363636]">판매할 상품을</p>
                     <h1
                         id="register-page-title"
-                        className="typography-heading-01 text-[48px] leading-[60px] text-[#6653fb]"
+                        className="typography-heading-01 text-[30px] leading-[40px] text-[#6653fb] md:text-[48px] md:leading-[60px]"
                     >
                         어떻게 등록할까요?
                     </h1>
