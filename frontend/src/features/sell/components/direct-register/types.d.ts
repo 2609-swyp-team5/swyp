@@ -1,4 +1,3 @@
-import type { CategoryOptionSelection } from "@/features/sell/types";
 import type { IncludedStatus } from "@/features/sell/components/shared/IncludedStatusField";
 
 export type DirectImagePreview = {
@@ -17,9 +16,7 @@ export type DirectRegisterInfoState = {
     tags: string[];
 };
 
-export type ProductEditInfoState = DirectRegisterInfoState & {
-    categoryOptions: CategoryOptionSelection[];
-};
+export type ProductEditInfoState = DirectRegisterInfoState;
 
 export type DirectProductCondition = "S" | "A" | "B" | "C" | "D";
 export type DirectTradeMethod = "direct" | "delivery";

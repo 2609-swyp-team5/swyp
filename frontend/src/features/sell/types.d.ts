@@ -2,7 +2,6 @@ import type { z } from "zod";
 
 import type {
     aiProductCreateInputSchema,
-    categoryOptionSelectionSchema,
     defectStatusSchema,
     deliveryTypeSchema,
     directProductCreateRequestSchema,
@@ -27,7 +26,6 @@ export type TradeMethod = z.infer<typeof tradeMethodSchema>;
 export type DeliveryType = z.infer<typeof deliveryTypeSchema>;
 export type IncludedItemStatus = z.infer<typeof includedItemStatusSchema>;
 export type ProductCreateRequest = z.infer<typeof productCreateRequestSchema>;
-export type CategoryOptionSelection = z.infer<typeof categoryOptionSelectionSchema>;
 export type DirectProductCreateRequest = z.infer<typeof directProductCreateRequestSchema>;
 export type ProductUpdateRequest = z.infer<typeof productUpdateRequestSchema>;
 

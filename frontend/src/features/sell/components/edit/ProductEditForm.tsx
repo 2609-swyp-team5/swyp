@@ -28,7 +28,6 @@ import {
 import { RegistrationStepper } from "@/features/sell/components/shared/RegistrationStepper";
 import { useUpdateProductMutation } from "@/features/sell/hooks/mutations/useUpdateProductMutation";
 import { productQueryKey } from "@/features/sell/hooks/queries/useProductQuery";
-import { toCategoryOptionSelections } from "@/features/sell/utils/categoryOptions";
 import type {
     ProductRegisterError,
     ProductRegisterProgress,
@@ -70,7 +69,6 @@ function getInitialInfo(product: ProductResponse, categories: Category[]): Produ
         brand: product.brand ?? "",
         description: product.description ?? "",
         tags: product.tags,
-        categoryOptions: toCategoryOptionSelections(product),
     };
 }
 
@@ -237,7 +235,6 @@ export function ProductEditForm({
                     imageUrls,
                     tags: info.tags,
                     includedItems: [includedStatusLabels[statusPrice.includedStatus]],
-                    categoryOptions: info.categoryOptions,
                 },
             });
 

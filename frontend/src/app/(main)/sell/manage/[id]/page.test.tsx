@@ -16,7 +16,6 @@ const {
     useProductQuery,
     usePublishProductMutation,
     useUpdateProductStatusMutation,
-    useCategoryOptionsQuery,
 } = vi.hoisted(() => ({
     push: vi.fn(),
     replace: vi.fn(),
@@ -28,7 +27,6 @@ const {
     useProductQuery: vi.fn(),
     usePublishProductMutation: vi.fn(),
     useUpdateProductStatusMutation: vi.fn(),
-    useCategoryOptionsQuery: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -65,19 +63,7 @@ vi.mock("@/features/product-management/hooks/useProductAnalysisQuery", () => ({
     useProductAnalysisQuery,
 }));
 
-vi.mock("@/features/sell/hooks/queries/useCategoryOptionsQuery", () => ({
-    useCategoryOptionsQuery,
-}));
-
 import ProductReviewPage from "./page";
-
-const sizeGroup = {
-    groupId: "100",
-    name: "사이즈",
-    title: "사이즈를 선택해 주세요",
-    required: true,
-    children: [],
-};
 
 const product: ProductResponse = {
     id: 42,
@@ -149,7 +135,6 @@ describe("ProductReviewPage", () => {
         // 기본은 시세 분석 결과 없음 → 사진 기반 AI 추정값으로 표시
         useProductAnalysisQuery.mockReturnValue({ data: null });
         useProductCompetitionQuery.mockReturnValue({ data: null });
-        useCategoryOptionsQuery.mockReturnValue({ data: [] });
         push.mockReset();
         replace.mockReset();
         searchParamsValue.current = "method=direct";
@@ -172,49 +157,6 @@ describe("ProductReviewPage", () => {
             screen.getByText("최근 시세와 거래 데이터를 바탕으로 분석했어요."),
         ).toBeInTheDocument();
         expect(useProductAnalysisQuery).toHaveBeenCalledWith(product.id);
-    });
-
-    it("asks for missing required category options with a link to the edit page", () => {
-        searchParamsValue.current = "method=ai";
-        useCategoryOptionsQuery.mockReturnValue({ data: [sizeGroup] });
-
-        render(<ProductReviewPage />);
-
-        expect(
-            screen.getByRole("heading", {
-                name: "다른 플랫폼에 등록하려면 사이즈 입력이 필요해요",
-            }),
-        ).toBeInTheDocument();
-        expect(screen.getByRole("link", { name: "추가 항목 입력하기" })).toHaveAttribute(
-            "href",
-            "/sell/manage/42/edit?method=ai",
-        );
-        expect(useCategoryOptionsQuery).toHaveBeenCalledWith(product.category.id);
-    });
-
-    it("hides the category options notice when required options are filled", () => {
-        useCategoryOptionsQuery.mockReturnValue({ data: [sizeGroup] });
-        useProductQuery.mockReturnValue({
-            data: {
-                ...product,
-                categoryOptions: [
-                    {
-                        groupId: "100",
-                        groupName: "사이즈",
-                        childName: "공용 사이즈",
-                        type: "SINGLE_SELECT",
-                        valueId: 5,
-                        value: "M",
-                    },
-                ],
-            },
-            error: null,
-            isPending: false,
-        });
-
-        render(<ProductReviewPage />);
-
-        expect(screen.queryByRole("link", { name: "추가 항목 입력하기" })).not.toBeInTheDocument();
     });
 
     it("hides the recommendation badge when no recommendation status exists", () => {

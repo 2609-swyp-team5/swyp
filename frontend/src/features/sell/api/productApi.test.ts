@@ -540,7 +540,6 @@ describe("productApi", () => {
                     imageUrls: ["https://example.com/retained-image.jpg"],
                     tags: ["애플"],
                     includedItems: ["전체 포함"],
-                    categoryOptions: [],
                 },
             },
             onProgress,
@@ -592,7 +591,6 @@ describe("productApi", () => {
                 imageUrls: [],
                 tags: ["애플"],
                 includedItems: ["전체 포함"],
-                categoryOptions: [],
             },
         });
 
@@ -630,7 +628,6 @@ describe("productApi", () => {
                 imageUrls: [],
                 tags: [],
                 includedItems: ["없음"],
-                categoryOptions: [],
             },
         });
 
@@ -664,7 +661,6 @@ describe("productApi", () => {
                     imageUrls: [],
                     tags: [],
                     includedItems: ["없음"],
-                    categoryOptions: [],
                 },
             }),
         ).rejects.toThrow("상품 사진을 1장 이상 업로드해주세요.");

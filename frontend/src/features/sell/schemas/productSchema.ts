@@ -28,13 +28,6 @@ export const productUpdateImagesSchema = z
     .array(productImageFileSchema)
     .max(10, "상품 사진은 최대 10장까지 업로드할 수 있어요.");
 
-/** 카테고리별 추가 항목 입력 하나(직접 입력·날짜 항목만 text). */
-export const categoryOptionSelectionSchema = z.object({
-    groupId: z.string().min(1),
-    valueId: z.number().int(),
-    text: z.string().max(50).nullable(),
-});
-
 export const productCreateRequestSchema = z.object({
     categoryId: z.number().int().positive("카테고리를 선택해 주세요."),
     title: z.string().trim().min(1, "상품명을 입력해 주세요.").max(100),
@@ -49,7 +42,6 @@ export const productCreateRequestSchema = z.object({
     preferredTradeRegion: z.string().trim().nullable(),
     imageUrls: z.array(z.string().trim().min(1)).min(1, "상품 이미지가 필요합니다."),
     tags: z.array(z.string().trim().min(1)).max(10, "태그는 최대 10개까지 추가할 수 있습니다."),
-    categoryOptions: z.array(categoryOptionSelectionSchema),
 });
 
 export const directProductCreateRequestSchema = productCreateRequestSchema
@@ -57,7 +49,6 @@ export const directProductCreateRequestSchema = productCreateRequestSchema
         imageUrls: true,
         brand: true,
         includedItems: true,
-        categoryOptions: true,
     })
     .extend({
         title: z.string().trim().min(2, "상품명은 2글자 이상 입력해 주세요.").max(100),
