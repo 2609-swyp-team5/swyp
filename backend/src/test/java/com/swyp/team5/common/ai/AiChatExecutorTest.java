@@ -4,8 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 import org.springframework.ai.chat.client.ChatClient;
 
@@ -95,5 +97,51 @@ class AiChatExecutorTest {
                 .hasMessageContaining("cut");
         assertThat(called).containsExactly(gemini);
         assertThat(chunks).containsExactly("지금 ");
+    }
+
+    // Gemini가 한도 초과(429)로 실패하면 다음 호출부터 Gemini를 건너뛰고 바로 GPT로
+    @Test
+    void skipsGeminiAfterQuotaExceeded() {
+        AiChatExecutor guarded = new AiChatExecutor(gemini, openAi, new GeminiQuotaCooldown(Duration.ofMinutes(5)));
+        List<ChatClient> called = new ArrayList<>();
+        Function<ChatClient, String> request = client -> {
+            called.add(client);
+            if (client == gemini) {
+                throw new RuntimeException(GeminiQuotaCooldownTest.quotaExceeded());
+            }
+            return "gpt";
+        };
+
+        assertThat(guarded.call("테스트", request)).isEqualTo("gpt");
+        assertThat(guarded.call("테스트", request)).isEqualTo("gpt");
+        String streamed = guarded.stream(
+                "테스트",
+                client -> {
+                    called.add(client);
+                    return Flux.just("gpt");
+                },
+                chunk -> {});
+
+        assertThat(streamed).isEqualTo("gpt");
+        assertThat(called).containsExactly(gemini, openAi, openAi, openAi);
+    }
+
+    // 429가 아닌 실패는 다음 호출에서도 Gemini부터 시도
+    @Test
+    void keepsTryingGeminiAfterOtherFailures() {
+        AiChatExecutor guarded = new AiChatExecutor(gemini, openAi, new GeminiQuotaCooldown(Duration.ofMinutes(5)));
+        List<ChatClient> called = new ArrayList<>();
+        Function<ChatClient, String> request = client -> {
+            called.add(client);
+            if (client == gemini) {
+                throw new IllegalStateException("503 UNAVAILABLE");
+            }
+            return "gpt";
+        };
+
+        guarded.call("테스트", request);
+        guarded.call("테스트", request);
+
+        assertThat(called).containsExactly(gemini, openAi, gemini, openAi);
     }
 }

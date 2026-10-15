@@ -184,9 +184,16 @@ product:
     keep-alive-interval: 15s # 연결 유지용 주석 이벤트 간격
     market-analysis-timeout: ${PRODUCT_REGISTER_MARKET_ANALYSIS_TIMEOUT:90s} # 등록 후 시세 분석(withMarketAnalysis=true)을 기다리는 최대 시간 — 넘으면 등록은 끝내고 시세 분석 단계만 SKIP(분석은 계속 진행)
 
+# Gemini 한도 초과(429)를 받으면 이 시간 동안 Gemini를 건너뛰고 OpenAI GPT로 바로 호출(0이면 끔)
+ai:
+  gemini-quota-cooldown: ${AI_GEMINI_QUOTA_COOLDOWN:5m}
+
 # 지금이니 AI 대화 답변 스트림(SSE, Accept: text/event-stream)
 ai-chat:
   thinking-level: ${AI_CHAT_THINKING_LEVEL:MINIMAL} # Gemini 생각 정도(MINIMAL/LOW/MEDIUM/HIGH) — 대화는 응답 속도 우선
+  openai: # Gemini 실패 시 대체 호출하는 대화 전용 GPT(시세·사진 분석 대체는 spring.ai.openai 설정 그대로)
+    model: ${AI_CHAT_OPENAI_MODEL:gpt-5.4-mini}
+    reasoning-effort: ${AI_CHAT_OPENAI_REASONING_EFFORT:none} # 추론 정도 — 비추론 모델(gpt-4o-mini 등)로 바꾸면 빈 값으로
   stream:
     core-pool-size: 4 # 답변 처리 스레드 기본 수
     max-pool-size: 8 # 답변 처리 스레드 최대 수
