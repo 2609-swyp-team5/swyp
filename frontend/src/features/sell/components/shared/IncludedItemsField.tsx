@@ -2,7 +2,7 @@
 
 import { useRef, useState, type KeyboardEvent } from "react";
 
-import { CircleAlert, X } from "lucide-react";
+import { X } from "lucide-react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/common/components/ui/Popover";
 
@@ -143,8 +143,7 @@ export function IncludedItemsField({
                 </div>
             </div>
             {errorMessage && (
-                <div role="alert" className="text-destructive flex items-center gap-2">
-                    <CircleAlert aria-hidden="true" className="size-4 shrink-0" />
+                <div role="alert" className="text-destructive">
                     <p className="typography-body-small">{errorMessage}</p>
                 </div>
             )}

@@ -36,7 +36,7 @@ public class CategoryController {
     @Operation(
             summary = "카테고리별 추가 항목 조회",
             description =
-                    "사이즈·용량·사용기한 등 카테고리별 추가 항목(번개장터 등록 화면 기준). 상품 등록·수정 요청의 categoryOptions로 항목마다 값 하나를 보내며, required 항목이 빠지면 등록·수정이 400으로 거절된다. 추가 항목이 없는 카테고리는 빈 목록.")
+                    "사이즈·용량·사용기한 등 카테고리별 추가 항목(번개장터 등록 화면 기준). 상품 등록·수정 요청의 categoryOptions로 항목마다 값 하나를 보내며, 안전한 기본값이 없는 required 항목이 빠지면 등록·수정이 400으로 거절된다. 추가 항목이 없는 카테고리는 빈 목록.")
     @GetMapping("/{categoryId}/options")
     public ResponseEntity<ApiResponse<List<CategoryOptionGroupResponse>>> getOptions(@PathVariable Long categoryId) {
         return ResponseEntity.ok(ApiResponse.success(categoryOptionService.getOptions(categoryId)));

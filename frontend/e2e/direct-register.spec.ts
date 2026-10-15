@@ -136,33 +136,12 @@ test("direct registration keeps the product information while moving to status a
         "aria-checked",
         "true",
     );
-    await expect(page.getByRole("combobox", { name: "구매 시기" })).toContainText("6개월");
-    await page.getByRole("combobox", { name: "구매 시기" }).click();
-    await expect(page.getByRole("option", { name: "1개월" })).toBeVisible();
-    await expect(page.getByRole("option", { name: "6개월" })).toBeVisible();
-    await expect(page.getByRole("option", { name: "0개월" })).toHaveCount(0);
-    await page.keyboard.press("Escape");
-    await expect(page.getByRole("radio", { name: "하자 없음", exact: true })).toHaveAttribute(
+    await expect(page.getByRole("combobox", { name: "구매 시기" })).toHaveCount(0);
+    await expect(page.getByRole("radiogroup", { name: "하자 여부" })).toHaveCount(0);
+    await expect(page.getByRole("radio", { name: "전체 포함", exact: true })).toHaveAttribute(
         "aria-checked",
         "true",
     );
-
-    const includedItemInput = page.getByRole("textbox", { name: "구성품 추가" });
-    await includedItemInput.fill("케이스");
-    await includedItemInput.press("Enter");
-    await expect(page.getByRole("button", { name: "케이스 구성품 삭제" })).toBeVisible();
-
-    for (const item of ["보호 필름", "설명서", "스트랩"]) {
-        await includedItemInput.fill(item);
-        await includedItemInput.press("Enter");
-    }
-
-    const moreItemsButton = page.getByRole("button", { name: "숨겨진 구성품 3개 보기" });
-    await expect(moreItemsButton).toBeVisible();
-    await moreItemsButton.click();
-    await expect(page.getByRole("button", { name: "보호 필름 구성품 삭제" })).toBeVisible();
-    await page.getByRole("button", { name: "보호 필름 구성품 삭제" }).click();
-    await expect(page.getByRole("button", { name: "숨겨진 구성품 2개 보기" })).toBeVisible();
 
     const priceInput = page.getByRole("textbox", { name: "희망 가격" });
     await priceInput.fill("1234567");
@@ -172,6 +151,9 @@ test("direct registration keeps the product information while moving to status a
     await expect(priceProposalCheckbox).not.toBeChecked();
     await priceProposalCheckbox.check();
     await expect(priceProposalCheckbox).toBeChecked();
+
+    await page.getByRole("radio", { name: "택배 거래" }).click();
+    await page.getByRole("radio", { name: "배송비 포함" }).click();
 
     await page.getByRole("button", { name: "이전 페이지", exact: true }).click();
     await expect(page.getByLabel("상품명", { exact: false })).toHaveValue("필름카메라 FM2 니콘");

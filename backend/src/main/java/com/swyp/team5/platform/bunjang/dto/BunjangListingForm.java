@@ -24,6 +24,7 @@ public record BunjangListingForm(
         boolean directTrade,
         String directTradeLocation,
         boolean shippingFeeIncluded,
+        Long shippingFee,
         List<String> imageUrls,
         List<Option> categoryOptions) {
 

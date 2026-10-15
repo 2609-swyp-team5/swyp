@@ -3,7 +3,6 @@
 import { useParams, useSearchParams } from "next/navigation";
 
 import { getApiErrorMessage } from "@/common/lib/api/error";
-import { CategoryOptionsNotice } from "@/features/sell/components/manage/CategoryOptionsNotice";
 import { CompletionSection } from "@/features/sell/components/manage/CompletionSection";
 import { NextActions } from "@/features/sell/components/manage/NextActions";
 import { PriceAnalysis } from "@/features/sell/components/manage/PriceAnalysis";
@@ -55,10 +54,6 @@ export default function ProductReviewPage() {
             <h1 className="sr-only">판매글 확인</h1>
             <section className="layout-container flex flex-1 flex-col gap-10 pt-6 pb-12 md:gap-[80px] md:pt-16 md:pb-[120px]">
                 <CompletionSection isUpdated={isUpdated} isDetailView={isDetailView} />
-                <CategoryOptionsNotice
-                    product={product}
-                    editHref={`/sell/manage/${product.id}/edit?method=${registrationMethod}`}
-                />
                 <ProductSummary product={product} registrationMethod={registrationMethod} />
                 <PriceAnalysis
                     product={product}

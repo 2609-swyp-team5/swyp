@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.swyp.team5.category.error.CategoryNotLeafException;
+import com.swyp.team5.component.entity.Component;
 import com.swyp.team5.platform.bunjang.dto.ProductPlatformResponse;
 import com.swyp.team5.platform.entity.MemberPlatform;
 import com.swyp.team5.platform.entity.MemberPlatformStatus;
@@ -31,6 +32,7 @@ import com.swyp.team5.platform.repository.MemberPlatformRepository;
 import com.swyp.team5.platform.repository.PlatformRepository;
 import com.swyp.team5.platform.repository.ProductPlatformRepository;
 import com.swyp.team5.product.entity.DeliveryType;
+import com.swyp.team5.product.entity.IncludedStatus;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.ProductImage;
@@ -133,7 +135,22 @@ public class JoongnaProductPublishService {
                 categorySeq,
                 product.getCondition() == ProductCondition.S,
                 product.getDeliveryType() == DeliveryType.INCLUDED,
+                includedStatus(product),
                 imageUrls);
+    }
+
+    /** 구성품 상태를 중고나라 등록 폼에 전달한다. 구 데이터의 실제 구성품은 전체 포함으로 간주한다. */
+    private static IncludedStatus includedStatus(Product product) {
+        return product.getComponents().stream()
+                .map(Component::getName)
+                .findFirst()
+                .map(name -> switch (name) {
+                    case "없음" -> IncludedStatus.NONE;
+                    case "일부 포함" -> IncludedStatus.PARTIAL;
+                    case "전체 포함" -> IncludedStatus.ALL;
+                    default -> IncludedStatus.ALL;
+                })
+                .orElse(IncludedStatus.NONE);
     }
 
     private MemberPlatform getConnectedMemberPlatform(Long memberId) {

@@ -47,7 +47,41 @@ vi.mock("@/features/sell/components/direct-register/DirectRegisterInfoStep", () 
 }));
 
 vi.mock("@/features/sell/components/direct-register/DirectStatusPriceStep", () => ({
-    DirectStatusPriceStep: () => <div>상태·가격 입력</div>,
+    DirectStatusPriceStep: ({
+        price,
+        errors,
+        onPriceChange,
+        onTradeMethodChange,
+        onDeliveryTypeChange,
+        onDeliveryFeeChange,
+    }: {
+        price: string;
+        errors: { price: string };
+        onPriceChange: (value: string) => void;
+        onTradeMethodChange: (value: "direct" | "delivery") => void;
+        onDeliveryTypeChange: (value: "INCLUDED" | "PREPAID") => void;
+        onDeliveryFeeChange?: (value: string) => void;
+    }) => (
+        <>
+            <div>상태·가격 입력</div>
+            <input
+                aria-label="희망 가격"
+                value={price}
+                onChange={(event) => onPriceChange(event.target.value)}
+            />
+            {errors.price && <div>{errors.price}</div>}
+            <button
+                type="button"
+                onClick={() => {
+                    onTradeMethodChange("delivery");
+                    onDeliveryTypeChange("PREPAID");
+                    onDeliveryFeeChange?.("3000");
+                }}
+            >
+                배송비 별도 설정
+            </button>
+        </>
+    ),
 }));
 
 vi.mock("@/features/sell/components/direct-register/DirectRegisterActions", () => ({
@@ -97,9 +131,6 @@ const product: ProductResponse = {
     price: 700000,
     status: "ON_SALE",
     condition: "A",
-    defectStatus: "NORMAL",
-    purchasedAt: "2026-06-27",
-    purchasedMonths: 3,
     includedItems: ["body"],
     allowPriceSuggestion: true,
     tradeMethod: "DIRECT",
@@ -150,14 +181,17 @@ describe("ProductEditForm", () => {
             {
                 id: number;
                 files: File[];
-                request: { imageUrls: string[]; purchasedMonths: number | null };
+                request: { imageUrls: string[]; includedStatus: "NONE" | "PARTIAL" | "ALL" };
             },
         ];
 
         expect(input.id).toBe(42);
         expect(input.files).toEqual([expect.any(File)]);
         expect(input.request.imageUrls).toEqual(["https://example.com/retained.jpg"]);
-        expect(input.request.purchasedMonths).toBe(3);
+        expect(input.request.includedStatus).toBe("ALL");
+        expect(input.request).not.toHaveProperty("includedItems");
+        expect(input.request).not.toHaveProperty("purchasedMonths");
+        expect(input.request).not.toHaveProperty("defectStatus");
         expect(setQueryData).toHaveBeenCalledWith(["product", 42], {
             ...product,
             title: "수정된 상품명",
@@ -167,4 +201,56 @@ describe("ProductEditForm", () => {
 
         expect(push).toHaveBeenCalledWith("/sell/manage/42?method=direct&updated=true");
     });
+
+    it("reuses the shared trade fields for delivery edits", async () => {
+        const user = userEvent.setup();
+
+        render(
+            <ProductEditForm
+                product={product}
+                categories={[]}
+                categoryStatus="ready"
+                method="direct"
+            />,
+        );
+
+        await user.click(screen.getByRole("button", { name: "이미지 변경 후 다음" }));
+        await user.click(screen.getByRole("button", { name: "배송비 별도 설정" }));
+        await user.click(screen.getByRole("button", { name: "수정 완료" }));
+
+        await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
+
+        expect(mutateAsync.mock.calls[0][0].request).toMatchObject({
+            tradeMethod: "DELIVERY",
+            deliveryType: "PREPAID",
+            deliveryFee: 3000,
+            preferredTradeRegion: null,
+        });
+    });
+
+    it.each(["499", "100000001"])(
+        "rejects an edit price outside the allowed range: %s",
+        async (price) => {
+            const user = userEvent.setup();
+
+            render(
+                <ProductEditForm
+                    product={product}
+                    categories={[]}
+                    categoryStatus="ready"
+                    method="direct"
+                />,
+            );
+
+            await user.click(screen.getByRole("button", { name: "이미지 변경 후 다음" }));
+            await user.clear(screen.getByLabelText("희망 가격"));
+            await user.type(screen.getByLabelText("희망 가격"), price);
+            await user.click(screen.getByRole("button", { name: "수정 완료" }));
+
+            expect(mutateAsync).not.toHaveBeenCalled();
+            expect(
+                screen.getByText("희망 가격은 500원 이상 1억 원 이하로 입력해 주세요."),
+            ).toBeInTheDocument();
+        },
+    );
 });

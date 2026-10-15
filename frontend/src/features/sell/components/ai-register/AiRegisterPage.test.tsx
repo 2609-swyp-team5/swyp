@@ -42,25 +42,30 @@ vi.mock("@/features/sell/components/ai-register/AiRegisterUploadStep", () => ({
 
 vi.mock("@/features/sell/components/ai-register/AiRegisterAdditionalInfoStep", () => ({
     AiRegisterAdditionalInfoStep: ({
-        onPurchasePeriodChange,
-        onOperationStatusChange,
-        onIncludedItemChange,
+        onProductConditionChange,
+        onIncludedStatusChange,
+        onTradeMethodChange,
+        onDeliveryTypeChange,
         children,
     }: {
-        onPurchasePeriodChange: (value: "unknown") => void;
-        onOperationStatusChange: (value: "issues") => void;
-        onIncludedItemChange: (value: string, checked: boolean) => void;
+        onProductConditionChange: (value: "A") => void;
+        onIncludedStatusChange: (value: "partial") => void;
+        onTradeMethodChange: (value: "delivery") => void;
+        onDeliveryTypeChange: (value: "INCLUDED") => void;
         children: ReactNode;
     }) => (
         <div>
-            <button type="button" onClick={() => onPurchasePeriodChange("unknown")}>
-                구매 시기 미상
+            <button type="button" onClick={() => onProductConditionChange("A")}>
+                거의 새 상품
             </button>
-            <button type="button" onClick={() => onOperationStatusChange("issues")}>
-                일부 문제 있음
+            <button type="button" onClick={() => onIncludedStatusChange("partial")}>
+                일부 포함
             </button>
-            <button type="button" onClick={() => onIncludedItemChange("박스", true)}>
-                박스 추가
+            <button type="button" onClick={() => onTradeMethodChange("delivery")}>
+                택배 거래
+            </button>
+            <button type="button" onClick={() => onDeliveryTypeChange("INCLUDED")}>
+                배송비 포함
             </button>
             {children}
         </div>
@@ -109,16 +114,20 @@ describe("AiRegisterPage", () => {
         await user.click(screen.getByRole("button", { name: "다음단계" }));
         expect(photoStep).toHaveClass("text-[#6653fb]");
         expect(additionalInfoStep).toHaveClass("text-[#6653fb]");
-        await user.click(screen.getByRole("button", { name: "구매 시기 미상" }));
-        await user.click(screen.getByRole("button", { name: "일부 문제 있음" }));
-        await user.click(screen.getByRole("button", { name: "박스 추가" }));
+        await user.click(screen.getByRole("button", { name: "거의 새 상품" }));
+        await user.click(screen.getByRole("button", { name: "일부 포함" }));
+        await user.click(screen.getByRole("button", { name: "택배 거래" }));
+        await user.click(screen.getByRole("button", { name: "배송비 포함" }));
         await user.click(screen.getByRole("button", { name: /AI 판매 글 만들기/ }));
 
         expect(mutate).toHaveBeenCalledWith({
             images: [expect.any(File)],
-            purchasedMonths: null,
-            operationStatus: "issues",
-            includedItems: ["박스"], // 구성품은 기본 선택 없이 사용자가 고른 것만
+            condition: "A",
+            includedStatus: "PARTIAL",
+            tradeMethod: "DELIVERY",
+            deliveryType: "INCLUDED",
+            deliveryFee: null,
+            preferredTradeRegion: null,
         });
         expect(
             screen.queryByRole("heading", { name: "판매 글을 만들었어요" }),

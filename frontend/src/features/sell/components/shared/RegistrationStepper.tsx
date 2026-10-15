@@ -1,11 +1,16 @@
 type RegistrationStepperProps = {
     steps: readonly string[];
     currentStepIndex: number;
+    ariaLabel?: string;
 };
 
-export function RegistrationStepper({ steps, currentStepIndex }: RegistrationStepperProps) {
+export function RegistrationStepper({
+    steps,
+    currentStepIndex,
+    ariaLabel = "상품 등록 단계",
+}: RegistrationStepperProps) {
     return (
-        <ol aria-label="상품 등록 단계" className="flex items-center gap-2.5">
+        <ol aria-label={ariaLabel} className="flex items-center gap-2.5">
             {steps.map((step, index) => (
                 <li key={step} className="flex items-center gap-2.5">
                     <div className="flex items-center gap-2">

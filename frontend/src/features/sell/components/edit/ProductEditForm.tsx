@@ -12,18 +12,23 @@ import { ProductRegistrationProcessing } from "@/features/sell/components/Produc
 import { DirectRegisterActions } from "@/features/sell/components/direct-register/DirectRegisterActions";
 import { DirectRegisterInfoStep } from "@/features/sell/components/direct-register/DirectRegisterInfoStep";
 import { DirectStatusPriceStep } from "@/features/sell/components/direct-register/DirectStatusPriceStep";
+import { validateStatusPrice } from "@/features/sell/components/direct-register/statusPriceValidation";
 import type {
-    DirectDefectStatus,
     DirectImagePreview,
-    DirectPurchasePeriod,
     DirectRegisterInfoState,
+    ProductEditInfoState,
     DirectStatusPriceErrors,
     DirectStatusPriceState,
 } from "@/features/sell/components/direct-register/types";
 import { SellAlertDialog } from "@/features/sell/components/shared/SellAlertDialog";
+import {
+    includedStatusApiValues,
+    includedStatusLabels,
+    type IncludedStatus,
+} from "@/features/sell/components/shared/IncludedStatusField";
+import { RegistrationStepper } from "@/features/sell/components/shared/RegistrationStepper";
 import { useUpdateProductMutation } from "@/features/sell/hooks/mutations/useUpdateProductMutation";
 import { productQueryKey } from "@/features/sell/hooks/queries/useProductQuery";
-import { toCategoryOptionSelections } from "@/features/sell/utils/categoryOptions";
 import type {
     ProductRegisterError,
     ProductRegisterProgress,
@@ -36,49 +41,11 @@ type RegistrationMethod = "ai" | "direct";
 const initialStatusPriceErrors: DirectStatusPriceErrors = {
     price: "",
     deliveryType: "",
+    deliveryFee: "",
+    tradeLocation: "",
 };
 
-function RegistrationStepper({ currentStep }: { currentStep: EditStep }) {
-    const steps = ["상품 정보", "상태·가격"];
-    const currentStepIndex = currentStep === "info" ? 0 : 1;
-
-    return (
-        <ol aria-label="상품 수정 단계" className="flex items-center gap-2.5">
-            {steps.map((step, index) => (
-                <li key={step} className="flex items-center gap-2.5">
-                    <div className="flex items-center gap-2">
-                        <span
-                            className={`typography-body-bold-small flex size-7 items-center justify-center rounded-full font-bold ${
-                                index <= currentStepIndex
-                                    ? "bg-[#272727] text-white"
-                                    : "bg-[#d3d3d3] text-[#6b6c7b]"
-                            }`}
-                        >
-                            {index + 1}
-                        </span>
-                        <span
-                            className={`typography-body-bold font-semibold ${
-                                index <= currentStepIndex ? "text-[#363636]" : "text-[#d3d3d3]"
-                            }`}
-                        >
-                            {step}
-                        </span>
-                    </div>
-                    {index < steps.length - 1 && (
-                        <span
-                            aria-hidden="true"
-                            className={`h-px w-[30px] ${
-                                index < currentStepIndex ? "bg-[#272727]" : "bg-[#d3d3d3]"
-                            }`}
-                        />
-                    )}
-                </li>
-            ))}
-        </ol>
-    );
-}
-
-function getInitialInfo(product: ProductResponse, categories: Category[]): DirectRegisterInfoState {
+function getInitialInfo(product: ProductResponse, categories: Category[]): ProductEditInfoState {
     const selectedCategory =
         categories.find((category) => category.id === product.category.id) ?? product.category;
     const parentCategory = categories.find((category) => category.id === selectedCategory.parentId);
@@ -103,34 +70,37 @@ function getInitialInfo(product: ProductResponse, categories: Category[]): Direc
         brand: product.brand ?? "",
         description: product.description ?? "",
         tags: product.tags,
-        categoryOptions: toCategoryOptionSelections(product),
     };
 }
 
 function getInitialStatusPrice(product: ProductResponse): DirectStatusPriceState {
-    const defectStatus: DirectDefectStatus =
-        product.defectStatus === "ISSUES"
-            ? "has-defect"
-            : product.defectStatus === "UNKNOWN"
-              ? "unknown"
-              : "none";
-
-    const purchasePeriod: DirectPurchasePeriod =
-        product.purchasedMonths === null
-            ? "unknown"
-            : (String(product.purchasedMonths) as DirectPurchasePeriod);
+    const isDirectTrade = product.tradeMethod === "DIRECT";
 
     return {
         productCondition: product.condition,
-        purchasePeriod,
-        includedItems: product.includedItems,
-        defectStatus,
+        includedStatus: getIncludedStatus(product.includedItems),
         price: String(product.price),
         allowPriceProposal: product.allowPriceSuggestion,
-        tradeMethod: product.tradeMethod === "DIRECT" ? "direct" : "delivery",
-        deliveryType: product.deliveryType,
-        tradeLocation: product.preferredTradeRegion ?? "",
+        tradeMethod: isDirectTrade ? "direct" : "delivery",
+        deliveryType: isDirectTrade ? null : product.deliveryType,
+        deliveryFee:
+            isDirectTrade || product.deliveryFee == null ? "" : String(product.deliveryFee),
+        tradeLocation: isDirectTrade ? (product.preferredTradeRegion ?? "") : "",
     };
+}
+
+function getIncludedStatus(includedItems: string[]): IncludedStatus {
+    const value = includedItems[0];
+
+    if (!value || value === includedStatusLabels.none) {
+        return "none";
+    }
+
+    if (value === includedStatusLabels.partial) {
+        return "partial";
+    }
+
+    return "all";
 }
 
 export function ProductEditForm({
@@ -176,9 +146,9 @@ export function ProductEditForm({
         };
     }, []);
 
-    const updateInfo = <K extends keyof DirectRegisterInfoState>(
-        key: K,
-        value: DirectRegisterInfoState[K],
+    const updateInfo = (
+        key: keyof DirectRegisterInfoState,
+        value: DirectRegisterInfoState[keyof DirectRegisterInfoState],
     ) => {
         setInfo((current) => (current ? { ...current, [key]: value } : current));
     };
@@ -205,13 +175,8 @@ export function ProductEditForm({
     };
 
     const handleStatusPriceSubmit = async () => {
-        const nextErrors: DirectStatusPriceErrors = {
-            price: statusPrice.price ? "" : "희망 가격을 입력해 주세요.",
-            deliveryType:
-                statusPrice.tradeMethod === "delivery" && !statusPrice.deliveryType
-                    ? "배송비 부담 방식을 선택해 주세요."
-                    : "",
-        };
+        const deliveryFee = Number(statusPrice.deliveryFee);
+        const nextErrors = validateStatusPrice(statusPrice);
 
         setStatusPriceErrors(nextErrors);
 
@@ -241,24 +206,22 @@ export function ProductEditForm({
                     price: Number(statusPrice.price),
                     status: product.status,
                     condition: statusPrice.productCondition,
-                    purchasedMonths:
-                        statusPrice.purchasePeriod === "unknown"
-                            ? null
-                            : Number(statusPrice.purchasePeriod),
-                    defectStatus:
-                        statusPrice.defectStatus === "has-defect"
-                            ? "ISSUES"
-                            : statusPrice.defectStatus === "unknown"
-                              ? "UNKNOWN"
-                              : "NORMAL",
+                    includedStatus: includedStatusApiValues[statusPrice.includedStatus],
                     allowPriceSuggestion: statusPrice.allowPriceProposal,
                     tradeMethod: statusPrice.tradeMethod === "direct" ? "DIRECT" : "DELIVERY",
-                    deliveryType: statusPrice.deliveryType,
-                    preferredTradeRegion: statusPrice.tradeLocation.trim() || null,
+                    deliveryType:
+                        statusPrice.tradeMethod === "delivery" ? statusPrice.deliveryType : null,
+                    deliveryFee:
+                        statusPrice.tradeMethod === "delivery" &&
+                        statusPrice.deliveryType === "PREPAID"
+                            ? deliveryFee
+                            : null,
+                    preferredTradeRegion:
+                        statusPrice.tradeMethod === "direct"
+                            ? statusPrice.tradeLocation.trim() || null
+                            : null,
                     imageUrls,
                     tags: info.tags,
-                    includedItems: statusPrice.includedItems,
-                    categoryOptions: info.categoryOptions,
                 },
             });
 
@@ -317,7 +280,11 @@ export function ProductEditForm({
                 </header>
 
                 <div className="flex flex-col gap-8">
-                    <RegistrationStepper currentStep={step} />
+                    <RegistrationStepper
+                        steps={["상품 정보", "상태·가격"]}
+                        currentStepIndex={isInfoStep ? 0 : 1}
+                        ariaLabel="상품 수정 단계"
+                    />
 
                     {isInfoStep ? (
                         <>
@@ -344,27 +311,8 @@ export function ProductEditForm({
                                 onProductConditionChange={(value) =>
                                     updateStatusPrice("productCondition", value)
                                 }
-                                onPurchasePeriodChange={(value) =>
-                                    updateStatusPrice("purchasePeriod", value)
-                                }
-                                onIncludedItemChange={(value, checked) =>
-                                    setStatusPrice((current) =>
-                                        current
-                                            ? {
-                                                  ...current,
-                                                  includedItems: checked
-                                                      ? current.includedItems.includes(value)
-                                                          ? current.includedItems
-                                                          : [...current.includedItems, value]
-                                                      : current.includedItems.filter(
-                                                            (item) => item !== value,
-                                                        ),
-                                              }
-                                            : current,
-                                    )
-                                }
-                                onDefectStatusChange={(value) =>
-                                    updateStatusPrice("defectStatus", value)
+                                onIncludedStatusChange={(value) =>
+                                    updateStatusPrice("includedStatus", value)
                                 }
                                 onPriceChange={(value) => {
                                     updateStatusPrice("price", value);
@@ -383,24 +331,55 @@ export function ProductEditForm({
                                                       value === "direct"
                                                           ? null
                                                           : current.deliveryType,
+                                                  deliveryFee:
+                                                      value === "direct" ? "" : current.deliveryFee,
+                                                  tradeLocation:
+                                                      value === "delivery"
+                                                          ? ""
+                                                          : current.tradeLocation,
                                               }
                                             : current,
                                     );
                                     setStatusPriceErrors((current) => ({
                                         ...current,
                                         deliveryType: "",
+                                        deliveryFee: "",
+                                        tradeLocation: "",
                                     }));
                                 }}
                                 onDeliveryTypeChange={(value) => {
-                                    updateStatusPrice("deliveryType", value);
+                                    setStatusPrice((current) =>
+                                        current
+                                            ? {
+                                                  ...current,
+                                                  deliveryType: value,
+                                                  deliveryFee:
+                                                      value === "INCLUDED"
+                                                          ? ""
+                                                          : current.deliveryFee,
+                                              }
+                                            : current,
+                                    );
                                     setStatusPriceErrors((current) => ({
                                         ...current,
                                         deliveryType: "",
+                                        deliveryFee: "",
                                     }));
                                 }}
-                                onTradeLocationChange={(value) =>
-                                    updateStatusPrice("tradeLocation", value)
-                                }
+                                onDeliveryFeeChange={(value) => {
+                                    updateStatusPrice("deliveryFee", value);
+                                    setStatusPriceErrors((current) => ({
+                                        ...current,
+                                        deliveryFee: "",
+                                    }));
+                                }}
+                                onTradeLocationChange={(value) => {
+                                    updateStatusPrice("tradeLocation", value);
+                                    setStatusPriceErrors((current) => ({
+                                        ...current,
+                                        tradeLocation: "",
+                                    }));
+                                }}
                             />
                             <DirectRegisterActions
                                 primaryLabel="수정 완료"

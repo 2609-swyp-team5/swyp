@@ -113,6 +113,9 @@ public class Product extends Item {
     @Column(name = "delivery_type", columnDefinition = "delivery_type")
     private DeliveryType deliveryType; // 배송 방법(택배거래일 경우, 택배 종류)
 
+    @Column(name = "delivery_fee")
+    private Long deliveryFee; // 배송비 별도일 때 판매자가 입력한 배송비
+
     @Column(name = "preferred_trade_region", length = 100)
     private String preferredTradeRegion; // 선호 거래 지역(직거래일 경우, 거래 희망 지역)
 
@@ -269,6 +272,11 @@ public class Product extends Item {
         this.tradeMethod = tradeMethod;
         this.deliveryType = deliveryType;
         this.preferredTradeRegion = preferredTradeRegion;
+    }
+
+    /** 배송비 부담 방식이 선불 별도일 때만 배송비를 저장한다. */
+    public void changeDeliveryFee(Long deliveryFee) {
+        this.deliveryFee = deliveryFee;
     }
 
     /** 판매 희망가만 변경한다(판매 관리 화면의 "추천 가격으로 변경" 등). 나머지 정보는 그대로 둔다. */

@@ -439,14 +439,25 @@ const createDirectProduct = async (
 };
 
 const createAiProduct = async (
-    { images, purchasedMonths, operationStatus, includedItems }: AiProductCreateInput,
+    {
+        images,
+        condition,
+        includedStatus,
+        tradeMethod,
+        deliveryType,
+        deliveryFee,
+        preferredTradeRegion,
+    }: AiProductCreateInput,
     onProgress?: ProductRegisterProgressHandler,
 ) => {
     const parsedInput = aiProductCreateInputSchema.safeParse({
         images,
-        purchasedMonths,
-        operationStatus,
-        includedItems,
+        condition,
+        includedStatus,
+        tradeMethod,
+        deliveryType,
+        deliveryFee,
+        preferredTradeRegion,
     });
 
     if (!parsedInput.success) {
@@ -459,12 +470,29 @@ const createAiProduct = async (
 
     parsedInput.data.images.forEach((image) => formData.append("images", image));
 
-    if (parsedInput.data.purchasedMonths !== null) {
-        formData.append("purchasedMonths", String(parsedInput.data.purchasedMonths));
+    if (parsedInput.data.condition) {
+        formData.append("condition", parsedInput.data.condition);
     }
 
-    formData.append("defectStatus", parsedInput.data.operationStatus);
-    parsedInput.data.includedItems.forEach((item) => formData.append("includedItems", item));
+    if (parsedInput.data.includedStatus) {
+        formData.append("includedStatus", parsedInput.data.includedStatus);
+    }
+
+    if (tradeMethod) {
+        formData.append("tradeMethod", tradeMethod === "DIRECT" ? "DIRECT" : "DELIVERY");
+    }
+
+    if (deliveryType) {
+        formData.append("deliveryType", deliveryType);
+    }
+
+    if (deliveryFee != null) {
+        formData.append("deliveryFee", String(deliveryFee));
+    }
+
+    if (preferredTradeRegion?.trim()) {
+        formData.append("preferredTradeRegion", preferredTradeRegion.trim());
+    }
 
     return createProductWithSse("/products/analyze?withMarketAnalysis=true", formData, onProgress);
 };

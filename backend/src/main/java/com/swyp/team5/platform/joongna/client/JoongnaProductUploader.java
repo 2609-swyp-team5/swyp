@@ -25,6 +25,7 @@ import com.swyp.team5.platform.error.InvalidPlatformSessionException;
 import com.swyp.team5.platform.error.PlatformPublishFailedException;
 import com.swyp.team5.platform.joongna.dto.JoongnaListingForm;
 import com.swyp.team5.platform.joongna.dto.JoongnaSession;
+import com.swyp.team5.product.entity.IncludedStatus;
 import tools.jackson.databind.JsonNode;
 
 @Slf4j
@@ -41,6 +42,10 @@ public class JoongnaProductUploader {
     private static final int MAX_IMAGES = 10;
     private static final int NEW_PRODUCT_CONDITION = 0;
     private static final int USED_PRODUCT_CONDITION = 2;
+    // 중고나라 등록 API의 componentExistType: 없음=0, 일부 포함=1, 전체 포함=2
+    private static final int NO_COMPONENT = 0;
+    private static final int PARTIAL_COMPONENT = 1;
+    private static final int ALL_COMPONENT = 2;
     private static final int PARCEL_TRADE_TYPE = 2;
     private static final String DEFAULT_CONTENT_TYPE = "image/jpeg";
     private static final Duration IMAGE_TIMEOUT = Duration.ofSeconds(15);
@@ -251,7 +256,7 @@ public class JoongnaProductUploader {
         body.put(
                 "condition",
                 Map.of("productCondition", form.newProduct() ? NEW_PRODUCT_CONDITION : USED_PRODUCT_CONDITION));
-        body.put("componentExistType", 0);
+        body.put("componentExistType", componentExistType(form.includedStatus()));
         body.put("qty", 1);
         body.put("productTradeType", PARCEL_TRADE_TYPE);
         body.put("additional", Map.of("perPersonPurchaseCnt", "0", "doorDeliveryYn", 0));
@@ -264,6 +269,14 @@ public class JoongnaProductUploader {
         body.put("parcelFeeYn", form.parcelFeeIncluded() ? 1 : 0);
         body.put("storeSeq", storeSeq);
         return body;
+    }
+
+    private static int componentExistType(IncludedStatus includedStatus) {
+        return switch (includedStatus == null ? IncludedStatus.NONE : includedStatus) {
+            case NONE -> NO_COMPONENT;
+            case PARTIAL -> PARTIAL_COMPONENT;
+            case ALL -> ALL_COMPONENT;
+        };
     }
 
     private static JsonNode requireSuccess(JsonNode root, String step) {

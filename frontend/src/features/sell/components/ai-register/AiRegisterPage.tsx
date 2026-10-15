@@ -3,48 +3,78 @@
 import { useEffect, useReducer, useRef, useState } from "react";
 
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CircleAlert } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/common/components/ui/Alert";
 import { Button } from "@/common/components/ui/Button";
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import {
     AiRegisterAdditionalInfoStep,
-    type AiIncludedItem,
-    type AiOperationStatus,
-    type AiPurchasePeriod,
+    type AiTradeMethod,
 } from "@/features/sell/components/ai-register/AiRegisterAdditionalInfoStep";
 import type { AiImagePreview } from "@/features/sell/components/ai-register/AiImageUpload";
+import type { DirectDeliveryType } from "@/features/sell/components/direct-register/types";
 import { ProductRegistrationProcessing } from "@/features/sell/components/ProductRegistrationProcessing";
 import { RegistrationStepper } from "@/features/sell/components/shared/RegistrationStepper";
 import { SellAlertDialog } from "@/features/sell/components/shared/SellAlertDialog";
 import { AiRegisterUploadStep } from "@/features/sell/components/ai-register/AiRegisterUploadStep";
 import { useCreateAiProductMutation } from "@/features/sell/hooks/mutations/useCreateAiProductMutation";
-import type { ProductRegisterProgress } from "@/features/sell/types";
+import {
+    includedStatusApiValues,
+    type IncludedStatus,
+} from "@/features/sell/components/shared/IncludedStatusField";
+import type { ProductCondition, ProductRegisterProgress } from "@/features/sell/types";
 
 type AiRegisterStep = "upload" | "additional-info";
 
 type AiRegisterState = {
     step: AiRegisterStep;
     images: AiImagePreview[];
-    purchasePeriod: AiPurchasePeriod;
-    operationStatus: AiOperationStatus;
-    includedItems: AiIncludedItem[];
+    productCondition: ProductCondition | null;
+    includedStatus: IncludedStatus | null;
+    tradeMethod: AiTradeMethod | null;
+    deliveryType: DirectDeliveryType;
+    deliveryFee: string;
+    tradeLocation: string;
 };
 
 type AiRegisterAction =
     | { type: "set-step"; step: AiRegisterStep }
     | { type: "set-images"; images: AiImagePreview[] }
-    | { type: "set-purchase-period"; value: AiPurchasePeriod }
-    | { type: "set-operation-status"; value: AiOperationStatus }
-    | { type: "set-included-item"; value: AiIncludedItem; checked: boolean };
+    | { type: "set-product-condition"; value: ProductCondition }
+    | { type: "set-included-status"; value: IncludedStatus }
+    | { type: "set-trade-method"; value: AiTradeMethod }
+    | { type: "set-delivery-type"; value: DirectDeliveryType }
+    | { type: "set-delivery-fee"; value: string }
+    | { type: "set-trade-location"; value: string };
+
+type AiAdditionalInfoErrors = {
+    productCondition: string;
+    includedStatus: string;
+    tradeMethod: string;
+    deliveryType: string;
+    deliveryFee: string;
+    tradeLocation: string;
+};
+
+const initialAdditionalInfoErrors: AiAdditionalInfoErrors = {
+    productCondition: "",
+    includedStatus: "",
+    tradeMethod: "",
+    deliveryType: "",
+    deliveryFee: "",
+    tradeLocation: "",
+};
 
 const initialState: AiRegisterState = {
     step: "upload",
     images: [],
-    purchasePeriod: "6",
-    operationStatus: "normal",
-    includedItems: [],
+    productCondition: null,
+    includedStatus: null,
+    tradeMethod: null,
+    deliveryType: null,
+    deliveryFee: "",
+    tradeLocation: "",
 };
 
 function aiRegisterReducer(state: AiRegisterState, action: AiRegisterAction): AiRegisterState {
@@ -53,19 +83,18 @@ function aiRegisterReducer(state: AiRegisterState, action: AiRegisterAction): Ai
             return { ...state, step: action.step };
         case "set-images":
             return { ...state, images: action.images };
-        case "set-purchase-period":
-            return { ...state, purchasePeriod: action.value };
-        case "set-operation-status":
-            return { ...state, operationStatus: action.value };
-        case "set-included-item":
-            return {
-                ...state,
-                includedItems: action.checked
-                    ? state.includedItems.includes(action.value)
-                        ? state.includedItems
-                        : [...state.includedItems, action.value]
-                    : state.includedItems.filter((item) => item !== action.value),
-            };
+        case "set-product-condition":
+            return { ...state, productCondition: action.value };
+        case "set-included-status":
+            return { ...state, includedStatus: action.value };
+        case "set-trade-method":
+            return { ...state, tradeMethod: action.value };
+        case "set-delivery-type":
+            return { ...state, deliveryType: action.value };
+        case "set-delivery-fee":
+            return { ...state, deliveryFee: action.value };
+        case "set-trade-location":
+            return { ...state, tradeLocation: action.value };
     }
 }
 
@@ -73,6 +102,9 @@ export function AiRegisterPage() {
     const router = useRouter();
     const [state, dispatch] = useReducer(aiRegisterReducer, initialState);
     const [error, setError] = useState("");
+    const [additionalInfoErrors, setAdditionalInfoErrors] = useState<AiAdditionalInfoErrors>(
+        initialAdditionalInfoErrors,
+    );
     const [submissionStatus, setSubmissionStatus] = useState<
         "idle" | "loading" | "success" | "error"
     >("idle");
@@ -136,6 +168,41 @@ export function AiRegisterPage() {
     };
 
     const handleCreate = () => {
+        const { productCondition, includedStatus, tradeMethod, deliveryType, deliveryFee } = state;
+        const parsedDeliveryFee = deliveryFee ? Number(deliveryFee) : null;
+        const nextErrors: AiAdditionalInfoErrors = {
+            productCondition: productCondition ? "" : "상품 상태를 선택해 주세요.",
+            includedStatus: includedStatus ? "" : "구성품을 선택해 주세요.",
+            tradeMethod: tradeMethod ? "" : "거래 방식을 선택해 주세요.",
+            deliveryType:
+                tradeMethod === "delivery" && !deliveryType
+                    ? "배송비 부담 방식을 선택해 주세요."
+                    : "",
+            deliveryFee:
+                tradeMethod === "delivery" && deliveryType === "PREPAID"
+                    ? parsedDeliveryFee === null
+                        ? "배송비를 입력해 주세요."
+                        : parsedDeliveryFee < 2700 || parsedDeliveryFee > 17000
+                          ? "배송비는 2,700원 이상 17,000원 이하로 입력해 주세요."
+                          : ""
+                    : "",
+            tradeLocation:
+                tradeMethod === "direct" && !state.tradeLocation.trim()
+                    ? "거래 희망 지역을 선택해 주세요."
+                    : "",
+        };
+
+        setAdditionalInfoErrors(nextErrors);
+
+        if (
+            Object.values(nextErrors).some(Boolean) ||
+            productCondition === null ||
+            includedStatus === null ||
+            tradeMethod === null
+        ) {
+            return;
+        }
+
         setSubmissionError("");
         setSubmissionErrorCode(null);
         setSubmissionProgress(null);
@@ -143,10 +210,13 @@ export function AiRegisterPage() {
 
         createAiProductMutation.mutate({
             images: state.images.map((image) => image.file),
-            purchasedMonths:
-                state.purchasePeriod === "unknown" ? null : Number(state.purchasePeriod),
-            operationStatus: state.operationStatus,
-            includedItems: state.includedItems,
+            condition: productCondition,
+            includedStatus: includedStatusApiValues[includedStatus],
+            tradeMethod: tradeMethod === "direct" ? "DIRECT" : "DELIVERY",
+            deliveryType: tradeMethod === "delivery" ? deliveryType : null,
+            deliveryFee:
+                tradeMethod === "delivery" && deliveryType === "PREPAID" ? parsedDeliveryFee : null,
+            preferredTradeRegion: tradeMethod === "direct" ? state.tradeLocation : null,
         });
     };
 
@@ -170,11 +240,8 @@ export function AiRegisterPage() {
             {error && isUploadStep && (
                 <Alert
                     variant="destructive"
-                    className="flex w-auto max-w-full items-center gap-2 border-0 bg-transparent p-0 text-left shadow-none sm:absolute sm:top-4 sm:left-0"
+                    className="flex w-auto max-w-full items-center border-0 bg-transparent p-0 text-left shadow-none sm:absolute sm:top-4 sm:left-0"
                 >
-                    <span className="flex size-4 shrink-0 items-center justify-center">
-                        <CircleAlert aria-hidden="true" className="size-4" />
-                    </span>
                     <AlertDescription className="typography-body-small text-destructive p-0 text-left">
                         {error}
                     </AlertDescription>
@@ -254,18 +321,74 @@ export function AiRegisterPage() {
                         </AiRegisterUploadStep>
                     ) : (
                         <AiRegisterAdditionalInfoStep
-                            purchasePeriod={state.purchasePeriod}
-                            operationStatus={state.operationStatus}
-                            includedItems={state.includedItems}
-                            onPurchasePeriodChange={(value) =>
-                                dispatch({ type: "set-purchase-period", value })
-                            }
-                            onOperationStatusChange={(value) =>
-                                dispatch({ type: "set-operation-status", value })
-                            }
-                            onIncludedItemChange={(value, checked) =>
-                                dispatch({ type: "set-included-item", value, checked })
-                            }
+                            productCondition={state.productCondition}
+                            includedStatus={state.includedStatus}
+                            tradeMethod={state.tradeMethod}
+                            deliveryType={state.deliveryType}
+                            deliveryFee={state.deliveryFee}
+                            tradeLocation={state.tradeLocation}
+                            onProductConditionChange={(value) => {
+                                dispatch({ type: "set-product-condition", value });
+                                setAdditionalInfoErrors((current) => ({
+                                    ...current,
+                                    productCondition: "",
+                                }));
+                            }}
+                            onIncludedStatusChange={(value) => {
+                                dispatch({ type: "set-included-status", value });
+                                setAdditionalInfoErrors((current) => ({
+                                    ...current,
+                                    includedStatus: "",
+                                }));
+                            }}
+                            onTradeMethodChange={(value) => {
+                                dispatch({ type: "set-trade-method", value });
+                                dispatch({
+                                    type: "set-delivery-type",
+                                    value: value === "direct" ? null : state.deliveryType,
+                                });
+                                dispatch({
+                                    type: "set-delivery-fee",
+                                    value: value === "direct" ? "" : state.deliveryFee,
+                                });
+                                dispatch({
+                                    type: "set-trade-location",
+                                    value: value === "delivery" ? "" : state.tradeLocation,
+                                });
+                                setAdditionalInfoErrors((current) => ({
+                                    ...current,
+                                    tradeMethod: "",
+                                    deliveryType: "",
+                                    deliveryFee: "",
+                                    tradeLocation: "",
+                                }));
+                            }}
+                            onDeliveryTypeChange={(value) => {
+                                dispatch({ type: "set-delivery-type", value });
+                                if (value === "INCLUDED") {
+                                    dispatch({ type: "set-delivery-fee", value: "" });
+                                }
+                                setAdditionalInfoErrors((current) => ({
+                                    ...current,
+                                    deliveryType: "",
+                                    deliveryFee: "",
+                                }));
+                            }}
+                            onDeliveryFeeChange={(value) => {
+                                dispatch({ type: "set-delivery-fee", value });
+                                setAdditionalInfoErrors((current) => ({
+                                    ...current,
+                                    deliveryFee: "",
+                                }));
+                            }}
+                            onTradeLocationChange={(value) => {
+                                dispatch({ type: "set-trade-location", value });
+                                setAdditionalInfoErrors((current) => ({
+                                    ...current,
+                                    tradeLocation: "",
+                                }));
+                            }}
+                            errors={additionalInfoErrors}
                         >
                             {stepActions}
                         </AiRegisterAdditionalInfoStep>

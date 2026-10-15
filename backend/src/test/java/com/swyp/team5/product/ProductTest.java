@@ -78,6 +78,7 @@ import com.swyp.team5.product.dto.ProductStatusUpdateRequest;
 import com.swyp.team5.product.dto.ProductUpdateRequest;
 import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.DeliveryType;
+import com.swyp.team5.product.entity.IncludedStatus;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.ProductStatus;
@@ -189,7 +190,7 @@ class ProductTest extends IntegrationTest {
                         category.getId(),
                         "AI 제목",
                         null,
-                        "AI 설명",
+                        "AI가 분석한 상품 설명입니다",
                         ProductCondition.A,
                         470_000L,
                         "판단 근거",
@@ -208,7 +209,7 @@ class ProductTest extends IntegrationTest {
                         category.getId(),
                         "AI 제목",
                         null,
-                        "AI 설명",
+                        "AI가 분석한 상품 설명입니다",
                         ProductCondition.A,
                         470_000L,
                         "판단 근거",
@@ -245,7 +246,7 @@ class ProductTest extends IntegrationTest {
                         category.getId(),
                         "AI 제목",
                         null,
-                        "AI 설명",
+                        "AI가 분석한 상품 설명입니다",
                         ProductCondition.A,
                         470_000L,
                         "판단 근거",
@@ -266,20 +267,17 @@ class ProductTest extends IntegrationTest {
         assertThat(updated.at("/data/suggestedPrice").asLong()).isEqualTo(470_000L); // 사용자 수정으로는 바뀌지 않음
     }
 
-    // 카테고리별 추가 항목 - 필수 항목(사이즈)이 있는 카테고리는 빠지면 업로드 전에 400, 입력하면 항목·값 이름과 함께 저장되고
-    // 상세 조회에 포함되며, 수정하면 통째로 교체됨
+    // 카테고리별 추가 항목 - 직접 입력하지 않은 사이즈는 기타로 저장되고, 사용자가 고른 값은 그대로 저장·교체됨
     @Test
     void categoryOptionsAreValidatedStoredAndReplaced() throws Exception {
         Long clothingId = bunjangCategoryId("310250"); // 의류 리프 — 필수 사이즈(공용 M = 5, L = 6)
         ProductCreateRequest missing = createRequest(clothingId);
 
-        mockMvc.perform(multipart("/products")
-                        .file(imagePart())
-                        .file(requestPart(missing))
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error.code").value("INVALID_INPUT_VALUE"))
-                .andExpect(jsonPath("$.message").value("사이즈를 선택해 주세요."));
+        JsonNode defaulted = performStream(multipart("/products")
+                .file(imagePart())
+                .file(requestPart(missing))
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken));
+        assertThat(defaulted.at("/data/categoryOptions/0/value").asText()).isEqualTo("기타 (상품설명에 작성)");
 
         ProductCreateRequest request = withCategoryOptions(missing, new CategoryOptionSelection("100", 5L, null));
         JsonNode created = performStream(multipart("/products")
@@ -299,11 +297,10 @@ class ProductTest extends IntegrationTest {
                 .andExpect(jsonPath("$.data.categoryOptions[0].valueId").value(5));
 
         ProductUpdateRequest base = updateRequest(clothingId, ProductStatus.ON_SALE);
-        mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{productId}", productId)
-                        .file(requestPart(base))
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("사이즈를 선택해 주세요."));
+        JsonNode defaultedUpdate = performStream(multipart(HttpMethod.PATCH, "/products/{productId}", productId)
+                .file(requestPart(base))
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken));
+        assertThat(defaultedUpdate.at("/data/categoryOptions/0/value").asText()).isEqualTo("기타 (상품설명에 작성)");
 
         JsonNode updated = performStream(multipart(HttpMethod.PATCH, "/products/{productId}", productId)
                 .file(requestPart(withCategoryOptions(base, new CategoryOptionSelection("100", 6L, null))))
@@ -343,7 +340,7 @@ class ProductTest extends IntegrationTest {
                 category.getId(),
                 "",
                 null,
-                "설명",
+                "상품 설명 테스트입니다",
                 500_000L,
                 ProductCondition.A,
                 DefectStatus.NORMAL,
@@ -395,7 +392,7 @@ class ProductTest extends IntegrationTest {
                 category.getId(),
                 "아이폰 13",
                 null,
-                "설명",
+                "상품 설명 테스트입니다",
                 500_000L,
                 ProductCondition.A,
                 DefectStatus.NORMAL,
@@ -423,7 +420,7 @@ class ProductTest extends IntegrationTest {
                 category.getId(),
                 "아이폰 13",
                 null,
-                "설명",
+                "상품 설명 테스트입니다",
                 500_000L,
                 ProductCondition.A,
                 DefectStatus.NORMAL,
@@ -451,7 +448,7 @@ class ProductTest extends IntegrationTest {
                 category.getId(),
                 "AI가 분석한 상품",
                 "애플",
-                "AI 설명",
+                "AI가 분석한 상품 설명입니다",
                 ProductCondition.B,
                 300_000L,
                 "외관 상태가 양호해 A급 시세 대비 적정합니다.",
@@ -467,6 +464,10 @@ class ProductTest extends IntegrationTest {
                         .file(image)
                         .param("purchasedMonths", "3")
                         .param("defectStatus", "issues") // 소문자로 보내도 대소문자 무관하게 처리되는지 검증
+                        .param("condition", "B")
+                        .param("includedStatus", "ALL")
+                        .param("tradeMethod", "DIRECT")
+                        .param("preferredTradeRegion", "서울시 강남구")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .get("data");
 
@@ -489,7 +490,7 @@ class ProductTest extends IntegrationTest {
                 category.getId(),
                 "AI가 분석한 상품",
                 null,
-                "AI 설명",
+                "AI가 분석한 상품 설명입니다",
                 ProductCondition.B,
                 300_000L,
                 "외관 상태가 양호해 A급 시세 대비 적정합니다.",
@@ -505,13 +506,17 @@ class ProductTest extends IntegrationTest {
                         .file(image)
                         .param("purchasedMonths", "3")
                         .param("defectStatus", "NORMAL")
+                        .param("condition", "B")
+                        .param("includedStatus", "ALL")
+                        .param("tradeMethod", "DIRECT")
+                        .param("preferredTradeRegion", "서울시 강남구")
                         .param("tags", "급처")
                         .param("includedItems", "충전기")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .get("data");
 
         assertThat(data.get("tags")).extracting(JsonNode::asText).containsExactlyInAnyOrder("애플");
-        assertThat(data.get("includedItems")).extracting(JsonNode::asText).containsExactlyInAnyOrder("박스", "충전기");
+        assertThat(data.get("includedItems")).extracting(JsonNode::asText).containsExactly("전체 포함");
     }
 
     // 상품 이미지 AI 분석 등록 실패 - 구매 후 경과 개월 수가 음수
@@ -523,6 +528,10 @@ class ProductTest extends IntegrationTest {
                         .file(image)
                         .param("purchasedMonths", "-1")
                         .param("defectStatus", "NORMAL")
+                        .param("condition", "A")
+                        .param("includedStatus", "ALL")
+                        .param("tradeMethod", "DIRECT")
+                        .param("preferredTradeRegion", "서울시 강남구")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("INVALID_INPUT_VALUE"));
@@ -537,6 +546,10 @@ class ProductTest extends IntegrationTest {
                         .file(image)
                         .param("purchasedMonths", "7")
                         .param("defectStatus", "NORMAL")
+                        .param("condition", "A")
+                        .param("includedStatus", "ALL")
+                        .param("tradeMethod", "DIRECT")
+                        .param("preferredTradeRegion", "서울시 강남구")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("INVALID_INPUT_VALUE"));
@@ -1111,7 +1124,8 @@ class ProductTest extends IntegrationTest {
         assertThat(data.get("status").asText()).isEqualTo("SOLD_OUT");
         assertThat(data.get("defectStatus").asText()).isEqualTo("ISSUES");
         assertThat(data.get("purchasedMonths").asInt()).isEqualTo(1);
-        assertThat(data.at("/includedItems/0").asText()).isEqualTo("케이블");
+        // 새 구성품 상태가 기존 구성품 이름 목록보다 우선된다.
+        assertThat(data.at("/includedItems/0").asText()).isEqualTo("전체 포함");
     }
 
     // 상품 수정 성공 - 유지할 기존 이미지 뒤에 새 이미지 파일(images)이 이어 붙음
@@ -1629,7 +1643,9 @@ class ProductTest extends IntegrationTest {
                 r.preferredTradeRegion(),
                 r.tags(),
                 r.includedItems(),
-                List.of(options));
+                List.of(options),
+                r.includedStatus(),
+                r.deliveryFee());
     }
 
     private static ProductUpdateRequest withCategoryOptions(
@@ -1651,7 +1667,9 @@ class ProductTest extends IntegrationTest {
                 r.imageUrls(),
                 r.tags(),
                 r.includedItems(),
-                List.of(options));
+                List.of(options),
+                r.includedStatus(),
+                r.deliveryFee());
     }
 
     private ProductCreateRequest createRequest(Long categoryId) {
@@ -1663,7 +1681,7 @@ class ProductTest extends IntegrationTest {
                 categoryId,
                 title,
                 "애플",
-                "설명",
+                "상품 설명 테스트입니다",
                 500_000L,
                 ProductCondition.A,
                 DefectStatus.NORMAL,
@@ -1674,6 +1692,8 @@ class ProductTest extends IntegrationTest {
                 "서울시 강남구",
                 List.of(),
                 List.of(),
+                null,
+                IncludedStatus.ALL,
                 null);
     }
 
@@ -1682,7 +1702,7 @@ class ProductTest extends IntegrationTest {
                 categoryId,
                 "아이폰 13 프로",
                 "애플",
-                "수정된 설명",
+                "수정된 상품 설명입니다",
                 450_000L,
                 status,
                 ProductCondition.B,
@@ -1690,11 +1710,13 @@ class ProductTest extends IntegrationTest {
                 1,
                 false,
                 TradeMethod.DELIVERY,
-                null,
+                DeliveryType.INCLUDED,
                 null,
                 List.of("https://image.example.com/2.png"),
                 List.of(),
                 List.of("케이블"),
+                null,
+                IncludedStatus.ALL,
                 null);
     }
 
