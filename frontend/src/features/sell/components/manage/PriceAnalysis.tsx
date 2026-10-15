@@ -128,9 +128,9 @@ export function PriceAnalysis({
             aria-labelledby="price-analysis-title"
             className="rounded-none bg-[#fafbff] p-5 md:p-7 lg:p-[30px]"
         >
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    <span className="flex size-12 items-center justify-center rounded-xl bg-gradient-to-b from-[#6653fb] to-[#b1a9ef] text-white">
+                    <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-b from-[#6653fb] to-[#b1a9ef] text-white">
                         <Sparkles aria-hidden="true" className="size-6" />
                     </span>
                     <h2
