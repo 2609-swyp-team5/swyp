@@ -1124,7 +1124,8 @@ class ProductTest extends IntegrationTest {
         assertThat(data.get("status").asText()).isEqualTo("SOLD_OUT");
         assertThat(data.get("defectStatus").asText()).isEqualTo("ISSUES");
         assertThat(data.get("purchasedMonths").asInt()).isEqualTo(1);
-        assertThat(data.at("/includedItems/0").asText()).isEqualTo("케이블");
+        // 새 구성품 상태가 기존 구성품 이름 목록보다 우선된다.
+        assertThat(data.at("/includedItems/0").asText()).isEqualTo("전체 포함");
     }
 
     // 상품 수정 성공 - 유지할 기존 이미지 뒤에 새 이미지 파일(images)이 이어 붙음
