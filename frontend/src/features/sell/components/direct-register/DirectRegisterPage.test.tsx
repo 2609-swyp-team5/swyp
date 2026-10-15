@@ -16,10 +16,6 @@ vi.mock("@/features/sell/hooks/queries/useCategoriesQuery", () => ({
     }),
 }));
 
-vi.mock("@/features/sell/hooks/queries/useCategoryOptionsQuery", () => ({
-    useCategoryOptionsQuery: () => ({ data: [] }),
-}));
-
 vi.mock("@/features/sell/hooks/mutations/useCreateDirectProductMutation", () => ({
     useCreateDirectProductMutation: () => ({ mutate: vi.fn() }),
 }));

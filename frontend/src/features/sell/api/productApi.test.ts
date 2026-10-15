@@ -324,7 +324,6 @@ describe("productApi", () => {
                 deliveryFee: null,
                 preferredTradeRegion: "서울 강남구",
                 tags: ["애플", "아이패드"],
-                categoryOptions: [{ groupId: "100", valueId: 5, text: null }],
             },
         });
 
@@ -347,7 +346,6 @@ describe("productApi", () => {
             includedStatus: "ALL",
             deliveryFee: null,
             tags: ["애플", "아이패드"],
-            categoryOptions: [{ groupId: "100", valueId: 5, text: null }],
             title: "아이패드 프로 11인치",
         });
     });

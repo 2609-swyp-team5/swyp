@@ -17,6 +17,7 @@ import type {
     DirectImagePreview,
     DirectPurchasePeriod,
     DirectRegisterInfoState,
+    ProductEditInfoState,
     DirectStatusPriceErrors,
     DirectStatusPriceState,
 } from "@/features/sell/components/direct-register/types";
@@ -80,7 +81,7 @@ function RegistrationStepper({ currentStep }: { currentStep: EditStep }) {
     );
 }
 
-function getInitialInfo(product: ProductResponse, categories: Category[]): DirectRegisterInfoState {
+function getInitialInfo(product: ProductResponse, categories: Category[]): ProductEditInfoState {
     const selectedCategory =
         categories.find((category) => category.id === product.category.id) ?? product.category;
     const parentCategory = categories.find((category) => category.id === selectedCategory.parentId);
@@ -178,9 +179,9 @@ export function ProductEditForm({
         };
     }, []);
 
-    const updateInfo = <K extends keyof DirectRegisterInfoState>(
-        key: K,
-        value: DirectRegisterInfoState[K],
+    const updateInfo = (
+        key: keyof DirectRegisterInfoState,
+        value: DirectRegisterInfoState[keyof DirectRegisterInfoState],
     ) => {
         setInfo((current) => (current ? { ...current, [key]: value } : current));
     };

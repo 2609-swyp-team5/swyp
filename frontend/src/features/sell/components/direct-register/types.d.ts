@@ -14,6 +14,9 @@ export type DirectRegisterInfoState = {
     brand: string;
     description: string;
     tags: string[];
+};
+
+export type ProductEditInfoState = DirectRegisterInfoState & {
     categoryOptions: CategoryOptionSelection[];
 };
 

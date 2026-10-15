@@ -42,7 +42,6 @@ const initialInfoState: DirectRegisterInfoState = {
     brand: "",
     description: "",
     tags: [],
-    categoryOptions: [],
 };
 
 const initialStatusPriceState: DirectStatusPriceState = {
@@ -204,7 +203,6 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
                         : null,
                 preferredTradeRegion: statusPrice.tradeLocation.trim() || null,
                 tags: info.tags,
-                categoryOptions: info.categoryOptions,
             },
         });
     };

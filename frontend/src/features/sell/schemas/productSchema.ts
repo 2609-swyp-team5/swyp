@@ -62,6 +62,7 @@ export const directProductCreateRequestSchema = productCreateRequestSchema
         purchasedMonths: true,
         defectStatus: true,
         includedItems: true,
+        categoryOptions: true,
     })
     .extend({
         title: z.string().trim().min(2, "상품명은 2글자 이상 입력해 주세요.").max(100),
