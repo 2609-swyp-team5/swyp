@@ -186,3 +186,54 @@ test("uses the AI tab on phones and opens the chat list from the conversation", 
     await list.getByRole("button", { name: question }).first().click();
     await expect(page.getByText(answerText, { exact: true })).toBeVisible();
 });
+
+test("home AI search starts a chat with the question once", async ({ page }) => {
+    let posts = 0;
+    page.on("request", (request) => {
+        if (request.method() === "POST" && new URL(request.url()).pathname === "/ai/chats") {
+            posts += 1;
+        }
+    });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/home");
+
+    await page.getByRole("button", { name: "AI 검색", pressed: false }).click();
+    await page.getByRole("textbox", { name: "홈 상품 검색어" }).fill(question);
+    await page.getByRole("textbox", { name: "홈 상품 검색어" }).press("Enter");
+
+    await expect(page).toHaveURL(/\/ai$/);
+    await expect(page.getByText(answerText, { exact: true })).toBeVisible();
+    await expect(page.getByText(question, { exact: true }).first()).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "지금이니 AI", level: 1 })).toBeVisible();
+    expect(posts).toBe(1);
+});
+
+test("keeps the streamed answer while a new chat loads", async ({ page }) => {
+    await page.route("**/ai/chats/3/messages", async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        return route.fallback();
+    });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/ai");
+    // 답변이 한 번 보인 뒤 사라지거나 "불러오는 중"이 뜨면 기록한다(자동 재시도 단언은 잠깐 깜빡임을 놓친다)
+    await page.evaluate((text) => {
+        const w = window as unknown as { flicker: string[] };
+        w.flicker = [];
+        let shown = false;
+        new MutationObserver(() => {
+            const content = document.querySelector("main")?.textContent ?? "";
+            if (content.includes("대화를 불러오는 중이에요.")) w.flicker.push("loading");
+            if (content.includes(text)) shown = true;
+            else if (shown) w.flicker.push("answer hidden");
+        }).observe(document.body, { subtree: true, childList: true, characterData: true });
+    }, answerText);
+    await page.getByRole("button", { name: question }).click();
+
+    await expect(page.getByText(answerText, { exact: true })).toBeVisible();
+    await page.waitForTimeout(3500);
+    await expect(page.getByRole("button", { name: "답변 다시 만들기" })).toBeVisible();
+    expect(await page.evaluate(() => (window as unknown as { flicker: string[] }).flicker)).toEqual(
+        [],
+    );
+});
