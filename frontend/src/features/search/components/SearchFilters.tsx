@@ -1,5 +1,5 @@
-import { useId, useState } from "react";
-import { ChevronDown, SlidersHorizontal } from "lucide-react";
+import { useEffect, useId, useState } from "react";
+import { ChevronDown, SlidersHorizontal, X } from "lucide-react";
 
 import { Button } from "@/common/components/ui/Button";
 import { Checkbox } from "@/common/components/ui/Checkbox";
@@ -106,6 +106,28 @@ export function SearchFilters({
     };
     const applyExcludeKeyword = () =>
         onFiltersChange({ ...filters, excludeKeyword: excludeKeyword.trim() || undefined });
+    const closeFilters = () => setIsExpanded(false);
+    const appliedCount =
+        (filters.platform?.length ?? 0) +
+        (filters.condition?.length ?? 0) +
+        (Array.isArray(filters.status) ? filters.status.length : filters.status ? 1 : 0) +
+        (filters.minPrice !== undefined || filters.maxPrice !== undefined ? 1 : 0) +
+        (filters.excludeKeyword ? 1 : 0);
+
+    // 휴대폰 하단 시트가 열려 있는 동안 뒤 화면이 스크롤되지 않게 하고 Esc로 닫는다.
+    useEffect(() => {
+        if (!isExpanded || !window.matchMedia("(max-width: 767px)").matches) return;
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") setIsExpanded(false);
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => {
+            document.body.style.overflow = previousOverflow;
+            window.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [isExpanded]);
 
     return (
         <aside
@@ -125,20 +147,50 @@ export function SearchFilters({
                     검색 필터
                 </span>
                 <span className="typography-body-small flex items-center gap-2 font-normal text-[#83889e]">
-                    {isExpanded ? "접기" : "펼치기"}
+                    {appliedCount > 0 ? (
+                        <span className="rounded-full bg-[#6653fb] px-2 py-0.5 font-semibold text-white md:hidden">
+                            {appliedCount}개 적용
+                        </span>
+                    ) : null}
+                    <span className="hidden md:inline">{isExpanded ? "접기" : "펼치기"}</span>
                     <ChevronDown
                         aria-hidden="true"
                         className={cn("size-4 transition-transform", isExpanded && "rotate-180")}
                     />
                 </span>
             </Button>
+            {isExpanded ? (
+                <div
+                    aria-hidden="true"
+                    className="fixed inset-0 z-50 bg-black/40 md:hidden"
+                    onClick={closeFilters}
+                />
+            ) : null}
+            {/* 휴대폰(<768px)은 아래에서 올라오는 시트, 태블릿은 펼침 영역, 데스크톱은 왼쪽 고정 */}
             <div
                 id={filterContentId}
                 className={cn(
-                    "gap-5 border-t border-[#dee5ed] p-4 sm:grid-cols-2 sm:p-5 xl:flex xl:flex-col xl:gap-6 xl:border-0 xl:px-5 xl:py-[30px]",
+                    "fixed inset-x-0 bottom-0 z-50 max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-2xl bg-[#fafbff] px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] md:static md:z-auto md:max-h-none md:overflow-visible md:rounded-none md:border-t md:border-[#dee5ed] md:bg-transparent md:p-5",
+                    "gap-5 sm:grid-cols-2 xl:flex xl:flex-col xl:gap-6 xl:border-0 xl:px-5 xl:py-[30px]",
                     isExpanded ? "grid" : "hidden",
                 )}
             >
+                <div className="sticky top-0 z-10 -mx-4 flex items-center justify-between border-b border-[#dee5ed] bg-[#fafbff] px-4 py-3 sm:col-span-2 md:hidden">
+                    <span className="typography-body-bold flex items-center gap-2 font-semibold">
+                        <SlidersHorizontal aria-hidden="true" className="size-4" />
+                        검색 필터
+                    </span>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label="필터 닫기"
+                        onClick={closeFilters}
+                        className="size-11 text-[#545d82]"
+                    >
+                        <X aria-hidden="true" className="size-5" />
+                    </Button>
+                </div>
                 <FilterGroup<SearchPlatform>
                     title="플랫폼"
                     options={[
@@ -315,6 +367,15 @@ export function SearchFilters({
                             className={filterInputClass}
                         />
                     </label>
+                </div>
+                <div className="sticky bottom-0 -mx-4 bg-[#fafbff] px-4 pt-2 sm:col-span-2 md:hidden">
+                    <Button
+                        type="button"
+                        onClick={closeFilters}
+                        className="typography-body-bold h-12 w-full rounded-xl font-semibold"
+                    >
+                        결과 보기
+                    </Button>
                 </div>
             </div>
         </aside>
