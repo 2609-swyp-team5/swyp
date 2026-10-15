@@ -34,9 +34,16 @@ function PriceMetric({
     className?: string;
 }) {
     return (
-        <div className={cn("flex min-w-0 flex-1 flex-col items-center gap-1 p-[10px]", className)}>
+        <div
+            className={cn(
+                "flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-[10px] md:p-[10px]",
+                className,
+            )}
+        >
             <span className="typography-body-small text-[#777987]">{label}</span>
-            <strong className="typography-body-bold font-bold text-[#2f3037]">{value}</strong>
+            <strong className="typography-body-bold font-bold whitespace-nowrap text-[#2f3037]">
+                {value}
+            </strong>
         </div>
     );
 }

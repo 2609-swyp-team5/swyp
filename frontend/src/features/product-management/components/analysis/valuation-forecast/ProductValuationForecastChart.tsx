@@ -51,16 +51,16 @@ export function ProductValuationForecastChart({ data }: { data: ValuationForecas
 
     return (
         <div className="relative min-w-0" aria-label="현재부터 6개월 후까지 상품 가치 예측 차트">
-            <div className="mb-3 flex items-start justify-between gap-3 px-[30px]">
+            <div className="mb-3 flex flex-wrap items-start justify-between gap-x-3 gap-y-2 px-4 md:px-[30px]">
                 <div className="flex flex-col gap-[5px]">
-                    <p className="typography-heading-03 font-semibold text-[#363636]">
+                    <p className="typography-heading-03 font-semibold whitespace-nowrap text-[#363636]">
                         감가 상각률
                     </p>
                     <p className="typography-body-small text-[#a1a3ae]">
                         구매가 대비 가치를 확인해보세요
                     </p>
                 </div>
-                <div className="typography-body-small flex items-center gap-3 text-[#6b6c7b]">
+                <div className="typography-body-small flex items-center gap-3 whitespace-nowrap text-[#6b6c7b]">
                     <span className="flex items-center gap-[6px]">
                         <span
                             className="size-[10px] rounded-[3px] bg-[#6653fb]"

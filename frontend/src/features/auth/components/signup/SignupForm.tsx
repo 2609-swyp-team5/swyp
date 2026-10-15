@@ -1,7 +1,7 @@
 "use client";
 
 import type { SubmitHandler, UseFormReturn } from "react-hook-form";
-import { CircleAlert } from "lucide-react";
+import { Info } from "lucide-react";
 
 import { Input } from "@/common/components/ui/Input";
 import { Label } from "@/common/components/ui/Label";
@@ -139,9 +139,9 @@ export function SignupForm({
                     ) : (
                         <p
                             id="password-hint"
-                            className="typography-body-bold-small mt-2 flex items-center gap-2.5 font-semibold text-[#fa503d]"
+                            className="typography-body-small mt-2 flex items-center gap-2 text-[#83889e]"
                         >
-                            <CircleAlert aria-hidden="true" className="size-[15px] shrink-0" />
+                            <Info aria-hidden="true" className="size-[15px] shrink-0" />
                             비밀번호는 영문과 숫자를 포함해 8~64자로 입력해 주세요.
                         </p>
                     )}

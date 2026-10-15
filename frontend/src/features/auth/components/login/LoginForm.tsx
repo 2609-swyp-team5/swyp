@@ -2,7 +2,7 @@
 
 import type { SubmitHandler, UseFormReturn } from "react-hook-form";
 import Link from "next/link";
-import { CircleAlert } from "lucide-react";
+import { Info } from "lucide-react";
 
 import { Button } from "@/common/components/ui/Button";
 import { Checkbox } from "@/common/components/ui/Checkbox";
@@ -92,9 +92,9 @@ export function LoginForm({
                         ) : (
                             <p
                                 id="password-hint"
-                                className="typography-body-bold-small mt-2 flex items-center gap-2.5 font-semibold text-[#fa503d]"
+                                className="typography-body-small mt-2 flex items-center gap-2 text-[#83889e]"
                             >
-                                <CircleAlert
+                                <Info
                                     aria-hidden="true"
                                     className="relative -top-px size-[15px] shrink-0"
                                 />

@@ -29,13 +29,13 @@ export function ProductCompetitionContent({
     variant?: "default" | "management";
 }) {
     return (
-        <div className="flex flex-col gap-5 px-10 py-5">
-            <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col gap-4 px-1 py-4 md:gap-5 md:px-10 md:py-5">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                 <h2
                     id="product-competition-title"
                     className={
                         variant === "management"
-                            ? "typography-heading-bold font-semibold text-[#464646]"
+                            ? "typography-heading-bold font-semibold whitespace-nowrap text-[#464646]"
                             : "typography-body-bold font-semibold text-[#464646]"
                     }
                 >
@@ -46,7 +46,7 @@ export function ProductCompetitionContent({
                         <span className="typography-body-small font-normal text-[#6653fb]">
                             {competition.count}건
                         </span>
-                        <span className="typography-body-bold-small flex items-center gap-[3px] rounded-full border border-[#6653fb] px-3 py-0.5 font-semibold text-[#6653fb]">
+                        <span className="typography-body-bold-small flex items-center gap-[3px] rounded-full border border-[#6653fb] px-3 py-0.5 font-semibold whitespace-nowrap text-[#6653fb]">
                             {competition.levelLabel}
                             <CompetitionLevelIcon level={competition.level} />
                         </span>
@@ -54,7 +54,7 @@ export function ProductCompetitionContent({
                 ) : null}
             </div>
             {competition.items.length > 0 ? (
-                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-2 gap-3 md:gap-5 lg:grid-cols-3">
                     {competition.items.map((item) => (
                         <CompetitionCard key={item.productId} item={item} />
                     ))}
