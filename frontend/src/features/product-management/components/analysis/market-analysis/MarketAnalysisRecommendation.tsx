@@ -79,7 +79,7 @@ export function MarketAnalysisRecommendation({
                     {analysis.recommendation}
                 </span>
                 <div>
-                    <h3 className="text-[30px] leading-[42px] font-bold tracking-[0.5px] text-[#363636]">
+                    <h3 className="text-[22px] leading-8 font-bold tracking-[0.5px] text-[#363636] md:text-[30px] md:leading-[42px]">
                         {copy.title}
                     </h3>
                     <p className="mt-[10px] max-w-[430px] text-[16px] leading-[25px] text-[#363636]">

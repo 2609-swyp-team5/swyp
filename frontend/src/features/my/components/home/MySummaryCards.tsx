@@ -9,17 +9,17 @@ export function MySummaryCards() {
     const { data, isPending, isError, error, refetch } = useHomeSummaryQuery();
     const summaries = getHomeSummaryCards(data);
     return (
-        <section aria-label="거래 요약" className="mt-10 grid gap-[10px] sm:grid-cols-2">
+        <section aria-label="거래 요약" className="mt-6 grid grid-cols-2 gap-[10px] md:mt-10">
             {summaries.map((item) => (
                 <article
                     key={item.title}
-                    className="flex flex-col justify-between gap-3 rounded-[10px] border border-[#d3d3d3] bg-[#fafbff] p-6"
+                    className="flex flex-col justify-between gap-2 rounded-[10px] border border-[#d3d3d3] bg-[#fafbff] p-4 md:gap-3 md:p-6"
                 >
                     <div>
                         <h2 className="text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#464646]">
                             {item.title}
                         </h2>
-                        <p className="text-[25px] leading-[40px] font-medium tracking-[0.5px] text-[#6653fb]">
+                        <p className="text-[22px] leading-8 font-medium tracking-[0.5px] text-[#6653fb] md:text-[25px] md:leading-[40px]">
                             {item.value}
                         </p>
                     </div>
@@ -34,7 +34,7 @@ export function MySummaryCards() {
                                           : undefined
                                     : undefined
                             }
-                            className="text-base leading-[25px] text-[#464646]"
+                            className="text-[13px] leading-5 break-keep text-[#464646] md:text-base md:leading-[25px]"
                         >
                             {isError
                                 ? item.title === "등록한 물건"

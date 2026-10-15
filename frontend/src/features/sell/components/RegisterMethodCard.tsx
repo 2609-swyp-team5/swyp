@@ -43,12 +43,12 @@ export function RegisterMethodCard({
     return (
         <article
             className={cn(
-                "flex min-h-[444px] flex-col rounded-2xl border p-8",
+                "flex flex-col rounded-2xl border p-5 md:min-h-[444px] md:p-8",
                 className,
                 styles.card,
             )}
         >
-            <div className="flex flex-col gap-10">
+            <div className="flex flex-col gap-6 md:gap-10">
                 <div className="flex flex-col gap-5">
                     <div className="flex items-center gap-4">
                         <span

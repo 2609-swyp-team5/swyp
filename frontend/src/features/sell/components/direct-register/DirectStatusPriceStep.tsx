@@ -127,7 +127,7 @@ export function DirectStatusPriceStep({
 
     return (
         <div className="flex w-full max-w-[1144px] flex-col gap-8">
-            <section className="flex flex-col gap-7 rounded-xl border border-[#dee5ed] bg-white p-8">
+            <section className="flex flex-col gap-6 rounded-xl border border-[#dee5ed] bg-white p-4 md:gap-7 md:p-8">
                 <fieldset>
                     <FieldLegend required>상품 상태</FieldLegend>
                     <div

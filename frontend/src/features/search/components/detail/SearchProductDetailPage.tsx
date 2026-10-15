@@ -277,7 +277,7 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                                                 {product.title}
                                             </h1>
                                             <div className="flex flex-wrap items-center">
-                                                <p className="text-[30px] leading-[42px] font-bold tracking-[0.5px] text-[#fa503d]">
+                                                <p className="text-[22px] leading-8 font-bold tracking-[0.5px] text-[#fa503d] md:text-[30px] md:leading-[42px]">
                                                     {product.price.toLocaleString("ko-KR")}원
                                                 </p>
                                                 <Badge className="font-brand h-auto rounded-full border-0 bg-[#fafbff] px-2.5 py-1 text-[12px] leading-[18px] font-semibold text-[#6653fb]">

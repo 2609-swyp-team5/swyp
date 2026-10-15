@@ -62,14 +62,14 @@ function AnalysisHeader({
     return (
         <div className="flex w-full items-center justify-between gap-4">
             <div className="flex items-center gap-[10px]">
-                <span className="flex size-12 items-center justify-center rounded-[12px] bg-gradient-to-b from-[#6653fb] to-[#b1a9ef] text-[22px] leading-[33px] text-white">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-[12px] bg-gradient-to-b from-[#6653fb] to-[#b1a9ef] text-[20px] leading-[33px] text-white md:size-12 md:text-[22px]">
                     ✦
                 </span>
                 <h2
                     id="product-market-analysis-title"
                     className={
                         variant === "management"
-                            ? "text-[22px] leading-[30px] font-semibold tracking-[0.5px] text-[#6653fb]"
+                            ? "text-[20px] leading-[30px] font-semibold tracking-[0.5px] whitespace-nowrap text-[#6653fb] md:text-[22px]"
                             : "text-[30px] leading-[42px] font-bold tracking-[0.5px] text-[#6653fb]"
                     }
                 >
@@ -153,23 +153,23 @@ function PendingAnalysisCard({ perspective }: { perspective: ProductManagementPe
 
 function SoldAnalysisTrigger({ onClick }: { onClick: () => void }) {
     return (
-        <div className="bg-white px-[20px] py-[30px]">
+        <div className="bg-white px-4 py-5 md:px-[20px] md:py-[30px]">
             <button
                 type="button"
-                className="flex w-full items-start justify-between gap-5 text-left"
+                className="flex w-full items-start justify-between gap-3 text-left md:gap-5"
                 onClick={onClick}
             >
                 <span className="flex min-w-0 flex-col gap-2.5">
-                    <span className="flex items-center gap-2.5 text-[22px] leading-[30px] font-semibold tracking-[0.5px] text-[#363636]">
+                    <span className="flex items-center gap-2 text-[18px] leading-7 font-semibold tracking-[0.5px] break-keep text-[#363636] md:gap-2.5 md:text-[22px] md:leading-[30px]">
                         <Sparkles aria-hidden="true" className="size-5 fill-[#363636]" />
                         상세 시세 분석 보기
                     </span>
-                    <span className="text-[16px] leading-[25px] text-[#464646]">
+                    <span className="text-[14px] leading-[22px] break-keep text-[#464646] md:text-[16px] md:leading-[25px]">
                         최근 30일 거래 데이터를 종합해 타이밍을 분석합니다.
                     </span>
                 </span>
-                <span className="flex shrink-0 items-center gap-[3px] text-[16px] leading-[25px] text-[#83889e]">
-                    더보기
+                <span className="flex shrink-0 items-center gap-[3px] text-[14px] leading-[25px] text-[#83889e] md:text-[16px]">
+                    <span className="sr-only md:not-sr-only">더보기</span>
                     <ChevronRight aria-hidden="true" className="size-4" />
                 </span>
             </button>
@@ -279,7 +279,7 @@ export function MarketAnalysisSection({
         />
     ) : result === null ? (
         isManagementVariant ? (
-            <div className="px-[30px] pb-5">
+            <div className="px-4 pb-4 md:px-[30px] md:pb-5">
                 <PendingAnalysisCard perspective={perspective} />
             </div>
         ) : (
@@ -367,7 +367,7 @@ export function MarketAnalysisSection({
                     aria-labelledby="product-market-analysis-title"
                     className="w-full overflow-hidden rounded-[16px] border border-[#83889e] bg-white shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]"
                 >
-                    <div className="px-[30px] pt-10 pb-5">
+                    <div className="px-4 pt-6 pb-4 md:px-[30px] md:pt-10 md:pb-5">
                         <AnalysisHeader
                             variant="management"
                             analysisRetry={analysisRetry}

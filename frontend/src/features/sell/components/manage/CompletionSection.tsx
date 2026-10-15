@@ -30,16 +30,16 @@ export function CompletionSection({
     return (
         <section
             aria-labelledby="completion-title"
-            className="flex min-h-[280px] items-center overflow-hidden rounded-[20px] bg-[#fafbff] px-8 py-10 md:h-[360px] md:py-0 md:pl-12 lg:justify-between lg:pl-20"
+            className="flex items-center overflow-hidden rounded-[20px] bg-[#fafbff] px-5 py-6 md:h-[360px] md:min-h-[280px] md:px-8 md:py-0 md:pl-12 lg:justify-between lg:pl-20"
         >
-            <div className="relative z-10 py-5 md:py-8">
+            <div className="relative z-10 md:py-8">
                 <h2
                     id="completion-title"
-                    className="text-[28px] leading-[42px] font-bold tracking-[0.5px] text-[#363636] md:text-[30px]"
+                    className="text-[22px] leading-8 font-bold tracking-[0.5px] break-keep text-[#363636] md:text-[30px] md:leading-[42px]"
                 >
                     {title}
                 </h2>
-                <p className="mt-2 text-[16px] leading-[25px] font-normal text-[#464646]">
+                <p className="mt-2 text-[14px] leading-[22px] font-normal break-keep text-[#464646] md:text-[16px] md:leading-[25px]">
                     {description}
                     {!isDetailView ? (
                         <>
@@ -51,7 +51,7 @@ export function CompletionSection({
                 <Button
                     type="button"
                     onClick={() => router.push("/sell/manage")}
-                    className="mt-4 h-auto rounded-full border border-[#6653fb] bg-white px-5 py-2.5 text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#6653fb] hover:bg-[#f5f3ff] hover:text-[#5745e7]"
+                    className="mt-4 h-auto rounded-full border border-[#6653fb] bg-white px-4 py-2 text-[16px] leading-6 font-semibold tracking-[0.5px] text-[#6653fb] hover:bg-[#f5f3ff] hover:text-[#5745e7] md:px-5 md:py-2.5 md:text-[20px] md:leading-[30px]"
                 >
                     판매 상품 목록 보기
                     <ArrowRight aria-hidden="true" className="size-4" />

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { DM_Sans, Inter } from "next/font/google";
 import type { ReactNode } from "react";
 
+import { MobileTabBar } from "@/common/components/layout/MobileTabBar";
 import { SiteFooter } from "@/common/components/layout/SiteFooter";
 import { SiteHeader } from "@/common/components/layout/SiteHeader";
 import { siteOrigin } from "@/common/lib/siteUrl";
@@ -59,6 +60,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                     <SiteHeader />
                     <div className="flex flex-1 flex-col">{children}</div>
                     <SiteFooter />
+                    <MobileTabBar />
                     <NotificationToaster />
                 </QueryProvider>
             </body>

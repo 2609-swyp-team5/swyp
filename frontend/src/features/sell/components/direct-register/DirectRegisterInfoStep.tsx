@@ -183,7 +183,7 @@ export function DirectRegisterInfoStep({
             id="direct-register-form"
             noValidate
             onSubmit={handleSubmit}
-            className="flex w-full max-w-[1144px] flex-col gap-7 rounded-xl border border-[#dee5ed] bg-white p-8"
+            className="flex w-full max-w-[1144px] flex-col gap-6 rounded-xl border border-[#dee5ed] bg-white p-4 md:gap-7 md:p-8"
         >
             <section className="flex flex-col gap-2.5" aria-labelledby="image-label">
                 <FieldLabel required>
