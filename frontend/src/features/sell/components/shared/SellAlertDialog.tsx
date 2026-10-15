@@ -67,7 +67,7 @@ export function SellAlertDialog({
                         className="size-[66px]"
                     />
                     <div className="flex w-full flex-col items-center gap-2">
-                        <AlertDialogTitle className="text-[30px] leading-[42px] font-bold tracking-[0.5px] text-[#545d82]">
+                        <AlertDialogTitle className="text-[22px] leading-8 font-bold tracking-[0.5px] text-[#545d82] md:text-[30px] md:leading-[42px]">
                             {title}
                         </AlertDialogTitle>
                         <AlertDialogDescription className="text-[16px] leading-[25px] text-[#6b7395]">

@@ -291,11 +291,11 @@ export function ProductEditForm({
     return (
         <main className="flex flex-1 flex-col bg-white">
             <section
-                className={`layout-container flex flex-1 flex-col gap-20 pt-16 ${
-                    isInfoStep ? "pb-[120px]" : "pb-[80px]"
+                className={`layout-container flex flex-1 flex-col gap-8 pt-6 md:gap-20 md:pt-16 ${
+                    isInfoStep ? "pb-10 md:pb-[120px]" : "pb-10 md:pb-[80px]"
                 }`}
             >
-                <header className="flex flex-col gap-[30px]">
+                <header className="flex flex-col gap-5 md:gap-[30px]">
                     {!isInfoStep && (
                         <button
                             type="button"
@@ -310,7 +310,7 @@ export function ProductEditForm({
                         <p className="typography-heading-02 col-start-1 row-start-1 self-start text-[#363636]">
                             판매글을
                         </p>
-                        <h1 className="col-start-1 row-start-1 mt-[52px] self-start text-[48px] leading-[60px] font-bold tracking-[0.5px] text-[#6653fb]">
+                        <h1 className="col-start-1 row-start-1 mt-[38px] self-start text-[30px] leading-[40px] font-bold tracking-[0.5px] text-[#6653fb] md:mt-[52px] md:text-[48px] md:leading-[60px]">
                             수정해요
                         </h1>
                     </div>

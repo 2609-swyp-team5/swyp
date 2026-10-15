@@ -14,19 +14,19 @@ const footerLinks = [
 export function SiteFooter() {
     return (
         <footer className="typography-footer bg-[#464646] text-sm leading-5 text-[#a9adbd] md:text-base lg:text-lg lg:leading-[18px]">
-            <div className="layout-container flex flex-wrap items-center justify-between gap-6 py-10 xl:flex-nowrap xl:py-[50px]">
+            <div className="layout-container flex flex-wrap items-center justify-between gap-6 py-6 md:py-10 xl:flex-nowrap xl:py-[50px]">
                 <Link href="/" className="shrink-0">
                     <Image
                         src="/footer/logo.png"
                         alt="지금이니?"
                         width={129}
                         height={72}
-                        className="h-[72px] w-[129px] object-contain"
+                        className="h-[44px] w-[80px] object-contain md:h-[72px] md:w-[129px]"
                     />
                 </Link>
                 <nav
                     aria-label="푸터 메뉴"
-                    className="flex w-full flex-wrap items-center gap-x-5 gap-y-3 lg:w-auto"
+                    className="hidden w-full flex-wrap items-center gap-x-5 gap-y-3 md:flex lg:w-auto"
                 >
                     {footerLinks.map((link) => (
                         <Link key={link.href} href={link.href}>
@@ -36,7 +36,7 @@ export function SiteFooter() {
                 </nav>
             </div>
             <div className="border-t border-[#d3d3d3]">
-                <div className="layout-container flex flex-wrap items-center justify-between gap-x-8 gap-y-4 py-5">
+                <div className="layout-container flex flex-wrap items-center justify-between gap-x-8 gap-y-4 py-4 text-[12px] md:py-5 md:text-[inherit]">
                     <p>Copyright © 2026 지금이니? | All Rights Reserved</p>
                 </div>
             </div>

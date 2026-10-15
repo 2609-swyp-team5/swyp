@@ -6,7 +6,7 @@ export function SearchResultCardSkeleton() {
             aria-hidden="true"
             className="overflow-hidden rounded-xl border border-[#f1f1f1] bg-white"
         >
-            <Skeleton className="h-[180px] w-full rounded-none bg-[#dfdfdf]" />
+            <Skeleton className="h-[140px] w-full rounded-none bg-[#dfdfdf] md:h-[180px]" />
             <div className="flex flex-col gap-2.5 p-4">
                 <Skeleton className="h-[21px] w-16" />
                 <Skeleton className="h-[22px] w-3/4" />

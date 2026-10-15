@@ -69,8 +69,8 @@ export function MarketAnalysisContent({
         return (
             <div className="flex flex-col bg-white">
                 {variant === "management" ? (
-                    <div className="px-[30px] pb-5">
-                        <div className="rounded-[10px] bg-[#fafbff] px-[30px] py-5">
+                    <div className="px-4 pb-4 md:px-[30px] md:pb-5">
+                        <div className="rounded-[10px] bg-[#fafbff] px-4 py-4 md:px-[30px] md:py-5">
                             <MarketAnalysisRecommendation
                                 analysis={analysis}
                                 variant="management"
@@ -114,20 +114,22 @@ export function MarketAnalysisContent({
                     <button
                         type="button"
                         aria-expanded={isDetailsOpen}
-                        className="flex w-full items-start justify-between gap-5 text-left"
+                        className="flex w-full items-start justify-between gap-3 text-left md:gap-5"
                         onClick={() => onDetailsOpenChange?.(!isDetailsOpen)}
                     >
                         <span className="flex min-w-0 flex-col gap-2.5">
-                            <span className="flex items-center gap-2.5 text-[22px] leading-[30px] font-semibold tracking-[0.5px] text-[#363636]">
+                            <span className="flex items-center gap-2 text-[18px] leading-7 font-semibold tracking-[0.5px] break-keep text-[#363636] md:gap-2.5 md:text-[22px] md:leading-[30px]">
                                 <Sparkles aria-hidden="true" className="size-5 fill-[#363636]" />
                                 상세 시세 분석 보기
                             </span>
-                            <span className="text-[16px] leading-[25px] text-[#464646]">
+                            <span className="text-[14px] leading-[22px] break-keep text-[#464646] md:text-[16px] md:leading-[25px]">
                                 최근 30일 거래 데이터, 경쟁 상품 수를 종합해 타이밍을 분석합니다.
                             </span>
                         </span>
-                        <span className="flex shrink-0 items-center gap-[3px] text-[16px] leading-[25px] text-[#83889e]">
-                            {isDetailsOpen ? "내용 접기" : "더보기"}
+                        <span className="flex shrink-0 items-center gap-[3px] text-[14px] leading-[25px] text-[#83889e] md:text-[16px]">
+                            <span className="sr-only md:not-sr-only">
+                                {isDetailsOpen ? "내용 접기" : "더보기"}
+                            </span>
                             {isDetailsOpen ? (
                                 <ChevronUp aria-hidden="true" className="size-4" />
                             ) : (
@@ -167,9 +169,9 @@ export function MarketAnalysisContent({
     return (
         <>
             <MarketAnalysisRecommendation analysis={analysis} variant={variant} />
-            <div className="flex flex-col gap-5 bg-[#fafbff] px-10 py-[30px]">
+            <div className="flex flex-col gap-5 bg-[#fafbff] px-4 py-5 md:px-10 md:py-[30px]">
                 <MarketAnalysisSummaryMetrics analysis={analysis} variant={variant} />
-                <div className="grid gap-[30px] lg:grid-cols-2">
+                <div className="grid gap-5 md:gap-[30px] lg:grid-cols-2">
                     <div className="flex min-w-0 flex-col justify-center gap-10 rounded-[20px] py-5">
                         <div className="flex flex-col gap-[10px]">
                             <div className="flex items-center gap-2 px-[10px]">

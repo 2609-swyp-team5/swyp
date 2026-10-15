@@ -4,11 +4,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useRef, useState } from "react";
-import { Menu, X } from "lucide-react";
+import { Bell, Menu, X } from "lucide-react";
 
 import { Button } from "@/common/components/ui/Button";
 import { Skeleton } from "@/common/components/ui/Skeleton";
-import { HEADER_LINKS, ROUTES } from "@/constants/routes";
+import {
+    AUTH_PAGES,
+    isRouteActive,
+    useMainNavigationVisible,
+} from "@/common/components/layout/useMainNavigationVisible";
+import { HEADER_LINKS } from "@/constants/routes";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { ProfileAvatar } from "@/features/member/components/ProfileAvatar";
 import { useMeQuery } from "@/features/member/hooks/queries/useMeQuery";
@@ -40,10 +45,6 @@ function HeaderLinkLabel({
     );
 }
 
-function isRouteActive(pathname: string, href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-}
-
 export function SiteHeader() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -55,13 +56,9 @@ export function SiteHeader() {
     const { data: member, isPending } = useMeQuery();
     const { data: unreadNotification } = useUnreadNotificationCountQuery();
     const unreadNotificationCount = unreadNotification?.count ?? 0;
-    const isAuthPage =
-        pathname === "/login" || pathname === "/signup" || pathname === "/account/reset-password";
-    const isProtectedPath = ROUTES.some(
-        (route) => route.requiresAuth && isRouteActive(pathname, route.href),
-    );
-    const isUnauthenticatedProtectedPath = isInitialized && !isLoggedIn && isProtectedPath;
-    const hideMenus = pathname === "/" || isAuthPage || isUnauthenticatedProtectedPath;
+    const isAuthPage = AUTH_PAGES.includes(pathname);
+    const hideMenus = !useMainNavigationVisible();
+    const isNotificationActive = isRouteActive(pathname, "/notifications");
     const isOnboardingPage = pathname === "/";
     const logoHref = isAuthPage || (pathname === "/" && !isLoggedIn) ? "/" : "/home";
     const isProfileLoading = !isAuthPage && (!isInitialized || (isLoggedIn && isPending));
@@ -77,7 +74,7 @@ export function SiteHeader() {
                         height={71}
                         loading="eager"
                         unoptimized
-                        className="h-[55px] w-[100px] object-contain lg:h-[71px] lg:w-[129px]"
+                        className="h-[44px] w-[80px] object-contain md:h-[55px] md:w-[100px] lg:h-[71px] lg:w-[129px]"
                     />
                 </Link>
 
@@ -110,6 +107,28 @@ export function SiteHeader() {
                 </nav>
 
                 <div className="typography-body-medium flex shrink-0 items-center justify-end gap-2 lg:w-[120px]">
+                    {!hideMenus && isLoggedIn && (
+                        // 모바일은 하단 탭바에 알림이 없어 헤더에 알림 바로가기를 둔다
+                        <Link
+                            href="/notifications"
+                            aria-label={
+                                unreadNotificationCount > 0
+                                    ? `알림, 읽지 않은 알림 ${unreadNotificationCount}개`
+                                    : "알림"
+                            }
+                            aria-current={isNotificationActive ? "page" : undefined}
+                            className={`relative flex size-10 items-center justify-center rounded-full md:hidden ${
+                                isNotificationActive ? "text-[#6653fb]" : "text-[#545d82]"
+                            }`}
+                        >
+                            <Bell aria-hidden="true" className="size-6" />
+                            {unreadNotificationCount > 0 ? (
+                                <span className="absolute top-1 right-0.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#6653fb] px-1 text-[10px] leading-[18px] font-bold text-white">
+                                    {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
+                                </span>
+                            ) : null}
+                        </Link>
+                    )}
                     {isProfileLoading ? (
                         <Skeleton
                             role="status"
@@ -121,7 +140,7 @@ export function SiteHeader() {
                             asChild
                             variant="ghost"
                             size="icon-lg"
-                            className={`size-11 rounded-full p-0 ${isProfileActive ? "ring-primary ring-2" : ""}`}
+                            className={`size-9 rounded-full p-0 md:size-11 ${isProfileActive ? "ring-primary ring-2" : ""}`}
                         >
                             <Link
                                 href="/my"
@@ -155,7 +174,7 @@ export function SiteHeader() {
                             aria-expanded={isMenuOpen}
                             aria-controls="mobile-header-menu"
                             onClick={() => setIsMenuOpen((open) => !open)}
-                            className="size-10 shrink-0 rounded-lg text-[#545d82] lg:hidden"
+                            className="hidden size-10 shrink-0 rounded-lg text-[#545d82] md:inline-flex lg:hidden"
                         >
                             {isMenuOpen ? (
                                 <X aria-hidden="true" className="size-5" />
@@ -170,7 +189,7 @@ export function SiteHeader() {
                 <nav
                     id="mobile-header-menu"
                     aria-label="모바일 주요 메뉴"
-                    className={`${isMenuOpen ? "grid" : "hidden"} layout-container grid-cols-2 gap-2 border-t border-[#eef0f5] py-3 lg:hidden`}
+                    className={`${isMenuOpen ? "hidden md:grid" : "hidden"} layout-container grid-cols-2 gap-2 border-t border-[#eef0f5] py-3 lg:hidden`}
                     onKeyDown={(event) => {
                         if (event.key === "Escape") {
                             setIsMenuOpen(false);

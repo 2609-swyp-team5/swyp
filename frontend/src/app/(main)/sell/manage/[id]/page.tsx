@@ -51,7 +51,7 @@ export default function ProductReviewPage() {
     return (
         <main className="flex flex-1 flex-col bg-white">
             <h1 className="sr-only">판매글 확인</h1>
-            <section className="layout-container flex flex-1 flex-col gap-[80px] pt-10 pb-20 md:pt-16 md:pb-[120px]">
+            <section className="layout-container flex flex-1 flex-col gap-10 pt-6 pb-12 md:gap-[80px] md:pt-16 md:pb-[120px]">
                 <CompletionSection isUpdated={isUpdated} isDetailView={isDetailView} />
                 <CategoryOptionsNotice
                     product={product}

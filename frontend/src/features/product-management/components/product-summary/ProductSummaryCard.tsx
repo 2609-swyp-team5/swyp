@@ -82,7 +82,9 @@ function SummaryStat({ label, value }: { label: string; value: string }) {
     return (
         <div className="flex flex-col items-center justify-center gap-0.5">
             <span className="text-[13px] leading-5 font-normal text-[#9aa0b0]">{label}</span>
-            <span className="text-[20px] leading-[30px] font-medium text-[#374151]">{value}</span>
+            <span className="text-[17px] leading-[26px] font-medium text-[#374151] md:text-[20px] md:leading-[30px]">
+                {value}
+            </span>
         </div>
     );
 }
@@ -146,7 +148,7 @@ function ProductSummaryCardFrame({
             aria-labelledby={titleId}
             className="w-full overflow-hidden rounded-[20px] border border-[#d3d3d3] bg-white"
         >
-            <div className="grid h-[442px] gap-10 p-[30px] lg:grid-cols-[310px_minmax(0,1fr)]">
+            <div className="grid gap-6 p-5 md:gap-10 md:p-[30px] lg:h-[442px] lg:grid-cols-[310px_minmax(0,1fr)]">
                 <ProductGallery
                     key={product.id}
                     product={product}
@@ -184,16 +186,16 @@ function ProductSummaryCardFrame({
                     </div>
                     <h2
                         id={titleId}
-                        className="mt-1 line-clamp-1 text-[25px] leading-10 font-medium tracking-[0.5px] break-keep text-[#363636]"
+                        className="mt-1 line-clamp-2 text-[20px] leading-8 font-medium tracking-[0.5px] break-keep text-[#363636] md:line-clamp-1 md:text-[25px] md:leading-10"
                     >
                         {product.title}
                     </h2>
-                    <p className="text-[22px] leading-[30px] font-semibold tracking-[0.5px] text-[#6653fb]">
+                    <p className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#6653fb] md:text-[22px]">
                         {priceFormatter.format(product.price)}원
                     </p>
 
                     {isSoldVariant ? (
-                        <dl className="mt-[30px] flex flex-col text-[16px] leading-[25px]">
+                        <dl className="mt-5 flex flex-col text-[15px] leading-[24px] md:mt-[30px] md:text-[16px] md:leading-[25px]">
                             <DetailRow
                                 label="팔린 플랫폼"
                                 value={product.soldPlatform ?? "정보 없음"}
@@ -216,7 +218,7 @@ function ProductSummaryCardFrame({
                         </dl>
                     ) : (
                         <>
-                            <dl className="mt-[30px] grid grid-cols-2 gap-x-[30px] gap-y-[10px]">
+                            <dl className="mt-5 grid grid-cols-2 gap-x-5 gap-y-[10px] md:mt-[30px] md:gap-x-[30px]">
                                 <DetailRow
                                     label="상품상태"
                                     value={

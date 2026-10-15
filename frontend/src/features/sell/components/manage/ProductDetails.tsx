@@ -9,8 +9,8 @@ import {
 
 function DetailRow({ label, value }: { label: string; value: string }) {
     return (
-        <div className="flex items-center gap-4 border-b border-[#d3d3d3] py-3 text-[16px] leading-[25px]">
-            <dt className="w-[160px] shrink-0 font-semibold tracking-[0.5px] text-[#83889e]">
+        <div className="flex items-center gap-4 border-b border-[#d3d3d3] py-2.5 text-[15px] leading-6 md:py-3 md:text-[16px] md:leading-[25px]">
+            <dt className="w-[96px] shrink-0 font-semibold tracking-[0.5px] text-[#83889e] md:w-[160px]">
                 {label}
             </dt>
             <dd className="font-normal break-words text-[#363636]">{value}</dd>
@@ -46,7 +46,7 @@ export function ProductDetails({ product }: { product: ProductResponse }) {
             <div className="flex min-w-0 flex-1 flex-col gap-6 lg:gap-[30px]">
                 <h2
                     id="product-details-title"
-                    className="text-[28px] leading-[42px] font-bold tracking-[0.5px] text-[#363636] md:text-[30px]"
+                    className="text-[22px] leading-8 font-bold tracking-[0.5px] text-[#363636] md:text-[30px] md:leading-[42px]"
                 >
                     등록된 상품 정보
                 </h2>
@@ -57,13 +57,13 @@ export function ProductDetails({ product }: { product: ProductResponse }) {
                 </dl>
             </div>
 
-            <div className="flex min-w-0 flex-1 flex-col gap-[50px]">
-                <div className="flex h-[392px] flex-col gap-2.5">
+            <div className="flex min-w-0 flex-1 flex-col gap-8 md:gap-[50px]">
+                <div className="flex min-h-[200px] flex-col gap-2.5 md:h-[392px]">
                     <h3 className="text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#363636]">
                         상세 설명
                     </h3>
-                    <div className="flex min-h-0 flex-1 flex-col items-end justify-between rounded-[5px] border border-[#d3d3d3] bg-[#fafbff] p-6 lg:p-[30px]">
-                        <p className="w-full text-[18px] leading-8 font-medium tracking-[0.5px] whitespace-pre-wrap text-[#363636] lg:text-[20px]">
+                    <div className="flex min-h-0 flex-1 flex-col items-end justify-between rounded-[5px] border border-[#d3d3d3] bg-[#fafbff] p-4 md:p-6 lg:p-[30px]">
+                        <p className="w-full text-[15px] leading-6 font-medium tracking-[0.5px] whitespace-pre-wrap text-[#363636] md:text-[18px] md:leading-8 lg:text-[20px]">
                             {description}
                         </p>
                         <span className="font-brand text-[12px] leading-[18px] text-[#6b7395]">
@@ -81,7 +81,7 @@ export function ProductDetails({ product }: { product: ProductResponse }) {
                             product.tags.map((tag) => (
                                 <span
                                     key={tag}
-                                    className="rounded-full bg-[#eaeafd] px-5 py-1 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6653fb]"
+                                    className="rounded-full bg-[#eaeafd] px-3 py-1 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6653fb] md:px-5"
                                 >
                                     #{tag}
                                 </span>

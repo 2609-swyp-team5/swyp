@@ -11,7 +11,7 @@ export function ScrollToTopButton({ onClick }: { onClick: () => void }) {
             title="맨 위로 이동"
             onClick={onClick}
             // width-before-scroll-bar: Select·Dialog가 body 스크롤을 잠가 스크롤바가 사라질 때 그 폭만큼 margin-right를 받아 제자리를 유지한다(react-remove-scroll)
-            className="width-before-scroll-bar group fixed right-4 bottom-[calc(2rem+env(safe-area-inset-bottom))] z-40 size-[70px] overflow-hidden rounded-full bg-[#6653fb] p-0 text-white transition-[background-color,translate,scale,box-shadow] duration-300 hover:bg-[#6653fb] hover:shadow-[0_12px_32px_rgba(108,83,255,0.3)] focus-visible:shadow-[0_12px_32px_rgba(108,83,255,0.3)] focus-visible:ring-3 focus-visible:ring-[#6653fb]/30 motion-safe:hover:-translate-y-1 motion-safe:active:scale-[0.96] motion-reduce:transition-none md:right-6 md:bottom-[calc(4.5rem+env(safe-area-inset-bottom))]"
+            className="width-before-scroll-bar group fixed right-4 bottom-[calc(var(--mobile-tab-bar-height)+1rem+env(safe-area-inset-bottom))] z-40 size-[70px] overflow-hidden rounded-full bg-[#6653fb] p-0 text-white transition-[background-color,translate,scale,box-shadow] duration-300 hover:bg-[#6653fb] hover:shadow-[0_12px_32px_rgba(108,83,255,0.3)] focus-visible:shadow-[0_12px_32px_rgba(108,83,255,0.3)] focus-visible:ring-3 focus-visible:ring-[#6653fb]/30 motion-safe:hover:-translate-y-1 motion-safe:active:scale-[0.96] motion-reduce:transition-none md:right-6 md:bottom-[calc(4.5rem+env(safe-area-inset-bottom))]"
         >
             <span
                 aria-hidden="true"
