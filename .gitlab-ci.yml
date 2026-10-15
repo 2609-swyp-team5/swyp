@@ -1,284 +1,62 @@
-workflow:
-  rules:
-    # Merge Request 이벤트 발생 시 파이프라인 실행
-    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
-    # 이미 MR이 열려있는 브랜치의 중복 브랜치 파이프라인 실행 차단
-    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
-      when: never
-    # MR이 없는 일반 브랜치에 push될 때만 실행
-    - if: $CI_COMMIT_BRANCH
-
+# 임시 브랜치 전용 — 서버 로그 확인용(머지 금지, 확인 후 브랜치 삭제)
+# 로그는 화면에 출력하지 않고, 아래 공개 인증서로 암호화한 파일만 1시간짜리 첨부 파일로 남긴다.
 stages:
-  - test
-  - build
-  - deploy
+  - diag
 
-variables:
-  GRADLE_USER_HOME: "$CI_PROJECT_DIR/backend/.gradle"
-  TZ: "Asia/Seoul"
-# ==========================================
-# MR 공통
-# ==========================================
-# 나머지 잡은 모두 backend/·frontend/ 변경 시에만 돌기 때문에, docs·CI 설정만 바꾼 MR은 실행할 잡이 없어 파이프라인이
-# 만들어지지 않는다("파이프라인 성공 필수" 설정이라 머지가 막힘). 모든 MR에서 항상 도는 가벼운 잡으로 파이프라인을 보장한다.
-mr-check:
-  stage: test
-  image: alpine:3.22
-  script:
-    - echo "MR 파이프라인 생성 확인"
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-
-# ==========================================
-# Backend
-# ==========================================
-# 필요 CI/CD 변수(GitLab 프로젝트 설정에 masked로 등록): TEST_DB_DRIVER_CLASS_NAME,
-# TEST_DB_URL, TEST_DB_USERNAME, TEST_DB_PASSWORD (Neon swyp-test 브랜치 접속 정보),
-# TEST_JWT_SECRET, TEST_JWT_REFRESH_SECRET (테스트 전용 JWT 서명 키)
-# TEST_PLATFORM_SESSION_ENCRYPTION_KEY (선택, 외부 플랫폼 세션 암호화 키 — Base64 32바이트, 미등록 시
-# application-test.yaml의 테스트 전용 더미 키 사용)
-# resource_group: 여러 MR 파이프라인이 동시에 같은 swyp-test 브랜치를 Flyway clean하지 않도록 직렬화
-backend-test:
-  stage: test
-  image: eclipse-temurin:21-jdk
-  # 테스트 DB는 잡마다 러너 안에 띄우는 PostgreSQL 17(Neon과 같은 메이저 버전) — 원격 Neon 왕복이 없어 마이그레이션·컨텍스트
-  # 기동이 빨라지고, 잡끼리·로컬과 DB를 공유하지 않아 동시 실행해도 서로의 clean에 깨지지 않는다(그래서 resource_group 제거)
-  services:
-    - name: postgres:17
-      alias: testdb
-  variables:
-    POSTGRES_DB: swyp_test
-    POSTGRES_USER: swyp
-    POSTGRES_PASSWORD: swyp
-  cache:
-    key:
-      files:
-        - backend/gradle/wrapper/gradle-wrapper.properties
-        - backend/build.gradle.kts
-    paths:
-      - backend/.gradle/caches/
-      - backend/.gradle/wrapper/
-
-  script:
-    # 프로젝트 CI 변수(TEST_DB_*, Neon)가 .gitlab-ci.yml variables보다 우선하므로 스크립트에서 덮어쓴다
-    - export TEST_DB_DRIVER_CLASS_NAME=org.postgresql.Driver
-    - export TEST_DB_URL=jdbc:postgresql://testdb:5432/swyp_test
-    - export TEST_DB_USERNAME=swyp
-    - export TEST_DB_PASSWORD=swyp
-    - cd backend
-    - chmod +x gradlew
-    - ./gradlew spotlessCheck test
-
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      changes:
-        - backend/**/*
-    # develop/main push(머지)는 직전 커밋과 비교
-    - if: $CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main")
-      changes:
-        - backend/**/*
-    # 기능 브랜치 push는 develop 대비 변경만 본다(새 브랜치 첫 push는 compare_to 없으면 changes가 항상 참)
-    - if: $CI_PIPELINE_SOURCE == "push"
-      changes:
-        paths:
-          - backend/**/*
-        compare_to: refs/heads/develop
-
-backend-build:
-  stage: build
-  image: eclipse-temurin:21-jdk
-  needs:
-    - backend-test
-
-  cache:
-    key:
-      files:
-        - backend/gradle/wrapper/gradle-wrapper.properties
-        - backend/build.gradle.kts
-    paths:
-      - backend/.gradle/caches/
-      - backend/.gradle/wrapper/
-
-  script:
-    - cd backend
-    - chmod +x gradlew
-    - ./gradlew build -x test
-
-  artifacts:
-    paths:
-      - backend/build/libs/app.jar
-    expire_in: 3 days
-
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      changes:
-        - backend/**/*
-    # develop/main push(머지)는 직전 커밋과 비교
-    - if: $CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main")
-      changes:
-        - backend/**/*
-    # 기능 브랜치 push는 develop 대비 변경만 본다(새 브랜치 첫 push는 compare_to 없으면 changes가 항상 참)
-    - if: $CI_PIPELINE_SOURCE == "push"
-      changes:
-        paths:
-          - backend/**/*
-        compare_to: refs/heads/develop
-
-backend-deploy:
-  stage: deploy
+server-log:
+  stage: diag
   image: alpine:latest
-  needs:
-    - backend-build
-
+  variables:
+    LOG_CERT: |
+    -----BEGIN CERTIFICATE-----
+    MIIEGzCCAoOgAwIBAgIUMrUCOIS1TKlz12JUDG12NlkQS7UwDQYJKoZIhvcNAQEL
+    BQAwHTEbMBkGA1UEAwwSamlnZXVtaW5pLWxvZy10ZW1wMB4XDTI2MTAxNTE1MzEz
+    OVoXDTI2MTAxNzE1MzEzOVowHTEbMBkGA1UEAwwSamlnZXVtaW5pLWxvZy10ZW1w
+    MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAoHifAo9HHo2LwnZTSHgD
+    AvP0CXYSBiBMMT3RhoGxp7z3D2OKtNMveygyWgP8sVrohFntzCrIyNqRKBBWWB7C
+    dbdOQ2aV1viuanlFUiHzAPrBhtm90sYelocG+m0Ek9TYScovq/W/kPCvXwIvj53N
+    W+Y7FAop7O8n52rma4BPcFFWUan9VkoSYLvSWpybf/ZcuEnYKTPamKumEs2dkFyw
+    ygZQeiyvwA3ZnY8SJzAGt+teZWhbzcX3vTFxO+HKEtsHppeqBsuPt7ZVA5HoaMoE
+    FBxVaMEOkE89mS2xVxSdDcdgLTOOtp4A19Vl5nC53lp56OBe8R6Cf1hIB9FV8nUN
+    kO8PnmrpLFHJs/l5Azrci2zubatwWkQYEnmz3JOdOiuaquVMASOMzfvZpWpJHzyG
+    8TBu3LdMkdn1SsxPT/pvYIuXjPof4s+9+OeahSMbAKIEOZbglYxrKsD1W45kiype
+    yocvbJgjUZMlVPwYZVyIJxUrO8x+si9CE3ro6MKMUOBdAgMBAAGjUzBRMB0GA1Ud
+    DgQWBBRxLVAbl2y3bfzSbxZ2FeTvEZWayDAfBgNVHSMEGDAWgBRxLVAbl2y3bfzS
+    bxZ2FeTvEZWayDAPBgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3DQEBCwUAA4IBgQAC
+    tw3RtFqgqJ9xAXrQukZog+RMBQnnKHYN7EVnZNujy7sSyNQ58YAIgYnbcb2VRgRK
+    n7r5OldbzVQfHzt1ouKJXkp9J9baxqlm6nRNZ43AGOZxnhxVtKsTTw7BLXsS50cR
+    VL8ChIM+BL8rkpCQ7yMtpOR79NSUbhDCpJT9Jrhq0scguEdHTMBwcVYfIlT23MbS
+    XWdErxk+YcZswdd+D3FNxBLjX5Oz3eJ3VvZY8PZUqhZHZ+6YYdhy+yDEEcUYPekk
+    Hhxk0VXCew5gBEb5Q+xr85BcZoo3EudCrhDf8coU/UF8ye7QT9GRCVkuDwrbfvSK
+    7qZpQYXnXtd2qbOuYA58k2u8EricQ1eFG3+G/3XqhdLdD5vEQ92sHW9+h39Djf4Q
+    tW/YDoaRJL09VV2uDrHQ6rFBZHC39pbm+Ocn2MU5EhMWf66yeAS23z6PhhNYJbfF
+    Ijqt/yyOaHAwnPoPWHaoIxqxwoclX7fOzaTBjMpVh96iDU4Il31FZNchlhI6vS8=
+    -----END CERTIFICATE-----
   before_script:
-    - apk add --no-cache openssh-client
-    - eval $(ssh-agent -s)
-    - echo "$EC2_SSH_KEY" | tr -d '\r' | ssh-add -
-    - mkdir -p ~/.ssh
-    - chmod 700 ~/.ssh
-    - ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts
-
+    - apk add --no-cache openssh-client openssl > /dev/null
+    - eval $(ssh-agent -s) > /dev/null
+    - echo "$EC2_SSH_KEY" | tr -d '\r' | ssh-add - 2> /dev/null
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts 2> /dev/null
   script:
-    - ssh $EC2_USER@$EC2_HOST "cp -f /home/$EC2_USER/app/app.jar /home/$EC2_USER/app/app.jar.bak 2>/dev/null || true"
-    - scp backend/build/libs/app.jar $EC2_USER@$EC2_HOST:/home/$EC2_USER/app/app.jar
-    - ssh $EC2_USER@$EC2_HOST "sudo systemctl restart swyp-backend"
     - |
       ssh $EC2_USER@$EC2_HOST '
-        for i in $(seq 1 30); do
-          if curl -fsS http://localhost:8080/actuator/health | grep -q "\"status\":\"UP\""; then
-            echo "기동 확인"; exit 0
-          fi
-          sleep 5
-        done
-        echo "기동 확인 실패 - 최근 로그"; sudo journalctl -u swyp-backend -n 50 --no-pager; exit 1
-      '
-
-  rules:
-    - if: $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE != "schedule"
-      changes:
-        - backend/**/*
-
-# ==========================================
-# Frontend
-# ==========================================
-frontend-test:
-  stage: test
-  image: node:24-alpine
-
-  cache:
-    key:
-      files:
-        - frontend/package-lock.json
-    paths:
-      - frontend/.npm/
-
-  script:
-    - cd frontend
-    - npm ci --cache .npm --prefer-offline
-    - npx tsc --noEmit
-    - npm run lint
-    - npm run format:check
-    - npm run test:run
-
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      exists:
-        - frontend/**/*
-      changes:
-        - frontend/**/*
-    - if: $CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main")
-      exists:
-        - frontend/**/*
-      changes:
-        - frontend/**/*
-    - if: $CI_PIPELINE_SOURCE == "push"
-      exists:
-        - frontend/**/*
-      changes:
-        paths:
-          - frontend/**/*
-        compare_to: refs/heads/develop
-
-frontend-e2e:
-  stage: test
-  image: mcr.microsoft.com/playwright:v1.63.0-noble
-
-  cache:
-    key:
-      files:
-        - frontend/package-lock.json
-    paths:
-      - frontend/.npm/
-
-  script:
-    - cd frontend
-    - npm ci --cache .npm --prefer-offline
-    - npm run test:e2e
-
-  artifacts:
-    when: always
-    paths:
-      - frontend/playwright-report/
-      - frontend/test-results/
-    expire_in: 3 days
-
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      exists:
-        - frontend/package.json
-      changes:
-        - frontend/**/*
-    - if: $CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main")
-      exists:
-        - frontend/package.json
-      changes:
-        - frontend/**/*
-    - if: $CI_PIPELINE_SOURCE == "push"
-      exists:
-        - frontend/package.json
-      changes:
-        paths:
-          - frontend/**/*
-        compare_to: refs/heads/develop
-
-frontend-build:
-  stage: build
-  image: node:24-alpine
-  needs:
-    - frontend-test
-
-  cache:
-    key:
-      files:
-        - frontend/package-lock.json
-    paths:
-      - frontend/.npm/
-
-  script:
-    - cd frontend
-    - npm ci --cache .npm --prefer-offline
-    - npm run build
-
+        echo "== 서버 시각"; date
+        echo "== 서비스 상태"; systemctl show swyp-backend -p ActiveEnterTimestamp -p EnvironmentFiles
+        echo "== AI 관련 설정(키 값은 길이만)"
+        ENVS=$(sudo cat /proc/$(systemctl show swyp-backend -p MainPID --value)/environ 2>/dev/null | tr "\0" "\n")
+        echo "$ENVS" | grep -E "^(GEMINI_CHAT_MODEL|OPENAI_CHAT_MODEL|AI_CHAT_|SPRING_AI_|SPRING_PROFILES_ACTIVE)=" || echo "(해당 환경 변수 없음 - 기본값 사용)"
+        for k in GEMINI_API_KEY OPENAI_API_KEY; do v=$(echo "$ENVS" | grep "^$k=" | cut -d= -f2-); echo "$k 길이=${#v}"; done
+        echo "== 최근 6시간 AI 관련 로그"
+        sudo journalctl -u swyp-backend --since "6 hours ago" --no-pager | grep -E -A4 "Gemini|OpenAI|GPT|AI 대화|AiChat|/ai/chats|GenAi|genai|Timeout|timed out" | tail -400
+      ' > server-log.txt 2>&1 || true
+    - echo "수집한 줄 수 $(wc -l < server-log.txt)"
+    - echo "$LOG_CERT" > cert.pem
+    - openssl cms -encrypt -binary -aes256 -in server-log.txt -out server-log.enc -outform DER cert.pem
+    - rm -f server-log.txt
   artifacts:
     paths:
-      - frontend/.next/
-    expire_in: 3 days
-
+      - server-log.enc
+    expire_in: 1 hour
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      exists:
-        - frontend/package.json
-      changes:
-        - frontend/**/*
-    - if: $CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main")
-      exists:
-        - frontend/package.json
-      changes:
-        - frontend/**/*
-    - if: $CI_PIPELINE_SOURCE == "push"
-      exists:
-        - frontend/package.json
-      changes:
-        paths:
-          - frontend/**/*
-        compare_to: refs/heads/develop
+    - if: $CI_COMMIT_BRANCH == "chore/tmp-server-log"
