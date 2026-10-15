@@ -1,3 +1,5 @@
+import type { CategoryOptionSelection } from "@/features/sell/types";
+
 export type DirectImagePreview = {
     file: File | null;
     url: string;
@@ -12,6 +14,7 @@ export type DirectRegisterInfoState = {
     brand: string;
     description: string;
     tags: string[];
+    categoryOptions: CategoryOptionSelection[];
 };
 
 export type DirectProductCondition = "S" | "A" | "B" | "C" | "D";

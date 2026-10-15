@@ -59,7 +59,12 @@ public class SecurityConfig {
      * 열어 {@code /products/me} 같은 하위 경로는 계속 로그인이 필요하다. AI 검색·시세 분석·관심 등 그 밖의 기능은 로그인이 필요하다.
      */
     private static final String[] PUBLIC_GET_PATTERNS = {
-        "/products", "/products/{productId:\\d+}", "/products/keywords/trending", "/products/popular", "/categories"
+        "/products",
+        "/products/{productId:\\d+}",
+        "/products/keywords/trending",
+        "/products/popular",
+        "/categories",
+        "/categories/{categoryId:\\d+}/options"
     };
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;

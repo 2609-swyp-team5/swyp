@@ -30,6 +30,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import com.swyp.team5.category.entity.Category;
+import com.swyp.team5.category.entity.SelectedCategoryOption;
 import com.swyp.team5.component.entity.Component;
 import com.swyp.team5.item.entity.Item;
 import com.swyp.team5.item.entity.ListingSource;
@@ -114,6 +115,10 @@ public class Product extends Item {
 
     @Column(name = "preferred_trade_region", length = 100)
     private String preferredTradeRegion; // 선호 거래 지역(직거래일 경우, 거래 희망 지역)
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "category_options", nullable = false, columnDefinition = "jsonb")
+    private List<SelectedCategoryOption> categoryOptions = new ArrayList<>(); // 카테고리별 추가 항목(사이즈·사용기한 등, 서버 검증값)
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("imageOrder ASC")
@@ -211,6 +216,11 @@ public class Product extends Item {
         product.addTags(tags);
         product.addComponents(components);
         return product;
+    }
+
+    /** 카테고리별 추가 항목을 통째로 바꾼다(카테고리 옵션 정의로 검증한 값 — {@code CategoryOptionService#resolve}). */
+    public void replaceCategoryOptions(List<SelectedCategoryOption> categoryOptions) {
+        this.categoryOptions = new ArrayList<>(categoryOptions);
     }
 
     /**

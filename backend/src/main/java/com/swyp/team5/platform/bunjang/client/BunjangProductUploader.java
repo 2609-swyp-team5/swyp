@@ -33,6 +33,7 @@ import com.microsoft.playwright.PlaywrightException;
 import com.microsoft.playwright.Response;
 import com.microsoft.playwright.options.Cookie;
 import com.microsoft.playwright.options.WaitUntilState;
+import com.swyp.team5.category.entity.CategoryOptionType;
 import com.swyp.team5.platform.bunjang.dto.BunjangListingForm;
 import com.swyp.team5.platform.bunjang.dto.BunjangUploadResult;
 import com.swyp.team5.platform.error.InvalidPlatformSessionException;
@@ -92,6 +93,7 @@ public class BunjangProductUploader {
                     uploadImages(page, images);
                     fillTitle(page, form.title());
                     selectCategory(page, form.categoryPath());
+                    fillCategoryOptions(page, form.categoryOptions());
                     fillTags(page, form.tags());
                     selectCondition(page, form.conditionLabel());
                     fillPrice(page, form.price());
@@ -313,6 +315,145 @@ public class BunjangProductUploader {
         return last.equals(trimmed) ? List.of(trimmed) : List.of(trimmed, last);
     }
 
+    /**
+     * 카테고리별 추가 항목(사이즈·사용기한 등)을 입력한다. 항목은 카테고리를 고르면 {@code #scroll-option} 안에 나타난다(2026-10-15 화면
+     * 확인). 선택형은 항목 버튼 → 선택 창에서 값 클릭 → "완료", 날짜·직접 입력형은 항목 영역의 입력칸에 값을 넣고, "표시 없음" 같은 단독
+     * 선택지는 항목 영역(또는 선택 창)의 라벨을 누른다.
+     */
+    private void fillCategoryOptions(Page page, List<BunjangListingForm.Option> options) {
+        if (options.isEmpty()) {
+            return;
+        }
+        Locator section = page.locator("#scroll-option").first();
+        try {
+            section.waitFor(new Locator.WaitForOptions().setTimeout(5_000));
+        } catch (PlaywrightException e) {
+            throw new PlatformPublishFailedException(
+                    "번개장터 추가 항목 입력칸을 찾을 수 없어요. 잠시 후 다시 시도해 주세요.", "options=" + options);
+        }
+        section.scrollIntoViewIfNeeded();
+        for (BunjangListingForm.Option option : options) {
+            boolean filled =
+                    switch (option.type()) {
+                        case SINGLE_SELECT -> selectOptionInDialog(page, section, option);
+                        case SINGLE_ROUND -> clickOptionLabel(section, option.value())
+                                || selectOptionInDialog(page, section, option);
+                        case TEXT_FIELD, DATE_TEXT_FIELD -> fillOptionText(section, option);
+                    };
+            if (!filled) {
+                throw new PlatformPublishFailedException(
+                        "번개장터 추가 항목 '" + option.groupName() + "'을(를) 입력하지 못했어요. 번개장터에서 직접 등록한 뒤 매물 주소로 연동해 주세요.",
+                        "option=" + option);
+            }
+            page.waitForTimeout(500);
+        }
+    }
+
+    /** 항목 버튼(문구 = 항목 안내, 예: "사이즈를 선택해 주세요")을 눌러 선택 창을 열고 값을 고른 뒤 "완료"를 누른다. */
+    private boolean selectOptionInDialog(Page page, Locator section, BunjangListingForm.Option option) {
+        Locator trigger = section.locator("button[aria-haspopup='dialog']")
+                .filter(new Locator.FilterOptions().setHasText(looseTextPattern(option.title())))
+                .first();
+        if (!exists(trigger)) {
+            log.warn("번개장터 추가 항목 버튼을 찾을 수 없습니다. option={}", option);
+            return false;
+        }
+        trigger.click();
+        Locator dialog = page.locator("[role='dialog']").last();
+        try {
+            dialog.waitFor(new Locator.WaitForOptions().setTimeout(5_000));
+        } catch (PlaywrightException e) {
+            return false;
+        }
+        Locator value = option.type() == CategoryOptionType.SINGLE_ROUND
+                ? optionLabel(dialog, option.value())
+                : optionListItem(dialog, option);
+        if (value == null) {
+            log.warn("번개장터 추가 항목 값을 찾을 수 없습니다. option={}", option);
+            page.keyboard().press("Escape");
+            return false;
+        }
+        value.click();
+        page.waitForTimeout(300);
+        Locator done = dialog.locator("button:has-text('완료')").first();
+        if (exists(done) && done.isEnabled()) {
+            done.click();
+            page.waitForTimeout(500);
+        }
+        return true;
+    }
+
+    /**
+     * 선택 창의 값 항목. 같은 값(예: "36")이 여러 세부 분류(유럽 사이즈·기타 사이즈)에 있으면 목록 바로 앞의 분류 이름이 같은 것을 고른다.
+     */
+    private static Locator optionListItem(Locator dialog, BunjangListingForm.Option option) {
+        Locator items = dialog.locator("li");
+        String expected = normalize(option.value());
+        List<Locator> candidates = new ArrayList<>();
+        for (int i = 0; i < items.count(); i++) {
+            Locator item = items.nth(i);
+            if (item.isVisible() && normalize(item.innerText()).equals(expected)) {
+                candidates.add(item);
+            }
+        }
+        if (candidates.size() <= 1 || option.childName().isBlank()) {
+            return candidates.isEmpty() ? null : candidates.getFirst();
+        }
+        String child = normalize(option.childName());
+        for (Locator candidate : candidates) {
+            Object heading = candidate.evaluate(
+                    """
+                    el => {
+                      const list = el.closest('ul');
+                      let prev = list ? list.previousElementSibling : null;
+                      while (prev && !prev.innerText.trim()) prev = prev.previousElementSibling;
+                      return prev ? prev.innerText : '';
+                    }
+                    """);
+            if (normalize(String.valueOf(heading)).equals(child)) {
+                return candidate;
+            }
+        }
+        return candidates.getFirst();
+    }
+
+    private static boolean clickOptionLabel(Locator scope, String text) {
+        Locator label = optionLabel(scope, text);
+        if (label == null) {
+            return false;
+        }
+        label.click();
+        return true;
+    }
+
+    private static Locator optionLabel(Locator scope, String text) {
+        Locator label = scope.locator("label")
+                .filter(new Locator.FilterOptions().setHasText(looseTextPattern(text)))
+                .first();
+        return exists(label) && label.isVisible() ? label : null;
+    }
+
+    /** 날짜(년월일 8자리)·직접 입력(규격 등) 항목 — 항목 이름이 보이는 영역 안의 입력칸에 넣는다. */
+    private static boolean fillOptionText(Locator section, BunjangListingForm.Option option) {
+        Locator inputs = option.type() == CategoryOptionType.DATE_TEXT_FIELD
+                ? section.locator("input[placeholder*='8자리']")
+                : section.locator("input[placeholder*='입력']:not([placeholder*='8자리'])");
+        Locator input = inputs.count() == 1
+                ? inputs.first()
+                : section.locator("div")
+                        .filter(new Locator.FilterOptions().setHasText(option.groupName()))
+                        .filter(new Locator.FilterOptions().setHas(inputs.first()))
+                        .last()
+                        .locator(inputs)
+                        .first();
+        if (!exists(input)) {
+            return false;
+        }
+        input.fill(option.value());
+        input.press("Tab");
+        return true;
+    }
+
     private void fillTags(Page page, List<String> tags) {
         Locator input = page.locator("input[placeholder*='태그']").first();
         if (tags.isEmpty() || !exists(input)) {
@@ -326,6 +467,11 @@ public class BunjangProductUploader {
     }
 
     private void selectCondition(Page page, String conditionLabel) {
+        // 뷰티·식품 등 일부 카테고리는 상품 상태 항목이 없다(2026-10-15 화면 확인)
+        if (!exists(page.locator("#scroll-condition"))) {
+            log.info("번개장터 상품 상태 항목이 없는 카테고리라 건너뜁니다. condition={}", conditionLabel);
+            return;
+        }
         Locator opener = page.locator("button:has-text('상품 상태를 선택해 주세요')").first();
         if (exists(opener)) {
             opener.click();
@@ -487,8 +633,8 @@ public class BunjangProductUploader {
     }
 
     /**
-     * 번개장터 폼에 빠진 항목이 있어 등록되지 않았을 때의 안내. 우리 서비스는 카테고리별 추가 항목(의류 사이즈 등)을 입력하지 않으므로, 화면에
-     * 뜬 번개장터 안내 문구가 있으면 함께 보여 주고 번개장터에서 직접 등록하는 방법을 알려 준다.
+     * 번개장터 폼에 빠진 항목이 있어 등록되지 않았을 때의 안내. 카테고리별 추가 항목은 게시 전에 확인하지만 번개장터가 항목을 바꿨을 수 있어,
+     * 화면에 뜬 번개장터 안내 문구가 있으면 함께 보여 주고 번개장터에서 직접 등록하는 방법을 알려 준다.
      */
     static String missingFieldsMessage(List<String> notices) {
         String base =

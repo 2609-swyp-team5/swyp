@@ -22,9 +22,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.swyp.team5.category.entity.Category;
+import com.swyp.team5.category.entity.SelectedCategoryOption;
 import com.swyp.team5.category.error.CategoryNotFoundException;
 import com.swyp.team5.category.error.CategoryNotLeafException;
+import com.swyp.team5.category.error.InvalidCategoryOptionException;
 import com.swyp.team5.category.repository.CategoryRepository;
+import com.swyp.team5.category.service.CategoryOptionService;
 import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.component.entity.Component;
 import com.swyp.team5.component.repository.ComponentRepository;
@@ -102,6 +105,7 @@ public class ProductService {
     private final NotificationRepository notificationRepository;
     private final ProductViewCounter productViewCounter;
     private final ApplicationEventPublisher eventPublisher;
+    private final CategoryOptionService categoryOptionService;
 
     public ProductService(
             ProductRepository productRepository,
@@ -121,7 +125,8 @@ public class ProductService {
             PriceForecastRepository priceForecastRepository,
             NotificationRepository notificationRepository,
             ProductViewCounter productViewCounter,
-            ApplicationEventPublisher eventPublisher) {
+            ApplicationEventPublisher eventPublisher,
+            CategoryOptionService categoryOptionService) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
         this.memberRepository = memberRepository;
@@ -140,19 +145,21 @@ public class ProductService {
         this.notificationRepository = notificationRepository;
         this.productViewCounter = productViewCounter;
         this.eventPublisher = eventPublisher;
+        this.categoryOptionService = categoryOptionService;
     }
 
     /**
-     * 직접 등록할 카테고리가 존재하는 최하위 카테고리인지 확인한다. 스트리밍 등록({@link ProductRegisterStreamService})이
-     * 업로드를 시작하기 전에 호출해, 잘못된 카테고리는 스트림을 열지 않고 일반 JSON 에러(400/404)로 응답하게 한다.
+     * 직접 등록 요청을 업로드 전에 검증한다 — 존재하는 최하위 카테고리인지와 카테고리별 추가 항목. 스트리밍
+     * 등록이 스트림을 열기 전에 호출해 잘못된 입력은 일반 JSON 에러(400/404)로 응답하게 한다.
      *
-     * @param categoryId 등록할 카테고리 ID
      * @throws CategoryNotFoundException 존재하지 않는 카테고리인 경우
      * @throws CategoryNotLeafException 최하위 카테고리가 아닌 경우
+     * @throws InvalidCategoryOptionException 추가 항목이 옵션 정의와 맞지 않거나 필수 항목이 빠진 경우
      */
     @Transactional(readOnly = true)
-    public void validateLeafCategory(Long categoryId) {
-        getLeafCategoryOrThrow(categoryId);
+    public void validateCreate(ProductCreateRequest request) {
+        getLeafCategoryOrThrow(request.categoryId());
+        categoryOptionService.resolve(request.categoryId(), request.categoryOptions());
     }
 
     /**
@@ -169,6 +176,7 @@ public class ProductService {
      * @return 등록된 상품
      * @throws CategoryNotFoundException 존재하지 않는 카테고리인 경우
      * @throws CategoryNotLeafException 최하위 카테고리가 아닌 경우
+     * @throws InvalidCategoryOptionException 추가 항목이 옵션 정의와 맞지 않거나 필수 항목이 빠진 경우
      */
     @Transactional
     public ProductResponse saveDirect(
@@ -176,6 +184,7 @@ public class ProductService {
         Member member = memberRepository.getReferenceById(memberId);
         Category category = getLeafCategoryOrThrow(request.categoryId());
         Product product = newDirectProduct(member, category, request, imageUrls);
+        product.replaceCategoryOptions(categoryOptionService.resolve(category.getId(), request.categoryOptions()));
         product.changeSuggestedPrice(analysis.suggestedPrice());
         product.changeAnalysisDescription(analysis.analysisDescription());
         Product saved = productRepository.save(product);
@@ -593,12 +602,14 @@ public class ProductService {
      * @throws CategoryNotFoundException 존재하지 않는 카테고리인 경우
      * @throws CategoryNotLeafException 최하위 카테고리가 아닌 경우
      * @throws ProductImageRequiredException 유지할 이미지와 새 파일을 합쳐 1장도 없는 경우
+     * @throws InvalidCategoryOptionException 추가 항목이 옵션 정의와 맞지 않거나 필수 항목이 빠진 경우
      */
     @Transactional(readOnly = true)
     public List<String> validateUpdate(Long memberId, Long productId, ProductUpdateRequest request, int newImageCount) {
         Product product = getProductOrThrow(productId);
         validateRegisteredBy(product, memberId);
         getLeafCategoryOrThrow(request.categoryId());
+        categoryOptionService.resolve(request.categoryId(), request.categoryOptions());
         validateImageCount(request, newImageCount);
         return product.getImages().stream().map(ProductImage::getImageUrl).toList();
     }
@@ -622,6 +633,7 @@ public class ProductService {
      * @throws CategoryNotFoundException 존재하지 않는 카테고리인 경우
      * @throws CategoryNotLeafException 최하위 카테고리가 아닌 경우
      * @throws ProductImageRequiredException 유지할 이미지와 새 이미지를 합쳐 1장도 없는 경우
+     * @throws InvalidCategoryOptionException 추가 항목이 옵션 정의와 맞지 않거나 필수 항목이 빠진 경우
      */
     @Transactional
     public ProductResponse saveUpdate(
@@ -634,6 +646,8 @@ public class ProductService {
         validateRegisteredBy(product, memberId);
         Category category = getLeafCategoryOrThrow(request.categoryId());
         validateImageCount(request, newImageUrls.size());
+        List<SelectedCategoryOption> categoryOptions =
+                categoryOptionService.resolve(category.getId(), request.categoryOptions());
         List<String> imageUrls = Stream.concat(keptImageUrls(request).stream(), newImageUrls.stream())
                 .toList();
         Long previousPrice = product.getPrice();
@@ -652,6 +666,7 @@ public class ProductService {
                 request.tradeMethod(),
                 request.deliveryType(),
                 request.preferredTradeRegion());
+        product.replaceCategoryOptions(categoryOptions);
 
         product.clearImages();
         productRepository.flush();

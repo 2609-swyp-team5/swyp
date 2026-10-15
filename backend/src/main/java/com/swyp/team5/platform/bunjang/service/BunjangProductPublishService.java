@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,8 +13,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.swyp.team5.category.dto.CategoryOptionGroupResponse;
 import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.error.CategoryNotLeafException;
+import com.swyp.team5.category.error.InvalidCategoryOptionException;
+import com.swyp.team5.category.service.CategoryOptionService;
 import com.swyp.team5.notification.service.NotificationService;
 import com.swyp.team5.platform.bunjang.client.BunjangProductUploader;
 import com.swyp.team5.platform.bunjang.dto.BunjangListingForm;
@@ -63,6 +68,7 @@ public class BunjangProductPublishService {
     private final BunjangProductUploader bunjangProductUploader;
     private final TransactionTemplate transactionTemplate;
     private final NotificationService notificationService;
+    private final CategoryOptionService categoryOptionService;
 
     /**
      * @throws MemberPlatformNotFoundException 번개장터 세션이 연동되어 있지 않은 경우
@@ -70,6 +76,7 @@ public class BunjangProductPublishService {
      * @throws ProductNotFoundException 존재하지 않는 상품인 경우
      * @throws ProductAccessDeniedException 본인이 등록한 상품이 아닌 경우
      * @throws CategoryNotLeafException 상품 카테고리가 최하위가 아닌 경우
+     * @throws InvalidCategoryOptionException 카테고리별 필수 추가 항목(사이즈 등)이 빠진 경우(기능 추가 전·AI 등록 상품)
      * @throws ProductPlatformAlreadyLinkedException 이미 번개장터에 게시된 상품인 경우
      * @throws ProductPlatformPublishInProgressException 같은 상품의 등록이 이미 진행 중인 경우
      * @throws PlatformPublishFailedException 번개장터 화면 입력/등록 요청이 실패한 경우
@@ -98,6 +105,14 @@ public class BunjangProductPublishService {
         if (!product.getCategory().isLeaf()) {
             throw new CategoryNotLeafException(product.getCategory().getId());
         }
+        // 번개장터는 카테고리별 필수 항목(사이즈 등)이 비면 등록 버튼이 막히므로 브라우저를 띄우기 전에 거절한다
+        categoryOptionService
+                .findMissingRequired(product.getCategory().getId(), product.getCategoryOptions())
+                .ifPresent(group -> {
+                    throw new InvalidCategoryOptionException(
+                            "번개장터에 올리려면 '" + group.name() + "' 항목이 필요해요. 상품 수정에서 입력한 뒤 다시 시도해 주세요.",
+                            "productId=" + productId + ", missingGroupId=" + group.groupId());
+                });
 
         ProductPlatform productPlatform = productPlatformRepository
                 .findByProductIdAndMemberPlatformId(productId, memberPlatform.getId())
@@ -158,7 +173,24 @@ public class BunjangProductPublishService {
                 directTrade,
                 directTrade ? product.getPreferredTradeRegion() : null,
                 product.getDeliveryType() == DeliveryType.INCLUDED,
-                imageUrls);
+                imageUrls,
+                categoryOptions(product));
+    }
+
+    /** 저장된 추가 항목에 번개장터 화면의 항목 버튼 문구(옵션 정의의 {@code title})를 붙인다. */
+    private List<BunjangListingForm.Option> categoryOptions(Product product) {
+        Map<String, String> titles = categoryOptionService
+                .getOptions(product.getCategory().getId())
+                .stream()
+                .collect(Collectors.toMap(CategoryOptionGroupResponse::groupId, CategoryOptionGroupResponse::title));
+        return product.getCategoryOptions().stream()
+                .map(option -> new BunjangListingForm.Option(
+                        option.groupName(),
+                        titles.getOrDefault(option.groupId(), option.groupName()),
+                        option.childName(),
+                        option.type(),
+                        option.value()))
+                .toList();
     }
 
     /** 우리 카테고리는 번개장터 카테고리 트리와 같으므로(V13), 대분류부터의 이름 경로를 그대로 클릭한다. */

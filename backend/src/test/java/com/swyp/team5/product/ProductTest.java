@@ -46,7 +46,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.jayway.jsonpath.JsonPath;
+import com.swyp.team5.category.dto.CategoryOptionSelection;
 import com.swyp.team5.category.entity.Category;
+import com.swyp.team5.category.entity.SelectedCategoryOption;
 import com.swyp.team5.category.repository.CategoryRepository;
 import com.swyp.team5.common.passport.JwtTokenProvider;
 import com.swyp.team5.file.dto.FileUploadResponse;
@@ -264,6 +266,67 @@ class ProductTest extends IntegrationTest {
         assertThat(updated.at("/data/suggestedPrice").asLong()).isEqualTo(470_000L); // 사용자 수정으로는 바뀌지 않음
     }
 
+    // 카테고리별 추가 항목 - 필수 항목(사이즈)이 있는 카테고리는 빠지면 업로드 전에 400, 입력하면 항목·값 이름과 함께 저장되고
+    // 상세 조회에 포함되며, 수정하면 통째로 교체됨
+    @Test
+    void categoryOptionsAreValidatedStoredAndReplaced() throws Exception {
+        Long clothingId = bunjangCategoryId("310250"); // 의류 리프 — 필수 사이즈(공용 M = 5, L = 6)
+        ProductCreateRequest missing = createRequest(clothingId);
+
+        mockMvc.perform(multipart("/products")
+                        .file(imagePart())
+                        .file(requestPart(missing))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_INPUT_VALUE"))
+                .andExpect(jsonPath("$.message").value("사이즈를 선택해 주세요."));
+
+        ProductCreateRequest request = withCategoryOptions(missing, new CategoryOptionSelection("100", 5L, null));
+        JsonNode created = performStream(multipart("/products")
+                .file(imagePart())
+                .file(requestPart(request))
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken));
+        Long productId = created.at("/data/id").asLong();
+        assertThat(created.at("/data/categoryOptions/0/value").asText()).isEqualTo("M");
+
+        mockMvc.perform(get("/products/{productId}", productId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.categoryOptions[0].groupId").value("100"))
+                .andExpect(jsonPath("$.data.categoryOptions[0].groupName").value("사이즈"))
+                .andExpect(jsonPath("$.data.categoryOptions[0].childName").value("공용 사이즈"))
+                .andExpect(jsonPath("$.data.categoryOptions[0].type").value("SINGLE_SELECT"))
+                .andExpect(jsonPath("$.data.categoryOptions[0].valueId").value(5));
+
+        ProductUpdateRequest base = updateRequest(clothingId, ProductStatus.ON_SALE);
+        mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{productId}", productId)
+                        .file(requestPart(base))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("사이즈를 선택해 주세요."));
+
+        JsonNode updated = performStream(multipart(HttpMethod.PATCH, "/products/{productId}", productId)
+                .file(requestPart(withCategoryOptions(base, new CategoryOptionSelection("100", 6L, null))))
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken));
+        assertThat(updated.at("/data/categoryOptions").size()).isEqualTo(1);
+        assertThat(updated.at("/data/categoryOptions/0/value").asText()).isEqualTo("L");
+        assertThat(productRepository.findById(productId).orElseThrow().getCategoryOptions())
+                .extracting(SelectedCategoryOption::value)
+                .containsExactly("L");
+    }
+
+    // 카테고리별 추가 항목 - 추가 항목이 없는 카테고리는 입력 없이 등록되고 응답은 빈 목록
+    @Test
+    void categoryOptionsAreEmptyForCategoryWithoutOptions() throws Exception {
+        JsonNode created = performStream(multipart("/products")
+                .file(imagePart())
+                .file(requestPart(createRequest(category.getId())))
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken));
+
+        assertThat(created.at("/data/categoryOptions").isArray()).isTrue();
+        assertThat(created.at("/data/categoryOptions").size()).isZero();
+    }
+
     // 상품 등록 실패 - 인증 없음
     @Test
     void createFailsWithoutAuthentication() throws Exception {
@@ -290,7 +353,8 @@ class ProductTest extends IntegrationTest {
                 null,
                 null,
                 List.of(),
-                List.of());
+                List.of(),
+                null);
 
         mockMvc.perform(multipart("/products")
                         .file(imagePart())
@@ -341,7 +405,8 @@ class ProductTest extends IntegrationTest {
                 null,
                 null,
                 List.of(),
-                List.of());
+                List.of(),
+                null);
 
         mockMvc.perform(multipart("/products")
                         .file(imagePart())
@@ -368,7 +433,8 @@ class ProductTest extends IntegrationTest {
                 null,
                 null,
                 List.of(),
-                List.of());
+                List.of(),
+                null);
 
         mockMvc.perform(multipart("/products")
                         .file(imagePart())
@@ -1088,7 +1154,8 @@ class ProductTest extends IntegrationTest {
                 base.preferredTradeRegion(),
                 List.of(),
                 base.tags(),
-                base.includedItems());
+                base.includedItems(),
+                null);
 
         mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{productId}", productId)
                         .file(requestPart(request))
@@ -1536,6 +1603,57 @@ class ProductTest extends IntegrationTest {
                 "data", "data.json", MediaType.APPLICATION_JSON_VALUE, objectMapper.writeValueAsBytes(request));
     }
 
+    private Long bunjangCategoryId(String bunjangCategoryId) {
+        return categoryPlatformRepository.findAll().stream()
+                .filter(mapping -> mapping.getExternalCategoryId().equals(bunjangCategoryId))
+                .findFirst()
+                .orElseThrow()
+                .getCategory()
+                .getId();
+    }
+
+    private static ProductCreateRequest withCategoryOptions(
+            ProductCreateRequest r, CategoryOptionSelection... options) {
+        return new ProductCreateRequest(
+                r.categoryId(),
+                r.title(),
+                r.brand(),
+                r.description(),
+                r.price(),
+                r.condition(),
+                r.defectStatus(),
+                r.purchasedMonths(),
+                r.allowPriceSuggestion(),
+                r.tradeMethod(),
+                r.deliveryType(),
+                r.preferredTradeRegion(),
+                r.tags(),
+                r.includedItems(),
+                List.of(options));
+    }
+
+    private static ProductUpdateRequest withCategoryOptions(
+            ProductUpdateRequest r, CategoryOptionSelection... options) {
+        return new ProductUpdateRequest(
+                r.categoryId(),
+                r.title(),
+                r.brand(),
+                r.description(),
+                r.price(),
+                r.status(),
+                r.condition(),
+                r.defectStatus(),
+                r.purchasedMonths(),
+                r.allowPriceSuggestion(),
+                r.tradeMethod(),
+                r.deliveryType(),
+                r.preferredTradeRegion(),
+                r.imageUrls(),
+                r.tags(),
+                r.includedItems(),
+                List.of(options));
+    }
+
     private ProductCreateRequest createRequest(Long categoryId) {
         return createRequest(categoryId, "아이폰 13");
     }
@@ -1555,7 +1673,8 @@ class ProductTest extends IntegrationTest {
                 null,
                 "서울시 강남구",
                 List.of(),
-                List.of());
+                List.of(),
+                null);
     }
 
     private ProductUpdateRequest updateRequest(Long categoryId, ProductStatus status) {
@@ -1575,7 +1694,8 @@ class ProductTest extends IntegrationTest {
                 null,
                 List.of("https://image.example.com/2.png"),
                 List.of(),
-                List.of("케이블"));
+                List.of("케이블"),
+                null);
     }
 
     private Category createChildCategory(Category parent) {

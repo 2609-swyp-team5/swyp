@@ -561,7 +561,8 @@ class ProductStreamTest extends IntegrationTest {
                 null,
                 keptImageUrls,
                 List.of(),
-                List.of("케이블"));
+                List.of("케이블"),
+                null);
     }
 
     private MockMultipartHttpServletRequestBuilder aiRequest() {
@@ -602,7 +603,8 @@ class ProductStreamTest extends IntegrationTest {
                 null,
                 "서울시 강남구",
                 List.of(),
-                List.of());
+                List.of(),
+                null);
     }
 
     private static org.assertj.core.groups.Tuple tuple(Object... values) {
