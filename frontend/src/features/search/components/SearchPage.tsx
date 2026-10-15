@@ -110,7 +110,7 @@ export function SearchPage() {
                 price={interestDialogPrice}
             />
             <SearchBar keyword={keyword} onKeywordChange={setKeyword} onSearch={submitSearch} />
-            <div className="layout-container flex flex-col items-start gap-8 py-[60px] xl:flex-row xl:gap-[60px]">
+            <div className="layout-container flex flex-col items-start gap-6 py-6 md:gap-8 md:py-[60px] xl:flex-row xl:gap-[60px]">
                 <SearchFilters
                     key={filtersKey}
                     filters={filters}

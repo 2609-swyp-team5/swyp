@@ -63,17 +63,24 @@ test("my pages share navigation and fit a mobile content area", async ({ page })
         expect(await main.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
             true,
         );
-        await expect(
-            page
-                .getByRole("navigation", { name: "마이페이지 메뉴" })
-                .getByRole("link", { name: "비밀번호 변경" }),
-        ).toHaveAttribute("href", "/my/password");
-        await expect(
-            page
-                .getByRole("navigation", { name: "마이페이지 메뉴" })
-                .getByRole("button", { name: "로그아웃", exact: true }),
-        ).toBeVisible();
+        if (path === "/my") continue;
+        await expect(page.getByRole("link", { name: "마이페이지", exact: true })).toHaveAttribute(
+            "href",
+            "/my",
+        );
+        await expect(page.getByRole("navigation", { name: "마이페이지 메뉴" })).toBeHidden();
     }
+    await page.goto("/my");
+    await expect(
+        page
+            .getByRole("navigation", { name: "마이페이지 메뉴" })
+            .getByRole("link", { name: "비밀번호 변경" }),
+    ).toHaveAttribute("href", "/my/password");
+    await expect(
+        page
+            .getByRole("navigation", { name: "마이페이지 메뉴" })
+            .getByRole("button", { name: "로그아웃", exact: true }),
+    ).toBeVisible();
 });
 
 test("home greets the member returned by the API", async ({ page }) => {
@@ -418,7 +425,8 @@ test("product table keeps headers during status loading and fits narrow screens"
     const headerBox = await page.locator("thead").boundingBox();
     for (const width of [1440, 1024, 768, 390]) {
         await page.setViewportSize({ width, height: 1000 });
-        await expect(headers).toHaveCount(5);
+        // 휴대폰은 카드 목록이라 열 이름을 숨긴다.
+        await expect(headers).toHaveCount(width >= 768 ? 5 : 0);
         if (width === 1440) {
             expect(
                 await page

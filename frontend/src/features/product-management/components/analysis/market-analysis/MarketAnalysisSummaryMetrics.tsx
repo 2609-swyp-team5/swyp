@@ -52,13 +52,17 @@ export function MarketAnalysisSummaryMetrics({
                   ];
 
         return (
-            <div className="flex min-h-[101px] w-full items-center rounded-[10px] border border-[#d3d3d3] bg-white px-[10px] py-5">
+            // 휴대폰은 세 값이 한 줄에 들어가지 않아 "이름 — 값" 세로 목록으로 보여준다.
+            <div className="flex w-full flex-col divide-y divide-[#f1f1f1] rounded-[10px] border border-[#d3d3d3] bg-white px-4 py-1 md:min-h-[101px] md:flex-row md:items-center md:divide-y-0 md:px-[10px] md:py-5">
                 {metrics.map((metric, index) => (
                     <Fragment key={metric.label}>
                         {index > 0 ? (
-                            <Separator orientation="vertical" className="h-[52px]" />
+                            <Separator
+                                orientation="vertical"
+                                className="hidden h-[52px] md:block"
+                            />
                         ) : null}
-                        <div className="flex min-w-0 flex-1 flex-col items-center justify-center text-center">
+                        <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-3 py-3 md:flex-col md:flex-nowrap md:justify-center md:py-0 md:text-center">
                             <span
                                 className={`typography-body-small break-keep ${metric.valueClassName ?? "text-[#6b6c7b]"}`}
                             >
@@ -70,7 +74,7 @@ export function MarketAnalysisSummaryMetrics({
                                 {metric.value}
                             </strong>
                             {metric.supportingText ? (
-                                <span className="typography-caption text-[#a9adbd]">
+                                <span className="typography-caption w-full text-right text-[#a9adbd] md:w-auto md:text-center">
                                     {metric.supportingText}
                                 </span>
                             ) : null}

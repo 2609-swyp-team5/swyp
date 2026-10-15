@@ -79,7 +79,7 @@ function AnalysisHeader({
             {analysisRetry?.request ? (
                 <button
                     type="button"
-                    className="typography-body-small flex h-[31px] shrink-0 cursor-pointer items-center justify-center gap-[5px] rounded-[50px] border-[0.5px] border-[#83889e] px-[15px] py-[5px] text-[#83889e] disabled:cursor-wait disabled:opacity-50"
+                    className="typography-body-small flex h-10 shrink-0 cursor-pointer items-center justify-center gap-[5px] rounded-[50px] border-[0.5px] border-[#83889e] px-4 py-[5px] text-[#83889e] disabled:cursor-wait disabled:opacity-50 md:h-[31px] md:px-[15px]"
                     disabled={analysisRetry.isFetching}
                     onClick={() => void onRequest?.()}
                 >
@@ -105,7 +105,7 @@ function RetryButton({
     return (
         <button
             type="button"
-            className="typography-body-bold-small rounded-full border border-[#6653fb] px-5 py-2 font-semibold text-[#6653fb] disabled:cursor-wait disabled:opacity-50"
+            className="typography-body-bold-small min-h-11 rounded-full border border-[#6653fb] px-5 py-2 font-semibold text-[#6653fb] disabled:cursor-wait disabled:opacity-50 md:min-h-0"
             disabled={analysisRetry.isFetching}
             onClick={() => void analysisRetry.refetch()}
         >
@@ -159,7 +159,7 @@ function SoldAnalysisTrigger({ onClick }: { onClick: () => void }) {
                 className="flex w-full items-start justify-between gap-3 text-left md:gap-5"
                 onClick={onClick}
             >
-                <span className="flex min-w-0 flex-col gap-2.5">
+                <span className="flex min-w-0 flex-1 flex-col gap-2.5">
                     <span className="typography-heading-bold flex items-center gap-2 font-semibold break-keep text-[#363636] md:gap-2.5">
                         <Sparkles aria-hidden="true" className="size-5 fill-[#363636]" />
                         상세 시세 분석 보기

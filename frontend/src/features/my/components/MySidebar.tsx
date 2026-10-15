@@ -26,7 +26,7 @@ const MY_NAVIGATION = [
     { href: "/my/password", label: "비밀번호 변경" },
 ] as const;
 
-export function MySidebar() {
+export function MySidebar({ className }: { className?: string }) {
     const pathname = usePathname();
     const { data: member } = useMeQuery();
     const [errorMessage, setErrorMessage] = useState("");
@@ -39,7 +39,12 @@ export function MySidebar() {
     };
 
     return (
-        <aside className="flex flex-col bg-[#fafbff] py-8 lg:w-[min(28vw,400px)] lg:shrink-0 lg:py-[50px]">
+        <aside
+            className={cn(
+                "flex flex-col bg-[#fafbff] py-8 lg:w-[min(28vw,400px)] lg:shrink-0 lg:py-[50px]",
+                className,
+            )}
+        >
             <div className="flex flex-col items-center gap-5 border-b border-[#dedee6] px-6 pb-6">
                 <ProfileAvatar src={member?.profileImageUrl} size="sidebar" />
                 <div className="flex w-fit flex-col items-start">

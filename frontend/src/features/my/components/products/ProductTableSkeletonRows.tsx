@@ -1,7 +1,7 @@
 import { Skeleton } from "@/common/components/ui/Skeleton";
 import { TableCell, TableRow } from "@/common/components/ui/Table";
 
-const cellClassName = "px-5 py-5";
+const cellClassName = "block px-4 py-2 md:table-cell md:px-5 md:py-5";
 
 export function ProductTableSkeletonRows({
     count,
@@ -12,7 +12,10 @@ export function ProductTableSkeletonRows({
     statusLabel?: string;
 }) {
     return Array.from({ length: count }, (_, index) => (
-        <TableRow key={index} className="border-[#d3d3d3] hover:bg-transparent">
+        <TableRow
+            key={index}
+            className="block border-[#d3d3d3] py-2 hover:bg-transparent md:table-row md:py-0"
+        >
             <TableCell className={cellClassName}>
                 {index === 0 && statusLabel && (
                     <p role="status" className="sr-only">

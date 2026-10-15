@@ -117,7 +117,7 @@ export function MarketAnalysisContent({
                         className="flex w-full items-start justify-between gap-3 text-left md:gap-5"
                         onClick={() => onDetailsOpenChange?.(!isDetailsOpen)}
                     >
-                        <span className="flex min-w-0 flex-col gap-2.5">
+                        <span className="flex min-w-0 flex-1 flex-col gap-2.5">
                             <span className="typography-heading-bold flex items-center gap-2 font-semibold break-keep text-[#363636] md:gap-2.5">
                                 <Sparkles aria-hidden="true" className="size-5 fill-[#363636]" />
                                 상세 시세 분석 보기

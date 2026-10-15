@@ -96,7 +96,8 @@ test("responsive filters retain selection and request conditions after collapsin
         await filters.screenshot({ path: testInfo.outputPath(`filters-${width}.png`) });
     }
     await page.setViewportSize({ width: 390, height: 900 });
-    await toggle.click();
+    // 휴대폰은 하단 시트라 "결과 보기"로 닫는다.
+    await filters.getByRole("button", { name: "결과 보기", exact: true }).click();
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
     await expect(page.getByRole("heading", { name: "전체 상품", exact: true })).toBeVisible();
     await toggle.click();

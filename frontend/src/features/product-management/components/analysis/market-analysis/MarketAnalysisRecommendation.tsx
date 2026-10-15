@@ -35,7 +35,8 @@ export function MarketAnalysisRecommendation({
 
     if (variant === "management") {
         return (
-            <div className="grid min-h-[183px] gap-2.5 lg:grid-cols-[minmax(0,1fr)_198px]">
+            // 좁은 화면은 캐릭터를 작게 줄여 제목 오른쪽에 둔다(큰 캐릭터가 세로 공간을 차지하지 않게).
+            <div className="relative grid gap-2.5 lg:min-h-[183px] lg:grid-cols-[minmax(0,1fr)_198px]">
                 <div className="flex min-w-0 flex-col justify-center gap-[13px] py-5">
                     <span
                         className={cn(
@@ -46,7 +47,7 @@ export function MarketAnalysisRecommendation({
                         {analysis.recommendation}
                     </span>
                     <div className="flex flex-col gap-[10px]">
-                        <h3 className="typography-heading-bold font-semibold text-[#363636]">
+                        <h3 className="typography-heading-bold pr-[80px] font-semibold break-keep text-[#363636] lg:pr-0">
                             {copy.title}
                         </h3>
                         <p className="typography-body-medium max-w-[414px] text-[#363636]">
@@ -54,13 +55,13 @@ export function MarketAnalysisRecommendation({
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center justify-center">
+                <div className="absolute top-3 right-0 flex items-center justify-center lg:static">
                     <Image
                         src={copy.image}
                         alt="AI 시세 분석 캐릭터"
                         width={198}
                         height={183}
-                        className="h-[183px] w-[198px] object-contain"
+                        className="size-[72px] object-contain lg:h-[183px] lg:w-[198px]"
                     />
                 </div>
             </div>
@@ -68,7 +69,7 @@ export function MarketAnalysisRecommendation({
     }
 
     return (
-        <div className="grid min-h-[300px] gap-[30px] bg-white p-[30px] lg:grid-cols-2">
+        <div className="relative grid gap-[30px] bg-white p-5 md:p-[30px] lg:min-h-[300px] lg:grid-cols-2">
             <div className="flex min-w-0 flex-col justify-center gap-5">
                 <span
                     className={cn(
@@ -79,19 +80,21 @@ export function MarketAnalysisRecommendation({
                     {analysis.recommendation}
                 </span>
                 <div>
-                    <h3 className="typography-heading-02 font-bold text-[#363636]">{copy.title}</h3>
+                    <h3 className="typography-heading-02 pr-[80px] font-bold break-keep text-[#363636] lg:pr-0">
+                        {copy.title}
+                    </h3>
                     <p className="typography-body-medium mt-[10px] max-w-[430px] text-[#363636]">
                         {analysis.description}
                     </p>
                 </div>
             </div>
-            <div className="relative grid min-h-[274px] place-items-center">
+            <div className="absolute top-4 right-4 grid place-items-center md:top-6 md:right-6 lg:relative lg:top-auto lg:right-auto lg:min-h-[274px]">
                 <Image
                     src={copy.image}
                     alt="AI 시세 분석 캐릭터"
                     width={274}
                     height={274}
-                    className="size-[274px] object-contain"
+                    className="size-[72px] object-contain lg:size-[274px]"
                 />
             </div>
         </div>
