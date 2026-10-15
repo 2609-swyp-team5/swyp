@@ -58,8 +58,11 @@ export function HomePage() {
                 return;
             }
         }
+        // AI 검색은 지금이니 AI 대화의 첫 질문으로 보낸다(검색 화면에는 AI 모드가 없다)
         router.push(
-            `/search?keyword=${encodeURIComponent(value.trim())}${searchMode === "ai" ? "&mode=ai" : ""}`,
+            searchMode === "ai"
+                ? `/ai?q=${encodeURIComponent(value.trim())}`
+                : `/search?keyword=${encodeURIComponent(value.trim())}`,
         );
     };
     const handleSearch = (event: FormEvent<HTMLFormElement>) => {

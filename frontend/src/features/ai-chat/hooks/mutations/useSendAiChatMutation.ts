@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { aiChatApi, type AiChatStreamHandlers } from "../../api/aiChatApi";
 import { aiChatQueryKey, aiChatsQueryKey } from "../../queryKeys";
-import type { AiChatSearchResult } from "../../schemas/aiChatSchema";
+import type { AiChatDetail, AiChatSearchResult } from "../../schemas/aiChatSchema";
 
 /** 스트림으로 받는 중인 답변 — 완료되면 대화 조회 결과로 바뀐다. */
 export type AiChatLiveAnswer = {
@@ -47,12 +47,27 @@ export function useSendAiChatMutation(onDone?: (chatId: number) => void) {
                 ? aiChatApi.startChat(question, handlers)
                 : aiChatApi.askInChat(chatId, question, handlers);
         },
-        onSuccess: async (answer) => {
-            await Promise.all([
-                queryClient.invalidateQueries({ queryKey: aiChatsQueryKey }),
-                queryClient.invalidateQueries({ queryKey: aiChatQueryKey(answer.chatId) }),
-            ]);
+        onSuccess: async (answer, { answerId }) => {
+            const refresh = () =>
+                Promise.all([
+                    queryClient.invalidateQueries({ queryKey: aiChatsQueryKey }),
+                    queryClient.invalidateQueries({ queryKey: aiChatQueryKey(answer.chatId) }),
+                ]);
+            // 다시 만들기는 뒤 메시지가 바뀌므로 서버 내용을 받은 뒤 바꾼다
+            if (answerId !== null) {
+                await refresh();
+                onDone?.(answer.chatId);
+                return;
+            }
+            // 새 질문은 완료 이벤트의 질문·답변을 먼저 채워 두고 대화로 바꾼다 — 새 대화가 처음부터 조회되는 동안
+            // 답변이 사라졌다 다시 나타나지 않게 한다. 서버 내용은 뒤에서 다시 받는다
+            queryClient.setQueryData<AiChatDetail>(aiChatQueryKey(answer.chatId), (prev) => ({
+                chatId: answer.chatId,
+                title: prev?.title ?? answer.title,
+                messages: [...(prev?.messages ?? []), answer.question, answer.answer],
+            }));
             onDone?.(answer.chatId);
+            void refresh();
         },
         onSettled: () => setLive(emptyLive),
     });

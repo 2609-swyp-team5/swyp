@@ -1,7 +1,8 @@
 "use client";
 
 import { ArrowLeft, MessagesSquare, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { cn } from "@/common/lib/utils";
@@ -21,6 +22,7 @@ type Sending = { question: string; fromAnswerId: number | null };
 /**
  * 지금이니 AI — 첫 화면(질문·추천 질문·타이밍 알림)과 대화 화면(최근 대화 목록 + 질문·답변).
  * 답변은 스트림으로 받아 진행 단계 → 분석 카드·추천 상품 → 문장 순으로 그린다.
+ * `/ai?q=질문`으로 들어오면(홈 AI 검색) 그 질문으로 새 대화를 바로 시작한다.
  */
 export function AiChatPage() {
     const [activeChatId, setActiveChatId] = useState<number | null>(null);
@@ -53,6 +55,20 @@ export function AiChatPage() {
             { onSettled: () => setSending(null) },
         );
     };
+
+    // 주소의 첫 질문은 한 번만 보내고, 새로고침해도 다시 보내지 않도록 주소에서 지운다
+    const router = useRouter();
+    const initialQuestion = useSearchParams().get("q")?.trim() ?? "";
+    const initialQuestionSent = useRef(false);
+    useEffect(() => {
+        if (!initialQuestion || initialQuestionSent.current) {
+            return;
+        }
+        initialQuestionSent.current = true;
+        router.replace("/ai");
+        submit(initialQuestion);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- 첫 진입 때 한 번만
+    }, [initialQuestion]);
 
     const openChat = (chatId: number) => {
         setActiveChatId(chatId);
