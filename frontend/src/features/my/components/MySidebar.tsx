@@ -20,6 +20,7 @@ const MY_NAVIGATION = [
     { href: "/my/settings", label: "사용자 정보 설정" },
     { href: "/my/notifications", label: "알림 설정" },
     { href: "/my/products", label: "등록된 상품 확인" },
+    { href: "/buy/wishlist", label: "관심 상품" },
     { href: "/my/platforms", label: "플랫폼 별 연동 확인" },
     { href: "/my/withdraw", label: "회원 탈퇴" },
     { href: "/my/password", label: "비밀번호 변경" },

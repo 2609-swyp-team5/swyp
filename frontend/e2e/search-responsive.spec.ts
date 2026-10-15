@@ -33,7 +33,7 @@ test("phones use the bottom tab bar and tablets use the header menu", async ({
     await expect(tabBar).toBeHidden();
     await toggle.click();
     const menu = page.getByRole("navigation", { name: "모바일 주요 메뉴" });
-    await expect(menu.getByRole("link")).toHaveCount(6);
+    await expect(menu.getByRole("link")).toHaveCount(7);
     await expect(menu.getByRole("link", { name: "검색", exact: true })).toHaveAttribute(
         "aria-current",
         "page",
@@ -49,7 +49,7 @@ test("phones use the bottom tab bar and tablets use the header menu", async ({
     await page.setViewportSize({ width: 1440, height: 900 });
     await expect(
         page.getByRole("navigation", { name: "주요 메뉴", exact: true }).getByRole("link"),
-    ).toHaveCount(6);
+    ).toHaveCount(7);
     await expect(toggle).toBeHidden();
     await expect(tabBar).toBeHidden();
 });
