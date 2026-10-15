@@ -49,6 +49,8 @@ import com.swyp.team5.product.dto.ProductAiAnalysisResult;
 import com.swyp.team5.product.dto.ProductCreateRequest;
 import com.swyp.team5.product.dto.ProductUpdateRequest;
 import com.swyp.team5.product.entity.DefectStatus;
+import com.swyp.team5.product.entity.DeliveryType;
+import com.swyp.team5.product.entity.IncludedStatus;
 import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
@@ -288,6 +290,10 @@ class ProductStreamTest extends IntegrationTest {
         mockMvc.perform(multipart("/products/analyze")
                         .file(new MockMultipartFile("images", "empty.png", "image/png", new byte[0]))
                         .param("defectStatus", "NORMAL")
+                        .param("condition", "A")
+                        .param("includedStatus", "ALL")
+                        .param("tradeMethod", "DIRECT")
+                        .param("preferredTradeRegion", "서울시 강남구")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
                         .accept(MediaType.TEXT_EVENT_STREAM))
                 .andExpect(status().isBadRequest())
@@ -549,7 +555,7 @@ class ProductStreamTest extends IntegrationTest {
                 category.getId(),
                 "아이폰 13 프로",
                 "애플",
-                "수정된 설명",
+                "수정된 상품 설명입니다",
                 450_000L,
                 ProductStatus.SOLD_OUT,
                 ProductCondition.B,
@@ -557,11 +563,13 @@ class ProductStreamTest extends IntegrationTest {
                 1,
                 false,
                 TradeMethod.DELIVERY,
-                null,
+                DeliveryType.INCLUDED,
                 null,
                 keptImageUrls,
                 List.of(),
                 List.of("케이블"),
+                null,
+                IncludedStatus.ALL,
                 null);
     }
 
@@ -569,6 +577,10 @@ class ProductStreamTest extends IntegrationTest {
         return (MockMultipartHttpServletRequestBuilder) multipart("/products/analyze")
                 .file(imagePart())
                 .param("defectStatus", "NORMAL")
+                .param("condition", "A")
+                .param("includedStatus", "ALL")
+                .param("tradeMethod", "DIRECT")
+                .param("preferredTradeRegion", "서울시 강남구")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken)
                 .accept(MediaType.TEXT_EVENT_STREAM);
     }
@@ -579,13 +591,29 @@ class ProductStreamTest extends IntegrationTest {
 
     private static ProductAiAnalysisResult analysis(Long categoryId) {
         return new ProductAiAnalysisResult(
-                categoryId, "AI 제목", "애플", "AI 설명", ProductCondition.A, 470_000L, "판단 근거", List.of(), List.of());
+                categoryId,
+                "AI 제목",
+                "애플",
+                "AI가 분석한 상품 설명입니다",
+                ProductCondition.A,
+                470_000L,
+                "판단 근거",
+                List.of(),
+                List.of());
     }
 
     /** 수정 시 재분석 결과(제안가·근거가 등록 때와 다름). */
     private static ProductAiAnalysisResult reanalysis(Long categoryId) {
         return new ProductAiAnalysisResult(
-                categoryId, "AI 제목", "애플", "AI 설명", ProductCondition.B, 430_000L, "스크래치 추가 확인", List.of(), List.of());
+                categoryId,
+                "AI 제목",
+                "애플",
+                "AI가 분석한 상품 설명입니다",
+                ProductCondition.B,
+                430_000L,
+                "스크래치 추가 확인",
+                List.of(),
+                List.of());
     }
 
     private static ProductCreateRequest createRequest(Long categoryId) {
@@ -593,7 +621,7 @@ class ProductStreamTest extends IntegrationTest {
                 categoryId,
                 "아이폰 13",
                 "애플",
-                "설명",
+                "상품 설명 테스트입니다",
                 500_000L,
                 ProductCondition.A,
                 DefectStatus.NORMAL,
@@ -604,6 +632,8 @@ class ProductStreamTest extends IntegrationTest {
                 "서울시 강남구",
                 List.of(),
                 List.of(),
+                null,
+                IncludedStatus.ALL,
                 null);
     }
 

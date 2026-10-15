@@ -12,7 +12,7 @@ import com.swyp.team5.category.entity.CategoryOptionType;
  * @param groupId 항목 ID(상품 등록·수정 요청의 {@code categoryOptions[].groupId})
  * @param name 항목 이름(예: "사이즈")
  * @param title 입력 안내 문구(예: "사이즈를 선택해 주세요")
- * @param required 필수 여부(필수 항목이 빠지면 등록·수정·번개장터 게시가 거절됨)
+ * @param required 필수 여부(안전한 기본값이 없는 필수 항목이 빠지면 등록·수정·번개장터 게시가 거절됨)
  * @param tooltip 항목 설명(없으면 생략)
  * @param guide 입력 예시 문구(없으면 생략)
  */

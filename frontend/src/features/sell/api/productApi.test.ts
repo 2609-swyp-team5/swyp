@@ -65,9 +65,6 @@ const completeEvent = () => ({
         price: 800000,
         status: "ON_SALE",
         condition: "B",
-        defectStatus: "NORMAL",
-        purchasedAt: null,
-        purchasedMonths: 6,
         includedItems: [],
         allowPriceSuggestion: false,
         tradeMethod: "DIRECT",
@@ -314,19 +311,16 @@ describe("productApi", () => {
             request: {
                 categoryId: 12,
                 title: "아이패드 프로 11인치",
-                brand: "Apple",
                 description: "스크래치가 거의 없습니다.",
                 price: 800000,
                 condition: "B",
-                defectStatus: "NORMAL",
-                purchasedMonths: 6,
-                includedItems: ["body", "charging-cable"],
+                includedStatus: "ALL",
                 allowPriceSuggestion: false,
                 tradeMethod: "DIRECT",
                 deliveryType: null,
+                deliveryFee: null,
                 preferredTradeRegion: "서울 강남구",
                 tags: ["애플", "아이패드"],
-                categoryOptions: [{ groupId: "100", valueId: 5, text: null }],
             },
         });
 
@@ -346,10 +340,9 @@ describe("productApi", () => {
         expect(requestPart).toBeInstanceOf(Blob);
         expect(JSON.parse(await readBlob(requestPart as Blob))).toMatchObject({
             categoryId: 12,
-            brand: "Apple",
-            includedItems: ["body", "charging-cable"],
+            includedStatus: "ALL",
+            deliveryFee: null,
             tags: ["애플", "아이패드"],
-            categoryOptions: [{ groupId: "100", valueId: 5, text: null }],
             title: "아이패드 프로 11인치",
         });
     });
@@ -362,9 +355,12 @@ describe("productApi", () => {
 
         await productApi.createAiProduct({
             images,
-            purchasedMonths: 6,
-            operationStatus: "normal",
-            includedItems: ["body", "charging-cable"],
+            condition: "A",
+            includedStatus: "PARTIAL",
+            tradeMethod: "DELIVERY",
+            deliveryType: "INCLUDED",
+            deliveryFee: null,
+            preferredTradeRegion: null,
         });
 
         const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -374,9 +370,14 @@ describe("productApi", () => {
             expect.any(Object),
         );
         expect(formData.getAll("images")).toEqual(images);
-        expect(formData.get("purchasedMonths")).toBe("6");
-        expect(formData.get("defectStatus")).toBe("normal");
-        expect(formData.getAll("includedItems")).toEqual(["body", "charging-cable"]);
+        expect(formData.get("purchasedMonths")).toBeNull();
+        expect(formData.get("defectStatus")).toBeNull();
+        expect(formData.get("includedStatus")).toBe("PARTIAL");
+        expect(formData.get("condition")).toBe("A");
+        expect(formData.get("tradeMethod")).toBe("DELIVERY");
+        expect(formData.get("deliveryType")).toBe("INCLUDED");
+        expect(formData.get("deliveryFee")).toBeNull();
+        expect(formData.get("preferredTradeRegion")).toBeNull();
     });
 
     it("passes SSE step messages to the progress handler and resolves on complete", async () => {
@@ -419,9 +420,7 @@ describe("productApi", () => {
             productApi.createAiProduct(
                 {
                     images: [image],
-                    purchasedMonths: null,
-                    operationStatus: "normal",
-                    includedItems: [],
+                    includedStatus: "ALL",
                 },
                 onProgress,
             ),
@@ -462,9 +461,7 @@ describe("productApi", () => {
             productApi.createAiProduct(
                 {
                     images: [image],
-                    purchasedMonths: null,
-                    operationStatus: "normal",
-                    includedItems: [],
+                    includedStatus: "ALL",
                 },
                 onProgress,
             ),
@@ -482,21 +479,21 @@ describe("productApi", () => {
         });
     });
 
-    it("omits purchasedMonths when AI registration purchase period is unknown", async () => {
+    it("sends the selected included status without legacy condition fields", async () => {
         const image = new File(["one"], "one.png", { type: "image/png" });
 
         await productApi.createAiProduct({
             images: [image],
-            purchasedMonths: null,
-            operationStatus: "unknown",
-            includedItems: ["body"],
+            includedStatus: "PARTIAL",
         });
 
         const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
         const formData = request.body as FormData;
 
+        expect(formData.get("includedStatus")).toBe("PARTIAL");
         expect(formData.get("purchasedMonths")).toBeNull();
-        expect(formData.get("defectStatus")).toBe("unknown");
+        expect(formData.get("defectStatus")).toBeNull();
+        expect(formData.get("includedItems")).toBeNull();
     });
 
     it("sends new files and retained image URLs as a multipart update request", async () => {
@@ -529,21 +526,19 @@ describe("productApi", () => {
                 request: {
                     categoryId: 12,
                     title: "수정된 상품명",
-                    brand: "Apple",
-                    description: "수정된 설명",
+                    brand: null,
+                    description: "수정된 상품 설명입니다.",
                     price: 700000,
                     status: "ON_SALE",
                     condition: "A",
-                    purchasedMonths: 3,
-                    defectStatus: "NORMAL",
+                    includedStatus: "ALL",
                     allowPriceSuggestion: true,
                     tradeMethod: "DIRECT",
                     deliveryType: null,
+                    deliveryFee: null,
                     preferredTradeRegion: "서울 강남구",
                     imageUrls: ["https://example.com/retained-image.jpg"],
                     tags: ["애플"],
-                    includedItems: ["body"],
-                    categoryOptions: [],
                 },
             },
             onProgress,
@@ -558,7 +553,7 @@ describe("productApi", () => {
         expect(formData.getAll("images")).toEqual([newImage]);
         expect(requestPart).toBeInstanceOf(Blob);
         expect(JSON.parse(await readBlob(requestPart as Blob))).toMatchObject({
-            purchasedMonths: 3,
+            includedStatus: "ALL",
             imageUrls: ["https://example.com/retained-image.jpg"],
             title: "수정된 상품명",
         });
@@ -571,6 +566,44 @@ describe("productApi", () => {
         });
     });
 
+    it("sends the delivery fee when an edit uses separate shipping", async () => {
+        const image = new File(["image"], "image.jpg", { type: "image/jpeg" });
+
+        fetchMock.mockResolvedValue(sseResponse(completeEvent()));
+
+        await productApi.updateProduct(42, {
+            files: [image],
+            request: {
+                categoryId: 12,
+                title: "수정된 상품명",
+                brand: null,
+                description: "수정된 상품 설명입니다.",
+                price: 700000,
+                status: "ON_SALE",
+                condition: "A",
+                includedStatus: "ALL",
+                allowPriceSuggestion: true,
+                tradeMethod: "DELIVERY",
+                deliveryType: "PREPAID",
+                deliveryFee: 3000,
+                preferredTradeRegion: null,
+                imageUrls: [],
+                tags: ["애플"],
+            },
+        });
+
+        const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
+        const formData = request.body as FormData;
+        const requestPart = formData.get("data");
+
+        expect(JSON.parse(await readBlob(requestPart as Blob))).toMatchObject({
+            tradeMethod: "DELIVERY",
+            deliveryType: "PREPAID",
+            deliveryFee: 3000,
+            preferredTradeRegion: null,
+        });
+    });
+
     it("allows updates that replace every existing image with new files", async () => {
         const newImage = new File(["new image"], "new-image.jpg", { type: "image/jpeg" });
 
@@ -579,21 +612,19 @@ describe("productApi", () => {
             request: {
                 categoryId: 12,
                 title: "수정된 상품명",
-                brand: "Apple",
-                description: "수정된 설명",
+                brand: null,
+                description: "수정된 상품 설명입니다.",
                 price: 700000,
                 status: "ON_SALE",
                 condition: "A",
-                purchasedMonths: null,
-                defectStatus: "NORMAL",
+                includedStatus: "NONE",
                 allowPriceSuggestion: true,
                 tradeMethod: "DIRECT",
                 deliveryType: null,
-                preferredTradeRegion: null,
+                deliveryFee: null,
+                preferredTradeRegion: "서울 강남구",
                 imageUrls: [],
                 tags: [],
-                includedItems: [],
-                categoryOptions: [],
             },
         });
 
@@ -613,21 +644,19 @@ describe("productApi", () => {
                 request: {
                     categoryId: 12,
                     title: "수정된 상품명",
-                    brand: "Apple",
-                    description: "수정된 설명",
+                    brand: null,
+                    description: "수정된 상품 설명입니다.",
                     price: 700000,
                     status: "ON_SALE",
                     condition: "A",
-                    purchasedMonths: null,
-                    defectStatus: "NORMAL",
+                    includedStatus: "NONE",
                     allowPriceSuggestion: true,
                     tradeMethod: "DIRECT",
                     deliveryType: null,
-                    preferredTradeRegion: null,
+                    deliveryFee: null,
+                    preferredTradeRegion: "서울 강남구",
                     imageUrls: [],
                     tags: [],
-                    includedItems: [],
-                    categoryOptions: [],
                 },
             }),
         ).rejects.toThrow("상품 사진을 1장 이상 업로드해주세요.");

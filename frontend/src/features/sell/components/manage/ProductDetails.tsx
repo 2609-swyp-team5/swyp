@@ -1,8 +1,7 @@
 import type { ProductResponse } from "@/features/sell/types";
 import {
     conditionLabels,
-    defectLabels,
-    formatPurchasePeriod,
+    deliveryTypeLabels,
     priceFormatter,
     tradeMethodLabels,
 } from "@/features/sell/components/manage/productReviewUtils";
@@ -21,21 +20,29 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 export function ProductDetails({ product }: { product: ProductResponse }) {
     const description = product.description ?? "등록된 상세 설명이 없습니다.";
     const descriptionLength = product.description?.length ?? 0;
+    const deliveryFee =
+        product.deliveryType === "PREPAID" && product.deliveryFee != null
+            ? ` (${priceFormatter.format(product.deliveryFee)}원)`
+            : "";
     const details = [
+        ["카테고리", product.category.name],
         ["상품 상태", conditionLabels[product.condition]],
-        ["구매 시기", formatPurchasePeriod(product.purchasedMonths)],
         ["구성품", product.includedItems.length > 0 ? product.includedItems.join(", ") : "없음"],
-        ["하자 여부", defectLabels[product.defectStatus]],
+        ["판매 가격", `${priceFormatter.format(product.price)}원`],
+        ["가격 제안", product.allowPriceSuggestion ? "가능" : "불가"],
         ["거래 방식", tradeMethodLabels[product.tradeMethod]],
+        [
+            "거래 희망 지역",
+            product.tradeMethod === "DIRECT"
+                ? (product.preferredTradeRegion ?? "미지정")
+                : "해당 없음",
+        ],
         [
             "배송비",
             product.deliveryType === null
                 ? "해당 없음"
-                : product.deliveryType === "INCLUDED"
-                  ? "포함"
-                  : "별도",
+                : `${deliveryTypeLabels[product.deliveryType]}${deliveryFee}`,
         ],
-        ["판매 가격", `${priceFormatter.format(product.price)}원`],
     ] as const;
 
     return (

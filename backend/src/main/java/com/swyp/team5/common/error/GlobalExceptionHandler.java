@@ -56,8 +56,10 @@ import com.swyp.team5.platform.error.ProductPlatformAlreadyLinkedException;
 import com.swyp.team5.platform.error.ProductPlatformNotFoundException;
 import com.swyp.team5.platform.error.ProductPlatformPublishInProgressException;
 import com.swyp.team5.platform.error.UnsupportedPlatformException;
+import com.swyp.team5.product.error.InvalidProductRequestException;
 import com.swyp.team5.product.error.InvalidProductSearchException;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
+import com.swyp.team5.product.error.ProductImageLimitExceededException;
 import com.swyp.team5.product.error.ProductImageRequiredException;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.error.ProductRegisterBusyException;
@@ -159,6 +161,16 @@ public class GlobalExceptionHandler {
         return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
     }
 
+    @ExceptionHandler(InvalidProductRequestException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidProductRequest(InvalidProductRequestException e) {
+        log.warn("상품 등록·수정 정책 위반: {}", ErrorLogs.describe(e));
+        return errorResponse(
+                HttpStatus.BAD_REQUEST,
+                "INVALID_INPUT_VALUE",
+                e.getMessage(),
+                List.of(new ErrorDetail(e.field(), e.getMessage())));
+    }
+
     @ExceptionHandler(InvalidAiChatCursorException.class)
     public ResponseEntity<ApiResponse<Void>> handleInvalidAiChatCursor(InvalidAiChatCursorException e) {
         log.warn("AI 대화 목록 커서 오류: {}", ErrorLogs.describe(e));
@@ -168,6 +180,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ProductImageRequiredException.class)
     public ResponseEntity<ApiResponse<Void>> handleProductImageRequired(ProductImageRequiredException e) {
         log.warn("상품 이미지 누락: {}", ErrorLogs.describe(e));
+        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
+    }
+
+    @ExceptionHandler(ProductImageLimitExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleProductImageLimitExceeded(ProductImageLimitExceededException e) {
+        log.warn("상품 이미지 개수 초과: {}", ErrorLogs.describe(e));
         return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
     }
 

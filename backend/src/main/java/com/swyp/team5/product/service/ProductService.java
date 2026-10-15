@@ -57,12 +57,17 @@ import com.swyp.team5.product.dto.ProductSearchHit;
 import com.swyp.team5.product.dto.ProductSummaryResponse;
 import com.swyp.team5.product.dto.ProductUpdateRequest;
 import com.swyp.team5.product.entity.DefectStatus;
+import com.swyp.team5.product.entity.DeliveryType;
+import com.swyp.team5.product.entity.IncludedStatus;
 import com.swyp.team5.product.entity.Product;
+import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.ProductImage;
 import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
+import com.swyp.team5.product.error.InvalidProductRequestException;
 import com.swyp.team5.product.error.InvalidProductSearchException;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
+import com.swyp.team5.product.error.ProductImageLimitExceededException;
 import com.swyp.team5.product.error.ProductImageRequiredException;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.event.ProductPriceChangedEvent;
@@ -158,6 +163,10 @@ public class ProductService {
      */
     @Transactional(readOnly = true)
     public void validateCreate(ProductCreateRequest request) {
+        ProductRegistrationPolicy.validateProductFields(
+                request.title(), request.description(), request.price(), request.tags(), request.includedStatus());
+        ProductRegistrationPolicy.validateTrade(
+                request.tradeMethod(), request.deliveryType(), request.deliveryFee(), request.preferredTradeRegion());
         getLeafCategoryOrThrow(request.categoryId());
         categoryOptionService.resolve(request.categoryId(), request.categoryOptions());
     }
@@ -217,10 +226,87 @@ public class ProductService {
             Integer purchasedMonths,
             DefectStatus defectStatus,
             List<String> includedItems) {
+        return saveFromAnalysisInternal(
+                memberId,
+                analysis,
+                imageUrls,
+                purchasedMonths,
+                defectStatus,
+                includedItems,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
+    }
+
+    /** 새 AI 등록 화면의 상태·구성품·거래 방식을 저장한다. */
+    @Transactional
+    public ProductResponse saveFromAnalysis(
+            Long memberId,
+            ProductAiAnalysisResult analysis,
+            List<String> imageUrls,
+            Integer purchasedMonths,
+            DefectStatus defectStatus,
+            List<String> includedItems,
+            ProductCondition selectedCondition,
+            IncludedStatus includedStatus,
+            TradeMethod tradeMethod,
+            DeliveryType deliveryType,
+            Long deliveryFee,
+            String preferredTradeRegion) {
+        ProductRegistrationPolicy.validateAiAnalysis(analysis, includedStatus);
+        if (selectedCondition == null) {
+            throw new InvalidProductRequestException("condition", "상품 상태를 선택해 주세요.");
+        }
+        ProductRegistrationPolicy.validateTrade(tradeMethod, deliveryType, deliveryFee, preferredTradeRegion);
+        return saveFromAnalysisInternal(
+                memberId,
+                analysis,
+                imageUrls,
+                purchasedMonths,
+                defectStatus,
+                includedItems,
+                selectedCondition,
+                includedStatus,
+                tradeMethod,
+                deliveryType,
+                deliveryFee,
+                preferredTradeRegion);
+    }
+
+    @Transactional
+    private ProductResponse saveFromAnalysisInternal(
+            Long memberId,
+            ProductAiAnalysisResult analysis,
+            List<String> imageUrls,
+            Integer purchasedMonths,
+            DefectStatus defectStatus,
+            List<String> includedItems,
+            ProductCondition selectedCondition,
+            IncludedStatus includedStatus,
+            TradeMethod tradeMethod,
+            DeliveryType deliveryType,
+            Long deliveryFee,
+            String preferredTradeRegion) {
         Member member = memberRepository.getReferenceById(memberId);
         Category category = getLeafCategoryOrThrow(analysis.categoryId());
-        Product product =
-                newAiProduct(member, category, analysis, imageUrls, purchasedMonths, defectStatus, includedItems);
+        Product product = newAiProduct(
+                member,
+                category,
+                analysis,
+                imageUrls,
+                purchasedMonths,
+                defectStatus,
+                includedItems,
+                selectedCondition,
+                includedStatus,
+                tradeMethod,
+                deliveryType,
+                deliveryFee,
+                preferredTradeRegion);
+        product.replaceCategoryOptions(categoryOptionService.resolve(category.getId(), null));
         Product saved = productRepository.save(product);
         // 커밋 후 시세 분석 1회(ProductRegisteredAnalysisListener) — 정기 배치를 기다리지 않고 바로 추천을 보여주기 위함
         eventPublisher.publishEvent(new ProductRegisteredEvent(saved.getId()));
@@ -229,7 +315,7 @@ public class ProductService {
 
     private Product newDirectProduct(
             Member member, Category category, ProductCreateRequest request, List<String> imageUrls) {
-        return Product.create(
+        Product product = Product.create(
                 member,
                 category,
                 request.title(),
@@ -237,18 +323,21 @@ public class ProductService {
                 request.description(),
                 request.price(),
                 request.condition(),
-                request.defectStatus(),
+                request.defectStatus() == null ? DefectStatus.NORMAL : request.defectStatus(),
                 toPurchasedAt(request.purchasedMonths()),
                 request.allowPriceSuggestion(),
                 request.tradeMethod(),
-                request.deliveryType(),
-                request.preferredTradeRegion(),
+                request.tradeMethod() == TradeMethod.DELIVERY ? request.deliveryType() : null,
+                request.tradeMethod() == TradeMethod.DIRECT ? request.preferredTradeRegion() : null,
                 imageUrls,
                 resolveTags(request.tags()),
-                resolveComponents(request.includedItems()));
+                resolveComponents(resolveIncludedItems(request.includedStatus(), request.includedItems())));
+        product.changeDeliveryFee(
+                normalizeDeliveryFee(request.tradeMethod(), request.deliveryType(), request.deliveryFee()));
+        return product;
     }
 
-    /** AI 등록 상품: 가격·제안가 = AI 추정가, 거래 방식 = 직거래, 구성품 = AI 추론 + 사용자 입력. */
+    /** AI 등록 상품: AI 분석값을 기본으로 사용하고 화면에서 선택한 값을 우선 저장한다. */
     private Product newAiProduct(
             Member member,
             Category category,
@@ -256,7 +345,15 @@ public class ProductService {
             List<String> imageUrls,
             Integer purchasedMonths,
             DefectStatus defectStatus,
-            List<String> includedItems) {
+            List<String> includedItems,
+            ProductCondition selectedCondition,
+            IncludedStatus includedStatus,
+            TradeMethod selectedTradeMethod,
+            DeliveryType deliveryType,
+            Long deliveryFee,
+            String preferredTradeRegion) {
+        ProductCondition condition = selectedCondition == null ? analysis.condition() : selectedCondition;
+        TradeMethod tradeMethod = selectedTradeMethod == null ? TradeMethod.DIRECT : selectedTradeMethod;
         Product product = Product.create(
                 member,
                 category,
@@ -264,16 +361,20 @@ public class ProductService {
                 analysis.brand(),
                 analysis.description(),
                 analysis.suggestedPrice(),
-                analysis.condition(),
-                defectStatus,
+                condition,
+                defectStatus == null ? DefectStatus.NORMAL : defectStatus,
                 toPurchasedAt(purchasedMonths),
                 true,
-                TradeMethod.DIRECT,
-                null,
-                null,
+                tradeMethod,
+                tradeMethod == TradeMethod.DELIVERY ? deliveryType : null,
+                tradeMethod == TradeMethod.DIRECT ? preferredTradeRegion : null,
                 imageUrls,
                 resolveTags(analysis.tags()),
-                resolveComponents(mergeNames(analysis.includedItems(), includedItems)));
+                resolveComponents(
+                        includedStatus == null
+                                ? mergeNames(analysis.includedItems(), includedItems)
+                                : resolveIncludedItems(includedStatus, null)));
+        product.changeDeliveryFee(normalizeDeliveryFee(tradeMethod, deliveryType, deliveryFee));
         product.changeSuggestedPrice(analysis.suggestedPrice());
         product.changeAnalysisDescription(analysis.analysisDescription());
         return product;
@@ -608,6 +709,10 @@ public class ProductService {
     public List<String> validateUpdate(Long memberId, Long productId, ProductUpdateRequest request, int newImageCount) {
         Product product = getProductOrThrow(productId);
         validateRegisteredBy(product, memberId);
+        ProductRegistrationPolicy.validateProductFields(
+                request.title(), request.description(), request.price(), request.tags(), request.includedStatus());
+        ProductRegistrationPolicy.validateTrade(
+                request.tradeMethod(), request.deliveryType(), request.deliveryFee(), request.preferredTradeRegion());
         getLeafCategoryOrThrow(request.categoryId());
         categoryOptionService.resolve(request.categoryId(), request.categoryOptions());
         validateImageCount(request, newImageCount);
@@ -660,12 +765,14 @@ public class ProductService {
                 request.price(),
                 request.status(),
                 request.condition(),
-                request.defectStatus(),
-                toPurchasedAt(request.purchasedMonths()),
+                request.defectStatus() == null ? product.getDefectStatus() : request.defectStatus(),
+                request.purchasedMonths() == null ? product.getPurchasedAt() : toPurchasedAt(request.purchasedMonths()),
                 request.allowPriceSuggestion(),
                 request.tradeMethod(),
-                request.deliveryType(),
-                request.preferredTradeRegion());
+                request.tradeMethod() == TradeMethod.DELIVERY ? request.deliveryType() : null,
+                request.tradeMethod() == TradeMethod.DIRECT ? request.preferredTradeRegion() : null);
+        product.changeDeliveryFee(
+                normalizeDeliveryFee(request.tradeMethod(), request.deliveryType(), request.deliveryFee()));
         product.replaceCategoryOptions(categoryOptions);
 
         product.clearImages();
@@ -676,7 +783,8 @@ public class ProductService {
         product.addTags(resolveTags(request.tags()));
 
         product.clearComponents();
-        product.addComponents(resolveComponents(request.includedItems()));
+        product.addComponents(
+                resolveComponents(resolveIncludedItems(request.includedStatus(), request.includedItems())));
 
         if (analysis != null) {
             product.changeSuggestedPrice(analysis.suggestedPrice());
@@ -698,8 +806,12 @@ public class ProductService {
     }
 
     private static void validateImageCount(ProductUpdateRequest request, int newImageCount) {
-        if (keptImageUrls(request).isEmpty() && newImageCount == 0) {
+        int totalImageCount = keptImageUrls(request).size() + newImageCount;
+        if (totalImageCount == 0) {
             throw new ProductImageRequiredException();
+        }
+        if (totalImageCount > 10) {
+            throw new ProductImageLimitExceededException();
         }
     }
 
@@ -740,6 +852,7 @@ public class ProductService {
      */
     @Transactional
     public ProductResponse updatePrice(Long memberId, Long productId, Long price) {
+        ProductRegistrationPolicy.validatePrice(price);
         Product product = getProductOrThrow(productId);
         validateRegisteredBy(product, memberId);
 
@@ -841,6 +954,24 @@ public class ProductService {
                         aiInferredNames == null ? Stream.<String>empty() : aiInferredNames.stream(),
                         userInputNames == null ? Stream.<String>empty() : userInputNames.stream())
                 .toList();
+    }
+
+    /** 새 화면의 구성품 상태를 기존 구성품 목록 저장 구조로 변환한다. */
+    private static List<String> resolveIncludedItems(IncludedStatus includedStatus, List<String> legacyItems) {
+        if (includedStatus == null) {
+            return legacyItems;
+        }
+        return List.of(
+                switch (includedStatus) {
+                    case NONE -> "없음";
+                    case PARTIAL -> "일부 포함";
+                    case ALL -> "전체 포함";
+                });
+    }
+
+    /** 직거래·배송비 포함에서는 배송비를 저장하지 않도록 정규화한다. */
+    private static Long normalizeDeliveryFee(TradeMethod tradeMethod, DeliveryType deliveryType, Long deliveryFee) {
+        return tradeMethod == TradeMethod.DELIVERY && deliveryType == DeliveryType.PREPAID ? deliveryFee : null;
     }
 
     /**

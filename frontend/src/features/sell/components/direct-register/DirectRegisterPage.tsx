@@ -8,6 +8,7 @@ import { ArrowLeft } from "lucide-react";
 import { DirectRegisterActions } from "@/features/sell/components/direct-register/DirectRegisterActions";
 import { DirectRegisterInfoStep } from "@/features/sell/components/direct-register/DirectRegisterInfoStep";
 import { DirectStatusPriceStep } from "@/features/sell/components/direct-register/DirectStatusPriceStep";
+import { validateStatusPrice } from "@/features/sell/components/direct-register/statusPriceValidation";
 import type {
     DirectImagePreview,
     DirectRegisterInfoState,
@@ -17,6 +18,7 @@ import type {
 import { ProductRegistrationProcessing } from "@/features/sell/components/ProductRegistrationProcessing";
 import { RegistrationStepper } from "@/features/sell/components/shared/RegistrationStepper";
 import { SellAlertDialog } from "@/features/sell/components/shared/SellAlertDialog";
+import { includedStatusApiValues } from "@/features/sell/components/shared/IncludedStatusField";
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { useCategoriesQuery } from "@/features/sell/hooks/queries/useCategoriesQuery";
 import { useCreateDirectProductMutation } from "@/features/sell/hooks/mutations/useCreateDirectProductMutation";
@@ -37,24 +39,24 @@ const initialInfoState: DirectRegisterInfoState = {
     brand: "",
     description: "",
     tags: [],
-    categoryOptions: [],
 };
 
 const initialStatusPriceState: DirectStatusPriceState = {
     productCondition: "B",
-    purchasePeriod: "6",
-    includedItems: ["본체", "충전 케이블"],
-    defectStatus: "none",
+    includedStatus: "all",
     price: "",
     allowPriceProposal: false,
     tradeMethod: "direct",
     deliveryType: null,
+    deliveryFee: "",
     tradeLocation: "",
 };
 
 const initialStatusPriceErrors: DirectStatusPriceErrors = {
     price: "",
     deliveryType: "",
+    deliveryFee: "",
+    tradeLocation: "",
 };
 
 export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageProps) {
@@ -135,13 +137,7 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
     };
 
     const handleStatusPriceSubmit = () => {
-        const nextErrors: DirectStatusPriceErrors = {
-            price: statusPrice.price ? "" : "희망 가격을 입력해 주세요.",
-            deliveryType:
-                statusPrice.tradeMethod === "delivery" && !statusPrice.deliveryType
-                    ? "배송비 부담 방식을 선택해 주세요."
-                    : "",
-        };
+        const nextErrors = validateStatusPrice(statusPrice);
 
         setStatusPriceErrors(nextErrors);
 
@@ -161,27 +157,19 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
                     info.subCategoryId || info.childCategoryId || info.parentCategoryId,
                 ),
                 title: info.title.trim(),
-                brand: info.brand.trim() || null,
                 description: info.description.trim(),
                 price: Number(statusPrice.price),
                 condition: statusPrice.productCondition,
-                defectStatus:
-                    statusPrice.defectStatus === "has-defect"
-                        ? "ISSUES"
-                        : statusPrice.defectStatus === "unknown"
-                          ? "UNKNOWN"
-                          : "NORMAL",
-                purchasedMonths:
-                    statusPrice.purchasePeriod === "unknown"
-                        ? null
-                        : Number(statusPrice.purchasePeriod),
-                includedItems: statusPrice.includedItems,
+                includedStatus: includedStatusApiValues[statusPrice.includedStatus],
                 allowPriceSuggestion: statusPrice.allowPriceProposal,
                 tradeMethod: statusPrice.tradeMethod === "direct" ? "DIRECT" : "DELIVERY",
                 deliveryType: statusPrice.deliveryType,
+                deliveryFee:
+                    statusPrice.tradeMethod === "delivery" && statusPrice.deliveryType === "PREPAID"
+                        ? Number(statusPrice.deliveryFee)
+                        : null,
                 preferredTradeRegion: statusPrice.tradeLocation.trim() || null,
                 tags: info.tags,
-                categoryOptions: info.categoryOptions,
             },
         });
     };
@@ -261,23 +249,8 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
                                 onProductConditionChange={(value) =>
                                     updateStatusPrice("productCondition", value)
                                 }
-                                onPurchasePeriodChange={(value) =>
-                                    updateStatusPrice("purchasePeriod", value)
-                                }
-                                onIncludedItemChange={(value, checked) =>
-                                    setStatusPrice((current) => ({
-                                        ...current,
-                                        includedItems: checked
-                                            ? current.includedItems.includes(value)
-                                                ? current.includedItems
-                                                : [...current.includedItems, value]
-                                            : current.includedItems.filter(
-                                                  (item) => item !== value,
-                                              ),
-                                    }))
-                                }
-                                onDefectStatusChange={(value) =>
-                                    updateStatusPrice("defectStatus", value)
+                                onIncludedStatusChange={(value) =>
+                                    updateStatusPrice("includedStatus", value)
                                 }
                                 onPriceChange={(value) => {
                                     updateStatusPrice("price", value);
@@ -292,24 +265,47 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
                                         tradeMethod: value,
                                         deliveryType:
                                             value === "direct" ? null : current.deliveryType,
+                                        deliveryFee: value === "direct" ? "" : current.deliveryFee,
                                         tradeLocation:
                                             value === "delivery" ? "" : current.tradeLocation,
                                     }));
                                     setStatusPriceErrors((current) => ({
                                         ...current,
                                         deliveryType: "",
+                                        deliveryFee: "",
+                                        tradeLocation: "",
                                     }));
                                 }}
                                 onDeliveryTypeChange={(value) => {
-                                    updateStatusPrice("deliveryType", value);
+                                    setStatusPrice((current) => ({
+                                        ...current,
+                                        deliveryType: value,
+                                        deliveryFee:
+                                            value === "INCLUDED" ? "" : current.deliveryFee,
+                                    }));
                                     setStatusPriceErrors((current) => ({
                                         ...current,
                                         deliveryType: "",
+                                        deliveryFee: "",
                                     }));
                                 }}
-                                onTradeLocationChange={(value) =>
-                                    updateStatusPrice("tradeLocation", value)
-                                }
+                                onDeliveryFeeChange={(value) => {
+                                    updateStatusPrice("deliveryFee", value);
+                                    setStatusPriceErrors((current) => ({
+                                        ...current,
+                                        deliveryFee: "",
+                                    }));
+                                }}
+                                onTradeLocationChange={(value) => {
+                                    setStatusPrice((current) => ({
+                                        ...current,
+                                        tradeLocation: value,
+                                    }));
+                                    setStatusPriceErrors((current) => ({
+                                        ...current,
+                                        tradeLocation: "",
+                                    }));
+                                }}
                             />
                             <DirectRegisterActions
                                 primaryLabel="AI 분석 & 등록확인"

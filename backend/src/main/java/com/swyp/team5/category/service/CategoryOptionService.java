@@ -30,8 +30,8 @@ import com.swyp.team5.platform.repository.CategoryPlatformRepository;
 
 /**
  * 카테고리별 추가 항목(사이즈·용량·사용기한 등). 우리 카테고리는 번개장터 카테고리와 1:1이라({@code category_platforms}) 번개장터
- * 옵션 정의({@link CategoryOptionCatalog})를 그대로 쓴다. 상품 등록·수정 시 입력값을 검증하고, 번개장터 게시 전에는 필수 항목이
- * 채워졌는지 확인한다.
+ * 옵션 정의({@link CategoryOptionCatalog})를 그대로 쓴다. 상품 등록·수정 시 입력값을 검증하고, 직접 입력 화면에서 받지 않는
+ * 사이즈·사용기한은 카탈로그의 기본값으로 보완한다. 번개장터 게시 전에는 필수 항목이 채워졌는지 확인한다.
  */
 @Service
 @RequiredArgsConstructor
@@ -56,8 +56,8 @@ public class CategoryOptionService {
     }
 
     /**
-     * 입력한 추가 항목을 옵션 정의로 검증해 저장할 값(항목·값 이름 포함)으로 바꾼다. 항목마다 하나만 입력할 수 있고, 필수 항목이 빠지면
-     * 거절한다. 결과는 옵션 정의의 항목 순서를 따른다.
+     * 입력한 추가 항목을 옵션 정의로 검증해 저장할 값(항목·값 이름 포함)으로 바꾼다. 항목마다 하나만 입력할 수 있고, 입력하지 않은
+     * 필수 항목은 카탈로그의 "기타"·"표시 없음" 값을 우선 사용한다. 해당 값이 없으면 첫 번째 선택값으로 보완한다.
      *
      * @param selections 입력한 추가 항목(null이면 입력 없음)
      * @throws InvalidCategoryOptionException 없는 항목·값이거나, 직접 입력 값이 형식에 맞지 않거나, 필수 항목이 빠진 경우
@@ -84,10 +84,15 @@ public class CategoryOptionService {
                     .findFirst();
             if (input.isEmpty()) {
                 if (group.required()) {
+                    input = defaultSelection(group);
+                }
+                if (input.isEmpty() && group.required()) {
                     throw new InvalidCategoryOptionException(
                             requiredMessage(group), "categoryId=" + categoryId + ", missingGroupId=" + group.groupId());
                 }
-                continue;
+                if (input.isEmpty()) {
+                    continue;
+                }
             }
             resolved.add(resolveOne(categoryId, group, input.get()));
         }
@@ -108,6 +113,34 @@ public class CategoryOptionService {
     /** 필수 항목이 빠졌을 때의 안내(번개장터 화면 문구 그대로 — 예: "사이즈를 선택해 주세요."). */
     public static String requiredMessage(CategoryOptionGroupResponse group) {
         return group.title() + ".";
+    }
+
+    /**
+     * 직접 입력 화면에서 받지 않는 번개장터 필수 항목의 기본값을 찾는다.
+     * 카탈로그에 실제로 존재하는 "기타"·"표시 없음" 값을 우선 사용하고, 없으면 첫 번째 선택값을 사용한다.
+     */
+    static Optional<CategoryOptionSelection> defaultSelection(CategoryOptionGroupResponse group) {
+        String targetValue =
+                switch (group.name()) {
+                    case "사이즈", "샤프트 강도", "연식" -> "기타 (상품설명에 작성)";
+                    case "사용기한" -> "사용기한 표시 없음";
+                    case "소비기한" -> "소비기한 표시 없음";
+                    default -> null;
+                };
+
+        Optional<CategoryOptionSelection> preferred = Optional.empty();
+        if (targetValue != null) {
+            preferred = group.children().stream()
+                    .flatMap(child -> child.values().stream()
+                            .filter(value -> value.value().equals(targetValue))
+                            .map(value -> new CategoryOptionSelection(group.groupId(), value.valueId(), null)))
+                    .findFirst();
+        }
+
+        return preferred.or(() -> group.children().stream()
+                .flatMap(child -> child.values().stream())
+                .findFirst()
+                .map(value -> new CategoryOptionSelection(group.groupId(), value.valueId(), null)));
     }
 
     private SelectedCategoryOption resolveOne(

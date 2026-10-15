@@ -1,7 +1,5 @@
 import type { ReactNode } from "react";
 
-import { CircleAlert } from "lucide-react";
-
 import { Alert, AlertDescription } from "@/common/components/ui/Alert";
 import { Label } from "@/common/components/ui/Label";
 import { cn } from "@/common/lib/utils";
@@ -44,11 +42,8 @@ export function FieldError({ message }: { message?: string }) {
     return (
         <Alert
             variant="destructive"
-            className="flex w-fit items-center gap-2 border-0 bg-transparent p-0 shadow-none"
+            className="flex w-fit items-center border-0 bg-transparent p-0 shadow-none"
         >
-            <span className="flex size-4 shrink-0 items-center justify-center">
-                <CircleAlert aria-hidden="true" className="size-4" />
-            </span>
             <AlertDescription className="text-destructive typography-body-small p-0">
                 {message}
             </AlertDescription>

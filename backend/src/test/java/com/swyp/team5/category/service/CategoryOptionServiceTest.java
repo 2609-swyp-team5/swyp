@@ -33,6 +33,7 @@ class CategoryOptionServiceTest {
     private static final long KNIT = 1L; // 의류 리프 — 번개장터 310250, 필수 사이즈(공용 M = 5, 기타 = 17)
     private static final long SNACK = 2L; // 식품 리프 — 소비기한(필수, 날짜 입력칸 994 / 표시 없음 995), 번개장터 410900
     private static final long PHONE = 3L; // 스마트폰 — 추가 항목 없음
+    private static final long NO_DEFAULT_SIZE = 4L; // 사이즈 필수지만 기타 선택지가 없는 번개장터 310200200
 
     private static final CategoryOptionCatalog CATALOG = new CategoryOptionCatalog(new JsonMapper());
 
@@ -46,6 +47,7 @@ class CategoryOptionServiceTest {
         givenBunjangCategory(KNIT, "310250");
         givenBunjangCategory(SNACK, "410900");
         givenBunjangCategory(PHONE, "600700001");
+        givenBunjangCategory(NO_DEFAULT_SIZE, "310200200");
     }
 
     // 고른 값은 옵션 정의의 항목·세부 분류·값 이름과 함께 저장값으로 바뀜
@@ -69,12 +71,23 @@ class CategoryOptionServiceTest {
         assertThat(resolved.getFirst().value()).isEqualTo("기타 (상품설명에 작성)");
     }
 
-    // 필수 항목이 빠지면 번개장터 안내 문구로 거절
+    // 직접 등록에서 받지 않는 사이즈는 카탈로그의 "기타"로 기본 선택
     @Test
-    void resolveRejectsMissingRequired() {
-        assertThatThrownBy(() -> service.resolve(KNIT, null))
-                .isInstanceOf(InvalidCategoryOptionException.class)
-                .hasMessage("사이즈를 선택해 주세요.");
+    void resolveDefaultsRemovedRequiredFields() {
+        assertThat(service.resolve(KNIT, null))
+                .extracting(SelectedCategoryOption::value)
+                .containsExactly("기타 (상품설명에 작성)");
+        assertThat(service.resolve(SNACK, null))
+                .extracting(SelectedCategoryOption::value)
+                .containsExactly("소비기한 표시 없음");
+    }
+
+    // 카탈로그에 "기타" 기본값이 없는 필수 항목은 첫 번째 선택값으로 보완
+    @Test
+    void resolveDefaultsRequiredFieldToFirstValueWhenPreferredDefaultIsMissing() {
+        assertThat(service.resolve(NO_DEFAULT_SIZE, null))
+                .extracting(SelectedCategoryOption::value)
+                .containsExactly("Free");
     }
 
     // 항목에 없는 값·카테고리에 없는 항목·같은 항목 중복은 거절
@@ -142,7 +155,7 @@ class CategoryOptionServiceTest {
         assertThatThrownBy(() -> service.getOptions(404L)).isInstanceOf(CategoryNotFoundException.class);
     }
 
-    // 스냅샷의 모든 카테고리·항목·값 — 필수 항목을 다 채우면 통과하고, 각 값은 이름 그대로 저장되며, 필수 항목 하나라도 빠지면 거절
+    // 스냅샷의 모든 카테고리·항목·값 — 각 값은 이름 그대로 저장되며, 필수 항목은 기본값으로 보완
     @Test
     void everySnapshotOptionValueResolves() throws Exception {
         JsonNode categories;
@@ -186,9 +199,7 @@ class CategoryOptionServiceTest {
                     List<CategoryOptionSelection> missing = firstOfEach.stream()
                             .filter(other -> !other.groupId().equals(group.groupId()))
                             .toList();
-                    assertThatThrownBy(() -> service.resolve(id, missing))
-                            .isInstanceOf(InvalidCategoryOptionException.class)
-                            .hasMessage(group.title() + ".");
+                    assertThat(service.resolve(id, missing)).isNotEmpty();
                 }
             }
             // 선택 항목은 비워도 통과
