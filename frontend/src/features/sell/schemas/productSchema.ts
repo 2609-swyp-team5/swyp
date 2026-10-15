@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+export const PRODUCT_PRICE_MIN = 500;
+export const PRODUCT_PRICE_MAX = 100_000_000;
+export const PRODUCT_PRICE_RANGE_ERROR = "희망 가격은 500원 이상 1억 원 이하로 입력해 주세요.";
+
 export const productConditionSchema = z.enum(["S", "A", "B", "C", "D"]);
 export const productStatusSchema = z.enum(["DRAFT", "ON_SALE", "RESERVED", "SOLD_OUT"]);
 export const defectStatusSchema = z.enum(["NORMAL", "ISSUES", "UNKNOWN"]);
@@ -60,8 +64,8 @@ export const directProductCreateRequestSchema = productCreateRequestSchema
         price: z
             .number()
             .int()
-            .min(500, "희망 가격은 500원 이상 입력해 주세요.")
-            .max(100_000_000, "희망 가격은 1억 원 이하로 입력해 주세요."),
+            .min(PRODUCT_PRICE_MIN, PRODUCT_PRICE_RANGE_ERROR)
+            .max(PRODUCT_PRICE_MAX, PRODUCT_PRICE_RANGE_ERROR),
         tags: z.array(z.string().trim().min(1)).max(5, "태그는 최대 5개까지 추가할 수 있습니다."),
         includedStatus: includedItemStatusSchema,
         deliveryFee: z
@@ -108,6 +112,11 @@ export const directProductCreateRequestSchema = productCreateRequestSchema
 export const productUpdateRequestSchema = productCreateRequestSchema
     .extend({
         status: productStatusSchema,
+        price: z
+            .number()
+            .int()
+            .min(PRODUCT_PRICE_MIN, PRODUCT_PRICE_RANGE_ERROR)
+            .max(PRODUCT_PRICE_MAX, PRODUCT_PRICE_RANGE_ERROR),
         imageUrls: z.array(z.string().trim().min(1)),
         includedStatus: includedItemStatusSchema,
         deliveryFee: z

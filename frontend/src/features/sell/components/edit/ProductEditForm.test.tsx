@@ -48,16 +48,28 @@ vi.mock("@/features/sell/components/direct-register/DirectRegisterInfoStep", () 
 
 vi.mock("@/features/sell/components/direct-register/DirectStatusPriceStep", () => ({
     DirectStatusPriceStep: ({
+        price,
+        errors,
+        onPriceChange,
         onTradeMethodChange,
         onDeliveryTypeChange,
         onDeliveryFeeChange,
     }: {
+        price: string;
+        errors: { price: string };
+        onPriceChange: (value: string) => void;
         onTradeMethodChange: (value: "direct" | "delivery") => void;
         onDeliveryTypeChange: (value: "INCLUDED" | "PREPAID") => void;
         onDeliveryFeeChange?: (value: string) => void;
     }) => (
         <>
             <div>상태·가격 입력</div>
+            <input
+                aria-label="희망 가격"
+                value={price}
+                onChange={(event) => onPriceChange(event.target.value)}
+            />
+            {errors.price && <div>{errors.price}</div>}
             <button
                 type="button"
                 onClick={() => {
@@ -214,4 +226,30 @@ describe("ProductEditForm", () => {
             preferredTradeRegion: null,
         });
     });
+
+    it.each(["499", "100000001"])(
+        "rejects an edit price outside the allowed range: %s",
+        async (price) => {
+            const user = userEvent.setup();
+
+            render(
+                <ProductEditForm
+                    product={product}
+                    categories={[]}
+                    categoryStatus="ready"
+                    method="direct"
+                />,
+            );
+
+            await user.click(screen.getByRole("button", { name: "이미지 변경 후 다음" }));
+            await user.clear(screen.getByLabelText("희망 가격"));
+            await user.type(screen.getByLabelText("희망 가격"), price);
+            await user.click(screen.getByRole("button", { name: "수정 완료" }));
+
+            expect(mutateAsync).not.toHaveBeenCalled();
+            expect(
+                screen.getByText("희망 가격은 500원 이상 1억 원 이하로 입력해 주세요."),
+            ).toBeInTheDocument();
+        },
+    );
 });

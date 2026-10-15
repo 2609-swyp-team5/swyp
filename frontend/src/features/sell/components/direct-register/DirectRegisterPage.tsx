@@ -21,6 +21,11 @@ import { includedStatusApiValues } from "@/features/sell/components/shared/Inclu
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { useCategoriesQuery } from "@/features/sell/hooks/queries/useCategoriesQuery";
 import { useCreateDirectProductMutation } from "@/features/sell/hooks/mutations/useCreateDirectProductMutation";
+import {
+    PRODUCT_PRICE_MAX,
+    PRODUCT_PRICE_MIN,
+    PRODUCT_PRICE_RANGE_ERROR,
+} from "@/features/sell/schemas/productSchema";
 import type { ProductRegisterProgress } from "@/features/sell/types";
 
 export type DirectRegisterStep = "info" | "status";
@@ -140,9 +145,9 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
         const deliveryFee = Number(statusPrice.deliveryFee);
         const nextErrors: DirectStatusPriceErrors = {
             price:
-                price >= 500 && price <= 100_000_000
+                Number.isInteger(price) && price >= PRODUCT_PRICE_MIN && price <= PRODUCT_PRICE_MAX
                     ? ""
-                    : "희망 가격은 500원 이상 1억 원 이하로 입력해 주세요.",
+                    : PRODUCT_PRICE_RANGE_ERROR,
             deliveryType:
                 statusPrice.tradeMethod === "delivery" && !statusPrice.deliveryType
                     ? "배송비 부담 방식을 선택해 주세요."

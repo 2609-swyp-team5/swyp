@@ -28,6 +28,11 @@ import {
 import { RegistrationStepper } from "@/features/sell/components/shared/RegistrationStepper";
 import { useUpdateProductMutation } from "@/features/sell/hooks/mutations/useUpdateProductMutation";
 import { productQueryKey } from "@/features/sell/hooks/queries/useProductQuery";
+import {
+    PRODUCT_PRICE_MAX,
+    PRODUCT_PRICE_MIN,
+    PRODUCT_PRICE_RANGE_ERROR,
+} from "@/features/sell/schemas/productSchema";
 import type {
     ProductRegisterError,
     ProductRegisterProgress,
@@ -171,9 +176,13 @@ export function ProductEditForm({
     };
 
     const handleStatusPriceSubmit = async () => {
+        const price = Number(statusPrice.price);
         const deliveryFee = Number(statusPrice.deliveryFee);
         const nextErrors: DirectStatusPriceErrors = {
-            price: statusPrice.price ? "" : "희망 가격을 입력해 주세요.",
+            price:
+                Number.isInteger(price) && price >= PRODUCT_PRICE_MIN && price <= PRODUCT_PRICE_MAX
+                    ? ""
+                    : PRODUCT_PRICE_RANGE_ERROR,
             deliveryType:
                 statusPrice.tradeMethod === "delivery" && !statusPrice.deliveryType
                     ? "배송비 부담 방식을 선택해 주세요."
