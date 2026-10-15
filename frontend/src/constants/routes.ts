@@ -7,6 +7,7 @@ type Route = {
 export const ROUTES: Route[] = [
     { href: "/home", label: "홈" },
     { href: "/search", label: "검색" },
+    { href: "/ai", label: "지금이니 AI", requiresAuth: true },
     { href: "/sell/manage", label: "판매 상품 관리", requiresAuth: true },
     { href: "/sell/register", label: "상품 등록", requiresAuth: true },
     { href: "/buy/wishlist", label: "관심 상품", requiresAuth: true },

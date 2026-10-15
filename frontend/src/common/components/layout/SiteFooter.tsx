@@ -4,6 +4,7 @@ import Link from "next/link";
 const footerLinks = [
     { href: "/home", label: "홈" },
     { href: "/search", label: "검색" },
+    { href: "/ai", label: "지금이니 AI" },
     { href: "/sell/manage", label: "판매상품관리" },
     { href: "/sell/register", label: "상품등록" },
     { href: "/buy/wishlist", label: "관심상품" },

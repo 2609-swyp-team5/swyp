@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Heart, House, Package, PlusCircle, Search, type LucideIcon } from "lucide-react";
+import { House, Package, PlusCircle, Search, Sparkles, type LucideIcon } from "lucide-react";
 
 import {
     isRouteActive,
@@ -12,9 +12,9 @@ import {
 const TABS: { href: string; label: string; icon: LucideIcon }[] = [
     { href: "/home", label: "홈", icon: House },
     { href: "/search", label: "검색", icon: Search },
+    { href: "/ai", label: "AI", icon: Sparkles },
     { href: "/sell/register", label: "등록", icon: PlusCircle },
     { href: "/sell/manage", label: "판매관리", icon: Package },
-    { href: "/buy/wishlist", label: "관심", icon: Heart },
 ];
 
 /** 모바일(768px 미만) 하단 탭바. 화면 아래를 가리지 않도록 같은 높이의 빈 공간을 함께 둔다. */
