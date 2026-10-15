@@ -1,11 +1,13 @@
 package com.swyp.team5.common.ai;
 
+import java.time.Duration;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
@@ -18,6 +20,8 @@ import reactor.core.publisher.Flux;
  * <p>대체 대상은 호출 자체의 실패(네트워크/쿼터/5xx, 응답 파싱 실패 등 요청 함수가 던진 예외)뿐이다. 응답은 왔지만
  * 내용이 잘못된 경우(예: 없는 카테고리 ID)는 호출 측이 검증한다. 두 모델 모두 실패하면 GPT 예외에 Gemini 예외를
  * suppressed로 붙여 던진다.
+ *
+ * <p>Gemini가 한도 초과(429)로 거절하면 {@link GeminiQuotaCooldown}이 정한 시간 동안 Gemini를 건너뛰고 바로 GPT로 보낸다.
  */
 @Slf4j
 @Primary
@@ -26,12 +30,21 @@ public class AiChatExecutor {
 
     private final ChatClient primaryClient;
     private final ChatClient fallbackClient;
+    private final GeminiQuotaCooldown quotaCooldown;
 
+    @Autowired
     public AiChatExecutor(
             @Qualifier("geminiAiClient") ChatClient geminiAiClient,
-            @Qualifier("openAiClient") ChatClient openAiClient) {
+            @Qualifier("openAiClient") ChatClient openAiClient,
+            GeminiQuotaCooldown quotaCooldown) {
         this.primaryClient = geminiAiClient;
         this.fallbackClient = openAiClient;
+        this.quotaCooldown = quotaCooldown;
+    }
+
+    /** 한도 초과 건너뛰기 없이 쓴다(테스트용). */
+    public AiChatExecutor(ChatClient geminiAiClient, ChatClient openAiClient) {
+        this(geminiAiClient, openAiClient, new GeminiQuotaCooldown(Duration.ZERO));
     }
 
     /**
@@ -40,9 +53,14 @@ public class AiChatExecutor {
      * @return 먼저 성공한 모델의 결과
      */
     public <T> T call(String task, Function<ChatClient, T> request) {
+        if (quotaCooldown.active()) {
+            log.debug("{}: Gemini 한도 초과로 건너뛰고 OpenAI GPT로 호출합니다.", task);
+            return request.apply(fallbackClient);
+        }
         try {
             return request.apply(primaryClient);
         } catch (RuntimeException primaryFailure) {
+            quotaCooldown.record(primaryFailure);
             log.warn("{}: Gemini 호출 실패, OpenAI GPT로 대체 호출합니다. 원인: {}", task, primaryFailure.toString());
             try {
                 T result = request.apply(fallbackClient);
@@ -67,10 +85,16 @@ public class AiChatExecutor {
      */
     public String stream(String task, Function<ChatClient, Flux<String>> request, Consumer<String> onChunk) {
         StringBuilder text = new StringBuilder();
+        if (quotaCooldown.active()) {
+            log.debug("{}: Gemini 한도 초과로 건너뛰고 OpenAI GPT로 스트리밍 호출합니다.", task);
+            collect(request.apply(fallbackClient), onChunk, text);
+            return text.toString();
+        }
         try {
             collect(request.apply(primaryClient), onChunk, text);
             return text.toString();
         } catch (RuntimeException primaryFailure) {
+            quotaCooldown.record(primaryFailure);
             if (!text.isEmpty()) {
                 log.warn(
                         "{}: Gemini 스트리밍이 중간에 실패했습니다(받은 글자 수 {}). 원인: {}",

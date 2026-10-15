@@ -21,6 +21,7 @@ import org.springframework.boot.http.client.autoconfigure.HttpClientAutoConfigur
 import org.springframework.boot.restclient.autoconfigure.RestClientAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
+import com.swyp.team5.aichat.config.AiChatModelConfig;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -93,6 +94,34 @@ class AiConfigTest {
             assertThat(response).isNotBlank();
         });
     }
+
+    // AI 대화 전용 GPT(기본 gpt-5.4-mini·추론 none)가 일반 답변과 구조화 응답(entity) 모두 받는지
+    @Tag("ai-test")
+    @Test
+    void aiChatOpenAiTest() {
+        assumeApiKeysPresent();
+        liveContextRunner.run(context -> {
+            ChatClient quickOpenAi = ChatClient.builder(context.getBean(OpenAiChatModel.class))
+                    .defaultOptions(AiChatModelConfig.openAiOptions("gpt-5.4-mini", "none"))
+                    .build();
+
+            String response = quickOpenAi
+                    .prompt("대한민국의 수도는 어디인가요? 도시 이름만 짧게 대답해주세요.")
+                    .call()
+                    .content();
+            Capital capital = quickOpenAi
+                    .prompt("대한민국의 수도와 그 도시의 인구(만 명 단위 정수)를 알려줘.")
+                    .call()
+                    .entity(Capital.class);
+
+            logger.info("[AI 대화 GPT 응답] : {} / {}", response, capital);
+            assertThat(response).contains("서울");
+            assertThat(capital).isNotNull();
+            assertThat(capital.city()).contains("서울");
+        });
+    }
+
+    record Capital(String city, Integer populationTenThousands) {}
 
     @Tag("ai-test")
     @Test
