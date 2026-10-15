@@ -6,8 +6,10 @@ import java.util.regex.Pattern;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
+import com.swyp.team5.aichat.config.AiChatModelConfig;
 import com.swyp.team5.aichat.entity.AiChatIntent;
 import com.swyp.team5.common.ai.AiChatExecutor;
 import com.swyp.team5.product.dto.ProductAiSearchCondition;
@@ -41,7 +43,7 @@ public class AiChatQuestionInterpreter {
 
     private final AiChatExecutor aiChatExecutor;
 
-    public AiChatQuestionInterpreter(AiChatExecutor aiChatExecutor) {
+    public AiChatQuestionInterpreter(@Qualifier(AiChatModelConfig.EXECUTOR) AiChatExecutor aiChatExecutor) {
         this.aiChatExecutor = aiChatExecutor;
     }
 
