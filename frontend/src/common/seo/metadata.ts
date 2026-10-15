@@ -6,9 +6,9 @@ export const defaultSiteTitle = "지금이니? | AI 중고거래 시세 분석";
 export const defaultSiteDescription =
     "AI 중고거래 시세 분석으로 구매 타이밍과 판매 타이밍을 확인하는 지금이니?";
 export const defaultOgImage = {
-    url: "/brand/jigeumini-og.svg",
-    width: 1920,
-    height: 1080,
+    url: "/brand/jigeumini-og.png",
+    width: 1200,
+    height: 630,
     alt: "지금이니? AI 중고거래 시세 분석",
 };
 
