@@ -22,6 +22,9 @@ import {
     FieldLabel,
 } from "@/features/sell/components/direct-register/DirectRegisterFields";
 import type { DirectRegisterInfoState } from "@/features/sell/components/direct-register/types";
+import { CategoryOptionsField } from "@/features/sell/components/shared/CategoryOptionsField";
+import { useCategoryOptionsQuery } from "@/features/sell/hooks/queries/useCategoryOptionsQuery";
+import { validateCategoryOptions } from "@/features/sell/utils/categoryOptions";
 
 type FieldErrors = {
     images: string;
@@ -83,6 +86,21 @@ export function DirectRegisterInfoStep({
         (category) => category.parentId === Number(value.childCategoryId) && category.leaf,
     );
     const hasSubCategories = subCategories.length > 0;
+    const selectedCategory = categories.find(
+        (category) =>
+            category.id ===
+            Number(value.subCategoryId || value.childCategoryId || value.parentCategoryId),
+    );
+    const { data: optionGroups = [] } = useCategoryOptionsQuery(
+        selectedCategory?.leaf ? selectedCategory.id : null,
+    );
+    const [optionErrors, setOptionErrors] = useState<Record<string, string>>({});
+
+    // 카테고리가 바뀌면 추가 항목도 그 카테고리 기준으로 다시 고른다
+    const resetCategoryOptions = () => {
+        onChange("categoryOptions", []);
+        setOptionErrors({});
+    };
 
     const addTag = (tagValue: string) => {
         const nextTag = tagValue.trim();
@@ -143,9 +161,12 @@ export function DirectRegisterInfoStep({
             description: value.description.trim() ? "" : "상품 설명을 입력해 주세요.",
         };
 
-        setFieldErrors(nextErrors);
+        const nextOptionErrors = validateCategoryOptions(optionGroups, value.categoryOptions);
 
-        if (Object.values(nextErrors).some(Boolean)) {
+        setFieldErrors(nextErrors);
+        setOptionErrors(nextOptionErrors);
+
+        if (Object.values(nextErrors).some(Boolean) || Object.keys(nextOptionErrors).length > 0) {
             return;
         }
 
@@ -215,6 +236,7 @@ export function DirectRegisterInfoStep({
                                 onChange("parentCategoryId", nextValue);
                                 onChange("childCategoryId", "");
                                 onChange("subCategoryId", "");
+                                resetCategoryOptions();
                                 const nextParentCategory = categories.find(
                                     (category) => category.id === Number(nextValue),
                                 );
@@ -277,6 +299,7 @@ export function DirectRegisterInfoStep({
                             onValueChange={(nextValue) => {
                                 onChange("childCategoryId", nextValue);
                                 onChange("subCategoryId", "");
+                                resetCategoryOptions();
                                 const nextSubCategories = categories.filter(
                                     (category) =>
                                         category.parentId === Number(nextValue) && category.leaf,
@@ -331,6 +354,7 @@ export function DirectRegisterInfoStep({
                             value={value.subCategoryId}
                             onValueChange={(nextValue) => {
                                 onChange("subCategoryId", nextValue);
+                                resetCategoryOptions();
                                 setFieldErrors((current) => ({
                                     ...current,
                                     subCategory: "",
@@ -385,6 +409,23 @@ export function DirectRegisterInfoStep({
                     </div>
                 </div>
             </section>
+
+            <CategoryOptionsField
+                groups={optionGroups}
+                value={value.categoryOptions}
+                errors={optionErrors}
+                onChange={(groupId, selection) => {
+                    onChange("categoryOptions", [
+                        ...value.categoryOptions.filter((option) => option.groupId !== groupId),
+                        ...(selection ? [selection] : []),
+                    ]);
+                    setOptionErrors((current) =>
+                        Object.fromEntries(
+                            Object.entries(current).filter(([key]) => key !== groupId),
+                        ),
+                    );
+                }}
+            />
 
             <section className="flex flex-col gap-1.5">
                 <FieldLabel htmlFor="brand">브랜드</FieldLabel>

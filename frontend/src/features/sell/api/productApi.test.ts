@@ -326,6 +326,7 @@ describe("productApi", () => {
                 deliveryType: null,
                 preferredTradeRegion: "서울 강남구",
                 tags: ["애플", "아이패드"],
+                categoryOptions: [{ groupId: "100", valueId: 5, text: null }],
             },
         });
 
@@ -348,6 +349,7 @@ describe("productApi", () => {
             brand: "Apple",
             includedItems: ["body", "charging-cable"],
             tags: ["애플", "아이패드"],
+            categoryOptions: [{ groupId: "100", valueId: 5, text: null }],
             title: "아이패드 프로 11인치",
         });
     });
@@ -541,6 +543,7 @@ describe("productApi", () => {
                     imageUrls: ["https://example.com/retained-image.jpg"],
                     tags: ["애플"],
                     includedItems: ["body"],
+                    categoryOptions: [],
                 },
             },
             onProgress,
@@ -590,6 +593,7 @@ describe("productApi", () => {
                 imageUrls: [],
                 tags: [],
                 includedItems: [],
+                categoryOptions: [],
             },
         });
 
@@ -623,6 +627,7 @@ describe("productApi", () => {
                     imageUrls: [],
                     tags: [],
                     includedItems: [],
+                    categoryOptions: [],
                 },
             }),
         ).rejects.toThrow("상품 사진을 1장 이상 업로드해주세요.");

@@ -35,6 +35,7 @@ import com.swyp.team5.auth.error.InvalidTokenException;
 import com.swyp.team5.auth.error.UnsupportedSocialProviderException;
 import com.swyp.team5.category.error.CategoryNotFoundException;
 import com.swyp.team5.category.error.CategoryNotLeafException;
+import com.swyp.team5.category.error.InvalidCategoryOptionException;
 import com.swyp.team5.common.common.ApiError;
 import com.swyp.team5.common.common.ApiResponse;
 import com.swyp.team5.common.common.ErrorDetail;
@@ -143,6 +144,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CategoryNotLeafException.class)
     public ResponseEntity<ApiResponse<Void>> handleCategoryNotLeaf(CategoryNotLeafException e) {
         log.warn("최하위가 아닌 카테고리: {}", ErrorLogs.describe(e));
+        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
+    }
+
+    @ExceptionHandler(InvalidCategoryOptionException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidCategoryOption(InvalidCategoryOptionException e) {
+        log.warn("카테고리 추가 항목 오류: {}", ErrorLogs.describe(e));
         return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
     }
 

@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import com.swyp.team5.category.dto.CategoryResponse;
+import com.swyp.team5.category.entity.SelectedCategoryOption;
 import com.swyp.team5.component.entity.Component;
 import com.swyp.team5.item.entity.ListingSource;
 import com.swyp.team5.platform.entity.PlatformListing;
@@ -48,6 +49,7 @@ public record ProductResponse(
         List<String> imageUrls, // 상품 이미지 URL 목록 (등록 순서)
         List<String> tags, // 태그 이름 목록
         List<String> includedItems, // 구성품 이름 목록
+        List<SelectedCategoryOption> categoryOptions, // 카테고리별 추가 항목(사이즈·사용기한 등 — 번개장터 게시에 사용), 없거나 외부 매물이면 []
         AnalysisRecommendation recommendation, // 가장 최근 시세 분석 판단(지금 팔기/기다리기 등), 분석 이력 없으면 null
         Long marketAveragePrice, // 비교 매물(수집 데이터) 평균가 — AI 제안가와 별개. 등록/상세 응답에만 포함, 비교 매물 부족 시 null
         Long suggestedPrice, // AI 제안가(AI 사진 분석 추정가, 시세 분석으로는 바뀌지 않음 — 시세 기반 추천 가격은 /analysis의 suggestedPrice, 없으면 null)
@@ -112,6 +114,7 @@ public record ProductResponse(
                 product.getImages().stream().map(ProductImage::getImageUrl).toList(),
                 product.getTags().stream().map(Tag::getName).toList(),
                 product.getComponents().stream().map(Component::getName).toList(),
+                product.getCategoryOptions(),
                 recommendation,
                 marketAveragePrice,
                 product.getSuggestedPrice(),
@@ -158,6 +161,7 @@ public record ProductResponse(
                 null,
                 null,
                 listing.getImageUrl() == null ? List.of() : List.of(listing.getImageUrl()),
+                List.of(),
                 List.of(),
                 List.of(),
                 recommendation,
@@ -208,6 +212,7 @@ public record ProductResponse(
                 imageUrls,
                 tags,
                 includedItems,
+                categoryOptions,
                 recommendation,
                 marketAveragePrice,
                 suggestedPrice,
@@ -254,6 +259,7 @@ public record ProductResponse(
                 imageUrls,
                 tags,
                 includedItems,
+                categoryOptions,
                 recommendation,
                 marketAveragePrice,
                 suggestedPrice,

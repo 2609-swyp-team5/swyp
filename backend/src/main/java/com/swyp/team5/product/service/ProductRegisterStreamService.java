@@ -27,6 +27,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.swyp.team5.category.error.CategoryNotFoundException;
 import com.swyp.team5.category.error.CategoryNotLeafException;
+import com.swyp.team5.category.error.InvalidCategoryOptionException;
 import com.swyp.team5.common.common.ApiError;
 import com.swyp.team5.common.common.ApiResponse;
 import com.swyp.team5.common.error.ErrorLogs;
@@ -140,13 +141,14 @@ public class ProductRegisterStreamService implements DisposableBean {
      * @return 진행 상황을 보내는 SSE 스트림
      * @throws CategoryNotFoundException 존재하지 않는 카테고리인 경우(스트림 시작 전)
      * @throws CategoryNotLeafException 최하위 카테고리가 아닌 경우(스트림 시작 전)
+     * @throws InvalidCategoryOptionException 카테고리별 추가 항목이 맞지 않거나 필수 항목이 빠진 경우(스트림 시작 전)
      * @throws ProductImageRequiredException 이미지가 없는 경우(스트림 시작 전)
      * @throws FileStorageException 빈 파일이거나 파일을 읽지 못한 경우(스트림 시작 전)
      * @throws ProductRegisterBusyException 처리 대기열이 가득 찬 경우(스트림 시작 전)
      */
     public SseEmitter registerDirect(
             Long memberId, ProductCreateRequest request, List<MultipartFile> images, boolean withMarketAnalysis) {
-        productService.validateLeafCategory(request.categoryId());
+        productService.validateCreate(request);
         List<MultipartFile> copies = copyImages(images);
         return start(steps(DIRECT_STEPS, withMarketAnalysis), stream -> {
             List<String> imageUrls = uploadImages(stream, copies);
@@ -214,6 +216,7 @@ public class ProductRegisterStreamService implements DisposableBean {
      * @throws CategoryNotFoundException 존재하지 않는 카테고리인 경우(스트림 시작 전)
      * @throws CategoryNotLeafException 최하위 카테고리가 아닌 경우(스트림 시작 전)
      * @throws ProductImageRequiredException 유지할 이미지와 새 파일을 합쳐 1장도 없는 경우(스트림 시작 전)
+     * @throws InvalidCategoryOptionException 카테고리별 추가 항목이 맞지 않거나 필수 항목이 빠진 경우(스트림 시작 전)
      * @throws ProductRegisterBusyException 처리 대기열이 가득 찬 경우(스트림 시작 전)
      */
     public SseEmitter update(Long memberId, Long productId, ProductUpdateRequest request, List<MultipartFile> images) {
@@ -494,6 +497,10 @@ public class ProductRegisterStreamService implements DisposableBean {
         }
         if (e instanceof CategoryNotLeafException) {
             log.warn("상품 등록 - 최하위가 아닌 카테고리: {}", ErrorLogs.describe(e));
+            return errorResponse(step, HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
+        }
+        if (e instanceof InvalidCategoryOptionException) {
+            log.warn("상품 등록 - 카테고리 추가 항목 오류: {}", ErrorLogs.describe(e));
             return errorResponse(step, HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
         }
         if (e instanceof DataIntegrityViolationException) {

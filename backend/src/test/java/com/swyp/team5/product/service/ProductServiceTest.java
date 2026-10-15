@@ -27,6 +27,7 @@ import com.swyp.team5.category.entity.Category;
 import com.swyp.team5.category.error.CategoryNotFoundException;
 import com.swyp.team5.category.error.CategoryNotLeafException;
 import com.swyp.team5.category.repository.CategoryRepository;
+import com.swyp.team5.category.service.CategoryOptionService;
 import com.swyp.team5.common.common.CursorPageResponse;
 import com.swyp.team5.component.entity.Component;
 import com.swyp.team5.component.repository.ComponentRepository;
@@ -141,6 +142,9 @@ class ProductServiceTest {
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
+    @Mock
+    private CategoryOptionService categoryOptionService;
+
     private ProductService service() {
         return new ProductService(
                 productRepository,
@@ -160,7 +164,8 @@ class ProductServiceTest {
                 priceForecastRepository,
                 notificationRepository,
                 productViewCounter,
-                eventPublisher);
+                eventPublisher,
+                categoryOptionService);
     }
 
     // 상품 등록 성공
@@ -182,7 +187,8 @@ class ProductServiceTest {
                 null,
                 "서울시 강남구",
                 List.of(),
-                List.of());
+                List.of(),
+                null);
 
         when(memberRepository.getReferenceById(1L)).thenReturn(member);
         when(categoryRepository.findById(category.getId())).thenReturn(Optional.of(category));
@@ -230,7 +236,8 @@ class ProductServiceTest {
                 null,
                 null,
                 List.of("애플", "아이폰"),
-                List.of());
+                List.of(),
+                null);
 
         when(memberRepository.getReferenceById(1L)).thenReturn(member);
         when(categoryRepository.findById(category.getId())).thenReturn(Optional.of(category));
@@ -265,7 +272,8 @@ class ProductServiceTest {
                 null,
                 null,
                 List.of(),
-                List.of("박스", "충전기"));
+                List.of("박스", "충전기"),
+                null);
 
         when(memberRepository.getReferenceById(1L)).thenReturn(member);
         when(categoryRepository.findById(category.getId())).thenReturn(Optional.of(category));
@@ -295,7 +303,8 @@ class ProductServiceTest {
                 null,
                 null,
                 List.of(),
-                List.of());
+                List.of(),
+                null);
 
         when(categoryRepository.findById(99L)).thenReturn(Optional.empty());
 
@@ -811,7 +820,8 @@ class ProductServiceTest {
                 null,
                 List.of("https://image.example.com/2.png"),
                 List.of("가성비"),
-                List.of("박스"));
+                List.of("박스"),
+                null);
 
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(categoryRepository.findById(category.getId())).thenReturn(Optional.of(category));
@@ -862,7 +872,8 @@ class ProductServiceTest {
                 null,
                 List.of("https://image.example.com/2.png"),
                 List.of(),
-                List.of());
+                List.of(),
+                null);
 
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(categoryRepository.findById(category.getId())).thenReturn(Optional.of(category));
@@ -894,7 +905,8 @@ class ProductServiceTest {
                 null,
                 null,
                 List.of(),
-                List.of());
+                List.of(),
+                null);
 
         when(categoryRepository.findById(1L)).thenReturn(Optional.of(digital));
 
@@ -925,7 +937,8 @@ class ProductServiceTest {
                 null,
                 List.of("https://image.example.com/2.png"),
                 List.of(),
-                List.of());
+                List.of(),
+                null);
 
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(categoryRepository.findById(1L)).thenReturn(Optional.of(digital));
@@ -956,7 +969,8 @@ class ProductServiceTest {
                 null,
                 List.of("https://image.example.com/2.png"),
                 List.of(),
-                List.of());
+                List.of(),
+                null);
 
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
 
@@ -986,7 +1000,8 @@ class ProductServiceTest {
                 null,
                 List.of(),
                 List.of(),
-                List.of());
+                List.of(),
+                null);
 
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(categoryRepository.findById(category.getId())).thenReturn(Optional.of(category));

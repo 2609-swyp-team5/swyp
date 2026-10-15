@@ -19,8 +19,13 @@ import java.util.Set;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.swyp.team5.category.dto.CategoryOptionGroupResponse;
 import com.swyp.team5.category.entity.Category;
+import com.swyp.team5.category.entity.CategoryOptionType;
+import com.swyp.team5.category.entity.SelectedCategoryOption;
 import com.swyp.team5.category.error.CategoryNotLeafException;
+import com.swyp.team5.category.error.InvalidCategoryOptionException;
+import com.swyp.team5.category.service.CategoryOptionService;
 import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.notification.service.NotificationService;
 import com.swyp.team5.platform.bunjang.client.BunjangProductUploader;
@@ -80,6 +85,9 @@ class BunjangProductPublishServiceTest {
     @Mock
     private NotificationService notificationService;
 
+    @Mock
+    private CategoryOptionService categoryOptionService;
+
     private BunjangProductPublishService service() {
         return new BunjangProductPublishService(
                 platformRepository,
@@ -88,7 +96,8 @@ class BunjangProductPublishServiceTest {
                 productRepository,
                 bunjangProductUploader,
                 new TransactionTemplate(mock(PlatformTransactionManager.class)),
-                notificationService);
+                notificationService,
+                categoryOptionService);
     }
 
     // 등록 성공 - 등록 진행 중으로 생성된 뒤 번개장터 매물 ID/주소와 함께 게시됨으로 전환
@@ -272,6 +281,47 @@ class BunjangProductPublishServiceTest {
         assertThatThrownBy(() -> service().publish(2L, 5L)).isInstanceOf(CategoryNotLeafException.class);
         verify(productPlatformRepository, never()).save(any());
         verify(bunjangProductUploader, never()).upload(any(), any());
+    }
+
+    // 카테고리별 필수 추가 항목(사이즈 등)이 빠진 상품은 브라우저를 띄우기 전에 거절(번개장터 등록 버튼이 막힘)
+    @Test
+    void publishFailsWhenRequiredCategoryOptionMissing() {
+        givenConnectedMemberPlatform();
+        Product product = givenProduct(newMember(2L));
+        when(categoryOptionService.findMissingRequired(3L, product.getCategoryOptions()))
+                .thenReturn(Optional.of(sizeGroup()));
+
+        assertThatThrownBy(() -> service().publish(2L, 5L))
+                .isInstanceOf(InvalidCategoryOptionException.class)
+                .hasMessageContaining("'사이즈' 항목이 필요해요");
+        verify(productPlatformRepository, never()).save(any());
+        verify(bunjangProductUploader, never()).upload(any(), any());
+    }
+
+    // 저장된 추가 항목이 번개장터 화면의 항목 버튼 문구(옵션 정의 title)와 함께 폼으로 넘어감
+    @Test
+    void publishPassesCategoryOptionsToForm() {
+        MemberPlatform memberPlatform = givenConnectedMemberPlatform();
+        Product product = givenProduct(newMember(2L));
+        product.replaceCategoryOptions(
+                List.of(new SelectedCategoryOption("100", "사이즈", "공용 사이즈", CategoryOptionType.SINGLE_SELECT, 5L, "M")));
+        when(categoryOptionService.getOptions(3L)).thenReturn(List.of(sizeGroup()));
+        when(productPlatformRepository.findByProductIdAndMemberPlatformId(5L, 10L))
+                .thenReturn(Optional.empty());
+        givenSavedProductPlatform(memberPlatform, product);
+        when(bunjangProductUploader.upload(eq("abc123"), any())).thenReturn(UPLOAD_RESULT);
+
+        service().publish(2L, 5L);
+
+        ArgumentCaptor<BunjangListingForm> captor = ArgumentCaptor.forClass(BunjangListingForm.class);
+        verify(bunjangProductUploader).upload(eq("abc123"), captor.capture());
+        assertThat(captor.getValue().categoryOptions())
+                .containsExactly(new BunjangListingForm.Option(
+                        "사이즈", "사이즈를 선택해 주세요", "공용 사이즈", CategoryOptionType.SINGLE_SELECT, "M"));
+    }
+
+    private static CategoryOptionGroupResponse sizeGroup() {
+        return new CategoryOptionGroupResponse("100", "사이즈", "사이즈를 선택해 주세요", true, null, null, List.of());
     }
 
     private MemberPlatform givenConnectedMemberPlatform() {

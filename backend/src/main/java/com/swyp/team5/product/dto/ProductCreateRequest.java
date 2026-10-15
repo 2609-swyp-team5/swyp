@@ -2,12 +2,14 @@ package com.swyp.team5.product.dto;
 
 import java.util.List;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
+import com.swyp.team5.category.dto.CategoryOptionSelection;
 import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.DeliveryType;
 import com.swyp.team5.product.entity.ProductCondition;
@@ -27,4 +29,6 @@ public record ProductCreateRequest(
         DeliveryType deliveryType, // 배송비 부담 방식 (택배 거래 시)
         @Size(max = 100) String preferredTradeRegion, // 희망 거래 지역 (선택)
         List<@NotBlank @Size(max = 50) String> tags, // 태그 이름 목록 (선택)
-        List<@NotBlank @Size(max = 50) String> includedItems) {} // 구성품 이름 목록 (선택)
+        List<@NotBlank @Size(max = 50) String> includedItems, // 구성품 이름 목록 (선택)
+        List<@Valid CategoryOptionSelection>
+                categoryOptions) {} // 카테고리별 추가 항목 (GET /categories/{id}/options 기준, 필수 항목은 꼭 입력)

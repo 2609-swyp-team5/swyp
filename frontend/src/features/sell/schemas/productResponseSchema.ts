@@ -32,6 +32,16 @@ export const productPlatformPublishResponseSchema = z.object({
     updatedAt: z.string(),
 });
 
+/** 상품에 저장된 카테고리별 추가 항목(서버가 항목·값 이름까지 채움). */
+export const selectedCategoryOptionSchema = z.object({
+    groupId: z.string(),
+    groupName: z.string(),
+    childName: z.string(),
+    type: z.enum(["SINGLE_SELECT", "SINGLE_ROUND", "TEXT_FIELD", "DATE_TEXT_FIELD"]),
+    valueId: z.number(),
+    value: z.string(),
+});
+
 export const productResponseSchema = z.object({
     id: z.number(),
     memberId: z.number(),
@@ -60,6 +70,7 @@ export const productResponseSchema = z.object({
     preferredTradeRegion: z.string().nullable(),
     imageUrls: z.array(z.string()),
     tags: z.array(z.string()),
+    categoryOptions: z.array(selectedCategoryOptionSchema).optional(),
     recommendation: productRecommendationSchema.nullable(),
     suggestedPrice: z.number().nullable(),
     analysisDescription: z.string().nullable(),
