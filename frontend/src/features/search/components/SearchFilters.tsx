@@ -144,6 +144,7 @@ export function SearchFilters({
                     options={[
                         { label: "전체", value: "ALL" },
                         { label: "번개장터", value: "BUNJANG" },
+                        { label: "중고나라", value: "JOONGNA" },
                         { label: "지금이니", value: "OUR" },
                     ]}
                     disabled={disabled}

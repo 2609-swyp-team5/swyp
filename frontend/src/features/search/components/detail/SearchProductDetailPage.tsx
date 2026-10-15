@@ -261,7 +261,9 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                                                         ? "bg-[#ff6f0f]"
                                                         : platform === "번개장터"
                                                           ? "bg-[#83889e]"
-                                                          : "bg-[#6653fb]",
+                                                          : platform === "중고나라"
+                                                            ? "bg-[#ff0000]"
+                                                            : "bg-[#6653fb]",
                                                 )}
                                             >
                                                 {platform}

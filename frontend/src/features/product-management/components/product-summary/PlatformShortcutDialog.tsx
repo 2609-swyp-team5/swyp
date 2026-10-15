@@ -34,8 +34,8 @@ const platformIconPaths: Record<string, string> = {
     번개장터: "/my/platforms/bunjang.png",
     DAANGN: "/my/home/daangn.svg",
     당근마켓: "/my/home/daangn.svg",
-    JOONGGONARA: "/my/home/joonggonara.png",
-    중고나라: "/my/home/joonggonara.png",
+    JOONGNA: "/my/platforms/joongna.png",
+    중고나라: "/my/platforms/joongna.png",
 };
 
 export function PlatformShortcutDialog({

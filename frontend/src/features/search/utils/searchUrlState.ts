@@ -17,7 +17,7 @@ export type SearchUrlState = {
 const defaultSort: SearchSort = "LATEST";
 const sorts: SearchSort[] = ["RECOMMENDED", "LATEST", "INTEREST", "PRICE_HIGH", "PRICE_LOW"];
 const statuses: SearchStatus[] = ["DRAFT", "ON_SALE", "RESERVED", "SOLD_OUT"];
-const platforms: Exclude<SearchPlatform, "ALL">[] = ["BUNJANG", "OUR"];
+const platforms: Exclude<SearchPlatform, "ALL">[] = ["BUNJANG", "JOONGNA", "OUR"];
 const conditions: SearchCondition[] = ["S", "A", "B", "C", "D"];
 const defectStatuses: SearchDefectStatus[] = ["NORMAL", "ISSUES", "UNKNOWN"];
 

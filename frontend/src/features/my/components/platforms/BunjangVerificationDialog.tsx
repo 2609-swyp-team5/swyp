@@ -88,6 +88,7 @@ export function BunjangVerificationDialog({
     const [errors, setErrors] = useState<VerificationFormErrors>({});
     const isPending = isRequestPending || isConfirmPending;
     const isOtpStep = verification !== null;
+    const platformName = selected?.name ?? "플랫폼";
 
     const updateField = <K extends keyof VerificationForm>(
         field: K,
@@ -111,7 +112,7 @@ export function BunjangVerificationDialog({
             nextErrors.phone = "휴대폰 번호를 숫자만 입력해 주세요.";
         }
         if (!form.agreedToBunjangTerms) {
-            nextErrors.agreedToBunjangTerms = "번개장터 필수 약관에 동의해 주세요.";
+            nextErrors.agreedToBunjangTerms = `${platformName} 필수 약관에 동의해 주세요.`;
         }
         setErrors(nextErrors);
         return Object.keys(nextErrors).length === 0;
@@ -128,8 +129,8 @@ export function BunjangVerificationDialog({
                 <DialogTitle>{selected?.name} 본인인증</DialogTitle>
                 <DialogDescription>
                     {isOtpStep
-                        ? "번개장터에서 받은 인증번호를 입력해 주세요."
-                        : "번개장터 연결을 위해 본인인증을 진행해 주세요."}
+                        ? `${platformName}에서 받은 인증번호를 입력해 주세요.`
+                        : `${platformName} 연결을 위해 본인인증을 진행해 주세요.`}
                 </DialogDescription>
 
                 {errorMessage && (
@@ -258,7 +259,7 @@ export function BunjangVerificationDialog({
                                     htmlFor="bunjang-terms"
                                     className="cursor-pointer text-[16px] leading-[25px] text-[#545d82]"
                                 >
-                                    번개장터 본인인증 필수 약관에 동의합니다.
+                                    {platformName} 본인인증 필수 약관에 동의합니다.
                                 </Label>
                                 {errors.agreedToBunjangTerms && (
                                     <p role="alert" className="text-destructive mt-1 text-xs">

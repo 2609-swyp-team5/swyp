@@ -8,7 +8,7 @@ import type {
 
 // 우리 상품과 외부 매물의 거래 상태 필터
 export type SearchStatus = z.infer<typeof searchStatusSchema>;
-export type SearchPlatform = "ALL" | "BUNJANG" | "OUR";
+export type SearchPlatform = "ALL" | "BUNJANG" | "JOONGNA" | "OUR";
 export type SearchSort = "RECOMMENDED" | "LATEST" | "INTEREST" | "PRICE_HIGH" | "PRICE_LOW";
 export type SearchCondition = "S" | "A" | "B" | "C" | "D";
 export type SearchDefectStatus = "NORMAL" | "ISSUES" | "UNKNOWN";
