@@ -27,7 +27,7 @@ const sizeStyles = {
         grid: "grid w-full max-w-[760px] grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5",
         item: "aspect-square rounded-xl",
         add: "aspect-square h-auto w-full rounded-xl",
-        badge: "h-9 rounded-none rounded-b-xl text-[16px] leading-7",
+        badge: "h-9 rounded-none rounded-b-xl typography-body-medium",
         imageSizes: "(min-width: 1024px) 160px, 33vw",
         remove: "top-[-12px] right-[-12px] size-[25px]",
     },
@@ -35,7 +35,7 @@ const sizeStyles = {
         grid: "flex w-full flex-wrap gap-3",
         item: "size-[100px] rounded-lg",
         add: "size-[100px] rounded-lg",
-        badge: "h-6 rounded-none rounded-b-lg text-[10px] leading-[15px]",
+        badge: "h-6 rounded-none rounded-b-lg typography-caption",
         imageSizes: "100px",
         remove: "top-[-8px] right-[-8px] size-5",
     },
@@ -43,7 +43,7 @@ const sizeStyles = {
         grid: "flex w-full flex-wrap gap-3",
         item: "size-[200px] rounded-[8px]",
         add: "size-[200px] rounded-[8px]",
-        badge: "h-[29px] rounded-none rounded-b-[8px] text-[16px] leading-[25px]",
+        badge: "h-[29px] rounded-none rounded-b-[8px] typography-body-medium",
         imageSizes: "200px",
         remove: "top-[-12px] right-[-12px] size-[25px]",
     },
@@ -51,7 +51,7 @@ const sizeStyles = {
         grid: "grid w-full grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5",
         item: "aspect-square rounded-[8px]",
         add: "aspect-square h-auto w-full rounded-[8px]",
-        badge: "h-[29px] rounded-none rounded-b-[8px] text-[16px] leading-[25px]",
+        badge: "h-[29px] rounded-none rounded-b-[8px] typography-body-medium",
         imageSizes: "(min-width: 1024px) 20vw, (min-width: 640px) 33vw, 50vw",
         remove: "top-[-12px] right-[-12px] size-[25px]",
     },
@@ -94,8 +94,8 @@ export function ProductImageGrid({
                             className={cn(
                                 "font-normal",
                                 size === "direct" || size === "review"
-                                    ? "text-[13px] leading-5 text-[#d3d3d3]"
-                                    : "text-[11px] leading-[16.5px] text-[#8ca2c0]",
+                                    ? "typography-body-small text-[#d3d3d3]"
+                                    : "typography-body-small text-[#8ca2c0]",
                             )}
                         >
                             사진 추가

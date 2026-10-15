@@ -15,16 +15,14 @@ export function TargetPriceSaveToast({
         >
             <div className="flex w-full max-w-[354px] flex-col items-center gap-[35px]">
                 <div className="flex w-full flex-col items-center">
-                    <p className="text-[20px] leading-[30px] font-bold text-[#545d82]">
+                    <p className="typography-heading-03 font-bold text-[#545d82]">
                         입력하신 목표가를 저장했습니다!
                     </p>
-                    <p className="pt-1 text-[14px] leading-[21px] text-[#6b7395]">{description}</p>
+                    <p className="typography-body-small pt-1 text-[#6b7395]">{description}</p>
                 </div>
                 <div className="flex w-full flex-col items-center justify-center bg-[#fafbff] py-2.5 text-[#6653fb]">
-                    <span className="text-[16px] leading-[25px] font-semibold tracking-[0.5px]">
-                        목표가
-                    </span>
-                    <strong className="text-[22px] leading-[30px] font-semibold tracking-[0.5px]">
+                    <span className="typography-body-bold font-semibold">목표가</span>
+                    <strong className="typography-heading-bold font-semibold">
                         {formatPrice(targetPrice)}
                     </strong>
                 </div>

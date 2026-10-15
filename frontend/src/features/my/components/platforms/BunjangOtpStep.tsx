@@ -10,9 +10,8 @@ import type { BunjangVerificationResponse } from "@/features/my/types";
 const buttonFocusClassName =
     "focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30";
 const fieldClassName =
-    "h-[50px] rounded-[8px] border border-[#d3d3d3] bg-[#fafbff] px-4 py-3 text-[16px] leading-[25px] text-[#6b6c7b] shadow-none placeholder:text-[#d3d3d3] focus-visible:border-[#6653fb] focus-visible:ring-0";
-const fieldLabelClassName =
-    "text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#464646]";
+    "h-[50px] rounded-[8px] border border-[#d3d3d3] bg-[#fafbff] px-4 py-3 typography-body-medium text-[#6b6c7b] shadow-none placeholder:text-[#d3d3d3] focus-visible:border-[#6653fb] focus-visible:ring-0";
+const fieldLabelClassName = "typography-body-bold font-semibold text-[#464646]";
 
 type BunjangOtpStepProps = {
     verification: BunjangVerificationResponse;
@@ -77,7 +76,7 @@ export function BunjangOtpStep({
             }}
             className="space-y-5"
         >
-            <div className="rounded-lg bg-[#fafbff] px-4 py-3 text-sm text-[#6b6c7b]">
+            <div className="typography-body-small rounded-lg bg-[#fafbff] px-4 py-3 text-[#6b6c7b]">
                 인증번호는 {formatRemainingTime(remainingSeconds)} 동안 유효합니다.
             </div>
             <div className="flex flex-col gap-1.5">
@@ -100,7 +99,7 @@ export function BunjangOtpStep({
                     className={fieldClassName}
                 />
                 {otpError && (
-                    <p role="alert" className="text-destructive text-xs">
+                    <p role="alert" className="text-destructive typography-body-small">
                         {otpError}
                     </p>
                 )}

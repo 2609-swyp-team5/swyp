@@ -47,7 +47,7 @@ export function MySidebar() {
                     </p>
                     <Link
                         href="/my/settings"
-                        className="flex w-fit items-center gap-1 text-[13px] leading-5 text-[#6b6c7b] underline underline-offset-2 hover:text-[#6653fb]"
+                        className="typography-body-small flex w-fit items-center gap-1 text-[#6b6c7b] underline underline-offset-2 hover:text-[#6653fb]"
                     >
                         프로필 보기 <Pencil className="size-3" aria-hidden="true" />
                     </Link>
@@ -61,7 +61,7 @@ export function MySidebar() {
                                 ? pathname === "/my"
                                 : pathname.startsWith(item.href);
                         const className = cn(
-                            `typography-body-medium h-auto min-h-[50px] w-full rounded-none px-3 py-2 text-center text-[length:var(--type-body-medium-size)] font-semibold whitespace-normal ${buttonInteractionClassName}`,
+                            `typography-body-medium h-auto min-h-[50px] w-full rounded-none px-3 py-2 text-center font-semibold whitespace-normal ${buttonInteractionClassName}`,
                             active ? "bg-[#dedee6] text-[#6653fb]" : "text-[#83889e]",
                         );
                         return (
@@ -75,7 +75,7 @@ export function MySidebar() {
                 </div>
                 <div className="space-y-5 px-6">
                     {errorMessage ? (
-                        <p role="alert" className="text-sm text-red-600">
+                        <p role="alert" className="typography-body-small text-red-600">
                             {errorMessage}
                         </p>
                     ) : null}
@@ -84,7 +84,7 @@ export function MySidebar() {
                         variant="ghost"
                         disabled={isLoggingOut}
                         onClick={handleLogout}
-                        className={`h-12 w-full gap-2 border-t border-[#dedee6] text-base text-[#363636] ${buttonInteractionClassName}`}
+                        className={`typography-body-medium h-12 w-full gap-2 border-t border-[#dedee6] text-[#363636] ${buttonInteractionClassName}`}
                     >
                         <LogOut className="size-4" aria-hidden="true" />
                         {isLoggingOut ? "로그아웃 중..." : "로그아웃"}

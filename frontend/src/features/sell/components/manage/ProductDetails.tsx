@@ -9,7 +9,7 @@ import {
 
 function DetailRow({ label, value }: { label: string; value: string }) {
     return (
-        <div className="flex items-center gap-4 border-b border-[#d3d3d3] py-2.5 text-[15px] leading-6 md:py-3 md:text-[16px] md:leading-[25px]">
+        <div className="typography-body-medium flex items-center gap-4 border-b border-[#d3d3d3] py-2.5 md:py-3">
             <dt className="w-[96px] shrink-0 font-semibold tracking-[0.5px] text-[#83889e] md:w-[160px]">
                 {label}
             </dt>
@@ -46,7 +46,7 @@ export function ProductDetails({ product }: { product: ProductResponse }) {
             <div className="flex min-w-0 flex-1 flex-col gap-6 lg:gap-[30px]">
                 <h2
                     id="product-details-title"
-                    className="text-[22px] leading-8 font-bold tracking-[0.5px] text-[#363636] md:text-[30px] md:leading-[42px]"
+                    className="typography-heading-02 font-bold text-[#363636]"
                 >
                     등록된 상품 정보
                 </h2>
@@ -59,35 +59,31 @@ export function ProductDetails({ product }: { product: ProductResponse }) {
 
             <div className="flex min-w-0 flex-1 flex-col gap-8 md:gap-[50px]">
                 <div className="flex min-h-[200px] flex-col gap-2.5 md:h-[392px]">
-                    <h3 className="text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#363636]">
-                        상세 설명
-                    </h3>
+                    <h3 className="typography-body-bold font-semibold text-[#363636]">상세 설명</h3>
                     <div className="flex min-h-0 flex-1 flex-col items-end justify-between rounded-[5px] border border-[#d3d3d3] bg-[#fafbff] p-4 md:p-6 lg:p-[30px]">
-                        <p className="w-full text-[15px] leading-6 font-medium tracking-[0.5px] whitespace-pre-wrap text-[#363636] md:text-[18px] md:leading-8 lg:text-[20px]">
+                        <p className="typography-heading-03 w-full font-medium whitespace-pre-wrap text-[#363636]">
                             {description}
                         </p>
-                        <span className="font-brand text-[12px] leading-[18px] text-[#6b7395]">
+                        <span className="font-brand typography-body-small text-[#6b7395]">
                             현재 {descriptionLength}자 · 권장 길이에 적합해요
                         </span>
                     </div>
                 </div>
 
                 <div className="flex flex-col gap-2.5">
-                    <h3 className="text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#363636]">
-                        추천 태그
-                    </h3>
+                    <h3 className="typography-body-bold font-semibold text-[#363636]">추천 태그</h3>
                     <div className="flex flex-wrap gap-3">
                         {product.tags.length > 0 ? (
                             product.tags.map((tag) => (
                                 <span
                                     key={tag}
-                                    className="rounded-full bg-[#eaeafd] px-3 py-1 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6653fb] md:px-5"
+                                    className="typography-body-bold-small rounded-full bg-[#eaeafd] px-3 py-1 font-semibold text-[#6653fb] md:px-5"
                                 >
                                     #{tag}
                                 </span>
                             ))
                         ) : (
-                            <span className="text-[14px] leading-5 font-medium text-[#6b7395]">
+                            <span className="typography-body-small font-medium text-[#6b7395]">
                                 등록된 태그가 없습니다.
                             </span>
                         )}

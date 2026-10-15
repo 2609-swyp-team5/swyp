@@ -66,8 +66,7 @@ export function HomePage() {
         event.preventDefault();
         search(keyword);
     };
-    const headingClass =
-        "text-[26px] leading-9 font-bold break-keep md:text-[32px] md:leading-[44px] lg:text-[48px] lg:leading-[60px]";
+    const headingClass = "typography-heading-01 font-bold break-keep";
 
     return (
         <main className="font-brand flex-1 bg-white font-normal tracking-[0.5px]">
@@ -88,7 +87,7 @@ export function HomePage() {
                         className="flex flex-col gap-6 pt-8 md:gap-10 md:pt-[60px] lg:gap-[60px]"
                     >
                         <div className="space-y-2.5">
-                            <p className="text-base leading-5 font-medium text-[#6b7395] md:text-[20px]">
+                            <p className="typography-heading-03 font-medium text-[#6b7395]">
                                 AI와 함께하는 똑똑한 중고거래
                             </p>
                             {isPending ? (
@@ -105,12 +104,12 @@ export function HomePage() {
                                     key={item.title}
                                     className="gap-1.5 rounded-[10px] border border-[#d3d3d3] bg-[#fafbff] px-4 py-4 ring-0 md:gap-2 md:px-6 md:py-5"
                                 >
-                                    <h2 className="text-[14px] leading-[21px] text-[#464646]">
+                                    <h2 className="typography-body-small text-[#464646]">
                                         {item.title}
                                     </h2>
                                     <p
                                         className={cn(
-                                            "text-[22px] leading-8 font-bold md:text-[28px] md:leading-9",
+                                            "typography-heading-02 font-bold",
                                             index === 1 || index === 2
                                                 ? "text-[#6653fb]"
                                                 : "text-[#363636]",
@@ -128,7 +127,7 @@ export function HomePage() {
                                                       : undefined
                                                 : undefined
                                         }
-                                        className="text-[12px] leading-[18px] font-medium break-keep text-[#464646] md:text-[13px] md:leading-[19.5px]"
+                                        className="typography-body-small font-medium break-keep text-[#464646]"
                                     >
                                         {summary.isError
                                             ? index === 0
@@ -181,7 +180,7 @@ export function HomePage() {
                                 aria-pressed={searchMode === mode}
                                 onClick={() => setSearchMode(mode)}
                                 className={cn(
-                                    "h-full w-[110px] rounded-full px-0 text-[16px] leading-[normal] font-semibold transition-colors duration-200 motion-reduce:transition-none",
+                                    "typography-body-bold h-full w-[110px] rounded-full px-0 font-semibold transition-colors duration-200 motion-reduce:transition-none",
                                     searchMode === mode
                                         ? cn(activeClass, "text-white hover:text-white")
                                         : "text-[#d3d3d3] hover:bg-[#fafbff] hover:text-[#83889e]",
@@ -199,7 +198,7 @@ export function HomePage() {
                             >
                                 {searchMode === "general" ? "상품 일반 검색" : "AI 검색"}
                             </h2>
-                            <p className="text-base leading-7 font-medium text-[#6b7395] md:text-[20px]">
+                            <p className="typography-heading-03 font-medium text-[#6b7395]">
                                 {searchMode === "general"
                                     ? "상품명, 모델명, 브랜드를 입력하면 현재 중고 시세를 보여드려요."
                                     : "자연어로 물어보세요. AI가 시세 분석과 거래 타이밍을 종합해 알려드려요."}
@@ -224,7 +223,7 @@ export function HomePage() {
                                             ? "예: 필름카메라 FM2, 아이패드 프로, 다이슨 에어랩"
                                             : "예: 필름카메라 지금 팔아도 될까요? 아이패드 요즘 시세 어때?"
                                     }
-                                    className="h-full border-0 px-0 text-base text-[#464646] shadow-none placeholder:text-[#6b6c7b] focus-visible:ring-0 md:text-[20px]"
+                                    className="typography-heading-03 h-full border-0 px-0 text-[#464646] shadow-none placeholder:text-[#6b6c7b] focus-visible:ring-0"
                                 />
                                 <Button
                                     type="submit"
@@ -236,12 +235,12 @@ export function HomePage() {
                                 </Button>
                             </form>
                             {searchError && (
-                                <p role="alert" className="text-destructive text-sm">
+                                <p role="alert" className="text-destructive typography-body-small">
                                     {searchError}
                                 </p>
                             )}
                             <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3">
-                                <p className="text-[15px] leading-[18px] font-semibold text-[#6653fb]">
+                                <p className="typography-body-bold font-semibold text-[#6653fb]">
                                     인기 검색어
                                 </p>
                                 <div className="flex flex-wrap justify-center gap-2">
@@ -251,7 +250,7 @@ export function HomePage() {
                                             type="button"
                                             variant="outline"
                                             onClick={() => search(value)}
-                                            className="h-auto rounded-full border-[#d3d3d3] bg-[#fafbff] px-3 py-1 text-[13px] leading-[19.5px] font-normal text-[#464646]"
+                                            className="typography-body-small h-auto rounded-full border-[#d3d3d3] bg-[#fafbff] px-3 py-1 font-normal text-[#464646]"
                                         >
                                             {value}
                                         </Button>
@@ -266,7 +265,7 @@ export function HomePage() {
                     className="flex flex-col gap-6 py-6 md:gap-10 md:py-[60px] lg:min-h-[630px] lg:justify-between"
                 >
                     <div className="space-y-2.5">
-                        <p className="text-base leading-7 font-medium text-[#464646] md:text-[20px]">
+                        <p className="typography-heading-03 font-medium text-[#464646]">
                             당신만을 위한 맞춤형 중고거래 도우미
                         </p>
                         <h2
@@ -283,7 +282,7 @@ export function HomePage() {
                     className="flex flex-col gap-6 py-6 md:gap-10 md:py-[60px] lg:min-h-[630px] lg:justify-between"
                 >
                     <div className="space-y-2.5">
-                        <p className="text-base leading-7 font-medium text-[#464646] md:text-[20px]">
+                        <p className="typography-heading-03 font-medium text-[#464646]">
                             당신만을 위한 맞춤형 중고거래 도우미
                         </p>
                         <h2
@@ -315,17 +314,17 @@ export function HomePage() {
                                 className="relative h-[280px] gap-0 rounded-[20px] border border-[#464646] bg-white py-0 ring-0 md:h-[350px]"
                             >
                                 <CardContent className="space-y-3 px-5 py-6 text-center text-[#363636] md:space-y-5 md:px-6 md:py-[30px]">
-                                    <h3 className="text-[24px] leading-[30px] font-semibold md:text-[30px]">
+                                    <h3 className="typography-heading-02 font-semibold">
                                         {item.title}
                                     </h3>
-                                    <p className="text-[15px] leading-6 font-medium break-keep md:text-base md:leading-[35px] lg:text-[20px]">
+                                    <p className="typography-heading-03 font-medium break-keep">
                                         {item.description}
                                     </p>
                                 </CardContent>
                                 <div className="flex-1 rounded-[5px] bg-[#d3d3d3]" />
                                 <Button
                                     asChild
-                                    className="absolute right-5 bottom-5 left-5 h-[52px] rounded-full bg-[#6653fb] px-5 text-base leading-5 font-bold md:right-6 md:bottom-[29px] md:left-6 md:h-[60px] lg:right-auto lg:left-1/2 lg:w-[400px] lg:-translate-x-1/2 lg:text-[20px]"
+                                    className="typography-heading-03 absolute right-5 bottom-5 left-5 h-[52px] rounded-full bg-[#6653fb] px-5 font-bold md:right-6 md:bottom-[29px] md:left-6 md:h-[60px] lg:right-auto lg:left-1/2 lg:w-[400px] lg:-translate-x-1/2"
                                 >
                                     <Link href={isLoggedIn ? item.href : "/login"}>
                                         {item.button}
@@ -342,7 +341,7 @@ export function HomePage() {
                     >
                         <div className="flex flex-wrap items-end justify-between gap-5 lg:pr-10">
                             <div className="space-y-2.5">
-                                <p className="text-base leading-7 font-medium text-[#6b7395] md:text-[20px]">
+                                <p className="typography-heading-03 font-medium text-[#6b7395]">
                                     관심 목록을 바탕으로 추천드려요
                                 </p>
                                 <h2
@@ -354,7 +353,7 @@ export function HomePage() {
                             </div>
                             <Button
                                 asChild
-                                className="h-auto gap-2 rounded-full bg-[#5d55fe] px-[30px] py-3 text-base leading-6 font-semibold"
+                                className="typography-body-bold h-auto gap-2 rounded-full bg-[#5d55fe] px-[30px] py-3 font-semibold"
                             >
                                 <Link href="/sell/register">
                                     <Plus className="size-5" />

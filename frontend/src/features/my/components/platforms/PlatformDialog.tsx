@@ -40,7 +40,7 @@ export function PlatformDialog({
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 {errorMessage && (
-                    <p role="alert" className="text-destructive text-sm">
+                    <p role="alert" className="text-destructive typography-body-small">
                         {errorMessage}
                     </p>
                 )}

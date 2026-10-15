@@ -16,7 +16,10 @@ export function NextActions({ productId, existingPlatforms }: NextActionsProps) 
 
     return (
         <section aria-labelledby="next-actions-title">
-            <h2 id="next-actions-title" className="text-[22px] leading-8 font-bold text-[#161632]">
+            <h2
+                id="next-actions-title"
+                className="typography-heading-bold font-bold text-[#161632]"
+            >
                 다음 단계를 선택해주세요
             </h2>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -36,10 +39,10 @@ export function NextActions({ productId, existingPlatforms }: NextActionsProps) 
                                 className="size-11 shrink-0 md:size-[54px]"
                             />
                             <span className="min-w-0">
-                                <span className="block text-[18px] leading-[27px] font-semibold tracking-[0.5px] text-black md:text-[20px] md:leading-[30px]">
+                                <span className="typography-heading-03 block font-semibold text-black">
                                     다른 플랫폼에 등록하기
                                 </span>
-                                <span className="mt-0.5 block text-[14px] leading-[22px] font-normal text-[#6b6c7b] md:text-[16px] md:leading-[25px]">
+                                <span className="typography-body-medium mt-0.5 block font-normal text-[#6b6c7b]">
                                     선택한 플랫폼에 판매글을 등록할 수 있어요.
                                 </span>
                             </span>
@@ -63,10 +66,10 @@ export function NextActions({ productId, existingPlatforms }: NextActionsProps) 
                             className="size-11 shrink-0 md:size-[54px]"
                         />
                         <span className="min-w-0">
-                            <span className="block text-[18px] leading-[27px] font-semibold tracking-[0.5px] text-black md:text-[20px] md:leading-[30px]">
+                            <span className="typography-heading-03 block font-semibold text-black">
                                 새 상품 등록하기
                             </span>
-                            <span className="mt-0.5 block text-[14px] leading-[22px] font-normal text-[#6b6c7b] md:text-[16px] md:leading-[25px]">
+                            <span className="typography-body-medium mt-0.5 block font-normal text-[#6b6c7b]">
                                 다른 상품도 빠르게 등록해 보세요.
                             </span>
                         </span>

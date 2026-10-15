@@ -44,14 +44,14 @@ export function HeroSection({
                 <div className="relative z-10 space-y-10 lg:w-[665px] lg:max-w-[60%] lg:pt-[267px]">
                     <m.div {...revealMotion} className={`${styles.riseText} space-y-4`}>
                         <div className="space-y-2.5">
-                            <p className="typography-body-medium text-base leading-7 font-semibold text-[#6b6c7b] md:text-[20px] md:leading-[30px]">
+                            <p className="typography-heading-03 font-semibold text-[#6b6c7b]">
                                 AI와 함께하는 똑똑한 중고거래
                             </p>
-                            <h1 className="typography-heading-01 text-[36px] leading-[1.25] break-keep text-[#363636] min-[1400px]:whitespace-nowrap md:text-[44px] lg:text-[60px] lg:leading-[75px]">
+                            <h1 className="typography-heading-01 break-keep text-[#363636] min-[1400px]:whitespace-nowrap">
                                 지금 팔까, 더 갖고 있을까?
                             </h1>
                         </div>
-                        <p className="max-w-[612px] text-[16px] leading-[25px] font-normal tracking-normal text-[#464646]">
+                        <p className="typography-body-medium max-w-[612px] font-normal text-[#464646]">
                             <span className="lg:block">
                                 집에 있는 물건과 사고 싶은 물건을 등록해두면,{" "}
                             </span>

@@ -37,7 +37,7 @@ export function ProductTable({
     const router = useRouter();
     return (
         <div className="overflow-hidden rounded-[20px] border border-[#d3d3d3]">
-            <Table className="min-w-[740px] table-fixed text-left text-[14px] leading-[22px]">
+            <Table className="typography-body-small min-w-[740px] table-fixed text-left">
                 {/* Figma 헤더: 상품 이름은 남는 폭, 나머지는 130px 고정(시세 변동은 100px + 오른쪽 여백 30px) — 셀 왼쪽 여백 20px 포함 */}
                 <colgroup>
                     <col />
@@ -51,7 +51,7 @@ export function ProductTable({
                         {["상품 이름", "가격", "플랫폼", "상품 상태", "시세 변동"].map((label) => (
                             <TableHead
                                 key={label}
-                                className="h-auto px-5 py-5 text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#83889e] first:pl-[30px] last:pr-[30px]"
+                                className="typography-body-bold h-auto px-5 py-5 font-semibold text-[#83889e] first:pl-[30px] last:pr-[30px]"
                             >
                                 {label}
                             </TableHead>

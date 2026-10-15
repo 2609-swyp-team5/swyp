@@ -80,17 +80,15 @@ export function PlatformCard({ item, status, onSelect, isPending }: PlatformCard
                         className="mt-1 size-[37px] shrink-0 rounded-[8px] object-contain"
                     />
                     <div className="min-w-0">
-                        <h3 className="text-[16px] leading-[25px] font-semibold tracking-[0.5px] break-keep text-[#6b6c7b]">
+                        <h3 className="typography-body-bold font-semibold break-keep text-[#6b6c7b]">
                             {texts.title}
                         </h3>
-                        <p className="text-[12px] leading-[20px] tracking-[-0.5px] text-[#83889e]">
-                            {texts.detail}
-                        </p>
+                        <p className="typography-body-small text-[#83889e]">{texts.detail}</p>
                     </div>
                 </div>
                 <p
                     className={cn(
-                        "flex shrink-0 items-center gap-[5px] text-[13px] leading-[20px] font-semibold tracking-[-0.5px] whitespace-nowrap",
+                        "typography-body-bold-small flex shrink-0 items-center gap-[5px] font-semibold whitespace-nowrap",
                         badge.className,
                     )}
                 >
@@ -99,15 +97,13 @@ export function PlatformCard({ item, status, onSelect, isPending }: PlatformCard
                 </p>
             </div>
             <div className="mt-[10px] flex flex-col items-end">
-                <p className="text-right text-[12px] leading-[20px] tracking-[-0.5px] text-[#83889e]">
-                    {texts.guide}
-                </p>
+                <p className="typography-body-small text-right text-[#83889e]">{texts.guide}</p>
                 <Button
                     type="button"
                     onClick={onSelect}
                     disabled={isPending}
                     aria-label={`${item.name} ${texts.action}`}
-                    className="h-[30px] rounded-full bg-[#272727] px-[15px] py-[5px] text-[12px] leading-[20px] font-semibold tracking-[-0.5px] text-white hover:bg-[#464646] focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30 dark:hover:bg-[#464646]"
+                    className="typography-body-small h-[30px] rounded-full bg-[#272727] px-[15px] py-[5px] font-semibold text-white hover:bg-[#464646] focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30 dark:hover:bg-[#464646]"
                 >
                     {texts.action}
                 </Button>

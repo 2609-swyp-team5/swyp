@@ -44,7 +44,7 @@ const managementActionIconPaths = {
 } as const;
 
 const fieldClassName =
-    "h-[50px] rounded-[8px] border border-[#d3d3d3] bg-[#fafbff] px-4 py-3 text-[16px] leading-[25px] text-[#6b6c7b] shadow-none placeholder:text-[#d3d3d3] focus-visible:border-[#6653fb] focus-visible:ring-0";
+    "h-[50px] rounded-[8px] border border-[#d3d3d3] bg-[#fafbff] px-4 py-3 typography-body-medium text-[#6b6c7b] shadow-none placeholder:text-[#d3d3d3] focus-visible:border-[#6653fb] focus-visible:ring-0";
 
 function formatSoldPriceInput(value: string) {
     const digits = value.replace(/\D/g, "");
@@ -154,8 +154,8 @@ export function ProductSummaryActions({
                         <span
                             className={
                                 isManagementVariant
-                                    ? "text-[11px] leading-[16px] font-normal tracking-[-0.5px]"
-                                    : "text-[16px] leading-[25px] font-normal"
+                                    ? "typography-body-small font-normal"
+                                    : "typography-body-medium font-normal"
                             }
                         >
                             {isManagementVariant ? "판매 완료" : "판매완료"}
@@ -193,8 +193,8 @@ export function ProductSummaryActions({
                         <span
                             className={
                                 isManagementVariant
-                                    ? "text-[11px] leading-[16px] font-normal tracking-[-0.5px]"
-                                    : "text-[16px] leading-[25px] font-normal"
+                                    ? "typography-body-small font-normal"
+                                    : "typography-body-medium font-normal"
                             }
                         >
                             {isManagementVariant ? "자세히 보기" : actionLabel}
@@ -216,9 +216,7 @@ export function ProductSummaryActions({
                             width={25}
                             height={25}
                         />
-                        <span className="text-[11px] leading-[16px] font-normal tracking-[-0.5px]">
-                            삭제하기
-                        </span>
+                        <span className="typography-body-small font-normal">삭제하기</span>
                     </Button>
                 ) : (
                     <Button
@@ -234,7 +232,7 @@ export function ProductSummaryActions({
                             width={40}
                             height={40}
                         />
-                        <span className="text-[16px] leading-[25px] font-normal">삭제하기</span>
+                        <span className="typography-body-medium font-normal">삭제하기</span>
                     </Button>
                 )}
             </div>
@@ -268,7 +266,7 @@ export function ProductSummaryActions({
                                 />
                                 <span
                                     id="sold-price-unit"
-                                    className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-[16px] leading-[25px] text-[#6b7395]"
+                                    className="typography-body-medium pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-[#6b7395]"
                                 >
                                     원
                                 </span>
@@ -299,7 +297,7 @@ export function ProductSummaryActions({
                             </Select>
                         </div>
                         {updateProductStatusMutation.error ? (
-                            <p className="text-[13px] leading-5 text-[#d65353]">
+                            <p className="typography-body-small text-[#d65353]">
                                 {updateProductStatusMutation.error.message}
                             </p>
                         ) : null}

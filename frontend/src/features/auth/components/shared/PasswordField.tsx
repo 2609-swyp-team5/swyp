@@ -26,7 +26,7 @@ export function PasswordField({
                 {...props}
                 type={showPassword ? "text" : "password"}
                 className={cn(
-                    "text-foreground aria-invalid:focus-visible:border-destructive h-12 rounded-xl pr-12 pl-4 text-base focus-visible:border-[#6653fb] focus-visible:ring-0 md:text-base",
+                    "text-foreground aria-invalid:focus-visible:border-destructive typography-body-medium h-12 rounded-xl pr-12 pl-4 focus-visible:border-[#6653fb] focus-visible:ring-0",
                     className,
                 )}
             />

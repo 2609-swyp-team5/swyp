@@ -44,7 +44,7 @@ export function MobileTabBar() {
                                 <Link
                                     href={href}
                                     aria-current={isActive ? "page" : undefined}
-                                    className={`flex h-full flex-col items-center justify-center gap-1 text-[11px] leading-4 font-semibold ${
+                                    className={`typography-body-small flex h-full flex-col items-center justify-center gap-1 font-semibold ${
                                         isActive ? "text-[#6653fb]" : "text-[#8b8fa3]"
                                     }`}
                                 >

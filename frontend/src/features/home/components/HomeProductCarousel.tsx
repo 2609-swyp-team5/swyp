@@ -151,7 +151,7 @@ export function HomeProductCarousel({
                                     </Button>
                                     <Badge
                                         className={cn(
-                                            "absolute bottom-3 left-3 rounded-full border-0 px-2 py-px text-[11px] leading-[16.5px] font-bold text-white",
+                                            "typography-body-small absolute bottom-3 left-3 rounded-full border-0 px-2 py-px font-bold text-white",
                                             platformColor,
                                         )}
                                     >
@@ -162,7 +162,7 @@ export function HomeProductCarousel({
                                     <div className="space-y-2.5">
                                         <Badge
                                             className={cn(
-                                                "rounded-full border-0 px-2 py-0.5 text-[11px] leading-[16.5px]",
+                                                "typography-body-small rounded-full border-0 px-2 py-0.5",
                                                 difference !== null && difference >= 0
                                                     ? "bg-[#fff9c4] text-[#c59b00]"
                                                     : "bg-[#dcfce7] text-[#16a34a]",
@@ -170,12 +170,12 @@ export function HomeProductCarousel({
                                         >
                                             {statusLabels[product.status]}
                                         </Badge>
-                                        <h3 className="line-clamp-2 text-[15px] leading-[20px] font-semibold break-words">
+                                        <h3 className="typography-body-bold line-clamp-2 font-semibold break-words">
                                             {product.title}
                                         </h3>
                                         <div>
                                             {product.marketAveragePrice !== null && (
-                                                <p className="text-[13px] leading-[16px] font-semibold text-[#ce3838]">
+                                                <p className="typography-body-bold-small font-semibold text-[#ce3838]">
                                                     평균가{" "}
                                                     <s>
                                                         {product.marketAveragePrice.toLocaleString(
@@ -185,14 +185,14 @@ export function HomeProductCarousel({
                                                     </s>
                                                 </p>
                                             )}
-                                            <p className="text-[20px] leading-[26px] font-bold">
+                                            <p className="typography-heading-03 font-bold">
                                                 {product.price.toLocaleString("ko-KR")}원
                                             </p>
                                         </div>
                                     </div>
                                     <p
                                         className={cn(
-                                            "rounded-full px-2.5 py-1 text-[12px] leading-[18px] font-semibold",
+                                            "typography-body-small rounded-full px-2.5 py-1 font-semibold",
                                             difference !== null && difference >= 0
                                                 ? "bg-[#fff9c4] text-[#c59b00]"
                                                 : "bg-[#dcfce7] text-[#16a34a]",

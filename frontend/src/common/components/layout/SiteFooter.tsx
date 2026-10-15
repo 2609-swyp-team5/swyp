@@ -13,7 +13,7 @@ const footerLinks = [
 
 export function SiteFooter() {
     return (
-        <footer className="typography-footer bg-[#464646] text-sm leading-5 text-[#a9adbd] md:text-base lg:text-lg lg:leading-[18px]">
+        <footer className="typography-footer typography-body-large bg-[#464646] text-[#a9adbd]">
             <div className="layout-container flex flex-wrap items-center justify-between gap-6 py-6 md:py-10 xl:flex-nowrap xl:py-[50px]">
                 <Link href="/" className="shrink-0">
                     <Image
@@ -36,7 +36,7 @@ export function SiteFooter() {
                 </nav>
             </div>
             <div className="border-t border-[#d3d3d3]">
-                <div className="layout-container flex flex-wrap items-center justify-between gap-x-8 gap-y-4 py-4 text-[12px] md:py-5 md:text-[inherit]">
+                <div className="layout-container typography-body-small flex flex-wrap items-center justify-between gap-x-8 gap-y-4 py-4 md:py-5 md:text-[inherit]">
                     <p>Copyright © 2026 지금이니? | All Rights Reserved</p>
                 </div>
             </div>

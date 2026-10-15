@@ -30,7 +30,7 @@ function MetricRow({
     valueClassName?: string;
 }) {
     return (
-        <div className="flex items-center justify-between gap-4 border-b border-[#d3d3d3] py-[6px] text-[16px] leading-[25px]">
+        <div className="typography-body-medium flex items-center justify-between gap-4 border-b border-[#d3d3d3] py-[6px]">
             <span className="font-semibold tracking-[0.5px] text-[#464646]">{label}</span>
             <span className={cn("font-semibold tracking-[0.5px] text-[#83889e]", valueClassName)}>
                 {value}
@@ -90,7 +90,7 @@ export function MarketAnalysisContent({
                                             analysis.suggestedPrice === null
                                         }
                                         onClick={onRecommendedPriceChange}
-                                        className="h-auto gap-1 rounded-none p-0 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6653fb] hover:bg-transparent hover:text-[#6653fb]"
+                                        className="typography-body-bold-small h-auto gap-1 rounded-none p-0 font-semibold text-[#6653fb] hover:bg-transparent hover:text-[#6653fb]"
                                     >
                                         {isRecommendedPriceChanging
                                             ? "변경 중..."
@@ -118,15 +118,15 @@ export function MarketAnalysisContent({
                         onClick={() => onDetailsOpenChange?.(!isDetailsOpen)}
                     >
                         <span className="flex min-w-0 flex-col gap-2.5">
-                            <span className="flex items-center gap-2 text-[18px] leading-7 font-semibold tracking-[0.5px] break-keep text-[#363636] md:gap-2.5 md:text-[22px] md:leading-[30px]">
+                            <span className="typography-heading-bold flex items-center gap-2 font-semibold break-keep text-[#363636] md:gap-2.5">
                                 <Sparkles aria-hidden="true" className="size-5 fill-[#363636]" />
                                 상세 시세 분석 보기
                             </span>
-                            <span className="text-[14px] leading-[22px] break-keep text-[#464646] md:text-[16px] md:leading-[25px]">
+                            <span className="typography-body-medium break-keep text-[#464646]">
                                 최근 30일 거래 데이터, 경쟁 상품 수를 종합해 타이밍을 분석합니다.
                             </span>
                         </span>
-                        <span className="flex shrink-0 items-center gap-[3px] text-[14px] leading-[25px] text-[#83889e] md:text-[16px]">
+                        <span className="typography-body-medium flex shrink-0 items-center gap-[3px] text-[#83889e]">
                             <span className="sr-only md:not-sr-only">
                                 {isDetailsOpen ? "내용 접기" : "더보기"}
                             </span>
@@ -182,22 +182,22 @@ export function MarketAnalysisContent({
                                     height={15}
                                     aria-hidden="true"
                                 />
-                                <span className="text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#6653fb]">
+                                <span className="typography-body-bold font-semibold text-[#6653fb]">
                                     AI 추천 가격
                                 </span>
                             </div>
                             <div className="flex items-center justify-between gap-3 rounded-[5px] bg-[#6653fb] p-[10px]">
-                                <span className="text-[20px] leading-[30px] font-medium tracking-[0.5px] text-white">
+                                <span className="typography-heading-03 font-medium text-white">
                                     {formatPrice(analysis.suggestedPrice)}
                                 </span>
                                 {isBuyerView ? (
-                                    <span className="rounded-full bg-white px-4 py-[6px] text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6653fb]">
+                                    <span className="typography-body-bold-small rounded-full bg-white px-4 py-[6px] font-semibold text-[#6653fb]">
                                         구매 고려 가격
                                     </span>
                                 ) : (
                                     <button
                                         type="button"
-                                        className="rounded-full bg-white px-4 py-[6px] text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6653fb]"
+                                        className="typography-body-bold-small rounded-full bg-white px-4 py-[6px] font-semibold text-[#6653fb]"
                                     >
                                         추천 가격으로 변경
                                     </button>
@@ -212,7 +212,7 @@ export function MarketAnalysisContent({
                             <MetricRow
                                 label="최근 평균 거래가"
                                 value={formatPrice(analysis.averagePrice)}
-                                valueClassName="text-[20px] leading-[30px] font-medium text-[#ce3838]"
+                                valueClassName="typography-heading-03 font-medium text-[#ce3838]"
                             />
                             <MetricRow
                                 label="시세 대비"

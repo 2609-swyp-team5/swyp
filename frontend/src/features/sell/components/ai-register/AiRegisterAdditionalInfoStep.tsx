@@ -53,7 +53,7 @@ function ChoiceButton({
             role="radio"
             aria-checked={selected}
             className={cn(
-                "h-10 rounded-full border-[1.5px] px-4 py-2 text-[16px] leading-[25px] font-semibold tracking-[0.5px] transition-colors focus-visible:ring-3 focus-visible:ring-[#6653fb]/30 focus-visible:outline-none",
+                "typography-body-bold h-10 rounded-full border-[1.5px] px-4 py-2 font-semibold transition-colors focus-visible:ring-3 focus-visible:ring-[#6653fb]/30 focus-visible:outline-none",
                 selected
                     ? "border-[#6653fb] bg-[#fafbff] text-[#6653fb]"
                     : "border-[#d3d3d3] bg-white text-[#6b6c7b] hover:border-[#6653fb]",
@@ -78,7 +78,7 @@ export function AiRegisterAdditionalInfoStep({
         <div className="flex w-full flex-col">
             <section className="flex w-full flex-col gap-10 rounded-[20px] border border-[#d3d3d3] bg-white px-6 pt-[50px] pb-[60px] lg:px-[60px]">
                 <div className="flex flex-col gap-3">
-                    <h2 className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#6b6c7b]">
+                    <h2 className="typography-heading-03 font-semibold text-[#6b6c7b]">
                         구매 시기는 언제인가요?
                     </h2>
                     <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="구매 시기">
@@ -94,7 +94,7 @@ export function AiRegisterAdditionalInfoStep({
                 </div>
 
                 <div className="flex flex-col gap-3">
-                    <h2 className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#6b6c7b]">
+                    <h2 className="typography-heading-03 font-semibold text-[#6b6c7b]">
                         정상적으로 작동하나요?
                     </h2>
                     <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="작동 상태">
@@ -111,10 +111,10 @@ export function AiRegisterAdditionalInfoStep({
 
                 <div className="flex flex-col gap-3">
                     <div className="flex items-center gap-[5px]">
-                        <p className="typography-heading-03 text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#6b6c7b]">
+                        <p className="typography-heading-03 font-semibold text-[#6b6c7b]">
                             구성품은 무엇이 있나요?
                         </p>
-                        <span className="text-[10px] leading-[15px] tracking-[-0.5px] text-[#545d82]">
+                        <span className="typography-caption text-[#545d82]">
                             *최대 10개까지 추가 가능합니다.
                         </span>
                     </div>

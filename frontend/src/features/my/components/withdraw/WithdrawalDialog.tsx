@@ -62,10 +62,10 @@ export function WithdrawalDialog({
                                 className="size-[66px] text-[#6653fb]"
                                 strokeWidth={1.5}
                             />
-                            <AlertDialogTitle className="mt-3 text-[24px] leading-[34px] font-bold tracking-[0.5px] text-[#545d82] sm:text-[30px] sm:leading-[42px]">
+                            <AlertDialogTitle className="typography-heading-02 mt-3 font-bold text-[#545d82]">
                                 회원 탈퇴를 진행하시겠습니까?
                             </AlertDialogTitle>
-                            <AlertDialogDescription className="mt-2 text-[16px] leading-[25px] text-[#6b7395]">
+                            <AlertDialogDescription className="typography-body-medium mt-2 text-[#6b7395]">
                                 탈퇴 이후에는 계정 복구가 불가능하며,
                                 <br />
                                 모든 데이터가 영구삭제됩니다.
@@ -73,7 +73,7 @@ export function WithdrawalDialog({
                         </div>
                         <div className="mt-[30px] flex w-full flex-row justify-center gap-3">
                             <AlertDialogAction
-                                className={`h-[35px] w-[120px] rounded-full !bg-[#d3d3d3] px-8 text-[16px] font-semibold tracking-[0.5px] !text-white hover:!bg-[#c6c6c6] dark:hover:!bg-[#c6c6c6] ${buttonFocusClassName}`}
+                                className={`typography-body-bold h-[35px] w-[120px] rounded-full !bg-[#d3d3d3] px-8 font-semibold !text-white hover:!bg-[#c6c6c6] dark:hover:!bg-[#c6c6c6] ${buttonFocusClassName}`}
                                 disabled={isPending}
                                 onClick={(event) => {
                                     event.preventDefault();
@@ -84,7 +84,7 @@ export function WithdrawalDialog({
                             </AlertDialogAction>
                             <AlertDialogCancel
                                 disabled={isPending}
-                                className={`h-[35px] rounded-full border-0 !bg-[#6653fb] px-[30px] text-[16px] font-semibold tracking-[0.5px] !text-white hover:!bg-[#5745e7] dark:hover:!bg-[#5745e7] ${buttonFocusClassName}`}
+                                className={`typography-body-bold h-[35px] rounded-full border-0 !bg-[#6653fb] px-[30px] font-semibold !text-white hover:!bg-[#5745e7] dark:hover:!bg-[#5745e7] ${buttonFocusClassName}`}
                             >
                                 나가기
                             </AlertDialogCancel>

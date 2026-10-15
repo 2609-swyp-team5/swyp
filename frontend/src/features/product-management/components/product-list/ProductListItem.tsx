@@ -31,10 +31,10 @@ export function ProductListItem({ item, isSelected, onSelect }: ProductListItemP
             onClick={onSelect}
         >
             <div className="flex min-w-0 flex-1 flex-col">
-                <p className="truncate text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#374151]">
+                <p className="typography-body-bold truncate font-semibold text-[#374151]">
                     {item.title}
                 </p>
-                <p className="truncate text-[10px] leading-[15px] tracking-[-0.5px] text-[#9aa0b0]">
+                <p className="typography-caption truncate text-[#9aa0b0]">
                     등록가 {priceFormatter.format(item.price)}원
                 </p>
             </div>
@@ -57,7 +57,9 @@ export function ProductListItem({ item, isSelected, onSelect }: ProductListItemP
                     <span
                         className={cn(
                             "inline-flex h-5 w-14 items-center justify-center rounded-full leading-5 font-semibold tracking-[-0.5px]",
-                            item.badgeTone === "muted" ? "text-[10px]" : "text-[13px]",
+                            item.badgeTone === "muted"
+                                ? "typography-caption"
+                                : "typography-body-small",
                             badgeToneClassNames[item.badgeTone],
                         )}
                     >
@@ -66,7 +68,7 @@ export function ProductListItem({ item, isSelected, onSelect }: ProductListItemP
                 ) : (
                     <span className="h-5 w-14" aria-hidden="true" />
                 )}
-                <span className="min-w-max text-center text-[10px] leading-[15px] tracking-[-0.5px] whitespace-nowrap text-[#6b6c7b]">
+                <span className="typography-caption min-w-max text-center whitespace-nowrap text-[#6b6c7b]">
                     {item.metaLabel}
                 </span>
             </div>

@@ -174,9 +174,9 @@ export function DirectRegisterInfoStep({
     };
 
     const fieldClassName =
-        "h-[50px] rounded-[8px] border border-[#d3d3d3] bg-[#fafbff] px-4 py-3 text-[16px] leading-[25px] text-[#6b6c7b] shadow-none placeholder:text-[#d3d3d3] focus-visible:border-[#6653fb] focus-visible:ring-0";
+        "h-[50px] rounded-[8px] border border-[#d3d3d3] bg-[#fafbff] px-4 py-3 typography-body-medium text-[#6b6c7b] shadow-none placeholder:text-[#d3d3d3] focus-visible:border-[#6653fb] focus-visible:ring-0";
     const selectClassName =
-        "h-[50px] w-full rounded-[8px] border border-[#d3d3d3] bg-[#fafbff] px-4 text-[16px] leading-[25px] text-[#6b6c7b] shadow-none data-placeholder:text-[#d3d3d3] focus-visible:border-[#6653fb] focus-visible:ring-0";
+        "h-[50px] w-full rounded-[8px] border border-[#d3d3d3] bg-[#fafbff] px-4 typography-body-medium text-[#6b6c7b] shadow-none data-placeholder:text-[#d3d3d3] focus-visible:border-[#6653fb] focus-visible:ring-0";
 
     return (
         <form
@@ -201,7 +201,7 @@ export function DirectRegisterInfoStep({
                     }}
                 />
                 <FieldError message={imageError || fieldErrors.images} />
-                <p className="text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6b6c7b]">
+                <p className="typography-body-bold-small font-semibold text-[#6b6c7b]">
                     최대 10장 · 첫 번째 사진이 대표 이미지로 사용됩니다.
                 </p>
             </section>
@@ -449,7 +449,7 @@ export function DirectRegisterInfoStep({
                     required
                     value={value.description}
                     placeholder="상품의 특징, 사용 기간, 상태를 자세히 작성해 주세요."
-                    className="[field-sizing:fixed] h-[140px] max-h-[140px] min-h-[140px] resize-none overflow-y-auto rounded-[8px] border-[1.5px] border-[#d3d3d3] bg-[#fafbff] px-4 py-3 text-[16px] leading-[25px] text-[#6b6c7b] shadow-none placeholder:text-[#d3d3d3] focus-visible:border-[#6653fb] focus-visible:ring-0"
+                    className="typography-body-medium [field-sizing:fixed] h-[140px] max-h-[140px] min-h-[140px] resize-none overflow-y-auto rounded-[8px] border-[1.5px] border-[#d3d3d3] bg-[#fafbff] px-4 py-3 text-[#6b6c7b] shadow-none placeholder:text-[#d3d3d3] focus-visible:border-[#6653fb] focus-visible:ring-0"
                     aria-invalid={Boolean(fieldErrors.description)}
                     onChange={(event) => {
                         onChange("description", event.target.value);
@@ -462,7 +462,7 @@ export function DirectRegisterInfoStep({
             <section className="flex flex-col gap-1.5">
                 <div className="flex items-center gap-[5px]">
                     <FieldLabel>태그</FieldLabel>
-                    <span className="text-[10px] leading-[15px] tracking-[-0.5px] text-[#545d82]">
+                    <span className="typography-caption text-[#545d82]">
                         *최대 10개까지 추가 가능합니다.
                     </span>
                 </div>
@@ -470,7 +470,7 @@ export function DirectRegisterInfoStep({
                     {value.tags.map((tag) => (
                         <Badge
                             key={tag}
-                            className="h-7 gap-1 rounded-full border-[#6b6c7b] bg-white px-[15px] py-1 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6b6c7b] hover:bg-white"
+                            className="typography-body-bold-small h-7 gap-1 rounded-full border-[#6b6c7b] bg-white px-[15px] py-1 font-semibold text-[#6b6c7b] hover:bg-white"
                         >
                             #{tag}
                             <Button
@@ -507,7 +507,7 @@ export function DirectRegisterInfoStep({
                             }}
                             aria-label="태그 추가"
                             placeholder="태그 추가"
-                            className="w-[52px] bg-transparent text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6b6c7b] outline-none placeholder:text-[#d3d3d3]"
+                            className="typography-body-bold-small w-[52px] bg-transparent font-semibold text-[#6b6c7b] outline-none placeholder:text-[#d3d3d3]"
                         />
                     </div>
                 </div>

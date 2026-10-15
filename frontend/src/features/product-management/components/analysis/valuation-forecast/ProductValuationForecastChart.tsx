@@ -31,12 +31,12 @@ function ValuationForecastTooltip({
 
     return (
         <div className="pointer-events-none rounded-[10px] bg-white px-3 py-2 shadow-[0_6px_16px_rgba(54,54,54,0.18)]">
-            <p className="text-[10px] leading-[15px] text-[#83889e]">{point.period}</p>
-            <p className="mt-0.5 text-[15px] leading-5 font-semibold text-[#575866]">
+            <p className="typography-caption text-[#83889e]">{point.period}</p>
+            <p className="typography-body-bold mt-0.5 font-semibold text-[#575866]">
                 {formatPrice(point.expectedValue)}
             </p>
             <p
-                className={`mt-0.5 text-[10px] leading-[15px] font-semibold ${point.expectedChangeRate > 0 ? "text-[#fa503d]" : "text-[#6653fb]"}`}
+                className={`typography-caption mt-0.5 font-semibold ${point.expectedChangeRate > 0 ? "text-[#fa503d]" : "text-[#6653fb]"}`}
             >
                 {point.isCurrent
                     ? "현재 등록 기준"
@@ -53,14 +53,14 @@ export function ProductValuationForecastChart({ data }: { data: ValuationForecas
         <div className="relative min-w-0" aria-label="현재부터 6개월 후까지 상품 가치 예측 차트">
             <div className="mb-3 flex items-start justify-between gap-3 px-[30px]">
                 <div className="flex flex-col gap-[5px]">
-                    <p className="text-[20px] leading-[25px] font-semibold tracking-[0.5px] text-[#363636]">
+                    <p className="typography-heading-03 font-semibold text-[#363636]">
                         감가 상각률
                     </p>
-                    <p className="text-[12px] leading-[15px] text-[#a1a3ae]">
+                    <p className="typography-body-small text-[#a1a3ae]">
                         구매가 대비 가치를 확인해보세요
                     </p>
                 </div>
-                <div className="flex items-center gap-3 text-[12px] leading-[18px] text-[#6b6c7b]">
+                <div className="typography-body-small flex items-center gap-3 text-[#6b6c7b]">
                     <span className="flex items-center gap-[6px]">
                         <span
                             className="size-[10px] rounded-[3px] bg-[#6653fb]"

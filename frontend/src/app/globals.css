@@ -91,26 +91,47 @@
     --header-height: 72px;
     --footer-height: 285px;
 
-    /* Typography: Inter */
-    --type-heading-01-size: 60px;
+    /* Typography: Inter — 디자인 시안(데스크톱 기준). 태블릿·휴대폰은 아래 미디어 쿼리에서 축소 */
+    --type-heading-01-size: 40px;
     --type-heading-01-weight: 700;
-    --type-heading-01-line-height: 75px;
-    --type-heading-02-size: 40px;
-    --type-heading-02-weight: 700;
-    --type-heading-02-line-height: 55px;
-    --type-heading-03-size: 30px;
-    --type-heading-03-weight: 600;
-    --type-heading-03-line-height: 45px;
-    --type-body-large-size: 25px;
+    --type-heading-01-line-height: 50px;
+    --type-heading-01-letter-spacing: 0.5px;
+    --type-heading-02-size: 25px;
+    --type-heading-02-weight: 500;
+    --type-heading-02-line-height: 40px;
+    --type-heading-02-letter-spacing: 0.5px;
+    --type-heading-bold-size: 22px;
+    --type-heading-bold-weight: 600;
+    --type-heading-bold-line-height: 30px;
+    --type-heading-bold-letter-spacing: 0.5px;
+    --type-heading-03-size: 20px;
+    --type-heading-03-weight: 500;
+    --type-heading-03-line-height: 30px;
+    --type-heading-03-letter-spacing: 0.5px;
+    --type-body-large-size: 18px;
     --type-body-large-weight: 500;
-    --type-body-large-line-height: 38px;
-    --type-body-medium-size: 20px;
-    --type-body-medium-weight: 500;
-    --type-body-medium-line-height: 32px;
-    --type-body-small-size: 15px;
-    --type-body-small-weight: 500;
-    --type-body-small-line-height: 25px;
-    --type-letter-spacing: 0.5px;
+    --type-body-large-line-height: 32px;
+    --type-body-large-letter-spacing: 0.5px;
+    --type-body-medium-size: 16px;
+    --type-body-medium-weight: 400;
+    --type-body-medium-line-height: 25px;
+    --type-body-medium-letter-spacing: 0px;
+    --type-body-bold-size: 16px;
+    --type-body-bold-weight: 600;
+    --type-body-bold-line-height: 25px;
+    --type-body-bold-letter-spacing: 0.5px;
+    --type-body-bold-small-size: 13px;
+    --type-body-bold-small-weight: 600;
+    --type-body-bold-small-line-height: 20px;
+    --type-body-bold-small-letter-spacing: -0.5px;
+    --type-body-small-size: 12px;
+    --type-body-small-weight: 400;
+    --type-body-small-line-height: 20px;
+    --type-body-small-letter-spacing: -0.5px;
+    --type-caption-size: 10px;
+    --type-caption-weight: 400;
+    --type-caption-line-height: 15px;
+    --type-caption-letter-spacing: -0.5px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -159,7 +180,7 @@
         font-size: var(--type-body-medium-size);
         font-weight: var(--type-body-medium-weight);
         line-height: var(--type-body-medium-line-height);
-        letter-spacing: var(--type-letter-spacing);
+        letter-spacing: var(--type-body-medium-letter-spacing);
     }
 }
 
@@ -177,48 +198,85 @@
 
     .typography-heading-01,
     .typography-heading-02,
+    .typography-heading-bold,
     .typography-heading-03,
     .typography-body-large,
     .typography-body-medium,
-    .typography-body-small {
+    .typography-body-bold,
+    .typography-body-bold-small,
+    .typography-body-small,
+    .typography-caption {
         font-family: var(--font-inter), Arial, "Noto Sans KR", sans-serif;
-        letter-spacing: var(--type-letter-spacing);
     }
 
     .typography-heading-01 {
         font-size: var(--type-heading-01-size);
         font-weight: var(--type-heading-01-weight);
         line-height: var(--type-heading-01-line-height);
+        letter-spacing: var(--type-heading-01-letter-spacing);
     }
 
     .typography-heading-02 {
         font-size: var(--type-heading-02-size);
         font-weight: var(--type-heading-02-weight);
         line-height: var(--type-heading-02-line-height);
+        letter-spacing: var(--type-heading-02-letter-spacing);
+    }
+
+    .typography-heading-bold {
+        font-size: var(--type-heading-bold-size);
+        font-weight: var(--type-heading-bold-weight);
+        line-height: var(--type-heading-bold-line-height);
+        letter-spacing: var(--type-heading-bold-letter-spacing);
     }
 
     .typography-heading-03 {
         font-size: var(--type-heading-03-size);
         font-weight: var(--type-heading-03-weight);
         line-height: var(--type-heading-03-line-height);
+        letter-spacing: var(--type-heading-03-letter-spacing);
     }
 
     .typography-body-large {
         font-size: var(--type-body-large-size);
         font-weight: var(--type-body-large-weight);
         line-height: var(--type-body-large-line-height);
+        letter-spacing: var(--type-body-large-letter-spacing);
     }
 
     .typography-body-medium {
         font-size: var(--type-body-medium-size);
         font-weight: var(--type-body-medium-weight);
         line-height: var(--type-body-medium-line-height);
+        letter-spacing: var(--type-body-medium-letter-spacing);
+    }
+
+    .typography-body-bold {
+        font-size: var(--type-body-bold-size);
+        font-weight: var(--type-body-bold-weight);
+        line-height: var(--type-body-bold-line-height);
+        letter-spacing: var(--type-body-bold-letter-spacing);
+    }
+
+    .typography-body-bold-small {
+        font-size: var(--type-body-bold-small-size);
+        font-weight: var(--type-body-bold-small-weight);
+        line-height: var(--type-body-bold-small-line-height);
+        letter-spacing: var(--type-body-bold-small-letter-spacing);
     }
 
     .typography-body-small {
         font-size: var(--type-body-small-size);
         font-weight: var(--type-body-small-weight);
         line-height: var(--type-body-small-line-height);
+        letter-spacing: var(--type-body-small-letter-spacing);
+    }
+
+    .typography-caption {
+        font-size: var(--type-caption-size);
+        font-weight: var(--type-caption-weight);
+        line-height: var(--type-caption-line-height);
+        letter-spacing: var(--type-caption-letter-spacing);
     }
 
     .typography-footer {
@@ -236,6 +294,18 @@
         --grid-margin: 32px;
         --grid-content-width: 772px;
         --footer-height: 250px;
+
+        /* 타이포 태블릿 축소안 */
+        --type-heading-01-size: 34px;
+        --type-heading-01-line-height: 44px;
+        --type-heading-02-size: 24px;
+        --type-heading-02-line-height: 36px;
+        --type-heading-bold-size: 21px;
+        --type-heading-bold-line-height: 30px;
+        --type-heading-03-size: 20px;
+        --type-heading-03-line-height: 30px;
+        --type-body-large-size: 18px;
+        --type-body-large-line-height: 30px;
     }
 }
 
@@ -249,17 +319,18 @@
         --footer-height: 175px;
         --mobile-tab-bar-height: 64px;
 
-        --type-heading-01-size: 32px;
-        --type-heading-01-line-height: 42px;
-        --type-heading-02-size: 26px;
-        --type-heading-02-line-height: 36px;
-        --type-heading-03-size: 20px;
-        --type-heading-03-line-height: 30px;
-        --type-body-large-size: 18px;
-        --type-body-large-line-height: 28px;
-        --type-body-medium-size: 16px;
-        --type-body-medium-line-height: 25px;
-        --type-body-small-size: 13px;
-        --type-body-small-line-height: 20px;
+        /* 타이포 휴대폰 축소안(본문 16px 유지, caption 10→11px) */
+        --type-heading-01-size: 28px;
+        --type-heading-01-line-height: 36px;
+        --type-heading-02-size: 22px;
+        --type-heading-02-line-height: 32px;
+        --type-heading-bold-size: 20px;
+        --type-heading-bold-line-height: 28px;
+        --type-heading-03-size: 18px;
+        --type-heading-03-line-height: 26px;
+        --type-body-large-size: 16px;
+        --type-body-large-line-height: 26px;
+        --type-caption-size: 11px;
+        --type-caption-line-height: 16px;
     }
 }

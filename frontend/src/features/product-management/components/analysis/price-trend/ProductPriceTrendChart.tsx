@@ -78,15 +78,15 @@ function PriceTrendTooltip({
 
     return (
         <div className="pointer-events-none rounded-[10px] bg-white px-4 py-3 shadow-[0_6px_16px_rgba(54,54,54,0.18)]">
-            <p className="text-[10px] leading-[15px] text-[#83889e]">{point.tooltipDateLabel}</p>
+            <p className="typography-caption text-[#83889e]">{point.tooltipDateLabel}</p>
             <div className="mt-1 flex w-full items-center justify-between">
-                <p className="text-[16px] leading-5 font-semibold text-[#575866]">
+                <p className="typography-body-bold font-semibold text-[#575866]">
                     {formatPrice(point.averagePrice)}
                 </p>
                 {change ? (
                     <span
                         className={cn(
-                            "shrink-0 text-[10px] leading-[15px] font-semibold",
+                            "typography-caption shrink-0 font-semibold",
                             isPositive ? "text-[#ce3838]" : "text-[#3478c6]",
                         )}
                     >
@@ -95,7 +95,7 @@ function PriceTrendTooltip({
                     </span>
                 ) : null}
             </div>
-            <p className="mt-1 text-[10px] leading-[15px] whitespace-nowrap text-[#6653fb]">
+            <p className="typography-caption mt-1 whitespace-nowrap text-[#6653fb]">
                 {change
                     ? `거래 ${point.transactionCount}건 · 전일 대비 ${isPositive ? "+" : ""}${changeAmount.toLocaleString("ko-KR")}원`
                     : `거래 ${point.transactionCount}건 · 비교 데이터 없음`}
@@ -155,7 +155,7 @@ function CurrentPriceLabel({
                 x={badgeWidth - 10}
                 y="16"
                 textAnchor="end"
-                className="fill-white text-[10px] font-bold"
+                className="typography-caption fill-white font-bold"
             >
                 {label}
             </text>
@@ -190,15 +190,15 @@ export function ProductPriceTrendChart({ data }: { data: PriceTrendChartData }) 
             <div className="mb-3 flex items-center justify-between gap-3 px-1">
                 <div className="flex flex-col items-start justify-center gap-[5px]">
                     <div className="flex items-center gap-2">
-                        <p className="text-[20px] leading-[25px] font-semibold tracking-[0.5px] text-[#363636]">
+                        <p className="typography-heading-03 font-semibold text-[#363636]">
                             일 평균 거래가
                         </p>
                     </div>
-                    <p className="text-[12px] leading-[15px] text-[#a1a3ae]">
+                    <p className="typography-body-small text-[#a1a3ae]">
                         실거래 {totalTransactionCount.toLocaleString("ko-KR")}건 기준
                     </p>
                 </div>
-                <p className="flex items-center gap-[7px] text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#5140dd]">
+                <p className="typography-body-bold-small flex items-center gap-[7px] font-semibold text-[#5140dd]">
                     <TrendingUp aria-hidden="true" className="size-5" strokeWidth={2.5} />
                     {isLatestHighest ? "최근 1개월 최고가 갱신" : "최근 시세 반영"}
                 </p>

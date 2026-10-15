@@ -80,7 +80,7 @@ export function SearchResultCard({
                 )}
                 {sold && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/25">
-                        <span className="rounded bg-black/30 px-3 py-1 text-sm leading-[22px] font-bold text-white">
+                        <span className="typography-body-bold-small rounded bg-black/30 px-3 py-1 font-bold text-white">
                             판매완료
                         </span>
                     </div>
@@ -109,7 +109,7 @@ export function SearchResultCard({
                 </Button>
                 <Badge
                     className={cn(
-                        "font-brand absolute bottom-3 left-3 h-auto rounded-full border-0 px-2 py-px text-[11px] leading-[16.5px] font-bold text-white",
+                        "font-brand typography-body-small absolute bottom-3 left-3 h-auto rounded-full border-0 px-2 py-px font-bold text-white",
                         platformClass,
                     )}
                 >
@@ -124,7 +124,7 @@ export function SearchResultCard({
             >
                 <Badge
                     className={cn(
-                        "h-auto self-start rounded-full border-0 px-2 py-0.5 text-[11px] leading-[16.5px] font-medium",
+                        "typography-body-small h-auto self-start rounded-full border-0 px-2 py-0.5 font-medium",
                         product.status === "ON_SALE"
                             ? "bg-[#fafbff] text-[#6653fb]"
                             : "bg-[#f1f1f1] text-[#83889e]",
@@ -132,18 +132,15 @@ export function SearchResultCard({
                 >
                     {status}
                 </Badge>
-                <h2
-                    className="truncate text-[14px] leading-5 font-semibold md:text-[15px] md:leading-[22px]"
-                    title={product.title}
-                >
+                <h2 className="typography-body-bold truncate font-semibold" title={product.title}>
                     {product.title}
                 </h2>
-                <p className="text-[17px] leading-6 font-bold md:text-xl md:leading-[30px]">
+                <p className="typography-heading-03 font-bold">
                     {product.price.toLocaleString("ko-KR")}원
                 </p>
                 <Badge
                     className={cn(
-                        "h-auto w-full justify-start rounded-full border-0 px-2.5 py-1 text-xs leading-[18px] font-semibold",
+                        "typography-body-small h-auto w-full justify-start rounded-full border-0 px-2.5 py-1 font-semibold",
                         difference === null || difference === 0
                             ? "bg-[#f1f1f1] text-[#6b6c7b]"
                             : "bg-[#fafbff] text-[#6653fb]",
@@ -151,7 +148,7 @@ export function SearchResultCard({
                 >
                     {comparison}
                 </Badge>
-                <p className="text-xs leading-[18px] text-[#464646]">
+                <p className="typography-body-small text-[#464646]">
                     {formatConditionText(product.condition, product.defectStatus).map(
                         (text) => `${text} · `,
                     )}
@@ -159,9 +156,9 @@ export function SearchResultCard({
                         {formatRelativeCreatedAt(product.createdAt, now)}
                     </time>
                 </p>
-                <p className="text-xs leading-[18px] text-[#464646]">{product.categoryName}</p>
+                <p className="typography-body-small text-[#464646]">{product.categoryName}</p>
                 {tradeInfo && (
-                    <p className="text-xs leading-[18px] break-words text-[#464646]">{tradeInfo}</p>
+                    <p className="typography-body-small break-words text-[#464646]">{tradeInfo}</p>
                 )}
             </CardContent>
         </Card>

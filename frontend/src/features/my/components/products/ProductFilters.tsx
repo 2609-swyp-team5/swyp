@@ -28,7 +28,7 @@ export function ProductFilters({ filter, onFilterChange, counts }: ProductFilter
                     aria-pressed={filter === item.id}
                     onClick={() => onFilterChange(item.id)}
                     className={cn(
-                        "h-[30px] gap-[3px] rounded-full px-[15px] text-[13px] leading-5 tracking-[-0.5px] focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30",
+                        "typography-body-small h-[30px] gap-[3px] rounded-full px-[15px] focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30",
                         filter === item.id
                             ? "border-[#5d55fe] bg-[#5d55fe] text-white hover:bg-[#5745e7] hover:text-white dark:hover:bg-[#5745e7]"
                             : "border-[#d3d3d3] bg-white text-[#83889e] hover:border-[#6653fb] hover:bg-[#fafbff] hover:text-[#6653fb] dark:hover:bg-[#fafbff]",

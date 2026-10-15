@@ -45,7 +45,7 @@ export function MyProductsPage() {
         <MyPageContent
             eyebrow="판매 관리"
             title="등록된 상품 확인"
-            eyebrowClassName="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#83889e]"
+            eyebrowClassName="typography-heading-03 font-semibold text-[#83889e]"
             titleClassName="text-[#1a1f35]"
         >
             <ProductFilters filter={filter} onFilterChange={setFilter} counts={counts} />

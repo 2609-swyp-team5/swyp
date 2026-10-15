@@ -35,18 +35,18 @@ export function ProductCompetitionContent({
                     id="product-competition-title"
                     className={
                         variant === "management"
-                            ? "text-[22px] leading-[30px] font-semibold tracking-[0.5px] text-[#464646]"
-                            : "text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#464646]"
+                            ? "typography-heading-bold font-semibold text-[#464646]"
+                            : "typography-body-bold font-semibold text-[#464646]"
                     }
                 >
                     {heading}
                 </h2>
                 {showCompetitionMeta ? (
                     <div className="flex items-center gap-[5px]">
-                        <span className="text-[12px] leading-5 font-normal tracking-[-0.5px] text-[#6653fb]">
+                        <span className="typography-body-small font-normal text-[#6653fb]">
                             {competition.count}건
                         </span>
-                        <span className="flex items-center gap-[3px] rounded-full border border-[#6653fb] px-3 py-0.5 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6653fb]">
+                        <span className="typography-body-bold-small flex items-center gap-[3px] rounded-full border border-[#6653fb] px-3 py-0.5 font-semibold text-[#6653fb]">
                             {competition.levelLabel}
                             <CompetitionLevelIcon level={competition.level} />
                         </span>
@@ -60,7 +60,7 @@ export function ProductCompetitionContent({
                     ))}
                 </div>
             ) : (
-                <div className="rounded-[8px] bg-white px-4 py-12 text-center text-[14px] leading-5 text-[#83889e]">
+                <div className="typography-body-small rounded-[8px] bg-white px-4 py-12 text-center text-[#83889e]">
                     현재 등록된 경쟁 상품이 없습니다.
                 </div>
             )}

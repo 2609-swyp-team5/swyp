@@ -48,7 +48,7 @@ function RegistrationStepper({ currentStep }: { currentStep: EditStep }) {
                 <li key={step} className="flex items-center gap-2.5">
                     <div className="flex items-center gap-2">
                         <span
-                            className={`flex size-7 items-center justify-center rounded-full text-[13px] leading-[19px] font-bold ${
+                            className={`typography-body-bold-small flex size-7 items-center justify-center rounded-full font-bold ${
                                 index <= currentStepIndex
                                     ? "bg-[#272727] text-white"
                                     : "bg-[#d3d3d3] text-[#6b6c7b]"
@@ -57,7 +57,7 @@ function RegistrationStepper({ currentStep }: { currentStep: EditStep }) {
                             {index + 1}
                         </span>
                         <span
-                            className={`text-[16px] leading-[25px] font-semibold tracking-[0.5px] ${
+                            className={`typography-body-bold font-semibold ${
                                 index <= currentStepIndex ? "text-[#363636]" : "text-[#d3d3d3]"
                             }`}
                         >
@@ -299,7 +299,7 @@ export function ProductEditForm({
                     {!isInfoStep && (
                         <button
                             type="button"
-                            className="flex w-fit items-center gap-1 text-[20px] leading-8 font-medium tracking-[0.5px] text-[#6b7395] transition-colors hover:text-[#6653fb]"
+                            className="typography-heading-03 flex w-fit items-center gap-1 font-medium text-[#6b7395] transition-colors hover:text-[#6653fb]"
                             onClick={() => setStep("info")}
                         >
                             <ArrowLeft aria-hidden="true" className="size-5" />
@@ -310,7 +310,7 @@ export function ProductEditForm({
                         <p className="typography-heading-02 col-start-1 row-start-1 self-start text-[#363636]">
                             판매글을
                         </p>
-                        <h1 className="col-start-1 row-start-1 mt-[38px] self-start text-[30px] leading-[40px] font-bold tracking-[0.5px] text-[#6653fb] md:mt-[52px] md:text-[48px] md:leading-[60px]">
+                        <h1 className="typography-heading-01 col-start-1 row-start-1 mt-[38px] self-start font-bold text-[#6653fb] md:mt-[52px]">
                             수정해요
                         </h1>
                     </div>

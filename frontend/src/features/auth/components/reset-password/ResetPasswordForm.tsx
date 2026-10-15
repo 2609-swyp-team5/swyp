@@ -11,9 +11,8 @@ import { PasswordField } from "@/features/auth/components/shared/PasswordField";
 const buttonFocusClassName =
     "focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30";
 
-const labelClassName =
-    "typography-body-medium text-[length:var(--type-body-medium-size)] leading-[30px] font-semibold tracking-[0.5px] text-[#363636]";
-const fieldErrorClassName = "mt-2 text-[13px] leading-5 text-[#fa503d]";
+const labelClassName = "typography-body-medium font-semibold text-[#363636]";
+const fieldErrorClassName = "mt-2 typography-body-small text-[#fa503d]";
 
 export interface ResetPasswordFormValues {
     newPassword: string;
@@ -100,7 +99,7 @@ export function ResetPasswordForm({
                             {errors.confirmPassword.message}
                         </p>
                     ) : null}
-                    <p className="mt-[5px] flex items-center gap-2 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#fa503d]">
+                    <p className="typography-body-bold-small mt-[5px] flex items-center gap-2 font-semibold text-[#fa503d]">
                         <CircleAlert
                             aria-hidden="true"
                             className="relative -top-px size-4 shrink-0"
@@ -112,14 +111,14 @@ export function ResetPasswordForm({
                 </div>
             </fieldset>
 
-            <div className="mt-10 space-y-2 rounded-md bg-[#fafbff] p-4 text-base leading-[25px]">
+            <div className="typography-body-medium mt-10 space-y-2 rounded-md bg-[#fafbff] p-4">
                 <p className="font-semibold tracking-[0.5px] text-[#6b6c7b]">비밀번호 조건</p>
                 <p className="text-[#6b7588]">• 영문과 숫자를 포함해 8~64자</p>
                 <p className="text-[#6b7588]">• 재설정 링크는 한 번만 사용할 수 있습니다.</p>
             </div>
 
             {errorMessage ? (
-                <p role="alert" className="mt-5 text-[13px] leading-5 text-[#fa503d]">
+                <p role="alert" className="typography-body-small mt-5 text-[#fa503d]">
                     {errorMessage}
                 </p>
             ) : null}
@@ -128,14 +127,14 @@ export function ResetPasswordForm({
                 <Button
                     asChild
                     variant="outline"
-                    className={`h-11 rounded-full border-[#dedee6] bg-white px-10 text-lg font-semibold text-[#6b7588] dark:border-[#dedee6] dark:bg-white ${buttonFocusClassName} hover:bg-[#c6c6c6] hover:text-white dark:hover:bg-[#c6c6c6] dark:hover:text-white`}
+                    className={`typography-body-large h-11 rounded-full border-[#dedee6] bg-white px-10 font-semibold text-[#6b7588] dark:border-[#dedee6] dark:bg-white ${buttonFocusClassName} hover:bg-[#c6c6c6] hover:text-white dark:hover:bg-[#c6c6c6] dark:hover:text-white`}
                 >
                     <Link href="/login">취소</Link>
                 </Button>
                 <Button
                     type="submit"
                     disabled={isBusy}
-                    className={`h-11 rounded-full px-6 text-lg font-semibold sm:w-[160px] dark:bg-[#6653fb] ${buttonFocusClassName} hover:bg-[#5745e7] dark:hover:bg-[#5745e7]`}
+                    className={`typography-body-large h-11 rounded-full px-6 font-semibold sm:w-[160px] dark:bg-[#6653fb] ${buttonFocusClassName} hover:bg-[#5745e7] dark:hover:bg-[#5745e7]`}
                 >
                     {isBusy ? "재설정 중..." : "비밀번호 재설정"}
                 </Button>

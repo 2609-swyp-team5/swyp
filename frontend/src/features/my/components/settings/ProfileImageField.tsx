@@ -31,7 +31,7 @@ export function ProfileImageField({
             />
             <div className="space-y-1">
                 <h2 className="font-semibold">프로필 사진</h2>
-                <p className="text-muted-foreground text-[13px] leading-5">JPG, PNG · 최대 5MB</p>
+                <p className="text-muted-foreground typography-body-small">JPG, PNG · 최대 5MB</p>
                 <input
                     ref={fileInput}
                     type="file"
@@ -50,7 +50,7 @@ export function ProfileImageField({
                     variant="outline"
                     disabled={disabled}
                     onClick={() => fileInput.current?.click()}
-                    className="mt-2 h-auto rounded-full border-[#d3d3d3] px-[15px] py-[3px] text-[13px] leading-[20px] font-semibold tracking-[-0.5px] text-[#6b6c7b] hover:border-[#6653fb] hover:bg-[#fafbff] hover:text-[#6653fb] focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30 dark:hover:bg-[#fafbff]"
+                    className="typography-body-bold-small mt-2 h-auto rounded-full border-[#d3d3d3] px-[15px] py-[3px] font-semibold text-[#6b6c7b] hover:border-[#6653fb] hover:bg-[#fafbff] hover:text-[#6653fb] focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30 dark:hover:bg-[#fafbff]"
                 >
                     {isUploading ? "업로드 중..." : "사진 변경"}
                 </Button>
@@ -60,7 +60,7 @@ export function ProfileImageField({
                         variant="outline"
                         disabled={disabled}
                         onClick={onPhotoRemove}
-                        className="mt-2 ml-2 h-auto rounded-full border-[#d3d3d3] px-[15px] py-[3px] text-[13px] leading-[20px] font-semibold tracking-[-0.5px] text-[#6b6c7b] hover:border-[#6653fb] hover:bg-[#fafbff] hover:text-[#6653fb] focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30 dark:hover:bg-[#fafbff]"
+                        className="typography-body-bold-small mt-2 ml-2 h-auto rounded-full border-[#d3d3d3] px-[15px] py-[3px] font-semibold text-[#6b6c7b] hover:border-[#6653fb] hover:bg-[#fafbff] hover:text-[#6653fb] focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30 dark:hover:bg-[#fafbff]"
                     >
                         기본 이미지로 변경
                     </Button>

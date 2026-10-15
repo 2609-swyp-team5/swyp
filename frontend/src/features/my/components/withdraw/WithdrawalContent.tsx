@@ -40,7 +40,7 @@ export function WithdrawalContent({ isPending, onRequest }: WithdrawalContentPro
             <div className="flex flex-col gap-[30px]">
                 <div className="overflow-hidden rounded-[10px] border border-[#d3d3d3]">
                     <section className="bg-[#fff4f4] px-[30px] py-5">
-                        <h2 className="flex items-center gap-[5px] text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-[#fa503d]">
+                        <h2 className="typography-body-bold flex items-center gap-[5px] font-semibold text-[#fa503d]">
                             <Image
                                 src="/figma/withdraw/warning.svg"
                                 alt=""
@@ -53,7 +53,7 @@ export function WithdrawalContent({ isPending, onRequest }: WithdrawalContentPro
                     </section>
 
                     <section className="flex flex-col gap-5 p-[30px]">
-                        <h3 className="text-[22px] leading-[30px] font-semibold tracking-[0.5px] text-[#363636]">
+                        <h3 className="typography-heading-bold font-semibold text-[#363636]">
                             탈퇴 전 확인 사항
                         </h3>
                         <ul className="flex flex-col">
@@ -70,17 +70,15 @@ export function WithdrawalContent({ isPending, onRequest }: WithdrawalContentPro
                                         className="shrink-0"
                                     />
                                     <div className="flex flex-col gap-[5px]">
-                                        <h4 className="text-[16px] leading-[25px] font-semibold tracking-[0.5px]">
+                                        <h4 className="typography-body-bold font-semibold">
                                             {item.title}
                                         </h4>
-                                        <p className="text-[12px] leading-[20px] tracking-[-0.5px]">
-                                            {item.description}
-                                        </p>
+                                        <p className="typography-body-small">{item.description}</p>
                                     </div>
                                 </li>
                             ))}
                         </ul>
-                        <p className="flex items-center gap-[10px] text-[12px] leading-[20px] tracking-[-0.5px] text-[#6b6c7b]">
+                        <p className="typography-body-small flex items-center gap-[10px] text-[#6b6c7b]">
                             <Image
                                 src="/figma/withdraw/info.svg"
                                 alt=""
@@ -108,12 +106,12 @@ export function WithdrawalContent({ isPending, onRequest }: WithdrawalContentPro
                         />
                         <label
                             htmlFor="withdrawal-agreement"
-                            className="cursor-pointer text-[16px] leading-[25px] text-[#464646]"
+                            className="typography-body-medium cursor-pointer text-[#464646]"
                         >
                             위 안내 사항을 모두 확인하였으며, 계정 탈퇴에 동의합니다.
                         </label>
                     </div>
-                    <p className="ps-[35px] text-[12px] leading-[20px] tracking-[-0.5px] text-[#6b6c7b]">
+                    <p className="typography-body-small ps-[35px] text-[#6b6c7b]">
                         동의 후 탈퇴를 진행할 수 있어요
                     </p>
                 </div>
@@ -123,7 +121,7 @@ export function WithdrawalContent({ isPending, onRequest }: WithdrawalContentPro
                 <Button
                     disabled={!agreed || isPending}
                     onClick={onRequest}
-                    className="h-auto rounded-full bg-[#272727] px-[30px] py-2 text-[16px] leading-[25px] font-semibold tracking-[0.5px] text-white hover:bg-[#464646] focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30 disabled:bg-[#c6c6c6] disabled:opacity-100 dark:hover:bg-[#464646]"
+                    className="typography-body-bold h-auto rounded-full bg-[#272727] px-[30px] py-2 font-semibold text-white hover:bg-[#464646] focus-visible:!border-[#6653fb] focus-visible:ring-3 focus-visible:!ring-[#6653fb]/30 disabled:bg-[#c6c6c6] disabled:opacity-100 dark:hover:bg-[#464646]"
                 >
                     탈퇴 요청
                 </Button>

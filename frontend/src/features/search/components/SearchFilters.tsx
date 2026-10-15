@@ -28,11 +28,11 @@ const priceOptions = [
 ] as const;
 const fieldsetClass =
     "grid min-w-0 grid-cols-2 content-start gap-2 border-b border-[#dee5ed] pb-5 xl:flex xl:flex-col xl:gap-3 xl:pb-6";
-const legendClass = "mb-3 text-sm leading-[25px] font-semibold tracking-[0.5px] xl:text-base";
+const legendClass = "mb-3 typography-body-bold font-semibold";
 const optionClass =
-    "flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-[#dee5ed] bg-white px-2.5 py-2 text-sm leading-5 has-[[aria-checked=true]]:border-[#6653fb] has-[[aria-checked=true]]:bg-[#f0edff] xl:min-h-0 xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0 xl:text-base xl:leading-[25px] xl:has-[[aria-checked=true]]:bg-transparent";
+    "flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-[#dee5ed] bg-white px-2.5 py-2 typography-body-medium has-[[aria-checked=true]]:border-[#6653fb] has-[[aria-checked=true]]:bg-[#f0edff] xl:min-h-0 xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0 xl:has-[[aria-checked=true]]:bg-transparent";
 const filterInputClass =
-    "h-[38px] rounded-md border-[#dee5ed] bg-transparent px-3 py-2 text-xs leading-5 font-normal tracking-[-0.5px] placeholder:text-black/50 md:text-xs dark:bg-transparent";
+    "h-[38px] rounded-md border-[#dee5ed] bg-transparent px-3 py-2 typography-body-small font-normal placeholder:text-black/50 dark:bg-transparent";
 
 function FilterGroup<T extends string>({
     title,
@@ -118,13 +118,13 @@ export function SearchFilters({
                 aria-expanded={isExpanded}
                 aria-controls={filterContentId}
                 onClick={() => setIsExpanded((expanded) => !expanded)}
-                className="h-14 w-full justify-between rounded-xl px-5 text-sm font-semibold text-[#545d82] xl:hidden"
+                className="typography-body-bold-small h-14 w-full justify-between rounded-xl px-5 font-semibold text-[#545d82] xl:hidden"
             >
                 <span className="flex items-center gap-2">
                     <SlidersHorizontal aria-hidden="true" className="size-4" />
                     검색 필터
                 </span>
-                <span className="flex items-center gap-2 text-xs font-normal text-[#83889e]">
+                <span className="typography-body-small flex items-center gap-2 font-normal text-[#83889e]">
                     {isExpanded ? "접기" : "펼치기"}
                     <ChevronDown
                         aria-hidden="true"
@@ -198,7 +198,7 @@ export function SearchFilters({
                         />
                     </div>
                     {priceError && (
-                        <p role="alert" className="text-destructive text-xs">
+                        <p role="alert" className="text-destructive typography-body-small">
                             {priceError}
                         </p>
                     )}
@@ -283,11 +283,11 @@ export function SearchFilters({
                     {(Array.isArray(filters.status)
                         ? filters.status.includes("DRAFT")
                         : filters.status === "DRAFT") && (
-                        <p className="text-xs leading-5 text-[#83889e] sm:col-span-2">
+                        <p className="typography-body-small text-[#83889e] sm:col-span-2">
                             임시저장 상태는 지금이니?! 상품에만 적용됩니다.
                         </p>
                     )}
-                    <label className="flex flex-col gap-3 text-base leading-[25px] font-semibold tracking-[0.5px]">
+                    <label className="typography-body-bold flex flex-col gap-3 font-semibold">
                         포함 키워드
                         <Input
                             disabled={disabled}
@@ -301,7 +301,7 @@ export function SearchFilters({
                             className={filterInputClass}
                         />
                     </label>
-                    <label className="flex flex-col gap-3 text-base leading-[25px] font-semibold tracking-[0.5px]">
+                    <label className="typography-body-bold flex flex-col gap-3 font-semibold">
                         제외 키워드
                         <Input
                             disabled={disabled}

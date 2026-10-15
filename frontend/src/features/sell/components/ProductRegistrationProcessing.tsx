@@ -58,7 +58,7 @@ function ProcessingStep({ label, state }: ProcessingStepProps) {
                 ) : null}
             </div>
             <p
-                className={`text-[16px] leading-[25px] font-semibold tracking-[0.5px] ${
+                className={`typography-body-bold font-semibold ${
                     isDone
                         ? "text-[#363636]"
                         : isError
@@ -335,14 +335,14 @@ function ResultContent({
                     className="size-[72px] animate-spin rounded-full border-4 border-[#dedee6] border-t-[#6653fb]"
                 />
                 <div className="flex flex-col gap-2 text-center">
-                    <h1 className="text-[30px] leading-[40px] font-bold tracking-[0.5px] text-[#6653fb] md:text-[48px] md:leading-[60px]">
+                    <h1 className="typography-heading-01 font-bold text-[#6653fb]">
                         {kind === "edit"
                             ? "상품을 수정하고 있어요"
                             : kind === "ai"
                               ? "판매 글을 만들고 있어요"
                               : "상품을 등록하고 있어요"}
                     </h1>
-                    <p className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#363636]">
+                    <p className="typography-heading-03 font-semibold text-[#363636]">
                         {progress?.message
                             ? `${progress.message}`
                             : kind === "edit"
@@ -363,7 +363,7 @@ function ResultContent({
     return (
         <div className="flex flex-col gap-2 text-center">
             <h1
-                className={`text-[48px] leading-[60px] font-bold tracking-[0.5px] ${
+                className={`typography-heading-01 font-bold ${
                     isSuccess || isTimeout ? "text-[#6653fb]" : "text-[#fa503d]"
                 }`}
             >
@@ -379,7 +379,7 @@ function ResultContent({
                         ? "상품 수정에 실패했어요"
                         : "판매 글 등록에 실패했어요"}
             </h1>
-            <p className="text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-[#363636]">
+            <p className="typography-heading-03 font-semibold text-[#363636]">
                 {isSuccess
                     ? isEdit
                         ? "변경된 항목만 반영했어요. 확인하러 가기를 눌러 판매 글을 확인해 보세요."
@@ -430,7 +430,7 @@ export function ProductRegistrationProcessing({
                 {status === "error" ? (
                     <p
                         role="alert"
-                        className={`w-full max-w-[500px] rounded-xl border px-5 py-4 text-center text-[14px] leading-[22px] font-semibold ${
+                        className={`typography-body-bold-small w-full max-w-[500px] rounded-xl border px-5 py-4 text-center font-semibold ${
                             errorCode === "REGISTER_TIMEOUT"
                                 ? "border-[#6653fb] bg-[#f5f3ff] text-[#6653fb]"
                                 : "border-[#fa503d] bg-[#fff4f4] text-[#fa503d]"
@@ -443,7 +443,7 @@ export function ProductRegistrationProcessing({
                 {status === "success" ? (
                     <Button
                         type="button"
-                        className="h-[54px] rounded-full bg-[#6653fb] px-10 py-3 text-[18px] leading-[28px] font-semibold text-white hover:bg-[#5745e7]"
+                        className="typography-body-large h-[54px] rounded-full bg-[#6653fb] px-10 py-3 font-semibold text-white hover:bg-[#5745e7]"
                         onClick={onGoToManage}
                     >
                         확인하러 가기
@@ -455,7 +455,7 @@ export function ProductRegistrationProcessing({
                         {errorCode !== "REGISTER_TIMEOUT" ? (
                             <Button
                                 type="button"
-                                className="h-[54px] rounded-full bg-[#6653fb] px-10 py-3 text-[18px] leading-[28px] font-semibold text-white hover:bg-[#5745e7]"
+                                className="typography-body-large h-[54px] rounded-full bg-[#6653fb] px-10 py-3 font-semibold text-white hover:bg-[#5745e7]"
                                 onClick={onRetry}
                             >
                                 다시 시도
@@ -463,7 +463,7 @@ export function ProductRegistrationProcessing({
                         ) : null}
                         <Button
                             type="button"
-                            className="h-[54px] rounded-full bg-[#d3d3d3] px-10 py-3 text-[18px] leading-[28px] font-semibold text-white hover:bg-[#c6c6c6]"
+                            className="typography-body-large h-[54px] rounded-full bg-[#d3d3d3] px-10 py-3 font-semibold text-white hover:bg-[#c6c6c6]"
                             onClick={onGoToManage}
                         >
                             {errorCode === "REGISTER_TIMEOUT"

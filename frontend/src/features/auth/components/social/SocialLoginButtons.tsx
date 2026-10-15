@@ -35,7 +35,7 @@ export function SocialLoginButtons({
 }: SocialLoginButtonsProps) {
     return (
         <div className={cn("w-full space-y-[15px]", className)}>
-            <p className="typography-body-medium text-lg leading-[30px] font-semibold text-[#6b6c7b]">
+            <p className="typography-body-large font-semibold text-[#6b6c7b]">
                 또는 소셜 계정으로 로그인
             </p>
 

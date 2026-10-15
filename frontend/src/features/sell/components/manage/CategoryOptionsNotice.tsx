@@ -38,11 +38,11 @@ export function CategoryOptionsNotice({ product, editHref }: CategoryOptionsNoti
                 <div className="flex flex-col gap-1">
                     <h2
                         id="category-options-notice-title"
-                        className="text-[16px] leading-[25px] font-semibold text-[#363636]"
+                        className="typography-body-bold font-semibold text-[#363636]"
                     >
                         다른 플랫폼에 등록하려면 {names} 입력이 필요해요
                     </h2>
-                    <p className="text-[14px] leading-[22px] text-[#6b6c7b]">
+                    <p className="typography-body-small text-[#6b6c7b]">
                         이 카테고리는 판매글을 게시할 때 꼭 필요한 항목이 있어요. 상품 수정에서
                         입력해 주세요.
                     </p>
@@ -50,7 +50,7 @@ export function CategoryOptionsNotice({ product, editHref }: CategoryOptionsNoti
             </div>
             <Link
                 href={editHref}
-                className="inline-flex h-11 shrink-0 items-center justify-center rounded-[10px] bg-[#6653fb] px-5 text-[15px] font-semibold text-white transition-colors hover:bg-[#5543e8]"
+                className="typography-body-bold inline-flex h-11 shrink-0 items-center justify-center rounded-[10px] bg-[#6653fb] px-5 font-semibold text-white transition-colors hover:bg-[#5543e8]"
             >
                 추가 항목 입력하기
             </Link>

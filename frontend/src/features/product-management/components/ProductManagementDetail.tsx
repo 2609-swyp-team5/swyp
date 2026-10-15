@@ -60,7 +60,7 @@ export function ProductManagementDetail({
             {isPending ? <ProductSummarySkeleton /> : null}
             {!isPending && error ? (
                 <section className="flex min-h-[430px] items-center justify-center rounded-[16px] border border-[#dee5ed] bg-white p-6 text-center">
-                    <p className="text-[14px] leading-6 font-medium text-[#d65353]">
+                    <p className="typography-body-small font-medium text-[#d65353]">
                         {getApiErrorMessage(error)}
                     </p>
                 </section>

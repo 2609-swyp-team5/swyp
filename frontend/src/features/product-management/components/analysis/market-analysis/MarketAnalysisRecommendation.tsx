@@ -39,17 +39,17 @@ export function MarketAnalysisRecommendation({
                 <div className="flex min-w-0 flex-col justify-center gap-[13px] py-5">
                     <span
                         className={cn(
-                            "w-fit rounded-full px-5 py-[3px] text-[22px] leading-[30px] font-semibold tracking-[0.5px] text-white",
+                            "typography-heading-bold w-fit rounded-full px-5 py-[3px] font-semibold text-white",
                             isWait ? "bg-[#272727]" : "bg-[#6653fb]",
                         )}
                     >
                         {analysis.recommendation}
                     </span>
                     <div className="flex flex-col gap-[10px]">
-                        <h3 className="text-[22px] leading-[30px] font-semibold tracking-[0.5px] text-[#363636]">
+                        <h3 className="typography-heading-bold font-semibold text-[#363636]">
                             {copy.title}
                         </h3>
-                        <p className="max-w-[414px] text-[16px] leading-[25px] text-[#363636]">
+                        <p className="typography-body-medium max-w-[414px] text-[#363636]">
                             {analysis.description}
                         </p>
                     </div>
@@ -72,17 +72,15 @@ export function MarketAnalysisRecommendation({
             <div className="flex min-w-0 flex-col justify-center gap-5">
                 <span
                     className={cn(
-                        "w-fit rounded-full px-[30px] py-[5px] text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-white",
+                        "typography-heading-03 w-fit rounded-full px-[30px] py-[5px] font-semibold text-white",
                         isWait ? "bg-[#272727]" : "bg-[#6653fb]",
                     )}
                 >
                     {analysis.recommendation}
                 </span>
                 <div>
-                    <h3 className="text-[22px] leading-8 font-bold tracking-[0.5px] text-[#363636] md:text-[30px] md:leading-[42px]">
-                        {copy.title}
-                    </h3>
-                    <p className="mt-[10px] max-w-[430px] text-[16px] leading-[25px] text-[#363636]">
+                    <h3 className="typography-heading-02 font-bold text-[#363636]">{copy.title}</h3>
+                    <p className="typography-body-medium mt-[10px] max-w-[430px] text-[#363636]">
                         {analysis.description}
                     </p>
                 </div>

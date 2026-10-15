@@ -24,7 +24,7 @@ export function SignupEmailField({
     return (
         <div>
             <Label
-                className="typography-body-medium mb-2 text-[length:var(--type-body-medium-size)] leading-[30px] font-semibold text-[#363636]"
+                className="typography-body-medium mb-2 font-semibold text-[#363636]"
                 htmlFor="email"
             >
                 이메일 주소
@@ -40,7 +40,7 @@ export function SignupEmailField({
                     type="email"
                     autoComplete="email"
                     placeholder="example@email.com"
-                    className="text-foreground aria-invalid:focus-visible:border-destructive h-12 rounded-xl px-4 text-base focus-visible:border-[#6653fb] focus-visible:ring-0 md:text-base"
+                    className="text-foreground aria-invalid:focus-visible:border-destructive typography-body-medium h-12 rounded-xl px-4 focus-visible:border-[#6653fb] focus-visible:ring-0"
                 />
                 <Button
                     type="button"
@@ -55,7 +55,7 @@ export function SignupEmailField({
                 <p
                     id="email-error"
                     role="alert"
-                    className="mt-2 text-[13px] leading-5 text-[#fa503d]"
+                    className="typography-body-small mt-2 text-[#fa503d]"
                 >
                     {error.message}
                 </p>
@@ -63,7 +63,7 @@ export function SignupEmailField({
                 <p
                     id="email-check-status"
                     role="status"
-                    className="mt-2 text-[13px] leading-5 text-green-600"
+                    className="typography-body-small mt-2 text-green-600"
                 >
                     사용 가능한 이메일입니다.
                 </p>

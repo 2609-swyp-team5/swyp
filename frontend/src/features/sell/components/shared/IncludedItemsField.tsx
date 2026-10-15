@@ -16,7 +16,7 @@ type IncludedItemsFieldProps = {
 
 function Tag({ label, onRemove }: { label: string; onRemove: () => void }) {
     return (
-        <span className="inline-flex h-7 items-center gap-1 rounded-full border border-[#6b6c7b] bg-white px-[15px] py-1 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6b6c7b]">
+        <span className="typography-body-bold-small inline-flex h-7 items-center gap-1 rounded-full border border-[#6b6c7b] bg-white px-[15px] py-1 font-semibold text-[#6b6c7b]">
             <span>{label}</span>
             <button
                 type="button"
@@ -92,7 +92,7 @@ export function IncludedItemsField({
                         <PopoverTrigger asChild>
                             <button
                                 type="button"
-                                className="inline-flex h-7 items-center rounded-full border border-[#6653fb] bg-white px-3 text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6653fb] transition-colors hover:bg-[#fafbff] focus-visible:ring-2 focus-visible:ring-[#6653fb]/30 focus-visible:outline-none"
+                                className="typography-body-bold-small inline-flex h-7 items-center rounded-full border border-[#6653fb] bg-white px-3 font-semibold text-[#6653fb] transition-colors hover:bg-[#fafbff] focus-visible:ring-2 focus-visible:ring-[#6653fb]/30 focus-visible:outline-none"
                                 aria-label={`숨겨진 구성품 ${hiddenItems.length}개 보기`}
                             >
                                 +{hiddenItems.length}개
@@ -138,14 +138,14 @@ export function IncludedItemsField({
                         }}
                         aria-label="구성품 추가"
                         placeholder="태그 추가"
-                        className="w-[52px] bg-transparent text-[13px] leading-5 font-semibold tracking-[-0.5px] text-[#6b6c7b] outline-none placeholder:text-[#d3d3d3]"
+                        className="typography-body-bold-small w-[52px] bg-transparent font-semibold text-[#6b6c7b] outline-none placeholder:text-[#d3d3d3]"
                     />
                 </div>
             </div>
             {errorMessage && (
                 <div role="alert" className="text-destructive flex items-center gap-2">
                     <CircleAlert aria-hidden="true" className="size-4 shrink-0" />
-                    <p className="text-[12px] leading-[18px]">{errorMessage}</p>
+                    <p className="typography-body-small">{errorMessage}</p>
                 </div>
             )}
         </div>

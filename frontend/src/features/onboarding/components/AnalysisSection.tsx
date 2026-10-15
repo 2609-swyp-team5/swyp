@@ -47,7 +47,7 @@ export function AnalysisSection() {
                             id="signals-heading"
                             eyebrow="네 가지 데이터를 종합해서 지금이 좋은 타이밍인지 판단해요"
                             // Figma 40/50px — 절반 칸이라 좁은 화면에선 줄인다
-                            titleClassName="md:text-[28px] md:leading-[38px] lg:text-[32px] lg:leading-[42px] xl:text-[40px] xl:leading-[50px]"
+                            titleClassName="typography-heading-01"
                             title={
                                 <>
                                     <span className="xl:whitespace-nowrap">
@@ -87,14 +87,14 @@ export function AnalysisSection() {
                             <div
                                 className={`flex items-center ${index === 1 ? "gap-2.5" : "gap-[15px]"}`}
                             >
-                                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#6653fb] text-[16px] leading-6 font-bold text-white">
+                                <span className="typography-body-bold flex size-8 shrink-0 items-center justify-center rounded-full bg-[#6653fb] font-bold text-white">
                                     {index + 1}
                                 </span>
-                                <h3 className="text-[24px] leading-9 font-bold tracking-normal text-[#363636]">
+                                <h3 className="typography-heading-02 font-bold text-[#363636]">
                                     {signal.title}
                                 </h3>
                             </div>
-                            <p className="text-[16px] leading-6 font-normal tracking-[-0.3125px] text-[#6b6c7b]">
+                            <p className="typography-body-medium font-normal text-[#6b6c7b]">
                                 {signal.description}
                             </p>
                         </div>

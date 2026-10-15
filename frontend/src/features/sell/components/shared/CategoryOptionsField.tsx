@@ -22,9 +22,9 @@ import type { CategoryOptionSelection } from "@/features/sell/types";
 const NO_SELECTION = "none";
 
 const fieldClassName =
-    "h-[50px] rounded-[8px] border border-[#d3d3d3] bg-[#fafbff] px-4 py-3 text-[16px] leading-[25px] text-[#6b6c7b] shadow-none placeholder:text-[#d3d3d3] focus-visible:border-[#6653fb] focus-visible:ring-0";
+    "h-[50px] rounded-[8px] border border-[#d3d3d3] bg-[#fafbff] px-4 py-3 typography-body-medium text-[#6b6c7b] shadow-none placeholder:text-[#d3d3d3] focus-visible:border-[#6653fb] focus-visible:ring-0";
 const selectClassName =
-    "h-[50px] w-full rounded-[8px] border border-[#d3d3d3] bg-[#fafbff] px-4 text-[16px] leading-[25px] text-[#6b6c7b] shadow-none data-placeholder:text-[#d3d3d3] focus-visible:border-[#6653fb] focus-visible:ring-0";
+    "h-[50px] w-full rounded-[8px] border border-[#d3d3d3] bg-[#fafbff] px-4 typography-body-medium text-[#6b6c7b] shadow-none data-placeholder:text-[#d3d3d3] focus-visible:border-[#6653fb] focus-visible:ring-0";
 
 type CategoryOptionsFieldProps = {
     groups: CategoryOptionGroup[];
@@ -53,7 +53,7 @@ export function CategoryOptionsField({
                 <FieldLabel>
                     <span id="category-options-label">카테고리 추가 항목</span>
                 </FieldLabel>
-                <p className="text-[13px] leading-5 tracking-[-0.5px] text-[#6b6c7b]">
+                <p className="typography-body-small text-[#6b6c7b]">
                     다른 플랫폼에 판매글을 올릴 때 필요한 항목이에요. * 표시는 꼭 입력해 주세요.
                 </p>
             </div>
@@ -91,7 +91,7 @@ function OptionGroupInput({ group, selection, error, onChange }: OptionGroupInpu
                 {group.name}
             </FieldLabel>
             {group.tooltip && (
-                <p className="text-[12px] leading-[18px] text-[#6b6c7b]">{group.tooltip}</p>
+                <p className="typography-body-small text-[#6b6c7b]">{group.tooltip}</p>
             )}
             {textChild ? (
                 <TextOptionInput
@@ -148,7 +148,7 @@ function OptionGroupInput({ group, selection, error, onChange }: OptionGroupInpu
                 </Select>
             )}
             {group.guide && group.guide.length > 0 && (
-                <ul className="text-[12px] leading-[18px] text-[#6b6c7b]">
+                <ul className="typography-body-small text-[#6b6c7b]">
                     {group.guide.map((line) => (
                         <li key={line}>{line}</li>
                     ))}
@@ -216,7 +216,10 @@ function TextOptionInput({
                                 )
                             }
                         />
-                        <Label htmlFor={checkboxId} className="text-[14px] text-[#6b6c7b]">
+                        <Label
+                            htmlFor={checkboxId}
+                            className="typography-body-small text-[#6b6c7b]"
+                        >
                             {option.value}
                         </Label>
                     </div>

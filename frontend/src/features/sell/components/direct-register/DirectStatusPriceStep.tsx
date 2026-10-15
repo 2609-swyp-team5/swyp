@@ -123,7 +123,7 @@ export function DirectStatusPriceStep({
     onTradeLocationChange,
 }: DirectStatusPriceStepProps) {
     const fieldClassName =
-        "h-[50px] rounded-[8px] border border-[#d3d3d3] bg-[#fafbff] px-4 py-3 text-[16px] leading-[25px] text-[#6b6c7b] shadow-none placeholder:text-[#d3d3d3] focus-visible:border-[#6653fb] focus-visible:ring-0";
+        "h-[50px] rounded-[8px] border border-[#d3d3d3] bg-[#fafbff] px-4 py-3 typography-body-medium text-[#6b6c7b] shadow-none placeholder:text-[#d3d3d3] focus-visible:border-[#6653fb] focus-visible:ring-0";
 
     return (
         <div className="flex w-full max-w-[1144px] flex-col gap-8">
@@ -140,10 +140,10 @@ export function DirectStatusPriceStep({
                                 key={option.value}
                                 label={
                                     <span className="flex flex-col items-start gap-1 text-left">
-                                        <span className="text-[13px] leading-5 font-semibold">
+                                        <span className="typography-body-bold-small font-semibold">
                                             {option.label}
                                         </span>
-                                        <span className="text-[10px] leading-[15px] font-normal">
+                                        <span className="typography-caption font-normal">
                                             {option.description}
                                         </span>
                                     </span>
@@ -183,7 +183,7 @@ export function DirectStatusPriceStep({
                     <fieldset>
                         <FieldLegend className="flex items-center gap-2">
                             구성품
-                            <span className="text-[10px] leading-[15px] font-normal tracking-[-0.5px] text-[#545d82]">
+                            <span className="typography-caption font-normal text-[#545d82]">
                                 *최대 10개까지 추가 가능합니다.
                             </span>
                         </FieldLegend>
@@ -209,19 +209,19 @@ export function DirectStatusPriceStep({
                             label="하자 없음"
                             selected={defectStatus === "none"}
                             onClick={() => onDefectStatusChange("none")}
-                            className="h-14 rounded-lg px-3 py-3 text-[15px] leading-[22px] font-semibold"
+                            className="typography-body-bold h-14 rounded-lg px-3 py-3 font-semibold"
                         />
                         <ChoiceButton
                             label="하자 있음"
                             selected={defectStatus === "has-defect"}
                             onClick={() => onDefectStatusChange("has-defect")}
-                            className="h-14 rounded-lg px-3 py-3 text-[15px] leading-[22px] font-semibold"
+                            className="typography-body-bold h-14 rounded-lg px-3 py-3 font-semibold"
                         />
                         <ChoiceButton
                             label="잘 모르겠어요"
                             selected={defectStatus === "unknown"}
                             onClick={() => onDefectStatusChange("unknown")}
-                            className="h-14 rounded-lg px-3 py-3 text-[15px] leading-[22px] font-semibold"
+                            className="typography-body-bold h-14 rounded-lg px-3 py-3 font-semibold"
                         />
                     </div>
                 </fieldset>
@@ -244,11 +244,11 @@ export function DirectStatusPriceStep({
                                 aria-label="희망 가격"
                                 aria-invalid={Boolean(errors.price)}
                             />
-                            <span className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-[16px] leading-[25px] text-[#6b7395]">
+                            <span className="typography-body-medium pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-[#6b7395]">
                                 원
                             </span>
                         </div>
-                        <label className="flex cursor-pointer items-center gap-2 text-[16px] leading-[25px] text-[#545d82] transition-colors hover:text-[#6653fb]">
+                        <label className="typography-body-medium flex cursor-pointer items-center gap-2 text-[#545d82] transition-colors hover:text-[#6653fb]">
                             <Checkbox
                                 checked={allowPriceProposal}
                                 onCheckedChange={(nextChecked) =>
@@ -274,13 +274,13 @@ export function DirectStatusPriceStep({
                             label="직거래"
                             selected={tradeMethod === "direct"}
                             onClick={() => onTradeMethodChange("direct")}
-                            className="rounded-full px-5 py-1 text-[14px] leading-[21px] font-medium"
+                            className="typography-body-small rounded-full px-5 py-1 font-medium"
                         />
                         <ChoiceButton
                             label="택배 거래"
                             selected={tradeMethod === "delivery"}
                             onClick={() => onTradeMethodChange("delivery")}
-                            className="rounded-full px-5 py-1 text-[14px] leading-[21px] font-medium"
+                            className="typography-body-small rounded-full px-5 py-1 font-medium"
                         />
                     </div>
                     {tradeMethod === "delivery" ? (
@@ -295,13 +295,13 @@ export function DirectStatusPriceStep({
                                     label="배송비 포함"
                                     selected={deliveryType === "INCLUDED"}
                                     onClick={() => onDeliveryTypeChange("INCLUDED")}
-                                    className="rounded-full px-5 py-1 text-[14px] leading-[21px] font-medium"
+                                    className="typography-body-small rounded-full px-5 py-1 font-medium"
                                 />
                                 <ChoiceButton
                                     label="배송비 별도"
                                     selected={deliveryType === "PREPAID"}
                                     onClick={() => onDeliveryTypeChange("PREPAID")}
-                                    className="rounded-full px-5 py-1 text-[14px] leading-[21px] font-medium"
+                                    className="typography-body-small rounded-full px-5 py-1 font-medium"
                                 />
                             </div>
                             {errors.deliveryType && (
