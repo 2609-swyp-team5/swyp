@@ -12,7 +12,7 @@ type CategoryOptionsNoticeProps = {
 };
 
 /**
- * 카테고리 필수 추가 항목(사이즈·사용기한 등)이 빠진 상품에 번개장터 게시 전 입력을 안내한다. AI 등록은 사진 분석 뒤에 카테고리가
+ * 카테고리 필수 추가 항목(사이즈·사용기한 등)이 빠진 상품에 외부 플랫폼 게시 전 입력을 안내한다. AI 등록은 사진 분석 뒤에 카테고리가
  * 정해져 등록 때 항목을 받지 못하고, 기능 추가 전 상품도 비어 있어 게시가 거절되기 전에 미리 알려 준다.
  */
 export function CategoryOptionsNotice({ product, editHref }: CategoryOptionsNoticeProps) {
@@ -40,11 +40,11 @@ export function CategoryOptionsNotice({ product, editHref }: CategoryOptionsNoti
                         id="category-options-notice-title"
                         className="text-[16px] leading-[25px] font-semibold text-[#363636]"
                     >
-                        번개장터에 올리려면 {names} 입력이 필요해요
+                        다른 플랫폼에 등록하려면 {names} 입력이 필요해요
                     </h2>
                     <p className="text-[14px] leading-[22px] text-[#6b6c7b]">
-                        이 카테고리는 번개장터 등록 시 필수 항목이 있어요. 상품 수정에서 입력해
-                        주세요.
+                        이 카테고리는 판매글을 게시할 때 꼭 필요한 항목이 있어요. 상품 수정에서
+                        입력해 주세요.
                     </p>
                 </div>
             </div>

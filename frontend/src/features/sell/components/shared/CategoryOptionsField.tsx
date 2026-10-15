@@ -35,7 +35,7 @@ type CategoryOptionsFieldProps = {
 
 /**
  * 카테고리별 추가 항목(사이즈·용량·사용기한 등) 입력. 선택형은 세부 분류(공용 사이즈·한국 사이즈 등)별로 묶은 목록에서 하나를,
- * 날짜·직접 입력형은 입력칸에 값을 넣고 "표시 없음" 같은 단독 선택지는 체크박스로 고른다. 번개장터 게시에 그대로 쓰인다.
+ * 날짜·직접 입력형은 입력칸에 값을 넣고 "표시 없음" 같은 단독 선택지는 체크박스로 고른다. 외부 플랫폼 게시에 쓰인다(현재 항목 정의는 번개장터 기준).
  */
 export function CategoryOptionsField({
     groups,
@@ -54,7 +54,7 @@ export function CategoryOptionsField({
                     <span id="category-options-label">카테고리 추가 항목</span>
                 </FieldLabel>
                 <p className="text-[13px] leading-5 tracking-[-0.5px] text-[#6b6c7b]">
-                    번개장터에 올릴 때 필요한 항목이에요. * 표시는 꼭 입력해 주세요.
+                    다른 플랫폼에 판매글을 올릴 때 필요한 항목이에요. * 표시는 꼭 입력해 주세요.
                 </p>
             </div>
             <div className="grid gap-4 lg:grid-cols-2">
