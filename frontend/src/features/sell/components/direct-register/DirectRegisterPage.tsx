@@ -8,6 +8,7 @@ import { ArrowLeft } from "lucide-react";
 import { DirectRegisterActions } from "@/features/sell/components/direct-register/DirectRegisterActions";
 import { DirectRegisterInfoStep } from "@/features/sell/components/direct-register/DirectRegisterInfoStep";
 import { DirectStatusPriceStep } from "@/features/sell/components/direct-register/DirectStatusPriceStep";
+import { validateStatusPrice } from "@/features/sell/components/direct-register/statusPriceValidation";
 import type {
     DirectImagePreview,
     DirectRegisterInfoState,
@@ -21,11 +22,6 @@ import { includedStatusApiValues } from "@/features/sell/components/shared/Inclu
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { useCategoriesQuery } from "@/features/sell/hooks/queries/useCategoriesQuery";
 import { useCreateDirectProductMutation } from "@/features/sell/hooks/mutations/useCreateDirectProductMutation";
-import {
-    PRODUCT_PRICE_MAX,
-    PRODUCT_PRICE_MIN,
-    PRODUCT_PRICE_RANGE_ERROR,
-} from "@/features/sell/schemas/productSchema";
 import type { ProductRegisterProgress } from "@/features/sell/types";
 
 export type DirectRegisterStep = "info" | "status";
@@ -141,28 +137,7 @@ export function DirectRegisterPage({ initialStep = "info" }: DirectRegisterPageP
     };
 
     const handleStatusPriceSubmit = () => {
-        const price = Number(statusPrice.price);
-        const deliveryFee = Number(statusPrice.deliveryFee);
-        const nextErrors: DirectStatusPriceErrors = {
-            price:
-                Number.isInteger(price) && price >= PRODUCT_PRICE_MIN && price <= PRODUCT_PRICE_MAX
-                    ? ""
-                    : PRODUCT_PRICE_RANGE_ERROR,
-            deliveryType:
-                statusPrice.tradeMethod === "delivery" && !statusPrice.deliveryType
-                    ? "배송비 부담 방식을 선택해 주세요."
-                    : "",
-            deliveryFee:
-                statusPrice.tradeMethod === "delivery" && statusPrice.deliveryType === "PREPAID"
-                    ? deliveryFee >= 2_700 && deliveryFee <= 17_000
-                        ? ""
-                        : "배송비는 2,700원 이상 17,000원 이하로 입력해 주세요."
-                    : "",
-            tradeLocation:
-                statusPrice.tradeMethod === "direct" && !statusPrice.tradeLocation.trim()
-                    ? "거래 희망 지역을 선택해 주세요."
-                    : "",
-        };
+        const nextErrors = validateStatusPrice(statusPrice);
 
         setStatusPriceErrors(nextErrors);
 

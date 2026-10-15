@@ -189,6 +189,7 @@ describe("ProductEditForm", () => {
         expect(input.files).toEqual([expect.any(File)]);
         expect(input.request.imageUrls).toEqual(["https://example.com/retained.jpg"]);
         expect(input.request.includedStatus).toBe("ALL");
+        expect(input.request).not.toHaveProperty("includedItems");
         expect(input.request).not.toHaveProperty("purchasedMonths");
         expect(input.request).not.toHaveProperty("defectStatus");
         expect(setQueryData).toHaveBeenCalledWith(["product", 42], {

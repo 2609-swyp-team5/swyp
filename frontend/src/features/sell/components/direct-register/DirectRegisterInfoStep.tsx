@@ -402,7 +402,7 @@ export function DirectRegisterInfoStep({
                     required
                     maxLength={2499}
                     value={value.description}
-                    placeholder="상품의 특징과 상태를 자세히 작성해 주세요. 하자 여부와 구매 시기도 함께 적어주세요."
+                    placeholder="상품의 특징과 상태를 자세히 작성해 주세요."
                     className="typography-body-medium [field-sizing:fixed] h-[140px] max-h-[140px] min-h-[140px] resize-none overflow-y-auto rounded-[8px] border-[1.5px] border-[#d3d3d3] bg-[#fafbff] px-4 py-3 text-[#6b6c7b] shadow-none placeholder:text-[#d3d3d3] focus-visible:border-[#6653fb] focus-visible:ring-0"
                     aria-invalid={Boolean(fieldErrors.description)}
                     onChange={(event) => {

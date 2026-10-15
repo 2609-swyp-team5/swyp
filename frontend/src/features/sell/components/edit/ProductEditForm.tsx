@@ -12,6 +12,7 @@ import { ProductRegistrationProcessing } from "@/features/sell/components/Produc
 import { DirectRegisterActions } from "@/features/sell/components/direct-register/DirectRegisterActions";
 import { DirectRegisterInfoStep } from "@/features/sell/components/direct-register/DirectRegisterInfoStep";
 import { DirectStatusPriceStep } from "@/features/sell/components/direct-register/DirectStatusPriceStep";
+import { validateStatusPrice } from "@/features/sell/components/direct-register/statusPriceValidation";
 import type {
     DirectImagePreview,
     DirectRegisterInfoState,
@@ -28,11 +29,6 @@ import {
 import { RegistrationStepper } from "@/features/sell/components/shared/RegistrationStepper";
 import { useUpdateProductMutation } from "@/features/sell/hooks/mutations/useUpdateProductMutation";
 import { productQueryKey } from "@/features/sell/hooks/queries/useProductQuery";
-import {
-    PRODUCT_PRICE_MAX,
-    PRODUCT_PRICE_MIN,
-    PRODUCT_PRICE_RANGE_ERROR,
-} from "@/features/sell/schemas/productSchema";
 import type {
     ProductRegisterError,
     ProductRegisterProgress,
@@ -78,15 +74,18 @@ function getInitialInfo(product: ProductResponse, categories: Category[]): Produ
 }
 
 function getInitialStatusPrice(product: ProductResponse): DirectStatusPriceState {
+    const isDirectTrade = product.tradeMethod === "DIRECT";
+
     return {
         productCondition: product.condition,
         includedStatus: getIncludedStatus(product.includedItems),
         price: String(product.price),
         allowPriceProposal: product.allowPriceSuggestion,
-        tradeMethod: product.tradeMethod === "DIRECT" ? "direct" : "delivery",
-        deliveryType: product.deliveryType,
-        deliveryFee: product.deliveryFee == null ? "" : String(product.deliveryFee),
-        tradeLocation: product.preferredTradeRegion ?? "",
+        tradeMethod: isDirectTrade ? "direct" : "delivery",
+        deliveryType: isDirectTrade ? null : product.deliveryType,
+        deliveryFee:
+            isDirectTrade || product.deliveryFee == null ? "" : String(product.deliveryFee),
+        tradeLocation: isDirectTrade ? (product.preferredTradeRegion ?? "") : "",
     };
 }
 
@@ -176,28 +175,8 @@ export function ProductEditForm({
     };
 
     const handleStatusPriceSubmit = async () => {
-        const price = Number(statusPrice.price);
         const deliveryFee = Number(statusPrice.deliveryFee);
-        const nextErrors: DirectStatusPriceErrors = {
-            price:
-                Number.isInteger(price) && price >= PRODUCT_PRICE_MIN && price <= PRODUCT_PRICE_MAX
-                    ? ""
-                    : PRODUCT_PRICE_RANGE_ERROR,
-            deliveryType:
-                statusPrice.tradeMethod === "delivery" && !statusPrice.deliveryType
-                    ? "배송비 부담 방식을 선택해 주세요."
-                    : "",
-            deliveryFee:
-                statusPrice.tradeMethod === "delivery" && statusPrice.deliveryType === "PREPAID"
-                    ? deliveryFee >= 2_700 && deliveryFee <= 17_000
-                        ? ""
-                        : "배송비는 2,700원 이상 17,000원 이하로 입력해 주세요."
-                    : "",
-            tradeLocation:
-                statusPrice.tradeMethod === "direct" && !statusPrice.tradeLocation.trim()
-                    ? "거래 희망 지역을 선택해 주세요."
-                    : "",
-        };
+        const nextErrors = validateStatusPrice(statusPrice);
 
         setStatusPriceErrors(nextErrors);
 
@@ -243,7 +222,6 @@ export function ProductEditForm({
                             : null,
                     imageUrls,
                     tags: info.tags,
-                    includedItems: [includedStatusLabels[statusPrice.includedStatus]],
                 },
             });
 

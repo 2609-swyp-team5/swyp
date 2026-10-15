@@ -110,7 +110,14 @@ export const directProductCreateRequestSchema = productCreateRequestSchema
     });
 
 export const productUpdateRequestSchema = productCreateRequestSchema
+    .omit({ includedItems: true })
     .extend({
+        title: z.string().trim().min(2, "상품명은 2글자 이상 입력해 주세요.").max(100),
+        description: z
+            .string()
+            .trim()
+            .min(10, "상품 설명은 10자 이상 입력해 주세요.")
+            .max(2499, "상품 설명은 2500자 미만으로 입력해 주세요."),
         status: productStatusSchema,
         price: z
             .number()

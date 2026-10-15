@@ -527,7 +527,7 @@ describe("productApi", () => {
                     categoryId: 12,
                     title: "수정된 상품명",
                     brand: null,
-                    description: "수정된 설명",
+                    description: "수정된 상품 설명입니다.",
                     price: 700000,
                     status: "ON_SALE",
                     condition: "A",
@@ -539,7 +539,6 @@ describe("productApi", () => {
                     preferredTradeRegion: "서울 강남구",
                     imageUrls: ["https://example.com/retained-image.jpg"],
                     tags: ["애플"],
-                    includedItems: ["전체 포함"],
                 },
             },
             onProgress,
@@ -578,7 +577,7 @@ describe("productApi", () => {
                 categoryId: 12,
                 title: "수정된 상품명",
                 brand: null,
-                description: "수정된 설명",
+                description: "수정된 상품 설명입니다.",
                 price: 700000,
                 status: "ON_SALE",
                 condition: "A",
@@ -590,7 +589,6 @@ describe("productApi", () => {
                 preferredTradeRegion: null,
                 imageUrls: [],
                 tags: ["애플"],
-                includedItems: ["전체 포함"],
             },
         });
 
@@ -615,7 +613,7 @@ describe("productApi", () => {
                 categoryId: 12,
                 title: "수정된 상품명",
                 brand: null,
-                description: "수정된 설명",
+                description: "수정된 상품 설명입니다.",
                 price: 700000,
                 status: "ON_SALE",
                 condition: "A",
@@ -627,7 +625,6 @@ describe("productApi", () => {
                 preferredTradeRegion: "서울 강남구",
                 imageUrls: [],
                 tags: [],
-                includedItems: ["없음"],
             },
         });
 
@@ -648,7 +645,7 @@ describe("productApi", () => {
                     categoryId: 12,
                     title: "수정된 상품명",
                     brand: null,
-                    description: "수정된 설명",
+                    description: "수정된 상품 설명입니다.",
                     price: 700000,
                     status: "ON_SALE",
                     condition: "A",
@@ -660,7 +657,6 @@ describe("productApi", () => {
                     preferredTradeRegion: "서울 강남구",
                     imageUrls: [],
                     tags: [],
-                    includedItems: ["없음"],
                 },
             }),
         ).rejects.toThrow("상품 사진을 1장 이상 업로드해주세요.");
