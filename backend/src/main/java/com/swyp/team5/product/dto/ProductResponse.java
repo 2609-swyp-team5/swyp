@@ -45,6 +45,7 @@ public record ProductResponse(
         Boolean allowPriceSuggestion, // 가격 제안 허용 여부, 외부 매물은 null
         TradeMethod tradeMethod, // 거래 방식
         DeliveryType deliveryType, // 배송비 부담 방식
+        Long deliveryFee, // 배송비 별도일 때 배송비
         String preferredTradeRegion, // 희망 거래 지역
         List<String> imageUrls, // 상품 이미지 URL 목록 (등록 순서)
         List<String> tags, // 태그 이름 목록
@@ -110,6 +111,7 @@ public record ProductResponse(
                 product.isAllowPriceSuggestion(),
                 product.getTradeMethod(),
                 product.getDeliveryType(),
+                product.getDeliveryFee(),
                 product.getPreferredTradeRegion(),
                 product.getImages().stream().map(ProductImage::getImageUrl).toList(),
                 product.getTags().stream().map(Tag::getName).toList(),
@@ -152,6 +154,7 @@ public record ProductResponse(
                 null,
                 null,
                 ProductStatus.fromExternal(listing.getStatus()),
+                null,
                 null,
                 null,
                 null,
@@ -208,6 +211,7 @@ public record ProductResponse(
                 allowPriceSuggestion,
                 tradeMethod,
                 deliveryType,
+                deliveryFee,
                 preferredTradeRegion,
                 imageUrls,
                 tags,
@@ -255,6 +259,7 @@ public record ProductResponse(
                 allowPriceSuggestion,
                 tradeMethod,
                 deliveryType,
+                deliveryFee,
                 preferredTradeRegion,
                 imageUrls,
                 tags,

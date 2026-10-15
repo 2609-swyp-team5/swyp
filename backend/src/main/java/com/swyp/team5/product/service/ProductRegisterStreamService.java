@@ -50,7 +50,12 @@ import com.swyp.team5.product.dto.register.ProductRegisterStepEvent.ImageUploadR
 import com.swyp.team5.product.dto.register.ProductRegisterStepEvent.MarketAnalysisProgress;
 import com.swyp.team5.product.dto.register.ProductRegisterStepEvent.MarketAnalysisResult;
 import com.swyp.team5.product.entity.DefectStatus;
+import com.swyp.team5.product.entity.DeliveryType;
+import com.swyp.team5.product.entity.IncludedStatus;
+import com.swyp.team5.product.entity.ProductCondition;
+import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
+import com.swyp.team5.product.error.ProductImageLimitExceededException;
 import com.swyp.team5.product.error.ProductImageRequiredException;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.error.ProductRegisterBusyException;
@@ -197,6 +202,45 @@ public class ProductRegisterStreamService implements DisposableBean {
         });
     }
 
+    /** 새 AI 등록 화면의 상품 상태·구성품·거래 정보를 저장 단계까지 전달한다. */
+    public SseEmitter registerWithAi(
+            Long memberId,
+            List<MultipartFile> images,
+            Integer purchasedMonths,
+            DefectStatus defectStatus,
+            List<String> includedItems,
+            ProductCondition condition,
+            IncludedStatus includedStatus,
+            TradeMethod tradeMethod,
+            DeliveryType deliveryType,
+            Long deliveryFee,
+            String preferredTradeRegion,
+            boolean withMarketAnalysis) {
+        List<MultipartFile> copies = copyImages(images);
+        return start(steps(AI_STEPS, withMarketAnalysis), stream -> {
+            List<String> imageUrls = uploadImages(stream, copies);
+            ProductAiAnalysisResult analysis = analyze(stream, copies);
+            ProductResponse product = save(
+                    stream,
+                    "상품을 등록하고 있어요.",
+                    "상품 등록 완료",
+                    () -> productService.saveFromAnalysis(
+                            memberId,
+                            analysis,
+                            imageUrls,
+                            purchasedMonths,
+                            defectStatus,
+                            includedItems,
+                            condition,
+                            includedStatus,
+                            tradeMethod,
+                            deliveryType,
+                            deliveryFee,
+                            preferredTradeRegion));
+            return withMarketAnalysis ? analyzeMarket(stream, memberId, product) : product;
+        });
+    }
+
     /**
      * 상품 수정을 단계별로 처리한다. 새 이미지 파일을 업로드한 뒤(없으면 {@code SKIP}) 유지할 기존 이미지 뒤에 이어 붙여
      * 저장한다. 빈 파일은 무시한다.
@@ -272,6 +316,9 @@ public class ProductRegisterStreamService implements DisposableBean {
     private static List<MultipartFile> copyImages(List<MultipartFile> images) {
         if (images == null || images.isEmpty()) {
             throw new ProductImageRequiredException();
+        }
+        if (images.size() > 10) {
+            throw new ProductImageLimitExceededException();
         }
         return images.stream()
                 .map(image -> {

@@ -266,20 +266,17 @@ class ProductTest extends IntegrationTest {
         assertThat(updated.at("/data/suggestedPrice").asLong()).isEqualTo(470_000L); // 사용자 수정으로는 바뀌지 않음
     }
 
-    // 카테고리별 추가 항목 - 필수 항목(사이즈)이 있는 카테고리는 빠지면 업로드 전에 400, 입력하면 항목·값 이름과 함께 저장되고
-    // 상세 조회에 포함되며, 수정하면 통째로 교체됨
+    // 카테고리별 추가 항목 - 직접 입력하지 않은 사이즈는 기타로 저장되고, 사용자가 고른 값은 그대로 저장·교체됨
     @Test
     void categoryOptionsAreValidatedStoredAndReplaced() throws Exception {
         Long clothingId = bunjangCategoryId("310250"); // 의류 리프 — 필수 사이즈(공용 M = 5, L = 6)
         ProductCreateRequest missing = createRequest(clothingId);
 
-        mockMvc.perform(multipart("/products")
-                        .file(imagePart())
-                        .file(requestPart(missing))
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error.code").value("INVALID_INPUT_VALUE"))
-                .andExpect(jsonPath("$.message").value("사이즈를 선택해 주세요."));
+        JsonNode defaulted = performStream(multipart("/products")
+                .file(imagePart())
+                .file(requestPart(missing))
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken));
+        assertThat(defaulted.at("/data/categoryOptions/0/value").asText()).isEqualTo("기타 (상품설명에 작성)");
 
         ProductCreateRequest request = withCategoryOptions(missing, new CategoryOptionSelection("100", 5L, null));
         JsonNode created = performStream(multipart("/products")
@@ -299,11 +296,10 @@ class ProductTest extends IntegrationTest {
                 .andExpect(jsonPath("$.data.categoryOptions[0].valueId").value(5));
 
         ProductUpdateRequest base = updateRequest(clothingId, ProductStatus.ON_SALE);
-        mockMvc.perform(multipart(HttpMethod.PATCH, "/products/{productId}", productId)
-                        .file(requestPart(base))
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("사이즈를 선택해 주세요."));
+        JsonNode defaultedUpdate = performStream(multipart(HttpMethod.PATCH, "/products/{productId}", productId)
+                .file(requestPart(base))
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + sellerToken));
+        assertThat(defaultedUpdate.at("/data/categoryOptions/0/value").asText()).isEqualTo("기타 (상품설명에 작성)");
 
         JsonNode updated = performStream(multipart(HttpMethod.PATCH, "/products/{productId}", productId)
                 .file(requestPart(withCategoryOptions(base, new CategoryOptionSelection("100", 6L, null))))

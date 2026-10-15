@@ -50,8 +50,11 @@ import com.swyp.team5.product.dto.ProductTargetPriceRequest;
 import com.swyp.team5.product.dto.ProductTargetPriceResponse;
 import com.swyp.team5.product.dto.ProductUpdateRequest;
 import com.swyp.team5.product.entity.DefectStatus;
+import com.swyp.team5.product.entity.DeliveryType;
+import com.swyp.team5.product.entity.IncludedStatus;
 import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.ProductStatus;
+import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.service.ProductAiSearchService;
 import com.swyp.team5.product.service.ProductRegisterStreamService;
 import com.swyp.team5.product.service.ProductService;
@@ -105,7 +108,7 @@ public class ProductController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public ResponseEntity<SseEmitter> create(
             @AuthenticationPrincipal PrincipalMember currentMember,
-            @RequestPart("images") @NotEmpty List<MultipartFile> images,
+            @RequestPart("images") @NotEmpty @Size(max = 10) List<MultipartFile> images,
             @RequestPart("data") @Valid ProductCreateRequest request,
             @RequestParam(defaultValue = "false") boolean withMarketAnalysis) {
         return stream(productRegisterStreamService.registerDirect(
@@ -136,13 +139,30 @@ public class ProductController {
             produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public ResponseEntity<SseEmitter> createFromImages(
             @AuthenticationPrincipal PrincipalMember currentMember,
-            @RequestParam("images") @NotEmpty List<MultipartFile> images,
+            @RequestParam("images") @NotEmpty @Size(max = 10) List<MultipartFile> images,
             @RequestParam(required = false) @PositiveOrZero @Max(6) Integer purchasedMonths,
-            @RequestParam DefectStatus defectStatus,
+            @RequestParam(required = false) DefectStatus defectStatus,
             @RequestParam(required = false) List<@NotBlank @Size(max = 50) String> includedItems,
+            @RequestParam(required = false) ProductCondition condition,
+            @RequestParam(required = false) IncludedStatus includedStatus,
+            @RequestParam(required = false) TradeMethod tradeMethod,
+            @RequestParam(required = false) DeliveryType deliveryType,
+            @RequestParam(required = false) @Min(2700) @Max(17000) Long deliveryFee,
+            @RequestParam(required = false) @Size(max = 100) String preferredTradeRegion,
             @RequestParam(defaultValue = "false") boolean withMarketAnalysis) {
         return stream(productRegisterStreamService.registerWithAi(
-                currentMember.memberId(), images, purchasedMonths, defectStatus, includedItems, withMarketAnalysis));
+                currentMember.memberId(),
+                images,
+                purchasedMonths,
+                defectStatus,
+                includedItems,
+                condition,
+                includedStatus,
+                tradeMethod,
+                deliveryType,
+                deliveryFee,
+                preferredTradeRegion,
+                withMarketAnalysis));
     }
 
     /**
@@ -350,7 +370,7 @@ public class ProductController {
     public ResponseEntity<SseEmitter> update(
             @AuthenticationPrincipal PrincipalMember currentMember,
             @PathVariable Long productId,
-            @RequestPart(value = "images", required = false) List<MultipartFile> images,
+            @RequestPart(value = "images", required = false) @Size(max = 10) List<MultipartFile> images,
             @RequestPart("data") @Valid ProductUpdateRequest request) {
         return stream(productRegisterStreamService.update(currentMember.memberId(), productId, request, images));
     }

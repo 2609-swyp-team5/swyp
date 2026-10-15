@@ -57,6 +57,8 @@ import com.swyp.team5.product.dto.ProductSortType;
 import com.swyp.team5.product.dto.ProductSummaryResponse;
 import com.swyp.team5.product.dto.ProductUpdateRequest;
 import com.swyp.team5.product.entity.DefectStatus;
+import com.swyp.team5.product.entity.DeliveryType;
+import com.swyp.team5.product.entity.IncludedStatus;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.ProductStatus;
@@ -352,6 +354,49 @@ class ProductServiceTest {
         assertThat(response.imageUrls()).containsExactly(IMAGE_URL);
         assertThat(response.tags()).containsExactlyInAnyOrder("애플", "아이폰");
         assertThat(response.includedItems()).isEmpty();
+    }
+
+    // 새 AI 등록 입력값(상품 상태·구성품 상태·거래 방식·배송비)이 저장됨
+    @Test
+    void createFromImagesStoresSelectedTradeDetails() {
+        Member member = newMember(1L);
+        Category category = newCategory(1L, "전자기기");
+        ProductAiAnalysisResult analysis = new ProductAiAnalysisResult(
+                category.getId(),
+                "아이폰 13",
+                null,
+                "AI가 분석한 설명",
+                ProductCondition.A,
+                450_000L,
+                "판단 근거",
+                List.of(),
+                List.of());
+
+        when(memberRepository.getReferenceById(1L)).thenReturn(member);
+        when(categoryRepository.findById(category.getId())).thenReturn(Optional.of(category));
+        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ProductResponse response = service()
+                .saveFromAnalysis(
+                        1L,
+                        analysis,
+                        List.of(IMAGE_URL),
+                        null,
+                        null,
+                        null,
+                        ProductCondition.S,
+                        IncludedStatus.PARTIAL,
+                        TradeMethod.DELIVERY,
+                        DeliveryType.PREPAID,
+                        5_000L,
+                        null);
+
+        assertThat(response.condition()).isEqualTo(ProductCondition.S);
+        assertThat(response.tradeMethod()).isEqualTo(TradeMethod.DELIVERY);
+        assertThat(response.deliveryType()).isEqualTo(DeliveryType.PREPAID);
+        assertThat(response.deliveryFee()).isEqualTo(5_000L);
+        assertThat(response.preferredTradeRegion()).isNull();
+        assertThat(response.includedItems()).containsExactly("일부 포함");
     }
 
     // 상품 이미지 AI 분석 등록 성공 - 구성품은 AI 추론 결과와 사용자 입력을 합쳐서 저장

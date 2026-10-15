@@ -173,6 +173,7 @@ public class BunjangProductPublishService {
                 directTrade,
                 directTrade ? product.getPreferredTradeRegion() : null,
                 product.getDeliveryType() == DeliveryType.INCLUDED,
+                product.getDeliveryFee(),
                 imageUrls,
                 categoryOptions(product));
     }

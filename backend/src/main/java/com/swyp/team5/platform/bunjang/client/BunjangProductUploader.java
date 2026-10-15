@@ -32,6 +32,7 @@ import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.PlaywrightException;
 import com.microsoft.playwright.Response;
 import com.microsoft.playwright.options.Cookie;
+import com.microsoft.playwright.options.WaitForSelectorState;
 import com.microsoft.playwright.options.WaitUntilState;
 import com.swyp.team5.category.entity.CategoryOptionType;
 import com.swyp.team5.platform.bunjang.dto.BunjangListingForm;
@@ -496,8 +497,20 @@ public class BunjangProductUploader {
     }
 
     private void fillDescription(Page page, String description) {
-        Locator input = page.locator("textarea[placeholder*='설명'], textarea[placeholder*='본문']")
+        // 번개장터는 카테고리·화면 버전에 따라 textarea의 placeholder가 달라진다.
+        // 화면에 보이는 설명 영역의 textarea를 우선 찾고, 렌더링이 늦으면 잠시 기다린다.
+        Locator input = page.locator("#scroll-description textarea:visible, "
+                        + "textarea[placeholder*='설명']:visible, "
+                        + "textarea[placeholder*='본문']:visible, "
+                        + "textarea:visible")
                 .first();
+        try {
+            input.waitFor(new Locator.WaitForOptions()
+                    .setState(WaitForSelectorState.VISIBLE)
+                    .setTimeout(5_000));
+        } catch (PlaywrightException e) {
+            // 아래의 공통 오류 메시지로 감싸 현재 등록 실패 원인을 전달한다.
+        }
         if (!exists(input)) {
             throw new PlatformPublishFailedException("번개장터 상품 설명 입력창을 찾을 수 없어요.");
         }
@@ -541,7 +554,7 @@ public class BunjangProductUploader {
                             "input[placeholder*='배송비'], input[placeholder*='30,000'], input[placeholder*='30000']")
                     .first();
             if (exists(fee)) {
-                fee.fill(String.valueOf(DEFAULT_SHIPPING_FEE));
+                fee.fill(String.valueOf(form.shippingFee() == null ? DEFAULT_SHIPPING_FEE : form.shippingFee()));
                 page.keyboard().press("Tab"); // Enter는 폼이 조기 제출될 수 있어 사용하지 않는다
             }
         }
