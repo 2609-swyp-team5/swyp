@@ -30,9 +30,10 @@ test("logout survives closing a tab and synchronizes subsequent login across tab
     expect(refreshRequests).toBe(2);
     await first.getByRole("button", { name: "로그아웃", exact: true }).click();
     await expect(first).toHaveURL(/\/login$/);
+    await expect(second).toHaveURL(/\/login$/);
     await expect(
-        second.getByRole("banner").getByRole("button", { name: "로그인", exact: true }),
-    ).toBeVisible();
+        second.getByRole("banner").getByRole("link", { name: "프로필", exact: true }),
+    ).toHaveCount(0);
     await first.close();
 
     const reopened = await context.newPage();
