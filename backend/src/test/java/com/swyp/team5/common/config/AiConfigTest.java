@@ -50,7 +50,8 @@ class AiConfigTest {
                     ToolCallingAutoConfiguration.class,
                     OpenAiChatAutoConfiguration.class,
                     GoogleGenAiChatAutoConfiguration.class))
-            .withUserConfiguration(AiConfig.class)
+            // 운영과 같은 Gemini 클라이언트(429 재시도 안 함)로 실제 호출을 확인한다
+            .withUserConfiguration(AiConfig.class, GeminiClientConfig.class)
             .withPropertyValues(
                     "spring.ai.openai.api-key=" + ENV.getOrDefault("OPENAI_API_KEY", ""),
                     "spring.ai.google.genai.api-key=" + ENV.getOrDefault("GEMINI_API_KEY", ""),
