@@ -25,15 +25,21 @@ export function NextActions({ productId, existingPlatforms }: NextActionsProps) 
                         type="button"
                         aria-label="다른 플랫폼에 등록하기"
                         variant="outline"
-                        className="h-auto w-full justify-between rounded-[10px] border-[#d3d3d3] bg-[#fafbff] p-5 text-left hover:bg-[#f5f3ff]"
+                        className="h-auto w-full min-w-0 justify-between gap-3 rounded-[10px] border-[#d3d3d3] bg-[#fafbff] p-4 text-left break-keep whitespace-normal hover:bg-[#f5f3ff] md:p-5"
                     >
-                        <span className="flex min-w-0 items-center gap-4">
-                            <Image src="/sell/price-bars.svg" alt="" width={54} height={54} />
-                            <span>
-                                <span className="block text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-black">
+                        <span className="flex min-w-0 items-center gap-3 md:gap-4">
+                            <Image
+                                src="/sell/price-bars.svg"
+                                alt=""
+                                width={54}
+                                height={54}
+                                className="size-11 shrink-0 md:size-[54px]"
+                            />
+                            <span className="min-w-0">
+                                <span className="block text-[18px] leading-[27px] font-semibold tracking-[0.5px] text-black md:text-[20px] md:leading-[30px]">
                                     다른 플랫폼에 등록하기
                                 </span>
-                                <span className="mt-0.5 block text-[16px] leading-[25px] font-normal text-[#6b6c7b]">
+                                <span className="mt-0.5 block text-[14px] leading-[22px] font-normal text-[#6b6c7b] md:text-[16px] md:leading-[25px]">
                                     선택한 플랫폼에 판매글을 등록할 수 있어요.
                                 </span>
                             </span>
@@ -45,16 +51,22 @@ export function NextActions({ productId, existingPlatforms }: NextActionsProps) 
                     type="button"
                     aria-label="새 상품 등록하기"
                     variant="outline"
-                    className="h-auto justify-between rounded-[10px] border-[#d3d3d3] bg-[#fafbff] p-5 text-left hover:bg-[#f5f3ff]"
+                    className="h-auto w-full min-w-0 justify-between gap-3 rounded-[10px] border-[#d3d3d3] bg-[#fafbff] p-4 text-left break-keep whitespace-normal hover:bg-[#f5f3ff] md:p-5"
                     onClick={() => router.push("/sell/register")}
                 >
-                    <span className="flex min-w-0 items-center gap-4">
-                        <Image src="/sell/new-product.svg" alt="" width={54} height={54} />
-                        <span>
-                            <span className="block text-[20px] leading-[30px] font-semibold tracking-[0.5px] text-black">
+                    <span className="flex min-w-0 items-center gap-3 md:gap-4">
+                        <Image
+                            src="/sell/new-product.svg"
+                            alt=""
+                            width={54}
+                            height={54}
+                            className="size-11 shrink-0 md:size-[54px]"
+                        />
+                        <span className="min-w-0">
+                            <span className="block text-[18px] leading-[27px] font-semibold tracking-[0.5px] text-black md:text-[20px] md:leading-[30px]">
                                 새 상품 등록하기
                             </span>
-                            <span className="mt-0.5 block text-[16px] leading-[25px] font-normal text-[#6b6c7b]">
+                            <span className="mt-0.5 block text-[14px] leading-[22px] font-normal text-[#6b6c7b] md:text-[16px] md:leading-[25px]">
                                 다른 상품도 빠르게 등록해 보세요.
                             </span>
                         </span>
