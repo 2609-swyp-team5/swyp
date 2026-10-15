@@ -232,7 +232,8 @@
 @media (min-width: 768px) and (max-width: 1023px) {
     :root {
         --grid-columns: 6;
-        --grid-margin: 112px;
+        /* 834px 기준 6열(112px)·간격 20px = 내용 폭 772px이 들어가도록 좌우 32px */
+        --grid-margin: 32px;
         --grid-content-width: 772px;
         --footer-height: 250px;
     }
@@ -242,10 +243,9 @@
     :root {
         --grid-columns: 2;
         --grid-gutter: 12px;
-        /* 모바일: 좌우 20px 여백 안에서 화면 폭을 다 쓴다 */
+        /* 모바일: 좌우 20px 여백 안에서 화면 폭을 다 쓴다(시안 40px에서 조정 — 디자이너 확인 필요) */
         --grid-margin: 20px;
         --grid-content-width: 727px;
-        --header-height: 56px;
         --footer-height: 175px;
         --mobile-tab-bar-height: 64px;
 
