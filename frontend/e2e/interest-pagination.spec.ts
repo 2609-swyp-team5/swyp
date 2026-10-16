@@ -62,3 +62,57 @@ test("wishlist uses server counts, cursor pages and status filtering", async ({ 
     expect(requests.some((url) => url.searchParams.get("status") === "WAIT")).toBe(true);
     await expect(page.getByRole("tab", { name: "전체 3", exact: true })).toBeVisible();
 });
+
+test("sold-out interests show no buy/wait badge", async ({ page }) => {
+    await page.route("**/auth/refresh", (route) =>
+        route.fulfill({
+            json: { success: true, data: { accessToken: "interest-token" }, error: null },
+        }),
+    );
+    const soldOut = (interestId: number, title: string, recommendation: string | null) => ({
+        interestId,
+        source: "OUR",
+        targetId: interestId,
+        title,
+        price: 30000,
+        status: "SOLD_OUT",
+        condition: "A",
+        categoryName: "수공구/가정용 공구",
+        thumbnailUrl: null,
+        recommendation,
+        interestStatus: "SOLD_OUT",
+        marketAveragePrice: null,
+        platformName: null,
+        externalUrl: null,
+        targetPrice: null,
+        createdAt: "2026-10-04T10:00:00",
+    });
+    await page.route(
+        (url) => url.pathname === "/interests",
+        (route) =>
+            route.fulfill({
+                json: {
+                    success: true,
+                    data: {
+                        content: [
+                            soldOut(41, "주판이요", "WAIT"),
+                            soldOut(42, "다이얼 전화기", null),
+                        ],
+                        nextCursor: null,
+                        hasNext: false,
+                        totalCount: 2,
+                        statusCounts: { BUY: 0, WAIT: 0, PENDING: 0, SOLD_OUT: 2 },
+                    },
+                    error: null,
+                },
+            }),
+    );
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/buy/wishlist");
+    await page.getByRole("tab", { name: "판매 종료 2", exact: true }).click();
+    const list = page.locator("main");
+    await expect(list.getByText("주판이요", { exact: true })).toBeVisible();
+    await expect(list.getByText("판매 종료 상품")).toHaveCount(2);
+    await expect(list.getByText("WAIT", { exact: true })).toHaveCount(0);
+    await expect(list.getByText("BUY", { exact: true })).toHaveCount(0);
+});
