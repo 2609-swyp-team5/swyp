@@ -3,10 +3,13 @@ package com.swyp.team5.platform.bunjang.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -210,6 +213,36 @@ class BunjangProductLinkServiceTest {
 
         assertThatThrownBy(() -> service().link(2L, 5L, PRODUCT_URL))
                 .isInstanceOf(ProductPlatformAlreadyLinkedException.class);
+    }
+
+    // 게시 실패(FAILED)·내려간(REMOVED) 기록이 있으면 새 주소로 다시 연동(새 행을 만들지 않고 기존 행을 POSTED로)
+    @Test
+    void linkReusesFailedOrRemovedRecord() {
+        Platform platform = newPlatform(1L);
+        MemberPlatform memberPlatform = MemberPlatform.connect(newMember(2L), platform, "abc123");
+        setField(memberPlatform, "id", 10L);
+        Product product = newProduct(5L, newMember(2L));
+        givenConnectedMemberPlatform(platform, memberPlatform);
+        when(productRepository.findById(5L)).thenReturn(Optional.of(product));
+        when(bunjangProductClient.fetchDetail("123456789", null))
+                .thenReturn(new BunjangProductDetail(123456789L, "SELLING", 10_000L, "title", null));
+        ProductPlatform failed = ProductPlatform.startPosting(memberPlatform, product);
+        failed.markFailed();
+        ProductPlatform removed = ProductPlatform.link(
+                memberPlatform, product, "111111111", "https://m.bunjang.co.kr/products/111111111");
+        removed.markRemoved();
+        when(productPlatformRepository.findByProductIdAndMemberPlatformId(5L, 10L))
+                .thenReturn(Optional.of(failed), Optional.of(removed));
+
+        for (ProductPlatform existing : List.of(failed, removed)) {
+            ProductPlatformResponse response = service().link(2L, 5L, PRODUCT_URL);
+
+            assertThat(response.status()).isEqualTo(ProductPlatformStatus.POSTED);
+            assertThat(existing.getStatus()).isEqualTo(ProductPlatformStatus.POSTED);
+            assertThat(existing.getExternalProductId()).isEqualTo("123456789");
+            assertThat(existing.getProductUrl()).isEqualTo(PRODUCT_URL);
+        }
+        verify(productPlatformRepository, never()).save(any());
     }
 
     // 상태 동기화 - 정상 판매중이면 POSTED 유지

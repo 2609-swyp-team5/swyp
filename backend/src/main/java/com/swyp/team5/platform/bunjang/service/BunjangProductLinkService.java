@@ -1,5 +1,6 @@
 package com.swyp.team5.platform.bunjang.service;
 
+import java.time.LocalDateTime;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -17,11 +18,13 @@ import com.swyp.team5.platform.entity.MemberPlatformStatus;
 import com.swyp.team5.platform.entity.Platform;
 import com.swyp.team5.platform.entity.PlatformType;
 import com.swyp.team5.platform.entity.ProductPlatform;
+import com.swyp.team5.platform.entity.ProductPlatformStatus;
 import com.swyp.team5.platform.error.InvalidPlatformSessionException;
 import com.swyp.team5.platform.error.InvalidProductUrlException;
 import com.swyp.team5.platform.error.MemberPlatformNotFoundException;
 import com.swyp.team5.platform.error.ProductPlatformAlreadyLinkedException;
 import com.swyp.team5.platform.error.ProductPlatformNotFoundException;
+import com.swyp.team5.platform.error.ProductPlatformPublishInProgressException;
 import com.swyp.team5.platform.repository.MemberPlatformRepository;
 import com.swyp.team5.platform.repository.PlatformRepository;
 import com.swyp.team5.platform.repository.ProductPlatformRepository;
@@ -40,6 +43,8 @@ import com.swyp.team5.product.repository.ProductRepository;
 public class BunjangProductLinkService {
 
     private static final String PLATFORM_NAME = PlatformType.BUNJANG.getPlatformName();
+    // 자동 게시(BunjangProductPublishService)와 같은 기준 — 이 시간 안의 POSTING은 다른 요청이 게시 중인 것으로 본다
+    private static final int POSTING_TIMEOUT_MINUTES = 10;
     private static final Pattern PRODUCT_ID_PATTERN = Pattern.compile("/products/(\\d{6,})");
 
     private final PlatformRepository platformRepository;
@@ -55,7 +60,8 @@ public class BunjangProductLinkService {
      * @throws ProductNotFoundException 존재하지 않는 상품인 경우
      * @throws ProductAccessDeniedException 본인이 등록한 상품이 아닌 경우
      * @throws InvalidProductUrlException 주소에서 매물 ID를 추출할 수 없거나, 실제로 존재하지 않는 매물인 경우
-     * @throws ProductPlatformAlreadyLinkedException 이미 연동된 상품인 경우
+     * @throws ProductPlatformAlreadyLinkedException 이미 게시(POSTED)된 상품인 경우
+     * @throws ProductPlatformPublishInProgressException 같은 상품의 자동 게시가 진행 중인 경우
      */
     public ProductPlatformResponse link(Long memberId, Long productId, String productUrl) {
         MemberPlatform memberPlatform = getConnectedMemberPlatform(memberId);
@@ -68,16 +74,27 @@ public class BunjangProductLinkService {
             throw new InvalidProductUrlException("존재하지 않거나 삭제된 번개장터 매물이에요.", "errorCode=" + detail.errorCode());
         }
 
-        productPlatformRepository
+        // 게시 실패(FAILED)·내려간(REMOVED) 기록은 새 주소로 다시 연동한다(자동 게시 재시도와 같은 규칙) — 번개장터는 연동 해제
+        // API가 없어 여기서 막으면 상품을 다시 등록하는 수밖에 없다
+        ProductPlatform productPlatform = productPlatformRepository
                 .findByProductIdAndMemberPlatformId(productId, memberPlatform.getId())
-                .ifPresent(existing -> {
-                    throw new ProductPlatformAlreadyLinkedException(productId, PLATFORM_NAME);
-                });
-
-        ProductPlatform productPlatform = productPlatformRepository.save(
-                ProductPlatform.link(memberPlatform, product, externalProductId, productUrl));
+                .map(existing -> relink(existing, productId, externalProductId, productUrl))
+                .orElseGet(() -> productPlatformRepository.save(
+                        ProductPlatform.link(memberPlatform, product, externalProductId, productUrl)));
         product.markOnSaleIfDraft();
         return ProductPlatformResponse.from(productPlatform);
+    }
+
+    private ProductPlatform relink(
+            ProductPlatform existing, Long productId, String externalProductId, String productUrl) {
+        if (existing.getStatus() == ProductPlatformStatus.POSTED) {
+            throw new ProductPlatformAlreadyLinkedException(productId, PLATFORM_NAME);
+        }
+        if (existing.isPostingSince(LocalDateTime.now().minusMinutes(POSTING_TIMEOUT_MINUTES))) {
+            throw new ProductPlatformPublishInProgressException(productId, PLATFORM_NAME);
+        }
+        existing.markPosted(externalProductId, productUrl);
+        return existing;
     }
 
     /**
