@@ -86,12 +86,15 @@ export default function WishlistPage() {
             onTabChange={setActiveTabKey}
             items={interests.map((interest) => {
                 const displayStatus = interest.interestStatus;
+                // 판매가 끝난 상품은 살지·기다릴지 판단이 의미 없어 추천 배지를 달지 않는다
                 const recommendationBadge =
-                    displayStatus === "PENDING"
-                        ? "PENDING"
-                        : interest.recommendation === "BUY"
-                          ? "BUY"
-                          : "WAIT";
+                    displayStatus === "SOLD_OUT"
+                        ? null
+                        : displayStatus === "PENDING"
+                          ? "PENDING"
+                          : interest.recommendation === "BUY"
+                            ? "BUY"
+                            : "WAIT";
 
                 return {
                     id: String(interest.targetId),
