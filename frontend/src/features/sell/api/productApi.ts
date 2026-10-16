@@ -272,6 +272,15 @@ const streamProductAnalysis = async (
     return readProductAnalysisStream(response, onProgress);
 };
 
+/** 저장은 끝났는데 결과를 받기 전에 연결이 끊긴 경우 — 서버 시간 초과(REGISTER_TIMEOUT)와 같이 다시 시도 없이 상품 확인으로 안내한다. */
+const savedButDisconnectedError = () => {
+    const error = new Error(
+        "연결이 끊겼지만 저장은 완료됐어요. 상품을 확인해 주세요.",
+    ) as ProductRegisterError;
+    error.code = "REGISTER_TIMEOUT";
+    return error;
+};
+
 const readSseStream = async (
     response: Response,
     onProgress?: ProductRegisterProgressHandler,
@@ -288,6 +297,8 @@ const readSseStream = async (
     let lastTotal = productRegisterSteps.length;
     // 시세 분석 단계의 마지막 세부 단계(DONE·SKIP 이벤트에도 함께 넘겨 어디까지 진행됐는지 그린다)
     let marketAnalysis: MarketAnalysisProgress | null = null;
+    // 서버는 저장을 시작하면 연결이 끊겨도 끝까지 저장한다 — 저장 완료 뒤 끊기면 다시 시도(중복 등록)를 막는다
+    let saved = false;
 
     const handleBlock = (block: string) => {
         const dataLine = block.split(/\r?\n/).find((line) => line.startsWith("data:"));
@@ -302,6 +313,9 @@ const readSseStream = async (
 
         if (event.data.event === "step") {
             lastTotal = event.data.total;
+            if (event.data.step === "PRODUCT_SAVE" && event.data.status === "DONE") {
+                saved = true;
+            }
             const isMarketAnalysis = event.data.step === "MARKET_ANALYSIS";
             if (isMarketAnalysis && event.data.status === "PROGRESS") {
                 const parsed = marketAnalysisProgressSchema.safeParse(event.data.result);
@@ -341,9 +355,20 @@ const readSseStream = async (
         throw error;
     };
 
+    const read = async () => {
+        try {
+            return await reader.read();
+        } catch {
+            // 네트워크 끊김은 브라우저 원문(Failed to fetch 등) 대신 저장 여부에 맞는 안내로 바꾼다
+            throw saved
+                ? savedButDisconnectedError()
+                : new Error("연결이 끊겼어요. 다시 시도해 주세요.");
+        }
+    };
+
     try {
         while (true) {
-            const { done, value } = await reader.read();
+            const { done, value } = await read();
             buffer += decoder.decode(value, { stream: !done });
 
             const blocks = buffer.split(/\r?\n\r?\n/);
@@ -359,11 +384,14 @@ const readSseStream = async (
             handleBlock(buffer);
         }
     } catch (error) {
-        await reader.cancel();
+        await reader.cancel().catch(() => undefined);
         throw error;
     }
 
     if (!product) {
+        if (saved) {
+            throw savedButDisconnectedError();
+        }
         throw new Error("상품 등록 결과를 받지 못했습니다 상품 목록에서 등록 여부를 확인해 주세요");
     }
 
