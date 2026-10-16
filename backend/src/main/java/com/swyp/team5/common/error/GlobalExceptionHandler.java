@@ -55,6 +55,7 @@ import com.swyp.team5.platform.error.PlatformVerificationException;
 import com.swyp.team5.platform.error.ProductPlatformAlreadyLinkedException;
 import com.swyp.team5.platform.error.ProductPlatformNotFoundException;
 import com.swyp.team5.platform.error.ProductPlatformPublishInProgressException;
+import com.swyp.team5.platform.error.ProductSoldOutPublishException;
 import com.swyp.team5.platform.error.UnsupportedPlatformException;
 import com.swyp.team5.product.error.InvalidProductRequestException;
 import com.swyp.team5.product.error.InvalidProductSearchException;
@@ -189,7 +190,11 @@ public class GlobalExceptionHandler {
         return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
     }
 
-    @ExceptionHandler({ProductPlatformAlreadyLinkedException.class, ProductPlatformPublishInProgressException.class})
+    @ExceptionHandler({
+        ProductPlatformAlreadyLinkedException.class,
+        ProductPlatformPublishInProgressException.class,
+        ProductSoldOutPublishException.class
+    })
     public ResponseEntity<ApiResponse<Void>> handleProductPlatformConflict(RuntimeException e) {
         log.warn("이미 연동/등록 중인 외부 플랫폼 상품: {}", ErrorLogs.describe(e));
         return errorResponse(HttpStatus.CONFLICT, "CONFLICT", e.getMessage());

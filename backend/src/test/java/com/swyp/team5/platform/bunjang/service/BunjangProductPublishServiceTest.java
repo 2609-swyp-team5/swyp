@@ -42,6 +42,7 @@ import com.swyp.team5.platform.error.MemberPlatformNotFoundException;
 import com.swyp.team5.platform.error.PlatformPublishFailedException;
 import com.swyp.team5.platform.error.ProductPlatformAlreadyLinkedException;
 import com.swyp.team5.platform.error.ProductPlatformPublishInProgressException;
+import com.swyp.team5.platform.error.ProductSoldOutPublishException;
 import com.swyp.team5.platform.repository.MemberPlatformRepository;
 import com.swyp.team5.platform.repository.PlatformRepository;
 import com.swyp.team5.platform.repository.ProductPlatformRepository;
@@ -279,6 +280,20 @@ class BunjangProductPublishServiceTest {
         setField(product.getCategory(), "hasChildren", true);
 
         assertThatThrownBy(() -> service().publish(2L, 5L)).isInstanceOf(CategoryNotLeafException.class);
+        verify(productPlatformRepository, never()).save(any());
+        verify(bunjangProductUploader, never()).upload(any(), any());
+    }
+
+    // 판매 완료된 상품은 이미 팔린 물건이 번개장터에 올라가지 않도록 브라우저를 띄우기 전에 거절
+    @Test
+    void publishFailsWhenProductSoldOut() {
+        givenConnectedMemberPlatform();
+        Product product = givenProduct(newMember(2L));
+        product.changeStatus(ProductStatus.SOLD_OUT);
+
+        assertThatThrownBy(() -> service().publish(2L, 5L))
+                .isInstanceOf(ProductSoldOutPublishException.class)
+                .hasMessage("판매 완료된 상품은 게시할 수 없어요.");
         verify(productPlatformRepository, never()).save(any());
         verify(bunjangProductUploader, never()).upload(any(), any());
     }
