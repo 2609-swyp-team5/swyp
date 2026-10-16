@@ -132,15 +132,19 @@ class CategoryOptionServiceTest {
         assertThat(service.resolve(99L, null)).isEmpty();
     }
 
-    // 게시 전 확인 — 저장된 값에 필수 항목이 없으면 그 항목을 알려 줌
+    // 게시 전 — 저장된 값에 빠진 필수 항목만 기본값으로 채우고, 다 있으면 그대로
     @Test
-    void findMissingRequiredReturnsFirstMissingGroup() {
-        assertThat(service.findMissingRequired(KNIT, List.of()))
-                .map(CategoryOptionGroupResponse::name)
-                .contains("사이즈");
+    void fillRequiredDefaultsAddsOnlyMissingRequiredGroups() {
+        assertThat(service.fillRequiredDefaults(KNIT, List.of()))
+                .extracting(SelectedCategoryOption::value)
+                .containsExactly("기타 (상품설명에 작성)");
+        assertThat(service.fillRequiredDefaults(NO_DEFAULT_SIZE, List.of()))
+                .extracting(SelectedCategoryOption::value)
+                .containsExactly("Free");
         List<SelectedCategoryOption> filled =
                 service.resolve(KNIT, List.of(new CategoryOptionSelection("100", 5L, null)));
-        assertThat(service.findMissingRequired(KNIT, filled)).isEmpty();
+        assertThat(service.fillRequiredDefaults(KNIT, filled)).isEqualTo(filled);
+        assertThat(service.fillRequiredDefaults(PHONE, List.of())).isEmpty();
     }
 
     // 조회 — 없는 카테고리는 404, 있으면 옵션 정의 그대로

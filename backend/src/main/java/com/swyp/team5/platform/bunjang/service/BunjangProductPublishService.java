@@ -15,6 +15,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import com.swyp.team5.category.dto.CategoryOptionGroupResponse;
 import com.swyp.team5.category.entity.Category;
+import com.swyp.team5.category.entity.SelectedCategoryOption;
 import com.swyp.team5.category.error.CategoryNotLeafException;
 import com.swyp.team5.category.error.InvalidCategoryOptionException;
 import com.swyp.team5.category.service.CategoryOptionService;
@@ -76,7 +77,7 @@ public class BunjangProductPublishService {
      * @throws ProductNotFoundException 존재하지 않는 상품인 경우
      * @throws ProductAccessDeniedException 본인이 등록한 상품이 아닌 경우
      * @throws CategoryNotLeafException 상품 카테고리가 최하위가 아닌 경우
-     * @throws InvalidCategoryOptionException 카테고리별 필수 추가 항목(사이즈 등)이 빠진 경우(기능 추가 전·AI 등록 상품)
+     * @throws InvalidCategoryOptionException 빠진 필수 추가 항목에 기본값으로 고를 선택지가 없는 경우
      * @throws ProductPlatformAlreadyLinkedException 이미 번개장터에 게시된 상품인 경우
      * @throws ProductPlatformPublishInProgressException 같은 상품의 등록이 이미 진행 중인 경우
      * @throws PlatformPublishFailedException 번개장터 화면 입력/등록 요청이 실패한 경우
@@ -105,14 +106,13 @@ public class BunjangProductPublishService {
         if (!product.getCategory().isLeaf()) {
             throw new CategoryNotLeafException(product.getCategory().getId());
         }
-        // 번개장터는 카테고리별 필수 항목(사이즈 등)이 비면 등록 버튼이 막히므로 브라우저를 띄우기 전에 거절한다
-        categoryOptionService
-                .findMissingRequired(product.getCategory().getId(), product.getCategoryOptions())
-                .ifPresent(group -> {
-                    throw new InvalidCategoryOptionException(
-                            "번개장터에 올리려면 '" + group.name() + "' 항목이 필요해요. 상품 수정에서 입력한 뒤 다시 시도해 주세요.",
-                            "productId=" + productId + ", missingGroupId=" + group.groupId());
-                });
+        // 번개장터는 카테고리별 필수 항목(사이즈 등)이 비면 등록 버튼이 막힌다. 추가 항목은 입력받지 않으므로
+        // 빠진 필수 항목(기능 추가 전에 등록한 상품 등)은 기본값("기타"·"표시 없음" 등)으로 채워 저장한 뒤 게시한다
+        List<SelectedCategoryOption> categoryOptions =
+                categoryOptionService.fillRequiredDefaults(product.getCategory().getId(), product.getCategoryOptions());
+        if (categoryOptions.size() != product.getCategoryOptions().size()) {
+            product.replaceCategoryOptions(categoryOptions);
+        }
 
         ProductPlatform productPlatform = productPlatformRepository
                 .findByProductIdAndMemberPlatformId(productId, memberPlatform.getId())
