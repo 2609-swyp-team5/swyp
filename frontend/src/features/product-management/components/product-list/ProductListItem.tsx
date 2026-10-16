@@ -1,16 +1,8 @@
-import Image from "next/image";
-
 import { cn } from "@/common/lib/utils";
 import type { ProductListItemData } from "./productListTypes";
+import { RecommendationBadge } from "./RecommendationBadge";
 
 const priceFormatter = new Intl.NumberFormat("ko-KR");
-
-const badgeToneClassNames: Record<ProductListItemData["badgeTone"], string> = {
-    primary: "bg-[#6653fb] text-white",
-    dark: "bg-[#272727] text-white",
-    muted: "bg-[#83889E] text-white",
-    warning: "bg-[#fa503d] text-white",
-};
 
 type ProductListItemProps = {
     item: ProductListItemData;
@@ -39,35 +31,7 @@ export function ProductListItem({ item, isSelected, onSelect }: ProductListItemP
                 </p>
             </div>
             <div className="flex w-14 shrink-0 flex-col items-center gap-[5px]">
-                {item.badgeLabel === "PENDING" ? (
-                    <span
-                        className={cn(
-                            "inline-flex h-5 w-14 items-center justify-center rounded-full",
-                            badgeToneClassNames[item.badgeTone],
-                        )}
-                    >
-                        <Image
-                            src="/sell/actions/pending.svg"
-                            alt="분석 대기"
-                            width={22}
-                            height={5}
-                        />
-                    </span>
-                ) : item.badgeLabel ? (
-                    <span
-                        className={cn(
-                            "inline-flex h-5 w-14 items-center justify-center rounded-full leading-5 font-semibold tracking-[-0.5px]",
-                            item.badgeTone === "muted"
-                                ? "typography-caption"
-                                : "typography-body-small",
-                            badgeToneClassNames[item.badgeTone],
-                        )}
-                    >
-                        {item.badgeLabel}
-                    </span>
-                ) : (
-                    <span className="h-5 w-14" aria-hidden="true" />
-                )}
+                <RecommendationBadge badgeLabel={item.badgeLabel} badgeTone={item.badgeTone} />
                 <span className="typography-caption min-w-max text-center whitespace-nowrap text-[#6b6c7b]">
                     {item.metaLabel}
                 </span>
