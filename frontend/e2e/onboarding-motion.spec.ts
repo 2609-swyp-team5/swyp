@@ -146,10 +146,10 @@ test("onboarding buttons keep their behavior with the Figma scroll-to-top design
 
     const topButton = page.getByRole("button", { name: "맨 위로 이동" });
     await expect(topButton).toHaveCSS("position", "fixed");
-    await expect(topButton).toHaveCSS("width", "70px");
-    await expect(topButton).toHaveCSS("height", "70px");
+    await expect(topButton).toHaveCSS("width", "50px");
+    await expect(topButton).toHaveCSS("height", "50px");
     await expect(topButton.locator("svg")).toBeVisible();
-    await expect(topButton.getByText("바로가기")).toBeVisible();
+    await expect(topButton.getByText("바로가기")).toHaveCount(0);
     await expect(topButton.locator("img")).toHaveCount(0);
     await topButton.hover();
     await expect(topButton).toHaveCSS("translate", "0px -4px");
@@ -179,9 +179,7 @@ test("the first screen remains readable without JavaScript", async ({ browser })
     }
 });
 
-test("hero and final-section text reveal together, with the next section below the first screen", async ({
-    page,
-}) => {
+test("hero text reveals while the final CTA stays immediately readable", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
     expect(
@@ -193,17 +191,15 @@ test("hero and final-section text reveal together, with the next section below t
     const hero = page.locator("main > section").first();
     await expect(hero.locator('[style*="clip-path"]')).toHaveCount(0);
     await expect(hero.locator("h1").locator("../../..")).toHaveCSS("transform", "none");
-    for (const section of [page.locator("main > section").last()]) {
-        await section.scrollIntoViewIfNeeded();
-        const text = section.locator('[style*="clip-path"]');
-        await expect
-            .poll(() => text.first().evaluate((element) => getComputedStyle(element).clipPath))
-            .not.toBe("inset(100% 0px 0px)");
-        const clips = await text.evaluateAll((elements) =>
-            elements.map((element) => getComputedStyle(element).clipPath),
-        );
-        expect(clips.length).toBeGreaterThanOrEqual(3);
-        expect(new Set(clips).size).toBe(1);
-        await expect(text.first()).toHaveCSS("clip-path", "inset(-16px)");
-    }
+    const finalSection = page.locator("main > section").last();
+    await finalSection.scrollIntoViewIfNeeded();
+    await expect(finalSection.locator('[style*="clip-path"]')).toHaveCount(0);
+    await expect(
+        finalSection.getByRole("heading", { name: "지금, 타이밍을 확인해보세요." }),
+    ).toBeVisible();
+    await expect(
+        finalSection.getByText("물건을 등록하는 순간부터 AI가 시세를 지켜봐 드려요.", {
+            exact: true,
+        }),
+    ).toBeVisible();
 });

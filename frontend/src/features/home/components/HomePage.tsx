@@ -282,7 +282,7 @@ export function HomePage() {
                 </section>
                 <section
                     aria-labelledby="home-audiences-heading"
-                    className="flex flex-col gap-6 py-6 md:gap-10 md:py-[60px] lg:min-h-[630px] lg:justify-between"
+                    className="flex flex-col gap-6 py-6 md:gap-10 md:py-[60px] lg:min-h-[500px] lg:justify-between"
                 >
                     <div className="space-y-2.5">
                         <p className="typography-heading-03 font-medium text-[#464646]">
@@ -314,7 +314,7 @@ export function HomePage() {
                         ].map((item) => (
                             <Card
                                 key={item.title}
-                                className="relative h-[280px] gap-0 rounded-[20px] border border-[#464646] bg-white py-0 ring-0 md:h-[350px]"
+                                className="relative h-[230px] gap-0 rounded-[20px] border border-[#464646] bg-white py-0 ring-0 md:h-[300px]"
                             >
                                 <CardContent className="space-y-3 px-5 py-6 text-center text-[#363636] md:space-y-5 md:px-6 md:py-[30px]">
                                     <h3 className="typography-heading-02 font-semibold">
@@ -324,7 +324,6 @@ export function HomePage() {
                                         {item.description}
                                     </p>
                                 </CardContent>
-                                <div className="flex-1 rounded-[5px] bg-[#d3d3d3]" />
                                 <Button
                                     asChild
                                     className="typography-heading-03 absolute right-5 bottom-5 left-5 h-[52px] rounded-full bg-[#6653fb] px-5 font-bold md:right-6 md:bottom-[29px] md:left-6 md:h-[60px] lg:right-auto lg:left-1/2 lg:w-[400px] lg:-translate-x-1/2"

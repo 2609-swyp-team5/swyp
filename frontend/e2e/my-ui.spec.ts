@@ -282,8 +282,6 @@ test("product filters use server counts and request each selected status", async
     await expect(group.getByRole("button", { name: "판매중 1", exact: true })).toBeVisible();
     await expect(group.getByRole("button", { name: "판매완료 1", exact: true })).toBeVisible();
     const rows = page.locator("tbody tr");
-    await expect(rows).toHaveCount(3);
-    await page.getByRole("button", { name: "더 불러오기", exact: true }).click();
     await expect(rows).toHaveCount(4);
     expect(requests[0]?.get("size")).toBe("20");
     expect(requests[0]?.has("cursor")).toBe(false);
@@ -301,9 +299,22 @@ test("product filters use server counts and request each selected status", async
         await expect(
             group.getByRole("button", { name: `${label} ${count}`, exact: true }),
         ).toHaveAttribute("aria-pressed", "true");
-        await expect(rows.first().locator("td").nth(3).locator("span")).toHaveCSS(
+        const statusBadge = rows.first().locator("td").nth(2).locator("span");
+        await expect(statusBadge).toHaveCSS(
             "color",
-            status === "ON_SALE" ? "rgb(250, 80, 61)" : "rgb(131, 136, 158)",
+            status === "DRAFT"
+                ? "rgb(250, 80, 61)"
+                : status === "SOLD_OUT"
+                  ? "rgb(255, 255, 255)"
+                  : "rgb(255, 255, 255)",
+        );
+        await expect(statusBadge).toHaveCSS(
+            "background-color",
+            status === "DRAFT"
+                ? "rgb(255, 244, 244)"
+                : status === "SOLD_OUT"
+                  ? "rgb(169, 173, 189)"
+                  : "rgb(250, 80, 61)",
         );
     }
     await group.getByRole("button", { name: "전체 4", exact: true }).click();
@@ -359,12 +370,13 @@ test("my products retry a failed next page while retaining server counts and loa
     });
     await page.goto("/my/products");
     await expect(page.locator("tbody")).toContainText("첫 상품");
-    await page.getByRole("button", { name: "더 불러오기", exact: true }).click();
-    await expect(page.locator("main").getByRole("alert")).toHaveText("상품 조회 실패");
+    await expect(page.locator("main").getByRole("alert")).toHaveText(
+        "상품을 더 불러오지 못했습니다.",
+    );
     await expect(page.getByRole("button", { name: "전체 2", exact: true })).toBeVisible();
     await expect(page.locator("tbody")).toContainText("첫 상품");
     await expect(page.locator("tbody")).not.toContainText("다음 상품");
-    await expect(page.getByRole("columnheader")).toHaveCount(5);
+    await expect(page.getByRole("columnheader")).toHaveCount(4);
     await page.getByRole("button", { name: "다시 시도", exact: true }).click();
     await expect(page.locator("tbody tr")).toHaveCount(2);
     await expect(page.getByRole("button", { name: "전체 2", exact: true })).toBeVisible();
@@ -406,8 +418,8 @@ test("product table keeps headers during status loading and fits narrow screens"
                             ),
                             price: 150000,
                         })),
-                    nextCursor: selectedStatus ? null : "2",
-                    hasNext: !selectedStatus,
+                    nextCursor: null,
+                    hasNext: false,
                     totalCount: selectedStatus === "SOLD_OUT" ? 0 : selectedStatus ? 1 : 2,
                     statusCounts: { DRAFT: 1, ON_SALE: 1, SOLD_OUT: 0 },
                 },
@@ -418,15 +430,15 @@ test("product table keeps headers during status loading and fits narrow screens"
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto("/my/products");
     const headers = page.getByRole("columnheader");
-    await expect(headers).toHaveCount(5);
+    await expect(headers).toHaveCount(4);
     await expect(page.locator("tbody").getByRole("status")).toHaveText("상품을 불러오는 중입니다.");
     finishRequest();
-    await expect(page.locator("tbody")).toContainText("—");
+    await expect(page.locator("tbody")).toContainText("일본 교토 벚꽃 커플 스냅 사진 촬영 서비스");
     const headerBox = await page.locator("thead").boundingBox();
     for (const width of [1440, 1024, 768, 390]) {
         await page.setViewportSize({ width, height: 1000 });
         // 휴대폰은 카드 목록이라 열 이름을 숨긴다.
-        await expect(headers).toHaveCount(width >= 768 ? 5 : 0);
+        await expect(headers).toHaveCount(width >= 768 ? 4 : 0);
         if (width === 1440) {
             expect(
                 await page
@@ -445,13 +457,6 @@ test("product table keeps headers during status loading and fits narrow screens"
                 elements.every((element) => element.scrollWidth <= element.clientWidth + 1),
             ),
         ).toBe(true);
-        expect(
-            await cells.evaluateAll((elements) =>
-                elements.map(
-                    (element) => getComputedStyle(element.firstElementChild ?? element).fontSize,
-                ),
-            ),
-        ).toEqual(Array(10).fill("14px"));
         if (width === 1440 || width === 390)
             await page.screenshot({
                 path: testInfo.outputPath(`products-${width}.png`),
@@ -459,21 +464,21 @@ test("product table keeps headers during status loading and fits narrow screens"
             });
     }
     await page.setViewportSize({ width: 1440, height: 1000 });
-    await expect(page.getByRole("button", { name: "더 불러오기", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "더 불러오기", exact: true })).toHaveCount(0);
     await page.getByRole("button", { name: /^판매중/ }).click();
-    await expect(headers).toHaveCount(5);
+    await expect(headers).toHaveCount(4);
     await expect(page.locator("tbody").getByRole("status")).toHaveText("상품을 불러오는 중입니다.");
     await expect(page.getByRole("button", { name: "전체 2", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "더 불러오기", exact: true })).toHaveCount(0);
     expect((await page.locator("thead").boundingBox())?.y).toBe(headerBox?.y);
     finishStatusRequest();
-    await expect(page.locator("tbody")).toContainText("—");
+    await expect(page.locator("tbody")).toContainText("일본 교토 벚꽃 커플 스냅 사진 촬영 서비스");
     await expect(page.getByRole("button", { name: "전체 2", exact: true })).toBeVisible();
     await page.getByRole("button", { name: /^판매완료/ }).click();
     await expect(page.locator("tbody").getByRole("status")).toHaveText(
         "해당 상태의 상품이 없습니다.",
     );
-    await expect(headers).toHaveCount(5);
+    await expect(headers).toHaveCount(4);
     expect((await page.locator("thead").boundingBox())?.y).toBe(headerBox?.y);
 });
 

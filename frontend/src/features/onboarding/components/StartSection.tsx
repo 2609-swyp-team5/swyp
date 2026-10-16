@@ -1,10 +1,7 @@
 "use client";
 
-import * as m from "motion/react-m";
-import { textRiseMotion } from "@/features/onboarding/onboardingMotion";
 import { StartButton } from "@/features/onboarding/components/shared/StartButton";
 import { OnboardingBackground } from "@/features/onboarding/components/shared/OnboardingBackground";
-import styles from "@/features/onboarding/onboarding.module.css";
 
 export function StartSection({
     startHref,
@@ -16,30 +13,19 @@ export function StartSection({
     return (
         <section className="relative isolate flex min-h-[630px] items-center justify-center overflow-hidden py-[100px]">
             <OnboardingBackground />
-            <m.div
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, amount: 0.15 }}
-                className="layout-container relative space-y-[30px] text-center"
-            >
+            <div className="layout-container relative space-y-[30px] text-center">
                 <div className="space-y-2.5">
-                    <m.h2
-                        variants={textRiseMotion}
-                        className={`${styles.riseText} typography-heading-01 text-[#363636]`}
-                    >
+                    <h2 className="typography-heading-01 text-[#363636]">
                         지금, 타이밍을 확인해보세요.
-                    </m.h2>
-                    <m.p
-                        variants={textRiseMotion}
-                        className={`${styles.riseText} typography-heading-03 font-semibold text-[#6b6c7b]`}
-                    >
+                    </h2>
+                    <p className="typography-heading-03 font-semibold text-[#6b6c7b]">
                         물건을 등록하는 순간부터 AI가 시세를 지켜봐 드려요.
-                    </m.p>
+                    </p>
                 </div>
-                <m.div variants={textRiseMotion} className={styles.riseText}>
+                <div>
                     <StartButton href={startHref} isInitialized={isInitialized} compact />
-                </m.div>
-            </m.div>
+                </div>
+            </div>
         </section>
     );
 }
