@@ -33,6 +33,7 @@ import com.swyp.team5.product.dto.register.ProductRegisterStep;
 import com.swyp.team5.product.dto.register.ProductRegisterStepEvent;
 import com.swyp.team5.product.entity.DefectStatus;
 import com.swyp.team5.product.entity.ProductCondition;
+import com.swyp.team5.product.error.InvalidProductRequestException;
 import com.swyp.team5.productanalysis.dto.AnalysisStatus;
 import com.swyp.team5.productanalysis.dto.AnalysisStep;
 import com.swyp.team5.productanalysis.dto.AnalysisStepEvent;
@@ -209,6 +210,20 @@ class ProductRegisterStreamServiceTest {
         verify(fileStorageService, timeout(WAIT_MS)).deleteAll(List.of("products/a.png"));
         verify(productAiService, never()).analyze(anyList());
         verify(productService, never()).saveFromAnalysis(anyLong(), any(), anyList(), any(), any(), any());
+    }
+
+    // 저장 단계 입력값 오류(AI 결과가 너무 짧은 경우 등) - 500 대신 400 INVALID_INPUT_VALUE와 안내 문구 그대로
+    @Test
+    void invalidProductRequestDuringSaveSendsInputError() throws IOException {
+        when(productAiService.analyze(anyList())).thenReturn(analysis());
+        when(productService.saveFromAnalysis(anyLong(), any(), anyList(), any(), any(), any()))
+                .thenThrow(new InvalidProductRequestException("analysis", "AI가 상품 정보를 충분히 만들지 못했어요. 다시 시도해 주세요."));
+
+        registerWithAi();
+
+        verify(emitter, timeout(WAIT_MS)).complete();
+        assertThat(sentErrorCodes()).containsExactly("INVALID_INPUT_VALUE");
+        assertThat(sentResponses().getLast().message()).isEqualTo("AI가 상품 정보를 충분히 만들지 못했어요. 다시 시도해 주세요.");
     }
 
     // 정상 - 끊김·시간 초과가 없으면 저장하고 파일은 지우지 않음

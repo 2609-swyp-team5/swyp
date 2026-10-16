@@ -42,6 +42,7 @@ import com.swyp.team5.common.common.ErrorDetail;
 import com.swyp.team5.file.error.FileStorageException;
 import com.swyp.team5.interest.error.InterestAlreadyExistsException;
 import com.swyp.team5.interest.error.InterestNotFoundException;
+import com.swyp.team5.interest.error.OwnProductInterestException;
 import com.swyp.team5.member.error.InvalidCurrentPasswordException;
 import com.swyp.team5.member.error.MemberNotFoundException;
 import com.swyp.team5.member.error.PasswordChangeNotAllowedException;
@@ -55,6 +56,7 @@ import com.swyp.team5.platform.error.PlatformVerificationException;
 import com.swyp.team5.platform.error.ProductPlatformAlreadyLinkedException;
 import com.swyp.team5.platform.error.ProductPlatformNotFoundException;
 import com.swyp.team5.platform.error.ProductPlatformPublishInProgressException;
+import com.swyp.team5.platform.error.ProductSoldOutPublishException;
 import com.swyp.team5.platform.error.UnsupportedPlatformException;
 import com.swyp.team5.product.error.InvalidProductRequestException;
 import com.swyp.team5.product.error.InvalidProductSearchException;
@@ -189,7 +191,11 @@ public class GlobalExceptionHandler {
         return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
     }
 
-    @ExceptionHandler({ProductPlatformAlreadyLinkedException.class, ProductPlatformPublishInProgressException.class})
+    @ExceptionHandler({
+        ProductPlatformAlreadyLinkedException.class,
+        ProductPlatformPublishInProgressException.class,
+        ProductSoldOutPublishException.class
+    })
     public ResponseEntity<ApiResponse<Void>> handleProductPlatformConflict(RuntimeException e) {
         log.warn("이미 연동/등록 중인 외부 플랫폼 상품: {}", ErrorLogs.describe(e));
         return errorResponse(HttpStatus.CONFLICT, "CONFLICT", e.getMessage());
@@ -228,6 +234,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleProductAccessDenied(ProductAccessDeniedException e) {
         log.warn("상품 접근 권한 없음: {}", ErrorLogs.describe(e));
         return errorResponse(HttpStatus.FORBIDDEN, "FORBIDDEN", e.getMessage());
+    }
+
+    @ExceptionHandler(OwnProductInterestException.class)
+    public ResponseEntity<ApiResponse<Void>> handleOwnProductInterest(OwnProductInterestException e) {
+        log.warn("본인 상품 관심 등록 시도: {}", ErrorLogs.describe(e));
+        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
     }
 
     @ExceptionHandler(InterestAlreadyExistsException.class)

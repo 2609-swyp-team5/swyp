@@ -35,6 +35,7 @@ import com.swyp.team5.platform.error.MemberPlatformNotFoundException;
 import com.swyp.team5.platform.error.PlatformPublishFailedException;
 import com.swyp.team5.platform.error.ProductPlatformAlreadyLinkedException;
 import com.swyp.team5.platform.error.ProductPlatformPublishInProgressException;
+import com.swyp.team5.platform.error.ProductSoldOutPublishException;
 import com.swyp.team5.platform.repository.MemberPlatformRepository;
 import com.swyp.team5.platform.repository.PlatformRepository;
 import com.swyp.team5.platform.repository.ProductPlatformRepository;
@@ -42,6 +43,7 @@ import com.swyp.team5.product.entity.DeliveryType;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.ProductImage;
+import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.entity.TradeMethod;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductNotFoundException;
@@ -76,6 +78,7 @@ public class BunjangProductPublishService {
      * @throws InvalidPlatformSessionException 세션이 만료/해제 상태이거나, 등록 중 세션 만료가 확인된 경우
      * @throws ProductNotFoundException 존재하지 않는 상품인 경우
      * @throws ProductAccessDeniedException 본인이 등록한 상품이 아닌 경우
+     * @throws ProductSoldOutPublishException 판매 완료된 상품인 경우
      * @throws CategoryNotLeafException 상품 카테고리가 최하위가 아닌 경우
      * @throws InvalidCategoryOptionException 빠진 필수 추가 항목에 기본값으로 고를 선택지가 없는 경우
      * @throws ProductPlatformAlreadyLinkedException 이미 번개장터에 게시된 상품인 경우
@@ -100,6 +103,10 @@ public class BunjangProductPublishService {
                 productRepository.findById(productId).orElseThrow(() -> new ProductNotFoundException(productId));
         if (!product.isRegisteredBy(memberId)) {
             throw new ProductAccessDeniedException(productId);
+        }
+        // 이미 팔린 물건이 번개장터에 판매중으로 올라가지 않도록 브라우저를 띄우기 전에 거절한다
+        if (product.getStatus() == ProductStatus.SOLD_OUT) {
+            throw new ProductSoldOutPublishException(productId, PLATFORM_NAME);
         }
         // 번개장터는 최하위 카테고리까지 선택해야 등록되므로 브라우저를 띄우기 전에 거절한다
         // (카테고리 전환 전 상품이 중간 카테고리로 옮겨진 경우 — 상품 수정으로 최하위를 다시 골라야 한다)

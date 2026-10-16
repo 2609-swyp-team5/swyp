@@ -432,6 +432,7 @@ public class NotificationService {
 
     private List<Notification> interestedMemberNotifications(Product product, NotificationType type, Content content) {
         return interestRepository.findMembersByItemId(product.getId()).stream()
+                .filter(member -> !product.isRegisteredBy(member.getId())) // 판매자 본인은 판매자용 알림만
                 .map(member -> Notification.create(member, product, type, content.title(), content.message()))
                 .toList();
     }

@@ -17,6 +17,9 @@ final class ProductRegistrationPolicy {
     static final int MIN_DESCRIPTION_LENGTH = 10;
     static final int MAX_DESCRIPTION_LENGTH = 2_499;
     static final int MAX_TAG_COUNT = 5;
+    static final int MAX_TITLE_LENGTH = 100;
+    static final int MAX_BRAND_LENGTH = 50;
+    static final int MAX_NAME_LENGTH = 50; // 태그·구성품 이름(tags·components.name)
     static final long MIN_DELIVERY_FEE = 2_700L;
     static final long MAX_DELIVERY_FEE = 17_000L;
 
@@ -82,12 +85,64 @@ final class ProductRegistrationPolicy {
         }
     }
 
+    /**
+     * AI 등록 결과를 저장할 수 있는 범위로 맞춘다. 사용자가 입력한 값이 아니라 거절하면 고칠 방법이 없으므로 가격은 허용 범위로, 태그는 앞에서
+     * 5개로, 글자 수는 저장 가능한 길이로 자른다(등록 후 판매자가 수정할 수 있다). 제목·설명이 너무 짧아 맞출 수 없을 때만 다시 시도하도록
+     * 거절한다.
+     */
+    static ProductAiAnalysisResult normalizeAiAnalysis(ProductAiAnalysisResult analysis) {
+        if (analysis == null) {
+            throw invalid("analysis", "AI 상품 분석 결과가 없습니다.");
+        }
+        String title = cut(strip(analysis.title()), MAX_TITLE_LENGTH);
+        String description = cut(strip(analysis.description()), MAX_DESCRIPTION_LENGTH);
+        if (title.length() < MIN_TITLE_LENGTH
+                || description.length() < MIN_DESCRIPTION_LENGTH
+                || analysis.suggestedPrice() == null) {
+            throw invalid("analysis", "AI가 상품 정보를 충분히 만들지 못했어요. 다시 시도해 주세요.");
+        }
+        String brand = cut(strip(analysis.brand()), MAX_BRAND_LENGTH);
+        long price = Math.clamp(analysis.suggestedPrice(), MIN_PRICE, MAX_PRICE);
+        return new ProductAiAnalysisResult(
+                analysis.categoryId(),
+                title,
+                brand.isEmpty() ? null : brand,
+                description,
+                analysis.condition(),
+                price,
+                analysis.analysisDescription(),
+                names(analysis.tags(), MAX_TAG_COUNT),
+                names(analysis.includedItems(), Integer.MAX_VALUE));
+    }
+
     static void validateAiAnalysis(ProductAiAnalysisResult analysis, IncludedStatus includedStatus) {
         if (analysis == null) {
             throw invalid("analysis", "AI 상품 분석 결과가 없습니다.");
         }
         validateProductFields(
                 analysis.title(), analysis.description(), analysis.suggestedPrice(), analysis.tags(), includedStatus);
+    }
+
+    private static String strip(String value) {
+        return value == null ? "" : value.strip();
+    }
+
+    private static String cut(String value, int maxLength) {
+        return value.length() > maxLength ? value.substring(0, maxLength).strip() : value;
+    }
+
+    /** 빈 이름은 빼고 각 이름을 저장 가능한 길이로 자른 뒤 앞에서 최대 개수만 남긴다. */
+    private static List<String> names(List<String> values, int maxCount) {
+        if (values == null) {
+            return List.of();
+        }
+        return values.stream()
+                .map(ProductRegistrationPolicy::strip)
+                .filter(name -> !name.isEmpty())
+                .map(name -> cut(name, MAX_NAME_LENGTH))
+                .distinct()
+                .limit(maxCount)
+                .toList();
     }
 
     private static InvalidProductRequestException invalid(String field, String message) {
