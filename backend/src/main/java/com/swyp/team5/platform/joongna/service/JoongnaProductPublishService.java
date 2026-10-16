@@ -24,6 +24,7 @@ import com.swyp.team5.platform.error.MemberPlatformNotFoundException;
 import com.swyp.team5.platform.error.PlatformPublishFailedException;
 import com.swyp.team5.platform.error.ProductPlatformAlreadyLinkedException;
 import com.swyp.team5.platform.error.ProductPlatformPublishInProgressException;
+import com.swyp.team5.platform.error.ProductSoldOutPublishException;
 import com.swyp.team5.platform.joongna.client.JoongnaProductUploader;
 import com.swyp.team5.platform.joongna.dto.JoongnaListingForm;
 import com.swyp.team5.platform.joongna.dto.JoongnaSession;
@@ -36,6 +37,7 @@ import com.swyp.team5.product.entity.IncludedStatus;
 import com.swyp.team5.product.entity.Product;
 import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.ProductImage;
+import com.swyp.team5.product.entity.ProductStatus;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductNotFoundException;
 import com.swyp.team5.product.repository.ProductRepository;
@@ -83,6 +85,10 @@ public class JoongnaProductPublishService {
                 productRepository.findById(productId).orElseThrow(() -> new ProductNotFoundException(productId));
         if (!product.isRegisteredBy(memberId)) {
             throw new ProductAccessDeniedException(productId);
+        }
+        // 이미 팔린 물건이 중고나라에 판매중으로 올라가지 않도록 거절한다
+        if (product.getStatus() == ProductStatus.SOLD_OUT) {
+            throw new ProductSoldOutPublishException(productId, PLATFORM_NAME);
         }
         if (!product.getCategory().isLeaf()) {
             throw new CategoryNotLeafException(product.getCategory().getId());

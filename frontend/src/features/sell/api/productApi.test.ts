@@ -12,6 +12,7 @@ vi.mock("@/common/lib/api/client", () => ({
     api: { delete: del, get, patch, post, defaults: { baseURL: "https://api.test" } },
 }));
 
+import type { ProductRegisterError } from "../types";
 import { productApi } from "./productApi";
 
 const readBlob = (blob: Blob) =>
@@ -49,6 +50,44 @@ const sseResponse = (...events: unknown[]) => {
         },
     } as unknown as Response;
 };
+
+// 이벤트를 보낸 뒤 다음 읽기에서 네트워크 오류가 나는 스트림(연결 끊김)
+const disconnectingSseResponse = (...events: unknown[]) => {
+    const body = new TextEncoder().encode(
+        events.map((event) => `data:${JSON.stringify(event)}\n\n`).join(""),
+    );
+
+    return {
+        ok: true,
+        status: 200,
+        body: {
+            getReader: () => {
+                let delivered = false;
+
+                return {
+                    read: async () => {
+                        if (delivered) {
+                            throw new TypeError("network error");
+                        }
+
+                        delivered = true;
+                        return { done: false, value: body };
+                    },
+                    cancel: async () => {
+                        throw new TypeError("already closed");
+                    },
+                };
+            },
+        },
+    } as unknown as Response;
+};
+
+const stepEvent = (step: string, status: string, index: number) => ({
+    success: true,
+    message: "",
+    data: { event: "step", step, status, index, total: 4, result: null },
+    error: null,
+});
 
 const completeEvent = () => ({
     success: true,
@@ -477,6 +516,46 @@ describe("productApi", () => {
             total: 4, // 앞선 step 이벤트가 없으면 등록 단계 수(시세 분석 포함)
             message: "AI 사진 분석에 실패했어요",
         });
+    });
+
+    it("does not offer a retry when the connection drops after the product was saved", async () => {
+        const image = new File(["one"], "one.png", { type: "image/png" });
+        fetchMock.mockResolvedValue(
+            disconnectingSseResponse(
+                stepEvent("PRODUCT_SAVE", "DONE", 3),
+                stepEvent("MARKET_ANALYSIS", "START", 4),
+            ),
+        );
+
+        await expect(
+            productApi.createAiProduct({ images: [image], includedStatus: "ALL" }),
+        ).rejects.toMatchObject({
+            message: "연결이 끊겼지만 저장은 완료됐어요. 상품을 확인해 주세요.",
+            code: "REGISTER_TIMEOUT",
+        });
+    });
+
+    it("treats a stream that ends after saving without a result as saved", async () => {
+        const image = new File(["one"], "one.png", { type: "image/png" });
+        fetchMock.mockResolvedValue(sseResponse(stepEvent("PRODUCT_SAVE", "DONE", 3)));
+
+        await expect(
+            productApi.createAiProduct({ images: [image], includedStatus: "ALL" }),
+        ).rejects.toMatchObject({ code: "REGISTER_TIMEOUT" });
+    });
+
+    it("shows a retryable message instead of the browser error when the connection drops before saving", async () => {
+        const image = new File(["one"], "one.png", { type: "image/png" });
+        fetchMock.mockResolvedValue(
+            disconnectingSseResponse(stepEvent("IMAGE_ANALYSIS", "START", 2)),
+        );
+
+        const error = await productApi
+            .createAiProduct({ images: [image], includedStatus: "ALL" })
+            .catch((caught: ProductRegisterError) => caught);
+
+        expect(error).toMatchObject({ message: "연결이 끊겼어요. 다시 시도해 주세요." });
+        expect((error as ProductRegisterError).code).toBeUndefined();
     });
 
     it("sends the selected included status without legacy condition fields", async () => {

@@ -4,6 +4,7 @@ import org.springframework.stereotype.Component;
 
 import com.swyp.team5.interest.entity.Interest;
 import com.swyp.team5.interest.error.InterestAlreadyExistsException;
+import com.swyp.team5.interest.error.OwnProductInterestException;
 import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.item.entity.ListingSource;
 import com.swyp.team5.member.entity.Member;
@@ -32,6 +33,9 @@ class ProductInterestRegistrar implements InterestRegistrar {
     public Interest register(Member member, Long memberId, Long productId) {
         Product product =
                 productRepository.findById(productId).orElseThrow(() -> new ProductNotFoundException(productId));
+        if (product.isRegisteredBy(memberId)) {
+            throw new OwnProductInterestException();
+        }
         if (interestRepository.existsByMemberIdAndItemId(memberId, productId)) {
             throw new InterestAlreadyExistsException();
         }

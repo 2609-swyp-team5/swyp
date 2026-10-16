@@ -460,7 +460,7 @@ class ProductServiceTest {
     @Test
     void createFromImagesFailsWhenCategoryNotFound() {
         ProductAiAnalysisResult analysis = new ProductAiAnalysisResult(
-                99L, "아이폰 13", null, "설명", ProductCondition.A, 450_000L, "판단 근거", List.of(), List.of());
+                99L, "아이폰 13", null, "AI가 분석한 상품 설명입니다", ProductCondition.A, 450_000L, "판단 근거", List.of(), List.of());
 
         when(memberRepository.getReferenceById(1L)).thenReturn(newMember(1L));
         when(categoryRepository.findById(99L)).thenReturn(Optional.empty());
