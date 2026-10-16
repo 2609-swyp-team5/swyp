@@ -54,6 +54,7 @@ import com.swyp.team5.product.entity.DeliveryType;
 import com.swyp.team5.product.entity.IncludedStatus;
 import com.swyp.team5.product.entity.ProductCondition;
 import com.swyp.team5.product.entity.TradeMethod;
+import com.swyp.team5.product.error.InvalidProductRequestException;
 import com.swyp.team5.product.error.ProductAccessDeniedException;
 import com.swyp.team5.product.error.ProductImageLimitExceededException;
 import com.swyp.team5.product.error.ProductImageRequiredException;
@@ -545,6 +546,11 @@ public class ProductRegisterStreamService implements DisposableBean {
         }
         if (e instanceof CategoryNotLeafException) {
             log.warn("상품 등록 - 최하위가 아닌 카테고리: {}", ErrorLogs.describe(e));
+            return errorResponse(step, HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
+        }
+        // 저장 단계의 입력값 검증 실패(AI 결과가 너무 짧은 경우 등)는 안내 문구 그대로 전달한다
+        if (e instanceof InvalidProductRequestException) {
+            log.warn("상품 등록 - 입력값 오류: {}", ErrorLogs.describe(e));
             return errorResponse(step, HttpStatus.BAD_REQUEST, "INVALID_INPUT_VALUE", e.getMessage());
         }
         if (e instanceof InvalidCategoryOptionException) {

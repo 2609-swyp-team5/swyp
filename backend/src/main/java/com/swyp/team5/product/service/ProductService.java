@@ -256,7 +256,9 @@ public class ProductService {
             DeliveryType deliveryType,
             Long deliveryFee,
             String preferredTradeRegion) {
-        ProductRegistrationPolicy.validateAiAnalysis(analysis, includedStatus);
+        // AI가 만든 값은 사용자가 고칠 수 없으므로 거절하지 않고 저장 가능한 범위로 맞춘 뒤 검증한다
+        ProductAiAnalysisResult normalized = ProductRegistrationPolicy.normalizeAiAnalysis(analysis);
+        ProductRegistrationPolicy.validateAiAnalysis(normalized, includedStatus);
         if (selectedCondition == null) {
             throw new InvalidProductRequestException("condition", "상품 상태를 선택해 주세요.");
         }
@@ -290,12 +292,14 @@ public class ProductService {
             DeliveryType deliveryType,
             Long deliveryFee,
             String preferredTradeRegion) {
+        // AI가 만든 값은 사용자가 고칠 수 없으므로 거절하지 않고 저장 가능한 범위(가격·태그 수·글자 수)로 맞춘다
+        ProductAiAnalysisResult normalized = ProductRegistrationPolicy.normalizeAiAnalysis(analysis);
         Member member = memberRepository.getReferenceById(memberId);
-        Category category = getLeafCategoryOrThrow(analysis.categoryId());
+        Category category = getLeafCategoryOrThrow(normalized.categoryId());
         Product product = newAiProduct(
                 member,
                 category,
-                analysis,
+                normalized,
                 imageUrls,
                 purchasedMonths,
                 defectStatus,
