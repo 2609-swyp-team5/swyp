@@ -30,8 +30,8 @@ import com.swyp.team5.platform.repository.CategoryPlatformRepository;
 
 /**
  * 카테고리별 추가 항목(사이즈·용량·사용기한 등). 우리 카테고리는 번개장터 카테고리와 1:1이라({@code category_platforms}) 번개장터
- * 옵션 정의({@link CategoryOptionCatalog})를 그대로 쓴다. 상품 등록·수정 시 입력값을 검증하고, 직접 입력 화면에서 받지 않는
- * 사이즈·사용기한은 카탈로그의 기본값으로 보완한다. 번개장터 게시 전에는 필수 항목이 채워졌는지 확인한다.
+ * 옵션 정의({@link CategoryOptionCatalog})를 그대로 쓴다. 상품 등록·수정 시 입력값을 검증하고, 입력 화면에서 받지 않는
+ * 필수 항목(사이즈·사용기한 등)은 카탈로그의 기본값으로 보완한다. 번개장터 게시 전에도 빠진 필수 항목을 기본값으로 채운다.
  */
 @Service
 @RequiredArgsConstructor
@@ -99,15 +99,27 @@ public class CategoryOptionService {
         return resolved;
     }
 
-    /** 저장된 추가 항목에서 빠진 필수 항목(카테고리를 옮겼거나 AI 등록·기능 추가 전 상품). 다 채워졌으면 비어 있음. */
+    /**
+     * 저장된 추가 항목에 빠진 필수 항목을 기본값으로 채운다(기능 추가 전에 등록한 상품 등). 추가 항목은 사용자에게 입력받지 않으므로
+     * 번개장터 게시 전에 이것으로 채운다. 빠진 게 없으면 저장된 값을 그대로 돌려준다.
+     *
+     * @throws InvalidCategoryOptionException 기본값으로 고를 선택지가 없는 필수 항목이 있는 경우
+     */
     @Transactional(readOnly = true)
-    public Optional<CategoryOptionGroupResponse> findMissingRequired(
-            Long categoryId, List<SelectedCategoryOption> selected) {
-        return groupsOf(categoryId).stream()
-                .filter(CategoryOptionGroupResponse::required)
-                .filter(group ->
-                        selected.stream().noneMatch(option -> option.groupId().equals(group.groupId())))
-                .findFirst();
+    public List<SelectedCategoryOption> fillRequiredDefaults(Long categoryId, List<SelectedCategoryOption> selected) {
+        List<SelectedCategoryOption> filled = new ArrayList<>(selected);
+        for (CategoryOptionGroupResponse group : groupsOf(categoryId)) {
+            if (!group.required()
+                    || selected.stream().anyMatch(option -> option.groupId().equals(group.groupId()))) {
+                continue;
+            }
+            CategoryOptionSelection fallback = defaultSelection(group)
+                    .orElseThrow(() -> new InvalidCategoryOptionException(
+                            requiredMessage(group),
+                            "categoryId=" + categoryId + ", missingGroupId=" + group.groupId()));
+            filled.add(resolveOne(categoryId, group, fallback));
+        }
+        return filled;
     }
 
     /** 필수 항목이 빠졌을 때의 안내(번개장터 화면 문구 그대로 — 예: "사이즈를 선택해 주세요."). */
