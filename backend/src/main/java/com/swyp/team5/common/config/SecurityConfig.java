@@ -52,7 +52,9 @@ public class SecurityConfig {
         "/actuator/**"
     };
 
-    private static final String ADMIN_PATTERN = "/admin/**";
+    // 관리자 전용. /files는 범용 파일 API라 파일 소유자를 확인하지 않으므로(키만 알면 남의 상품·프로필 이미지 삭제 가능) 관리자만 쓴다 —
+    // 회원 이미지는 상품 등록·수정(/products)과 프로필 이미지(/users/profile/image)가 직접 올리고 지운다
+    private static final String[] ADMIN_PATTERNS = {"/admin/**", "/files", "/files/**"};
 
     /**
      * 비로그인 사용자에게도 허용하는 조회 API(GET만) — 상품 검색·상세와 인기 검색어·인기 상품·카테고리. 상세는 숫자 ID 경로만
@@ -90,7 +92,7 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers(HttpMethod.GET, PUBLIC_GET_PATTERNS)
                         .permitAll()
-                        .requestMatchers(ADMIN_PATTERN)
+                        .requestMatchers(ADMIN_PATTERNS)
                         .hasRole(MemberRole.ADMIN.name())
                         .anyRequest()
                         .authenticated())

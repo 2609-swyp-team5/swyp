@@ -16,6 +16,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -332,6 +333,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleNoResourceFound(NoResourceFoundException e) {
         log.warn("존재하지 않는 정적 리소스 요청: {}", e.getResourcePath());
         return errorResponse(HttpStatus.NOT_FOUND, "NOT_FOUND", "요청한 정보를 찾을 수 없어요.");
+    }
+
+    /**
+     * 업로드 용량 초과(spring.servlet.multipart.max-file-size·max-request-size) — 컨트롤러에 닿기 전 멀티파트 해석에서 난다. 상품 등록 같은
+     * 핵심 흐름이 "일시적인 오류"로 보이지 않도록 무엇을 줄이면 되는지 안내한다.
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException e) {
+        log.warn("업로드 용량 초과: {}", e.getMessage());
+        return errorResponse(
+                HttpStatus.PAYLOAD_TOO_LARGE, "PAYLOAD_TOO_LARGE", "사진 용량이 너무 커요. 사진 수를 줄이거나 더 작은 사진으로 다시 올려 주세요.");
     }
 
     @ExceptionHandler(Exception.class)

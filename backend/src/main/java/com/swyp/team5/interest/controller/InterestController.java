@@ -3,12 +3,15 @@ package com.swyp.team5.interest.controller;
 import java.util.Set;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -40,6 +43,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @RestController
 @RequestMapping("/interests")
 @RequiredArgsConstructor
+@Validated
 public class InterestController {
 
     private final InterestService interestService;
@@ -93,7 +97,7 @@ public class InterestController {
             @AuthenticationPrincipal PrincipalMember currentMember,
             @RequestParam(required = false) Set<InterestStatus> status,
             @RequestParam(required = false) Long cursor,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
         return ResponseEntity.ok(
                 ApiResponse.success(interestService.getInterests(currentMember.memberId(), status, cursor, size)));
     }

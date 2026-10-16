@@ -336,7 +336,7 @@ public class ProductController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Set<ProductStatus> status,
             @RequestParam(required = false) Long cursor,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
         return ResponseEntity.ok(ApiResponse.success(
                 productService.getMyProducts(currentMember.memberId(), categoryId, keyword, status, cursor, size)));
     }
