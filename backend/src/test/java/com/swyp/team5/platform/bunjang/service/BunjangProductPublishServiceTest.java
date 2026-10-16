@@ -283,17 +283,39 @@ class BunjangProductPublishServiceTest {
         verify(bunjangProductUploader, never()).upload(any(), any());
     }
 
-    // 카테고리별 필수 추가 항목(사이즈 등)이 빠진 상품은 브라우저를 띄우기 전에 거절(번개장터 등록 버튼이 막힘)
+    // 필수 추가 항목(사이즈 등)이 빠진 상품(기능 추가 전 등록)은 기본값으로 채워 저장하고 그 값으로 게시
     @Test
-    void publishFailsWhenRequiredCategoryOptionMissing() {
-        givenConnectedMemberPlatform();
+    void publishFillsMissingRequiredCategoryOptionsWithDefaults() {
+        MemberPlatform memberPlatform = givenConnectedMemberPlatform();
         Product product = givenProduct(newMember(2L));
-        when(categoryOptionService.findMissingRequired(3L, product.getCategoryOptions()))
-                .thenReturn(Optional.of(sizeGroup()));
+        SelectedCategoryOption etc =
+                new SelectedCategoryOption("100", "사이즈", "기타", CategoryOptionType.SINGLE_ROUND, 17L, "기타 (상품설명에 작성)");
+        when(categoryOptionService.fillRequiredDefaults(3L, List.of())).thenReturn(List.of(etc));
+        when(categoryOptionService.getOptions(3L)).thenReturn(List.of(sizeGroup()));
+        when(productPlatformRepository.findByProductIdAndMemberPlatformId(5L, 10L))
+                .thenReturn(Optional.empty());
+        givenSavedProductPlatform(memberPlatform, product);
+        when(bunjangProductUploader.upload(eq("abc123"), any())).thenReturn(UPLOAD_RESULT);
 
-        assertThatThrownBy(() -> service().publish(2L, 5L))
-                .isInstanceOf(InvalidCategoryOptionException.class)
-                .hasMessageContaining("'사이즈' 항목이 필요해요");
+        service().publish(2L, 5L);
+
+        assertThat(product.getCategoryOptions()).containsExactly(etc);
+        ArgumentCaptor<BunjangListingForm> captor = ArgumentCaptor.forClass(BunjangListingForm.class);
+        verify(bunjangProductUploader).upload(eq("abc123"), captor.capture());
+        assertThat(captor.getValue().categoryOptions())
+                .containsExactly(new BunjangListingForm.Option(
+                        "사이즈", "사이즈를 선택해 주세요", "기타", CategoryOptionType.SINGLE_ROUND, "기타 (상품설명에 작성)"));
+    }
+
+    // 기본값으로 고를 선택지도 없으면(옵션 정의 이상) 브라우저를 띄우기 전에 거절
+    @Test
+    void publishFailsWhenRequiredCategoryOptionHasNoDefault() {
+        givenConnectedMemberPlatform();
+        givenProduct(newMember(2L));
+        when(categoryOptionService.fillRequiredDefaults(3L, List.of()))
+                .thenThrow(new InvalidCategoryOptionException("사이즈를 선택해 주세요.", "test"));
+
+        assertThatThrownBy(() -> service().publish(2L, 5L)).isInstanceOf(InvalidCategoryOptionException.class);
         verify(productPlatformRepository, never()).save(any());
         verify(bunjangProductUploader, never()).upload(any(), any());
     }
@@ -305,6 +327,8 @@ class BunjangProductPublishServiceTest {
         Product product = givenProduct(newMember(2L));
         product.replaceCategoryOptions(
                 List.of(new SelectedCategoryOption("100", "사이즈", "공용 사이즈", CategoryOptionType.SINGLE_SELECT, 5L, "M")));
+        when(categoryOptionService.fillRequiredDefaults(3L, product.getCategoryOptions()))
+                .thenReturn(product.getCategoryOptions());
         when(categoryOptionService.getOptions(3L)).thenReturn(List.of(sizeGroup()));
         when(productPlatformRepository.findByProductIdAndMemberPlatformId(5L, 10L))
                 .thenReturn(Optional.empty());
