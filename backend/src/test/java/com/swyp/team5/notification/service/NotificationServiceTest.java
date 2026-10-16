@@ -106,6 +106,22 @@ class NotificationServiceTest {
                 .containsExactly(tuple(buyer1, NotificationType.BUY), tuple(buyer2, NotificationType.BUY));
     }
 
+    // 판매자 본인이 관심 등록해 둔 경우 구매자용 BUY/WAIT 알림은 보내지 않음(판매자용 알림만)
+    @Test
+    void doesNotSendBuyerNotificationToSellerWhoAddedOwnInterest() {
+        Member seller = member(10L);
+        Member buyer = member(20L);
+        Product product = product(seller);
+        when(product.isRegisteredBy(10L)).thenReturn(true);
+        when(interestRepository.findMembersByItemId(1L)).thenReturn(List.of(seller, buyer));
+
+        int count =
+                service().notifyRecommendationChanged(product, AnalysisRecommendation.WAIT, AnalysisRecommendation.BUY);
+
+        assertThat(count).isEqualTo(1);
+        assertThat(savedNotifications()).extracting(Notification::getMember).containsExactly(buyer);
+    }
+
     // 첫 분석(직전 없음)도 전환으로 보고 알림(관심 등록 회원이 없으면 판매자 1건)
     @Test
     void notifiesOnFirstAnalysis() {

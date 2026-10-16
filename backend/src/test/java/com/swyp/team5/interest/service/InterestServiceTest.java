@@ -29,6 +29,7 @@ import com.swyp.team5.interest.dto.TargetPriceResponse;
 import com.swyp.team5.interest.entity.Interest;
 import com.swyp.team5.interest.error.InterestAlreadyExistsException;
 import com.swyp.team5.interest.error.InterestNotFoundException;
+import com.swyp.team5.interest.error.OwnProductInterestException;
 import com.swyp.team5.interest.event.InterestRegisteredEvent;
 import com.swyp.team5.interest.repository.InterestRepository;
 import com.swyp.team5.item.entity.AnalysisSkipReason;
@@ -156,6 +157,18 @@ class InterestServiceTest {
 
         assertThatThrownBy(() -> service().register(2L, ListingSource.OUR, 1L))
                 .isInstanceOf(ProductNotFoundException.class);
+    }
+
+    // 판매자가 자기 상품을 관심 등록하려 하면 실패
+    @Test
+    void registerProductFailsWhenOwnProduct() {
+        Product product = newProduct(1L, newMember(2L));
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+
+        assertThatThrownBy(() -> service().register(2L, ListingSource.OUR, 1L))
+                .isInstanceOf(OwnProductInterestException.class)
+                .hasMessage("내가 등록한 상품은 관심 상품으로 담을 수 없어요.");
+        verify(interestRepository, never()).save(any());
     }
 
     // 이미 등록된 상품에 재등록 시도 시 실패
