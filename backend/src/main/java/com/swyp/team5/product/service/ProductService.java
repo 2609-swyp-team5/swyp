@@ -858,6 +858,8 @@ public class ProductService {
 
         boolean priceChanged = !price.equals(product.getPrice());
         product.changePrice(price);
+        // 이 상품에 목표가를 건 관심 회원에게 도달 알림(가격이 오르면 알림 기록 초기화) — 전체 수정과 같게
+        targetPriceAlertService.checkProduct(product.getId());
         if (priceChanged) {
             eventPublisher.publishEvent(new ProductPriceChangedEvent(product.getId()));
         }
