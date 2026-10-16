@@ -22,7 +22,10 @@ export function ProductTableSkeletonRows({
                         {statusLabel}
                     </p>
                 )}
-                <Skeleton aria-hidden="true" className="h-[22px] w-3/4" />
+                <div className="flex items-center gap-3">
+                    <Skeleton aria-hidden="true" className="size-12 shrink-0 rounded-[8px]" />
+                    <Skeleton aria-hidden="true" className="h-[22px] w-3/4" />
+                </div>
             </TableCell>
             <TableCell className={cellClassName}>
                 <Skeleton aria-hidden="true" className="h-[22px] w-20" />
@@ -32,9 +35,6 @@ export function ProductTableSkeletonRows({
             </TableCell>
             <TableCell className={cellClassName}>
                 <Skeleton aria-hidden="true" className="h-[30px] w-16 rounded-full" />
-            </TableCell>
-            <TableCell className={cellClassName}>
-                <Skeleton aria-hidden="true" className="h-[22px] w-8" />
             </TableCell>
         </TableRow>
     ));

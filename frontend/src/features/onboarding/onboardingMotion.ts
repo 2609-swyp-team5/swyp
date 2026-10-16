@@ -5,15 +5,6 @@ export const revealMotion = {
     transition: { duration: 0.65, ease: "easeOut" as const },
 };
 
-export const textRiseMotion = {
-    hidden: { y: 32, clipPath: "inset(100% 0 0 0)" },
-    visible: {
-        y: 0,
-        clipPath: "inset(-16px -16px -16px -16px)",
-        transition: { duration: 1.2, ease: "easeOut" as const },
-    },
-};
-
 export const cardMotion = {
     ...revealMotion,
     initial: { opacity: 0, y: 56, scale: 0.94, rotate: -2 },

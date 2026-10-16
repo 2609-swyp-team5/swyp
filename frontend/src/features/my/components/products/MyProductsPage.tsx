@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import { Button } from "@/common/components/ui/Button";
 import { getApiErrorMessage } from "@/common/lib/api/error";
@@ -41,6 +41,10 @@ export function MyProductsPage() {
         : (data?.pages.flatMap((page) =>
               page.content.map((product) => ({ ...product, platformName: null })),
           ) ?? []);
+    const loadMore = useCallback(() => {
+        void fetchNextPage();
+    }, [fetchNextPage]);
+
     return (
         <MyPageContent
             eyebrow="판매 관리"
@@ -54,19 +58,12 @@ export function MyProductsPage() {
                 isLoading={isPending || isPlaceholderData}
                 isError={isError}
                 isFetchingNextPage={isFetchingNextPage}
+                hasNextPage={isPlaceholderData ? false : hasNextPage}
+                isFetchNextPageError={isFetchNextPageError}
+                onLoadMore={loadMore}
+                onRetryLoadMore={loadMore}
             />
-            {hasNextPage && !isError && !isPlaceholderData && (
-                <Button
-                    type="button"
-                    variant="outline"
-                    className="mt-4"
-                    disabled={isFetchingNextPage}
-                    onClick={() => void fetchNextPage()}
-                >
-                    {isFetchingNextPage ? "상품을 더 불러오는 중입니다." : "더 불러오기"}
-                </Button>
-            )}
-            {isError && (
+            {isError && !isFetchNextPageError && (
                 <div className="mt-4 flex flex-col items-start gap-4">
                     <p role="alert" className="text-[#fa503d]">
                         {getApiErrorMessage(error)}
