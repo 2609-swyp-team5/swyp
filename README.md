@@ -134,10 +134,10 @@ npm run test:e2e
 
 ## CI/CD
 
-Merge Request가 열리거나 MR이 없는 브랜치에 push하면 변경된 쪽 잡만 자동 실행됩니다(기능 브랜치 push는 `develop` 대비 변경 기준).
+파이프라인은 Merge Request와 `develop`·`main` push(머지)에서만 실행되고, 변경된 쪽 잡만 돕니다. 기능 브랜치 push는 MR을 열어야 검사됩니다(push 전 검사는 husky pre-push).
 
-- `backend-test` / `backend-build`: `backend/**` 변경 시 테스트와 빌드
-- `frontend-test`: `frontend/**` 변경 시 타입 체크, 린트, 포맷 검사와 단위·컴포넌트 테스트
-- `frontend-e2e`: `frontend/**` 변경 시 Playwright E2E 테스트
-- `frontend-build`: `frontend/**` 변경 시 Next.js 빌드
-- `code-review`: MR 전용. diff를 Gemini API로 직접 보내 리뷰 결과를 MR 코멘트로 등록(요청당 120초·최대 2회 재시도, 잡 제한 10분)
+- `backend-test`: `backend/**` 변경 시 포맷 검사·테스트·jar 빌드(`./gradlew build`)
+- `backend-deploy`: `develop` 머지 후 `backend-test`의 jar를 EC2에 배포
+- `frontend-test`: `frontend/**` 변경 시 타입 체크, 린트, 포맷 검사, 단위·컴포넌트 테스트와 Next.js 빌드
+- `frontend-e2e`: MR 전용. `frontend/**` 변경 시 Playwright E2E 테스트(스쿼시 머지라 머지 후에는 다시 돌리지 않음)
+- `mr-check`: MR 전용. 실행할 잡이 없는 MR(문서·CI 설정만 변경)에도 파이프라인이 생기게 하는 가벼운 잡

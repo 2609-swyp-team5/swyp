@@ -2,15 +2,15 @@ workflow:
   rules:
     # Merge Request 이벤트 발생 시 파이프라인 실행
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
-    # 이미 MR이 열려있는 브랜치의 중복 브랜치 파이프라인 실행 차단
-    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
-      when: never
-    # MR이 없는 일반 브랜치에 push될 때만 실행
-    - if: $CI_COMMIT_BRANCH
+    # develop/main push(머지)만 브랜치 파이프라인 실행. 기능 브랜치 push는 돌리지 않는다 — push 직후 MR을 만들면 브랜치·MR
+    # 파이프라인이 같은 잡을 두 번 돌려 러너 1대(동시 2잡)에 줄이 섰다($CI_OPEN_MERGE_REQUESTS는 MR이 열린 뒤에만 막음).
+    # 기능 브랜치는 MR을 열면 검사된다(push 전 검사는 husky pre-push)
+    - if: $CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main"
+    # 파이프라인 화면에서 직접 실행(Run pipeline)한 경우
+    - if: $CI_PIPELINE_SOURCE == "web"
 
 stages:
   - test
-  - build
   - deploy
 
 variables:
@@ -37,7 +37,8 @@ mr-check:
 # TEST_JWT_SECRET, TEST_JWT_REFRESH_SECRET (테스트 전용 JWT 서명 키)
 # TEST_PLATFORM_SESSION_ENCRYPTION_KEY (선택, 외부 플랫폼 세션 암호화 키 — Base64 32바이트, 미등록 시
 # application-test.yaml의 테스트 전용 더미 키 사용)
-# resource_group: 여러 MR 파이프라인이 동시에 같은 swyp-test 브랜치를 Flyway clean하지 않도록 직렬화
+# 테스트와 jar 빌드를 한 잡에서 한다(`build` = spotlessCheck + test + bootJar) — 잡을 나누면 컴파일을 두 번 하고 잡 기동·캐시
+# 복원도 두 번 걸린다
 backend-test:
   stage: test
   image: eclipse-temurin:21-jdk
@@ -67,42 +68,7 @@ backend-test:
     - export TEST_DB_PASSWORD=swyp
     - cd backend
     - chmod +x gradlew
-    - ./gradlew spotlessCheck test
-
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      changes:
-        - backend/**/*
-    # develop/main push(머지)는 직전 커밋과 비교
-    - if: $CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main")
-      changes:
-        - backend/**/*
-    # 기능 브랜치 push는 develop 대비 변경만 본다(새 브랜치 첫 push는 compare_to 없으면 changes가 항상 참)
-    - if: $CI_PIPELINE_SOURCE == "push"
-      changes:
-        paths:
-          - backend/**/*
-        compare_to: refs/heads/develop
-
-backend-build:
-  stage: build
-  image: eclipse-temurin:21-jdk
-  needs:
-    - backend-test
-
-  cache:
-    key:
-      files:
-        - backend/gradle/wrapper/gradle-wrapper.properties
-        - backend/build.gradle.kts
-    paths:
-      - backend/.gradle/caches/
-      - backend/.gradle/wrapper/
-
-  script:
-    - cd backend
-    - chmod +x gradlew
-    - ./gradlew build -x test
+    - ./gradlew build
 
   artifacts:
     paths:
@@ -117,18 +83,13 @@ backend-build:
     - if: $CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main")
       changes:
         - backend/**/*
-    # 기능 브랜치 push는 develop 대비 변경만 본다(새 브랜치 첫 push는 compare_to 없으면 changes가 항상 참)
-    - if: $CI_PIPELINE_SOURCE == "push"
-      changes:
-        paths:
-          - backend/**/*
-        compare_to: refs/heads/develop
+    - if: $CI_PIPELINE_SOURCE == "web"
 
 backend-deploy:
   stage: deploy
   image: alpine:latest
   needs:
-    - backend-build
+    - backend-test
 
   before_script:
     - apk add --no-cache openssh-client
@@ -154,13 +115,14 @@ backend-deploy:
       '
 
   rules:
-    - if: $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE != "schedule"
+    - if: $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE == "push"
       changes:
         - backend/**/*
 
 # ==========================================
 # Frontend
 # ==========================================
+# 검사(타입·린트·포맷·단위 테스트)와 빌드를 한 잡에서 한다 — 잡을 나누면 npm ci(약 40초)와 잡 기동을 두 번 한다
 frontend-test:
   stage: test
   image: node:24-alpine
@@ -179,26 +141,28 @@ frontend-test:
     - npm run lint
     - npm run format:check
     - npm run test:run
+    - npm run build
+
+  artifacts:
+    paths:
+      - frontend/.next/
+    expire_in: 3 days
 
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       exists:
-        - frontend/**/*
+        - frontend/package.json
       changes:
         - frontend/**/*
     - if: $CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main")
       exists:
-        - frontend/**/*
+        - frontend/package.json
       changes:
         - frontend/**/*
-    - if: $CI_PIPELINE_SOURCE == "push"
-      exists:
-        - frontend/**/*
-      changes:
-        paths:
-          - frontend/**/*
-        compare_to: refs/heads/develop
+    - if: $CI_PIPELINE_SOURCE == "web"
 
+# e2e는 MR에서만 돈다 — 스쿼시 머지라 develop에 들어가는 코드는 MR에서 검사한 것과 같아 머지 후 다시 돌리지 않는다.
+# frontend-test의 빌드 산출물을 기다리지 않고 자체 빌드로 동시에 돈다(러너 동시 2잡에서는 기다리는 쪽이 더 늦게 끝남)
 frontend-e2e:
   stage: test
   image: mcr.microsoft.com/playwright:v1.63.0-noble
@@ -228,57 +192,4 @@ frontend-e2e:
         - frontend/package.json
       changes:
         - frontend/**/*
-    - if: $CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main")
-      exists:
-        - frontend/package.json
-      changes:
-        - frontend/**/*
-    - if: $CI_PIPELINE_SOURCE == "push"
-      exists:
-        - frontend/package.json
-      changes:
-        paths:
-          - frontend/**/*
-        compare_to: refs/heads/develop
-
-frontend-build:
-  stage: build
-  image: node:24-alpine
-  needs:
-    - frontend-test
-
-  cache:
-    key:
-      files:
-        - frontend/package-lock.json
-    paths:
-      - frontend/.npm/
-
-  script:
-    - cd frontend
-    - npm ci --cache .npm --prefer-offline
-    - npm run build
-
-  artifacts:
-    paths:
-      - frontend/.next/
-    expire_in: 3 days
-
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      exists:
-        - frontend/package.json
-      changes:
-        - frontend/**/*
-    - if: $CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main")
-      exists:
-        - frontend/package.json
-      changes:
-        - frontend/**/*
-    - if: $CI_PIPELINE_SOURCE == "push"
-      exists:
-        - frontend/package.json
-      changes:
-        paths:
-          - frontend/**/*
-        compare_to: refs/heads/develop
+    - if: $CI_PIPELINE_SOURCE == "web"
