@@ -89,6 +89,7 @@ function createSections() {
     return {
         productSummary: { data: soldProduct, error: null, isPending: false },
         productAnalysis: { data: null, error: null, isPending: false },
+        productAnalysisEmptyState: { data: null },
         productPriceTrend: { data: undefined, error: null, isPending: false },
         productValuationForecast: { data: undefined, error: null, isPending: false },
         productCompetition: { data: undefined, error: null, isPending: false },
