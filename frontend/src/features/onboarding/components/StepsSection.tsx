@@ -59,7 +59,6 @@ export function StepsSection() {
                                 alt=""
                                 width={step.width}
                                 height={step.height}
-                                unoptimized
                                 className={`${styles.stepImage} h-auto max-w-full`}
                                 style={{ width: step.width / 2 }}
                             />

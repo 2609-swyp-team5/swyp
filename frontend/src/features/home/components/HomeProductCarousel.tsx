@@ -8,6 +8,7 @@ import { Button } from "@/common/components/ui/Button";
 import { Card, CardContent } from "@/common/components/ui/Card";
 import { Badge } from "@/common/components/ui/Badge";
 import { cn } from "@/common/lib/utils";
+import { isOptimizableImageUrl } from "@/common/lib/image/optimizableImage";
 import type { ProductSummaryResponse } from "@/features/sell/types";
 
 const platforms = [
@@ -116,7 +117,9 @@ export function HomeProductCarousel({
                                             src={product.thumbnailUrl}
                                             alt={product.title}
                                             fill
-                                            unoptimized
+                                            unoptimized={
+                                                !isOptimizableImageUrl(product.thumbnailUrl)
+                                            }
                                             sizes="(min-width: 768px) 33vw, 100vw"
                                             className="object-cover"
                                         />

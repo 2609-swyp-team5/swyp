@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import type { ProductCompetition } from "../../types";
 import { formatPrice } from "../analysis/market-analysis/formatters";
+import { isOptimizableImageUrl } from "@/common/lib/image/optimizableImage";
 
 const platformBadgeClassNames: Record<string, string> = {
     CARROT: "bg-[#ff6f0f]",
@@ -45,7 +46,7 @@ function CompetitionImage({ imageUrl, title }: { imageUrl: string; title: string
                     src={imageUrl}
                     alt={`${title} 이미지`}
                     fill
-                    unoptimized
+                    unoptimized={!isOptimizableImageUrl(imageUrl)}
                     sizes="(min-width: 1024px) 30vw, 100vw"
                     className="object-cover"
                     onError={() => setHasError(true)}
