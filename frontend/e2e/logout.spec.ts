@@ -44,12 +44,13 @@ test("sidebar logout preserves the session on failure and clears it on success",
 
     shouldFail = false;
     await menu.getByRole("button", { name: "로그아웃", exact: true }).click();
-    await expect(header.getByRole("button", { name: "로그인" })).toBeVisible();
-    await expect(menu.getByRole("button", { name: "로그아웃", exact: true })).toHaveCount(0);
-    await expect(menu.getByRole("alert")).toHaveCount(0);
+    // /my는 로그인이 필요해 로그아웃에 성공하면 바로 로그인 화면으로 이동한다(로그인 화면 헤더에는 [로그인] 버튼이 없어
+    // 헤더 버튼을 기다리면 이동 시점에 따라 실패한다)
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByRole("heading", { name: "로그인", exact: true })).toBeVisible();
 
+    // 새로고침해도 세션이 돌아오지 않는다(재발급 401)
     await page.reload();
-    await header.getByRole("button", { name: "로그인" }).click();
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.getByRole("heading", { name: "로그인", exact: true })).toBeVisible();
 });

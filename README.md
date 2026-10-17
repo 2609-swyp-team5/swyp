@@ -137,7 +137,7 @@ npm run test:e2e
 파이프라인은 Merge Request와 `develop`·`main` push(머지)에서만 실행되고, 변경된 쪽 잡만 돕니다. 기능 브랜치 push는 MR을 열어야 검사됩니다(push 전 검사는 husky pre-push).
 
 - `backend-test`: `backend/**` 변경 시 포맷 검사·테스트·jar 빌드(`./gradlew build`)
-- `backend-deploy`: `develop` 머지 후 `backend-test`의 jar를 EC2에 배포
+- `backend-deploy`: `develop` 머지 후 `backend-test`의 jar를 EC2에 배포(한 번에 하나씩, 더 최신 배포가 끝난 뒤의 오래된 배포는 건너뜀 — GitLab 환경 `production`)
 - `frontend-test`: `frontend/**` 변경 시 타입 체크, 린트, 포맷 검사, 단위·컴포넌트 테스트와 Next.js 빌드
 - `frontend-e2e`: MR 전용. `frontend/**` 변경 시 Playwright E2E 테스트(스쿼시 머지라 머지 후에는 다시 돌리지 않음)
 - `mr-check`: MR 전용. 실행할 잡이 없는 MR(문서·CI 설정만 변경)에도 파이프라인이 생기게 하는 가벼운 잡
