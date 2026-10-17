@@ -11,6 +11,7 @@ import type { SearchParams, SearchPlatform, SearchStatus } from "@/features/sear
 const statusOptions = [
     { label: "임시저장", value: "DRAFT" },
     { label: "판매중", value: "ON_SALE" },
+    { label: "예약중", value: "RESERVED" },
     { label: "판매완료", value: "SOLD_OUT" },
 ] as const;
 const conditionOptions = [
@@ -324,12 +325,14 @@ export function SearchFilters({
                               ? [filters.status]
                               : []
                     }
-                    onValueChange={(value, checked) =>
-                        onFiltersChange({
-                            ...filters,
-                            status: checked ? value : undefined,
-                        })
-                    }
+                    // 여러 상태를 함께 고를 수 있다(예: 판매중+판매완료로 실제 팔린 가격과 비교)
+                    onValueChange={(value, checked) => {
+                        const current = filters.status === undefined ? [] : [filters.status].flat();
+                        const next = checked
+                            ? [...new Set([...current, value])]
+                            : current.filter((status) => status !== value);
+                        onFiltersChange({ ...filters, status: next.length ? next : undefined });
+                    }}
                 />
                 <div className="grid min-w-0 gap-5 sm:col-span-2 sm:grid-cols-2 xl:flex xl:flex-col xl:gap-6">
                     {(Array.isArray(filters.status)
