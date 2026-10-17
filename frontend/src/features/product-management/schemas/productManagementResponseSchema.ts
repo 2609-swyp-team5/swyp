@@ -58,6 +58,9 @@ export const productAnalysisResponseSchema = z.object({
     analyzedAt: z.string(),
     // 신뢰도 비율(0~100, 비교 매물 수 기반) — 모든 추천에 오지만 신뢰도 도입 전 분석이면 null
     confidenceRate: z.number().nullable().optional(),
+    // 통계에 쓴 비교 매물 수, 비교 기준(SAME 같은 물건 / RELATED 같은 물건이 부족해 비슷한 상품으로 비교) — 도입 전 분석이면 null
+    listingCount: z.number().nullable().optional(),
+    comparisonBasis: z.enum(["SAME", "RELATED"]).nullable().optional(),
 });
 
 export const productPriceTrendResponseSchema = z.object({
