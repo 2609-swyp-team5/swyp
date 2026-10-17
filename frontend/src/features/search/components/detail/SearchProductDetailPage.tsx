@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { ArrowLeft, ExternalLink, Heart, Info } from "lucide-react";
 
@@ -14,6 +15,7 @@ import { useAuthStore } from "@/features/auth/store/authStore";
 import { useSearchProductDetailQuery } from "@/features/search/hooks/queries/useSearchProductDetailQuery";
 import { getApiErrorMessage } from "@/common/lib/api/error";
 import { formatRelativeCreatedAt } from "@/features/search/utils/formatRelativeCreatedAt";
+import { lastSearchHref } from "@/features/search/utils/lastSearchQuery";
 import { formatConditionText } from "@/features/search/utils/productMetaText";
 import { SearchProductDetailSkeleton } from "@/features/search/components/detail/SearchProductDetailSkeleton";
 import { ExternalListingDialog } from "@/features/search/components/detail/ExternalListingDialog";
@@ -29,6 +31,7 @@ const detailActionClass =
     "h-[45px] min-w-0 flex-1 gap-2 rounded-[5px] border border-[#d3d3d3] bg-[#fafbff] px-5 py-2.5 typography-body-bold font-semibold text-[#83889e] hover:bg-[#f1f2f8] hover:text-[#83889e] disabled:opacity-100";
 
 export function SearchProductDetailPage({ targetId }: { targetId: number }) {
+    const router = useRouter();
     const [selectedImage, setSelectedImage] = useState(0);
     const [externalDialogOpen, setExternalDialogOpen] = useState(false);
     const [interestDialogOpen, setInterestDialogOpen] = useState(false);
@@ -139,6 +142,13 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
             <div className="layout-container flex flex-col gap-[30px] py-10 lg:py-20">
                 <Link
                     href="/search"
+                    // 마지막 검색 조건(필터·정렬)으로 돌아간다 — 기억한 조건이 없으면 기본 검색 화면
+                    onClick={(event) => {
+                        const href = lastSearchHref();
+                        if (href === "/search") return;
+                        event.preventDefault();
+                        router.push(href);
+                    }}
                     className="typography-heading-03 flex items-center gap-2 self-start font-medium text-[#6b7395] hover:text-[#6653fb]"
                 >
                     <ArrowLeft aria-hidden="true" className="size-5 shrink-0" />
