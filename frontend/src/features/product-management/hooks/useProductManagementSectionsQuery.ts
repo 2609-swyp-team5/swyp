@@ -1,6 +1,9 @@
 "use client";
 
-import { useProductAnalysisQuery } from "./useProductAnalysisQuery";
+import {
+    useProductAnalysisEmptyStateQuery,
+    useProductAnalysisQuery,
+} from "./useProductAnalysisQuery";
 import { useProductCompetitionQuery } from "./useProductCompetitionQuery";
 import { useProductPriceTrendQuery } from "./useProductPriceTrendQuery";
 import { useProductPriceDistributionQuery } from "./useProductPriceDistributionQuery";
@@ -33,6 +36,11 @@ export function useProductManagementSectionsQuery(
         enabled: analysisEnabled,
         perspective,
     });
+    // 결과가 없을 때의 이유(같은 요청을 함께 쓴다)
+    const productAnalysisEmptyState = useProductAnalysisEmptyStateQuery(productId, {
+        enabled: analysisEnabled,
+        perspective,
+    });
     const productPriceTrend = useProductPriceTrendQuery(productId, {
         enabled: analysisDetailsEnabled,
     });
@@ -50,6 +58,7 @@ export function useProductManagementSectionsQuery(
     return {
         productSummary,
         productAnalysis,
+        productAnalysisEmptyState,
         productPriceTrend,
         productPriceDistribution,
         productValuationForecast,

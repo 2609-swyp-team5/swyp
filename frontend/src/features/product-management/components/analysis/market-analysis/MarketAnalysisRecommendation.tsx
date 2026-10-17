@@ -9,6 +9,19 @@ type MarketAnalysisRecommendationProps = {
     variant?: "default" | "management";
 };
 
+/**
+ * 추천을 얼마나 믿어도 되는지 — 비교 매물 수·신뢰도·비교 기준을 한 줄로. 비교 매물이 적거나 같은 물건이 아니라 비슷한 상품으로
+ * 비교했으면 같은 "추천해요"라도 근거가 약하다는 걸 알 수 있게 한다. 값이 없는 옛 분석은 그 항목만 뺀다.
+ */
+export function describeAnalysisBasis(analysis: ProductMarketAnalysis) {
+    const parts = [
+        analysis.listingCount != null ? `비교 매물 ${analysis.listingCount}건` : null,
+        analysis.confidenceRate != null ? `신뢰도 ${analysis.confidenceRate}%` : null,
+        analysis.comparisonBasis === "RELATED" ? "비슷한 상품 기준" : null,
+    ].filter((part) => part !== null);
+    return parts.length ? parts.join(" · ") : null;
+}
+
 export function MarketAnalysisRecommendation({
     analysis,
     variant = "default",
@@ -32,6 +45,7 @@ export function MarketAnalysisRecommendation({
         },
     }[analysis.recommendation];
     const isWait = analysis.recommendation === "HOLD" || analysis.recommendation === "WAIT";
+    const basis = describeAnalysisBasis(analysis);
 
     if (variant === "management") {
         return (
@@ -53,6 +67,9 @@ export function MarketAnalysisRecommendation({
                         <p className="typography-body-medium max-w-[414px] text-[#363636]">
                             {analysis.description}
                         </p>
+                        {basis ? (
+                            <p className="typography-caption text-[#83889e]">{basis}</p>
+                        ) : null}
                     </div>
                 </div>
                 <div className="absolute top-3 right-0 flex items-center justify-center lg:static">
@@ -86,6 +103,9 @@ export function MarketAnalysisRecommendation({
                     <p className="typography-body-medium mt-[10px] max-w-[430px] text-[#363636]">
                         {analysis.description}
                     </p>
+                    {basis ? (
+                        <p className="typography-caption mt-[6px] text-[#83889e]">{basis}</p>
+                    ) : null}
                 </div>
             </div>
             <div className="absolute top-4 right-4 grid place-items-center md:top-6 md:right-6 lg:relative lg:top-auto lg:right-auto lg:min-h-[274px]">

@@ -196,9 +196,12 @@ function DistributionStateCard({
 export function MarketAnalysisPriceDistribution({
     variant = "default",
     query,
+    myPrice = null,
 }: {
     variant?: "default" | "management" | "sold";
     query?: StreamingQueryState<ProductPriceDistribution>;
+    /** 판매자 화면에서 분포 위에 표시할 내 가격(구매자 화면은 null) */
+    myPrice?: number | null;
 }) {
     const [selectedTab, setSelectedTab] = useState<DistributionTab>(
         variant === "sold" ? "soldOut" : "onSale",
@@ -245,9 +248,11 @@ export function MarketAnalysisPriceDistribution({
         );
     }
 
-    // 추천가가 최저가보다 낮거나 최고가보다 높을 수 있어 눈금 범위에 함께 포함한다.
-    const scaleMin = Math.min(data.minPrice, data.averagePrice, data.suggestedPrice);
-    const scaleMax = Math.max(data.maxPrice, data.averagePrice, data.suggestedPrice);
+    // 추천가·내 가격이 최저가보다 낮거나 최고가보다 높을 수 있어 눈금 범위에 함께 포함한다.
+    const scalePrices = [data.minPrice, data.maxPrice, data.averagePrice, data.suggestedPrice];
+    if (myPrice !== null) scalePrices.push(myPrice);
+    const scaleMin = Math.min(...scalePrices);
+    const scaleMax = Math.max(...scalePrices);
     const toPosition = (price: number) =>
         scaleMax === scaleMin
             ? 50
@@ -296,6 +301,15 @@ export function MarketAnalysisPriceDistribution({
                                 aria-hidden="true"
                             />
                         ))}
+                        {/* 판매자가 경쟁 매물 사이에서 자기 가격이 어디쯤인지 보도록 내 가격을 따로 표시한다 */}
+                        {myPrice !== null ? (
+                            <span
+                                data-testid="price-distribution-point-mine"
+                                className="absolute top-1/2 size-[11px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#272727] shadow-[0_0_0_0.5px_rgba(0,0,0,0.2)]"
+                                style={{ left: trackLeft(toPosition(myPrice)) }}
+                                aria-hidden="true"
+                            />
+                        ) : null}
                         <span
                             data-testid="price-distribution-point-suggested"
                             className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2"
@@ -319,6 +333,15 @@ export function MarketAnalysisPriceDistribution({
                             ))}
                     </div>
                 </div>
+                {myPrice !== null ? (
+                    <p className="typography-caption flex items-center gap-1.5 text-[#545d82]">
+                        <span
+                            className="inline-block size-[9px] rounded-full bg-[#272727]"
+                            aria-hidden="true"
+                        />
+                        내 가격 {formatManWon(myPrice)}
+                    </p>
+                ) : null}
             </CardContent>
             <div className="flex items-center justify-between gap-[5px] bg-[#6b49fd] px-5 py-2.5 text-white">
                 <span className="typography-body-large font-semibold">추천 가격</span>
