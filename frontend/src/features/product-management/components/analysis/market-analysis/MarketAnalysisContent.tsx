@@ -215,7 +215,7 @@ export function MarketAnalysisContent({
                                 valueClassName="typography-heading-03 font-medium text-[#ce3838]"
                             />
                             <MetricRow
-                                label="시세 대비"
+                                label="현재 판매가 시세 대비"
                                 value={formatSignedPercent(analysis.marketPriceDiffRate)}
                                 valueClassName="text-[#6653fb]"
                             />

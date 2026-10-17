@@ -3,7 +3,7 @@ import { Fragment } from "react";
 import { Separator } from "@/common/components/ui/Separator";
 
 import type { ProductMarketAnalysis } from "../../../types";
-import { formatPrice, formatSignedPercent } from "./formatters";
+import { describeDiffFromMarket, formatPrice, formatSignedPercent } from "./formatters";
 
 type MarketAnalysisSummaryMetricsProps = {
     analysis: ProductMarketAnalysis;
@@ -45,9 +45,14 @@ export function MarketAnalysisSummaryMetrics({
                           label: isBuyerView ? "AI 추천 구매가" : "AI 추천 판매가",
                           value: formatPrice(analysis.suggestedPrice),
                           valueClassName: "text-[#6653fb]",
-                          supportingText: `시세 대비 ${formatSignedPercent(analysis.marketPriceDiffRate)}`,
                       },
-                      { label: "현재 판매가", value: formatPrice(analysis.currentPrice) },
+                      {
+                          label: "현재 판매가",
+                          value: formatPrice(analysis.currentPrice),
+                          // 시세 대비 차이는 추천가가 아니라 현재 판매가 기준이라 이 칸에 둔다
+                          supportingText:
+                              describeDiffFromMarket(analysis.marketPriceDiffRate) ?? undefined,
+                      },
                       { label: "최근 평균 등록가", value: formatPrice(analysis.averagePrice) },
                   ];
 
