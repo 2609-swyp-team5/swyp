@@ -67,7 +67,6 @@ export function AnalysisSection() {
                             alt="분석 그래프를 살펴보는 AI 캐릭터"
                             width={1536}
                             height={1024}
-                            unoptimized
                             className="absolute top-0 -left-[14.64%] h-full w-[141.21%] max-w-none"
                         />
                     </div>
@@ -109,7 +108,6 @@ export function AnalysisSection() {
                                 alt={signal.alt}
                                 width={signal.width}
                                 height={signal.height}
-                                unoptimized
                                 className="h-auto w-full"
                             />
                         </div>

@@ -114,7 +114,6 @@ export function HeroSection({
                                     width={1254}
                                     height={1254}
                                     priority
-                                    unoptimized
                                     className="absolute top-[4.267%] left-[1.954%] h-[95.733%] w-[91.652%] max-w-none -scale-x-100"
                                 />
                                 <div className="absolute top-0 left-0 w-[33.57%]">

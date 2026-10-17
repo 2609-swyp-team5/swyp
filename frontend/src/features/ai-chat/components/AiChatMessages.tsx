@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Copy, PencilLine, RefreshCw, Sparkles } from
 import { useState } from "react";
 
 import { cn } from "@/common/lib/utils";
+import { isOptimizableImageUrl } from "@/common/lib/image/optimizableImage";
 import { ProfileAvatar } from "@/features/member/components/ProfileAvatar";
 import { useMeQuery } from "@/features/member/hooks/queries/useMeQuery";
 
@@ -326,7 +327,7 @@ function ProductCard({ product }: { product: AiChatRecommendedProduct }) {
                         fill
                         sizes="(min-width: 768px) 180px, 45vw"
                         className="object-cover"
-                        unoptimized
+                        unoptimized={!isOptimizableImageUrl(product.imageUrl)}
                     />
                 ) : null}
                 <span className="typography-caption absolute top-2 right-2 rounded-full bg-black/60 px-2 py-0.5 text-white">

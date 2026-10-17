@@ -20,6 +20,7 @@ import {
     PopoverTrigger,
 } from "@/common/components/ui/Popover";
 import type { ProductResponse } from "@/features/sell/types";
+import { isOptimizableImageUrl } from "@/common/lib/image/optimizableImage";
 
 const previewImageCount = 3;
 
@@ -56,7 +57,7 @@ function GalleryImage({
             src={src}
             alt={alt}
             fill
-            unoptimized
+            unoptimized={!isOptimizableImageUrl(src)}
             onError={() => setHasError(true)}
             className={className}
             sizes={sizes}

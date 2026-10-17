@@ -61,7 +61,6 @@ export function AudienceSection() {
                                 alt={`${audience.signal}: ${audience.recommendation} ${audience.firstLine} ${audience.secondLine}`}
                                 width={688}
                                 height={460}
-                                unoptimized
                                 className="h-auto w-[344px] max-w-full"
                             />
                         </div>

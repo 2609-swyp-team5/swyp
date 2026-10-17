@@ -73,7 +73,6 @@ export function SiteHeader() {
                         width={129}
                         height={71}
                         loading="eager"
-                        unoptimized
                         className="h-[44px] w-[80px] object-contain md:h-[55px] md:w-[100px] lg:h-[71px] lg:w-[129px]"
                     />
                 </Link>
