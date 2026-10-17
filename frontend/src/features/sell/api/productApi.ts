@@ -1,4 +1,5 @@
 import { api } from "@/common/lib/api/client";
+import { resizeImagesForUpload } from "@/common/lib/image/resizeImageForUpload";
 import type { ApiErrorResponse, ApiResponse, CursorPageResponse } from "@/common/lib/api/types";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import type {
@@ -456,7 +457,10 @@ const createDirectProduct = async (
 
     const formData = new FormData();
 
-    parsedImages.data.forEach((image) => formData.append("images", image));
+    // 업로드 전에 사진을 줄인다(서버 업로드 한도·AI 분석 요청 크기 안에 들도록)
+    (await resizeImagesForUpload(parsedImages.data)).forEach((image) =>
+        formData.append("images", image),
+    );
     formData.append(
         "data",
         new Blob([JSON.stringify(parsedRequest.data)], { type: "application/json" }),
@@ -496,7 +500,9 @@ const createAiProduct = async (
 
     const formData = new FormData();
 
-    parsedInput.data.images.forEach((image) => formData.append("images", image));
+    (await resizeImagesForUpload(parsedInput.data.images)).forEach((image) =>
+        formData.append("images", image),
+    );
 
     if (parsedInput.data.condition) {
         formData.append("condition", parsedInput.data.condition);
@@ -548,7 +554,9 @@ const updateProduct = async (
 
     const formData = new FormData();
 
-    parsedFiles.data.forEach((file) => formData.append("images", file));
+    (await resizeImagesForUpload(parsedFiles.data)).forEach((file) =>
+        formData.append("images", file),
+    );
     formData.append(
         "data",
         new Blob([JSON.stringify(parsedRequest.data)], { type: "application/json" }),

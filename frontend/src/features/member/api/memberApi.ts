@@ -1,4 +1,5 @@
 import { api } from "@/common/lib/api/client";
+import { resizeImageForUpload } from "@/common/lib/image/resizeImageForUpload";
 import type { ApiResponse } from "@/common/lib/api/types";
 
 import type { MemberResponse, MemberUpdateRequest, PasswordChangeRequest } from "../types";
@@ -11,9 +12,10 @@ const memberWithdraw = () => api.delete<ApiResponse<null>>("/users/me");
 const memberUpdate = (params: MemberUpdateRequest) =>
     api.patch<ApiResponse<MemberResponse>>("/users/me", params);
 
-const memberUpdateImage = (image: File) => {
+const memberUpdateImage = async (image: File) => {
     const formData = new FormData();
-    formData.append("image", image);
+    // 프로필은 작게 보이므로 더 작게 줄인다
+    formData.append("image", await resizeImageForUpload(image, { maxSide: 1024 }));
     return api.post<ApiResponse<MemberResponse>>("/users/profile/image", formData);
 };
 
