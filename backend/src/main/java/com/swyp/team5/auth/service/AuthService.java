@@ -130,10 +130,26 @@ public class AuthService {
 
         Member member = socialRepository
                 .findByProviderAndProviderId(provider, userInfo.providerId())
+                .filter(social -> !releaseIfWithdrawn(social))
                 .map(Social::getMember)
                 .orElseGet(() -> linkOrCreateSocialMember(provider, userInfo));
 
         return issueTokens(member);
+    }
+
+    /**
+     * 탈퇴한 회원의 소셜 연결이면 지워 같은 소셜 계정으로 다시 가입할 수 있게 한다(이메일 가입처럼 탈퇴 후 재가입 허용 — 정지 회원은
+     * 그대로 막힌다). 같은 트랜잭션에서 새 연결을 저장하므로 (provider, provider_id) 유니크 제약에 걸리지 않게 삭제를 먼저 반영한다.
+     *
+     * @return 지웠으면 {@code true}(새 회원으로 가입시킨다)
+     */
+    private boolean releaseIfWithdrawn(Social social) {
+        if (social.getMember().getStatus() != MemberStatus.DELETED) {
+            return false;
+        }
+        socialRepository.delete(social);
+        socialRepository.flush();
+        return true;
     }
 
     public void logout(Long memberId) {

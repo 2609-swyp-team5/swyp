@@ -2,6 +2,7 @@ package com.swyp.team5.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -20,7 +21,9 @@ import com.swyp.team5.auth.dto.SignUpRequest;
 import com.swyp.team5.auth.dto.SocialLoginRequest;
 import com.swyp.team5.auth.dto.SocialUserInfo;
 import com.swyp.team5.common.passport.JwtTokenProvider;
+import com.swyp.team5.member.entity.Member;
 import com.swyp.team5.member.entity.MemberRole;
+import com.swyp.team5.member.entity.MemberStatus;
 import com.swyp.team5.member.repository.MemberRepository;
 import com.swyp.team5.social.entity.SocialProvider;
 import com.swyp.team5.social.repository.SocialRepository;
@@ -170,6 +173,65 @@ class AuthTest extends IntegrationTest {
                 .andExpect(jsonPath("$.data.accessToken").isNotEmpty());
 
         assertThat(memberRepository.existsByEmail("social@example.com")).isTrue();
+    }
+
+    // 소셜 로그인 - 탈퇴한 회원은 같은 소셜 계정으로 다시 가입할 수 있다(옛 연결을 지우고 새 회원으로 가입, 이메일 가입과 같은 규칙)
+    @Test
+    void socialLoginRejoinsAfterWithdrawal() throws Exception {
+        SocialUserInfo userInfo = new SocialUserInfo("google-sub-rejoin", "rejoin@example.com", "다시온", null);
+        Mockito.doReturn(userInfo).when(googleLoginStrategy).verify("rejoin-token");
+        String body = objectMapper.writeValueAsString(new SocialLoginRequest(SocialProvider.GOOGLE, "rejoin-token"));
+
+        mockMvc.perform(post("/auth/social/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk());
+        Long firstId = socialMemberId("google-sub-rejoin");
+        String firstToken = jwtTokenProvider.createAccessToken(firstId, MemberRole.USER);
+        mockMvc.perform(delete("/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + firstToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/auth/social/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.accessToken").isNotEmpty());
+
+        Long rejoinedId = socialMemberId("google-sub-rejoin");
+        assertThat(rejoinedId).isNotEqualTo(firstId);
+        assertThat(memberRepository.findById(rejoinedId).orElseThrow().getStatus())
+                .isEqualTo(MemberStatus.ACTIVE);
+        assertThat(memberRepository.findById(firstId).orElseThrow().getStatus()).isEqualTo(MemberStatus.DELETED);
+    }
+
+    // 소셜 로그인 실패 - 정지된 회원은 재가입시키지 않고 그대로 막는다
+    @Test
+    void socialLoginStillBlocksSuspendedMember() throws Exception {
+        SocialUserInfo userInfo = new SocialUserInfo("google-sub-suspended", "suspended@example.com", "정지", null);
+        Mockito.doReturn(userInfo).when(googleLoginStrategy).verify("suspended-token");
+        String body = objectMapper.writeValueAsString(new SocialLoginRequest(SocialProvider.GOOGLE, "suspended-token"));
+        mockMvc.perform(post("/auth/social/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk());
+        Long memberId = socialMemberId("google-sub-suspended");
+        Member member = memberRepository.findById(memberId).orElseThrow();
+        member.suspend("테스트");
+        memberRepository.save(member);
+
+        mockMvc.perform(post("/auth/social/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden());
+        assertThat(socialMemberId("google-sub-suspended")).isEqualTo(memberId);
+    }
+
+    private Long socialMemberId(String providerId) {
+        return socialRepository
+                .findByProviderAndProviderId(SocialProvider.GOOGLE, providerId)
+                .orElseThrow()
+                .getMember()
+                .getId();
     }
 
     // 소셜 로그인 실패 - 지원하지 않는 provider
