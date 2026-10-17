@@ -91,6 +91,9 @@ export function ProductListShell({
         return () => observer.disconnect();
     }, [errorMessage, hasNextPage, isFetchNextPageError, isFetchingNextPage, onLoadMore]);
 
+    // 다음 페이지 실패는 목록 전체 오류가 아니다 — 이미 불러온 목록은 그대로 두고 아래의 "다시 시도"만 보인다
+    const listErrorMessage = isFetchNextPageError ? undefined : errorMessage;
+
     return (
         <main className="flex flex-1 bg-white">
             <section className="layout-container flex flex-col gap-8 pt-6 pb-12 md:gap-12 md:pt-16 md:pb-24">
@@ -179,17 +182,17 @@ export function ProductListShell({
                             className="mt-4 max-h-[420px] overflow-y-auto md:mt-[30px] md:max-h-[600px]"
                         >
                             {isLoading ? <ProductListSkeleton /> : null}
-                            {!isLoading && errorMessage ? (
+                            {!isLoading && listErrorMessage ? (
                                 <div className="typography-body-small px-5 py-12 text-center font-medium text-[#d65353]">
-                                    {errorMessage}
+                                    {listErrorMessage}
                                 </div>
                             ) : null}
-                            {!isLoading && !errorMessage && filteredItems.length === 0 ? (
+                            {!isLoading && !listErrorMessage && filteredItems.length === 0 ? (
                                 <div className="typography-body-small px-5 py-14 text-center font-medium text-[#83889e]">
                                     {emptyMessage}
                                 </div>
                             ) : null}
-                            {!isLoading && !errorMessage && filteredItems.length > 0 ? (
+                            {!isLoading && !listErrorMessage && filteredItems.length > 0 ? (
                                 <div>
                                     {filteredItems.map((item) => (
                                         <ProductListItem
@@ -203,7 +206,7 @@ export function ProductListShell({
                                     ))}
                                 </div>
                             ) : null}
-                            {hasNextPage && !errorMessage ? (
+                            {hasNextPage && !listErrorMessage ? (
                                 <div ref={loadMoreRef} className="min-h-5" aria-hidden="true" />
                             ) : null}
                             {isFetchingNextPage ? (
