@@ -85,11 +85,17 @@ backend-test:
         - backend/**/*
     - if: $CI_PIPELINE_SOURCE == "web"
 
+# 배포 순서 보장: develop에 연달아 머지하면 파이프라인이 동시에 돌아, 늦게 끝난 오래된 파이프라인이 최신 jar를 덮어쓸 수 있다.
+# resource_group으로 배포를 한 번에 하나씩만 돌리고, environment를 지정해 GitLab "Prevent outdated deployment jobs"
+# (프로젝트 설정, 켜져 있음)가 더 최신 배포가 이미 끝난 뒤의 오래된 배포 잡을 건너뛰게 한다
 backend-deploy:
   stage: deploy
   image: alpine:latest
   needs:
     - backend-test
+  resource_group: production
+  environment:
+    name: production
 
   before_script:
     - apk add --no-cache openssh-client
