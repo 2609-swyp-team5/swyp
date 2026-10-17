@@ -6,7 +6,12 @@ import { Checkbox } from "@/common/components/ui/Checkbox";
 import { Input } from "@/common/components/ui/Input";
 import { RadioGroup, RadioGroupItem } from "@/common/components/ui/RadioGroup";
 import { cn } from "@/common/lib/utils";
-import type { SearchParams, SearchPlatform, SearchStatus } from "@/features/search/types";
+import type {
+    SearchDefectStatus,
+    SearchParams,
+    SearchPlatform,
+    SearchStatus,
+} from "@/features/search/types";
 
 const statusOptions = [
     { label: "임시저장", value: "DRAFT" },
@@ -20,6 +25,11 @@ const conditionOptions = [
     { label: "사용감 적음", value: "B" },
     { label: "사용감 있음", value: "C" },
     { label: "수리 필요", value: "D" },
+] as const;
+const defectOptions = [
+    { label: "하자 없음", value: "NORMAL" },
+    { label: "하자 있음", value: "ISSUES" },
+    { label: "확인 필요", value: "UNKNOWN" },
 ] as const;
 const priceOptions = [
     { label: "10만 원 이하", min: undefined, max: 100000 },
@@ -111,6 +121,7 @@ export function SearchFilters({
     const appliedCount =
         (filters.platform?.length ?? 0) +
         (filters.condition?.length ?? 0) +
+        (filters.defectStatus?.length ?? 0) +
         (Array.isArray(filters.status) ? filters.status.length : filters.status ? 1 : 0) +
         (filters.minPrice !== undefined || filters.maxPrice !== undefined ? 1 : 0) +
         (filters.excludeKeyword ? 1 : 0);
@@ -314,6 +325,28 @@ export function SearchFilters({
                         </label>
                     ))}
                 </fieldset>
+                <FilterGroup<SearchDefectStatus>
+                    title="하자 여부"
+                    options={defectOptions}
+                    disabled={disabled}
+                    values={filters.defectStatus ?? []}
+                    onValueChange={(value, checked) => {
+                        const next = checked
+                            ? [...new Set([...(filters.defectStatus ?? []), value])]
+                            : (filters.defectStatus ?? []).filter((defect) => defect !== value);
+                        onFiltersChange({
+                            ...filters,
+                            defectStatus: next.length ? next : undefined,
+                        });
+                    }}
+                />
+                {/* 외부 매물(번개장터·중고나라)에는 상태 등급·하자 정보가 없어 서버가 결과에서 뺀다 — 결과가 줄어든 이유를 알린다 */}
+                {(filters.condition?.length ?? 0) + (filters.defectStatus?.length ?? 0) > 0 && (
+                    <p role="note" className="typography-body-small text-[#83889e] sm:col-span-2">
+                        제품 상태·하자 여부를 고르면 지금이니?! 상품만 보여요(외부 매물에는 이
+                        정보가 없어요).
+                    </p>
+                )}
                 <FilterGroup<SearchStatus>
                     title="거래 상태"
                     options={statusOptions}
