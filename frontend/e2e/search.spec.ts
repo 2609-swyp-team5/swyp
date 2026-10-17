@@ -178,10 +178,11 @@ for (const loggedIn of [true, false]) {
                 1,
             );
             await expect(page.locator("main [data-slot=card]")).toContainText(label);
+            // 거래 상태는 여러 개를 함께 고를 수 있어, 하나씩 확인하려면 다음 상태 전에 해제한다
+            await statusGroup.getByRole("checkbox", { name: label, exact: true }).uncheck();
+            await expect.poll(() => requests.at(-1)?.has("status")).toBe(false);
         }
         await expect(page.locator("main")).toContainText("최신순");
-        await page.getByRole("checkbox", { name: "판매완료", exact: true }).uncheck();
-        await expect.poll(() => requests.at(-1)?.has("status")).toBe(false);
     });
 }
 

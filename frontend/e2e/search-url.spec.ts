@@ -83,3 +83,79 @@ test("invalid URL values are ignored when searching", async ({ page }) => {
     expect(last.getAll("platform")).toEqual(["BUNJANG", "JOONGNA"]);
     expect(last.has("minPrice")).toBe(false);
 });
+
+test("trade status allows several choices with reserved, and defect filters explain that external listings drop out", async ({
+    page,
+}) => {
+    const requests = await recordSearches(page);
+    await page.goto("/search?keyword=카메라");
+
+    await page.getByRole("checkbox", { name: "판매중", exact: true }).check();
+    await page.getByRole("checkbox", { name: "판매완료", exact: true }).check();
+    await page.getByRole("checkbox", { name: "예약중", exact: true }).check();
+    // 새로 체크해도 앞의 선택이 풀리지 않는다(판매중+판매완료로 실제 팔린 가격과 비교)
+    await expect
+        .poll(() => new URL(page.url()).searchParams.getAll("status"))
+        .toEqual(["ON_SALE", "SOLD_OUT", "RESERVED"]);
+
+    const note = page.getByRole("note");
+    await expect(note).toHaveCount(0);
+    await page.getByRole("checkbox", { name: "하자 없음", exact: true }).check();
+    await expect
+        .poll(() => new URL(page.url()).searchParams.getAll("defectStatus"))
+        .toEqual(["NORMAL"]);
+    await expect(note).toContainText("지금이니?! 상품만 보여요");
+    await expect.poll(() => requests.at(-1)?.getAll("defectStatus")).toEqual(["NORMAL"]);
+    expect(requests.at(-1)?.getAll("status")).toEqual(["ON_SALE", "SOLD_OUT", "RESERVED"]);
+
+    await page.getByRole("checkbox", { name: "판매중", exact: true }).uncheck();
+    await expect
+        .poll(() => new URL(page.url()).searchParams.getAll("status"))
+        .toEqual(["SOLD_OUT", "RESERVED"]);
+    await page.getByRole("checkbox", { name: "하자 없음", exact: true }).uncheck();
+    await expect(note).toHaveCount(0);
+});
+
+test("the detail page goes back to the search with the same conditions", async ({ page }) => {
+    await page.route("**/products?*", (route) =>
+        route.fulfill({
+            json: {
+                success: true,
+                data: {
+                    content: [
+                        {
+                            source: "EXTERNAL",
+                            id: 1,
+                            title: "필름카메라 FM2",
+                            price: 300000,
+                            status: "ON_SALE",
+                            condition: null,
+                            defectStatus: null,
+                            thumbnailUrl: null,
+                            platformName: "번개장터",
+                            marketAveragePrice: null,
+                            categoryName: "카메라",
+                            createdAt: "2026-10-16T10:00:00",
+                            favorite: false,
+                            interestId: null,
+                        },
+                    ],
+                    nextCursor: null,
+                    hasNext: false,
+                    totalCount: 1,
+                },
+                error: null,
+            },
+        }),
+    );
+    await page.goto("/search?keyword=FM2&sort=PRICE_LOW&status=ON_SALE&status=SOLD_OUT");
+    await page.getByRole("link", { name: "필름카메라 FM2 상세보기" }).click();
+    await expect(page).toHaveURL(/\/search\/1$/);
+
+    await page.getByRole("link", { name: "이전 페이지" }).click();
+    await expect(page).toHaveURL(/\/search\?/);
+    const params = new URL(page.url()).searchParams;
+    expect(params.get("keyword")).toBe("FM2");
+    expect(params.get("sort")).toBe("PRICE_LOW");
+    expect(params.getAll("status")).toEqual(["ON_SALE", "SOLD_OUT"]);
+});

@@ -12,6 +12,7 @@ import { SearchResults } from "@/features/search/components/SearchResults";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { useSearchQuery } from "@/features/search/hooks/queries/useSearchQuery";
 import type { SearchParams, SearchSort } from "@/features/search/types";
+import { saveLastSearchQuery } from "@/features/search/utils/lastSearchQuery";
 import { parseSearchUrl, toSearchQuery } from "@/features/search/utils/searchUrlState";
 import { useInterestToggle } from "@/features/interest/hooks/useInterestToggle";
 import { Button } from "@/common/components/ui/Button";
@@ -83,6 +84,9 @@ export function SearchPage() {
         router[mode](nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
     };
     const submitSearch = () => navigate({ keyword: keyword.trim() }, "push");
+
+    // 상세에서 [이전 페이지]로 돌아올 때 같은 조건으로 돌아오도록 지금 검색 조건을 기억한다
+    useEffect(() => saveLastSearchQuery(query), [query]);
 
     useEffect(() => {
         const target = loadMoreRef.current;
