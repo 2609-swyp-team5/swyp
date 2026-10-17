@@ -457,3 +457,63 @@ it("추천 가격 변경이 완료되면 임시 toast를 보여준다", async ()
     expect(await screen.findByRole("status")).toHaveTextContent("468,000원");
     expect(screen.queryByRole("button", { name: "확인" })).not.toBeInTheDocument();
 });
+
+it.each([
+    [
+        { status: "NOT_ANALYZED", skipMessage: null },
+        "아직 시세 분석 전이에요",
+        "위의 [AI 분석 재시도]를 누르면 바로 분석해 드려요.",
+    ],
+    [
+        { status: "SKIPPED", skipMessage: "같은 물건 매물이 3건보다 적어요." },
+        "비교할 매물이 부족해요",
+        "같은 물건 매물이 3건보다 적어요.",
+    ],
+    [
+        { status: "UNAVAILABLE", skipMessage: null },
+        "시세를 분석하지 않는 상품이에요",
+        "판매가 끝난 상품은 시세를 분석하지 않아요.",
+    ],
+] as const)(
+    "결과가 없을 때 서버가 알려 준 이유(%o)대로 안내한다 — 분석 중이 아니면 '분석하고 있어요'로 기다리게 하지 않는다",
+    (emptyState, title, line) => {
+        render(
+            <MarketAnalysisSection
+                result={null}
+                emptyState={emptyState}
+                error={null}
+                isPending={false}
+                priceTrendQuery={idleQuery}
+                valuationForecastQuery={idleQuery}
+                perspective="BUY"
+                variant="management"
+                analysisRetry={{
+                    isFetching: false,
+                    refetch: vi.fn().mockResolvedValue(undefined),
+                    request: vi.fn().mockResolvedValue(undefined),
+                }}
+            />,
+        );
+
+        expect(screen.getByText(title)).toBeInTheDocument();
+        expect(screen.getByText(line)).toBeInTheDocument();
+        expect(screen.queryByText("구매 타이밍을 분석하고 있어요")).not.toBeInTheDocument();
+    },
+);
+
+it("분석 중이면 지금처럼 분석하고 있다고 안내한다", () => {
+    render(
+        <MarketAnalysisSection
+            result={null}
+            emptyState={{ status: "ANALYZING", skipMessage: null }}
+            error={null}
+            isPending={false}
+            priceTrendQuery={idleQuery}
+            valuationForecastQuery={idleQuery}
+            perspective="BUY"
+            variant="management"
+        />,
+    );
+
+    expect(screen.getByText("구매 타이밍을 분석하고 있어요")).toBeInTheDocument();
+});

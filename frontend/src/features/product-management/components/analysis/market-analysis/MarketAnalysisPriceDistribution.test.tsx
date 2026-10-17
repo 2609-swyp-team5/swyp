@@ -114,3 +114,42 @@ it("판매 완료 탭을 누르면 같은 응답의 판매 완료 분포를 보�
     expect(screen.getByText("39만 원")).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "판매 완료" })).toHaveAttribute("aria-selected", "true");
 });
+
+it("판매자 화면은 내 가격을 분포 위에 따로 표시하고, 범위 밖이면 눈금을 넓혀 담는다", () => {
+    const onSale = {
+        ...createProductPriceDistributionMock(1).onSale,
+        minPrice: 200000,
+        averagePrice: 240000,
+        suggestedPrice: 220000,
+        maxPrice: 280000,
+    };
+    const { rerender } = render(
+        <MarketAnalysisPriceDistribution
+            query={queryFor({ ...createProductPriceDistributionMock(1), onSale })}
+            myPrice={240000}
+        />,
+    );
+
+    expect(screen.getByTestId("price-distribution-point-mine")).toBeInTheDocument();
+    expect(screen.getByText("내 가격 24만 원")).toBeInTheDocument();
+    // 평균과 같은 가격이면 평균 점과 같은 위치
+    expect(ratioOf("price-distribution-point-mine")).toBeCloseTo(
+        ratioOf("price-distribution-point-average"),
+    );
+
+    rerender(
+        <MarketAnalysisPriceDistribution
+            query={queryFor({ ...createProductPriceDistributionMock(1), onSale })}
+            myPrice={400000}
+        />,
+    );
+    // 최고가보다 비싼 내 가격이 막대 오른쪽 끝(눈금 최대)에 온다
+    expect(ratioOf("price-distribution-point-mine")).toBeCloseTo(1);
+});
+
+it("구매자 화면(내 가격 없음)은 내 가격 표시를 하지 않는다", () => {
+    render(<MarketAnalysisPriceDistribution query={queryFor()} />);
+
+    expect(screen.queryByTestId("price-distribution-point-mine")).not.toBeInTheDocument();
+    expect(screen.queryByText(/내 가격/)).not.toBeInTheDocument();
+});

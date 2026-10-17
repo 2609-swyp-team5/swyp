@@ -151,6 +151,7 @@ export function MarketAnalysisContent({
                         <MarketAnalysisPriceDistribution
                             variant={variant}
                             query={priceDistributionQuery}
+                            myPrice={isBuyerView ? null : analysis.currentPrice}
                         />
                         <ProductPriceTrendSection query={priceTrendQuery} />
                         <ProductValuationForecastSection query={valuationForecastQuery} />
@@ -224,6 +225,7 @@ export function MarketAnalysisContent({
                     <MarketAnalysisPriceDistribution
                         variant={variant}
                         query={priceDistributionQuery}
+                        myPrice={isBuyerView ? null : analysis.currentPrice}
                     />
                 </div>
                 <ProductPriceTrendSection query={priceTrendQuery} />

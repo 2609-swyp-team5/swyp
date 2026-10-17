@@ -22,9 +22,12 @@ import { ProductAnalysisRetryDialog } from "./ProductAnalysisRetryDialog";
 import { formatPrice } from "./formatters";
 import type { ProductAnalysisStreamStep } from "../../../schemas/productAnalysisStreamSchema";
 import type { ProductAnalysisRetryNotice } from "../../../hooks/useRequestProductAnalysisMutation";
+import type { AnalysisEmptyState } from "../../../hooks/useProductAnalysisQuery";
 
 type MarketAnalysisSectionProps = {
     result: ProductMarketAnalysis | null | undefined;
+    /** 결과가 없을 때 서버가 알려 준 이유 — 없으면 "분석 중"으로 본다(기존 동작) */
+    emptyState?: AnalysisEmptyState | null;
     competitionQuery?: StreamingQueryState<ProductCompetition>;
     priceDistributionQuery?: StreamingQueryState<ProductPriceDistribution>;
     error: unknown;
@@ -114,20 +117,65 @@ function RetryButton({
     );
 }
 
-function PendingAnalysisCard({ perspective }: { perspective: ProductManagementPerspective }) {
+/** 결과가 없을 때 이유별 안내 — 분석 중이 아닌데 "분석하고 있어요"로 기다리게 하지 않는다. */
+export function describeEmptyAnalysis(
+    perspective: ProductManagementPerspective,
+    emptyState: AnalysisEmptyState | null | undefined,
+    canRequest: boolean,
+) {
     const timingLabel = perspective === "BUY" ? "구매" : "판매";
+    switch (emptyState?.status) {
+        case "NOT_ANALYZED":
+            return {
+                title: "아직 시세 분석 전이에요",
+                lines: canRequest
+                    ? ["위의 [AI 분석 재시도]를 누르면 바로 분석해 드려요."]
+                    : ["비교할 매물이 모이면 분석해 드릴게요."],
+            };
+        case "SKIPPED":
+            return {
+                title: "비교할 매물이 부족해요",
+                lines: [emptyState.skipMessage ?? "비슷한 매물이 더 모이면 다시 분석해 드릴게요."],
+            };
+        case "UNAVAILABLE":
+            return {
+                title: "시세를 분석하지 않는 상품이에요",
+                lines: ["판매가 끝난 상품은 시세를 분석하지 않아요."],
+            };
+        default:
+            return {
+                title: `${timingLabel} 타이밍을 분석하고 있어요`,
+                lines: [
+                    "비슷한 매물과 최근 시세를 비교하고 있어요.",
+                    "분석이 완료되면 결과를 보여드릴게요.",
+                ],
+            };
+    }
+}
+
+function PendingAnalysisCard({
+    perspective,
+    emptyState,
+    canRequest,
+}: {
+    perspective: ProductManagementPerspective;
+    emptyState?: AnalysisEmptyState | null;
+    canRequest: boolean;
+}) {
+    const { title, lines } = describeEmptyAnalysis(perspective, emptyState, canRequest);
 
     return (
         <div className="relative min-h-[300px] overflow-hidden rounded-[16px] bg-[#fafbff]">
             <div className="relative z-10 flex min-h-[300px] items-center px-6 py-8 md:px-[30px] md:py-[30px]">
                 <div className="flex w-full flex-col gap-[10px] text-[#363636] md:w-[290px]">
-                    <h3 className="typography-heading-bold font-semibold">
-                        {timingLabel} 타이밍을 분석하고 있어요
-                    </h3>
+                    <h3 className="typography-heading-bold font-semibold">{title}</h3>
                     <p className="typography-body-medium">
-                        비슷한 매물과 최근 시세를 비교하고 있어요.
-                        <br />
-                        분석이 완료되면 결과를 보여드릴게요.
+                        {lines.map((line, index) => (
+                            <span key={line}>
+                                {index > 0 ? <br /> : null}
+                                {line}
+                            </span>
+                        ))}
                     </p>
                 </div>
                 <Image
@@ -179,6 +227,7 @@ function SoldAnalysisTrigger({ onClick }: { onClick: () => void }) {
 
 export function MarketAnalysisSection({
     result,
+    emptyState,
     competitionQuery,
     priceDistributionQuery,
     error,
@@ -241,6 +290,11 @@ export function MarketAnalysisSection({
         return () => window.clearTimeout(timer);
     }, [priceChangeFeedback]);
 
+    const emptyCopy = describeEmptyAnalysis(
+        perspective,
+        emptyState,
+        Boolean(analysisRetry?.request),
+    );
     const analysisBody = isPending ? (
         isManagementVariant ? (
             <MarketAnalysisManagementSkeleton />
@@ -280,11 +334,17 @@ export function MarketAnalysisSection({
     ) : result === null ? (
         isManagementVariant ? (
             <div className="px-4 pb-4 md:px-[30px] md:pb-5">
-                <PendingAnalysisCard perspective={perspective} />
+                <PendingAnalysisCard
+                    perspective={perspective}
+                    emptyState={emptyState}
+                    canRequest={Boolean(analysisRetry?.request)}
+                />
             </div>
         ) : (
             <p className="typography-body-small bg-white px-6 py-16 text-center text-[#83889e]">
-                아직 시세 분석 결과가 없어요. 비슷한 매물이 모이면 분석해 드릴게요.
+                {emptyState
+                    ? [emptyCopy.title, ...emptyCopy.lines].join(" ")
+                    : "아직 시세 분석 결과가 없어요. 비슷한 매물이 모이면 분석해 드릴게요."}
             </p>
         )
     ) : null;

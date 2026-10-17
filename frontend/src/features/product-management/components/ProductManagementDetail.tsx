@@ -78,6 +78,7 @@ export function ProductManagementDetail({
                 <>
                     <MarketAnalysisSection
                         result={sections.productAnalysis.data}
+                        emptyState={sections.productAnalysisEmptyState.data}
                         error={sections.productAnalysis.error}
                         isPending={sections.productAnalysis.isPending}
                         competitionQuery={sections.productCompetition}
