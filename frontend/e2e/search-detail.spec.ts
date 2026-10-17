@@ -149,9 +149,10 @@ test("detail gallery and favorite use product and interest APIs", async ({ page 
     await favorite.click();
     // 등록에 성공하면 알림 조건 안내 팝업을 띄우고, 확인을 누르면 닫힌다
     const addedDialog = page.getByRole("alertdialog", { name: "관심상품으로 등록했어요!" });
-    await expect(addedDialog).toContainText(
-        `가격이 ${detailProduct.price.toLocaleString("ko-KR")}원 이하로 내려갈 때`,
-    );
+    // 실제로 보내는 알림만 안내한다(목표가는 관심 목록에서 따로 정해야 알림이 옴, 판매 상태 알림은 없음)
+    await expect(addedDialog).toContainText("평균 시세가 5% 넘게 오르거나 내릴 때");
+    await expect(addedDialog).toContainText("목표 구매가를 정해 두면");
+    await expect(addedDialog).not.toContainText("판매 상태가 변경될 때");
     await addedDialog.getByRole("button", { name: "확인", exact: true }).click();
     await expect(addedDialog).toHaveCount(0);
     await expect(

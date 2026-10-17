@@ -11,7 +11,7 @@ import { ProductSummaryCard } from "@/features/product-management/components/pro
 import { ProductSummarySkeleton } from "@/features/product-management/components/product-summary/ProductSummarySkeleton";
 import { TargetPriceSaveToast } from "@/features/product-management/components/target-price/TargetPriceSaveToast";
 import { canSetInterestTargetPrice } from "@/features/product-management/components/target-price/targetPriceAvailability";
-import { formatSignedPercent } from "@/features/product-management/components/analysis/market-analysis/formatters";
+import { describeDiffFromMarket } from "@/features/product-management/components/analysis/market-analysis/formatters";
 import { useNotificationSettingsQuery } from "@/features/notifications/hooks/queries/useNotificationSettingsQuery";
 import { useRequestProductAnalysisMutation } from "@/features/product-management/hooks/useRequestProductAnalysisMutation";
 import { ManagementTargetPriceCard } from "@/features/product-management/components/target-price/ManagementTargetPriceCard";
@@ -86,6 +86,11 @@ export function InterestProductDetail({ interest }: { interest: InterestListItem
         }
     };
 
+    // 시세 대비 차이는 추천가가 아니라 현재 판매가 기준(목표가 카드의 추천가 옆에 두되 주어를 밝힌다)
+    const currentPriceDiff = describeDiffFromMarket(
+        sections.productAnalysis.data?.marketPriceDiffRate,
+    );
+
     return (
         <div className="flex min-w-0 flex-col gap-6">
             {savedTargetPrice !== null ? (
@@ -137,10 +142,9 @@ export function InterestProductDetail({ interest }: { interest: InterestListItem
                         label: "현재 AI 추천 구매가",
                         price: sections.productAnalysis.data?.suggestedPrice ?? null,
                         emphasized: true,
-                        supportingText:
-                            sections.productAnalysis.data?.marketPriceDiffRate == null
-                                ? null
-                                : `시세 대비 ${formatSignedPercent(sections.productAnalysis.data.marketPriceDiffRate)}`,
+                        supportingText: currentPriceDiff
+                            ? `현재 판매가가 ${currentPriceDiff}`
+                            : null,
                     }}
                     isSaving={targetPriceMutation.isPending}
                     error={targetPriceMutation.error}

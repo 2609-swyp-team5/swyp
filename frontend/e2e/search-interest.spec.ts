@@ -602,9 +602,7 @@ test("liking on the search page shows the interest dialog like the detail page",
     await favorite.click();
 
     const addedDialog = page.getByRole("alertdialog", { name: "관심상품으로 등록했어요!" });
-    await expect(addedDialog).toContainText(
-        `가격이 ${products[1].price.toLocaleString("ko-KR")}원 이하로 내려갈 때`,
-    );
+    await expect(addedDialog).toContainText("목표 구매가를 정해 두면");
     await addedDialog.getByRole("button", { name: "확인", exact: true }).click();
     await expect(addedDialog).toHaveCount(0);
     await expect(favorite).toHaveAttribute("aria-pressed", "true");

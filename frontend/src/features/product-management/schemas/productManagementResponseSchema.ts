@@ -56,6 +56,8 @@ export const productAnalysisResponseSchema = z.object({
     marketExpectedPrice: z.number(),
     summary: productAnalysisSummarySchema,
     analyzedAt: z.string(),
+    // 신뢰도 비율(0~100, 비교 매물 수 기반) — 모든 추천에 오지만 신뢰도 도입 전 분석이면 null
+    confidenceRate: z.number().nullable().optional(),
 });
 
 export const productPriceTrendResponseSchema = z.object({

@@ -8,22 +8,23 @@ import {
     AlertDialogTitle,
 } from "@/common/components/ui/AlertDialog";
 
-/** 관심상품 등록 성공 후 어떤 알림을 받게 되는지 안내한다(Figma 1854-7930) */
+/**
+ * 관심상품 등록 성공 후 어떤 알림을 받게 되는지 안내한다(Figma 1854-7930). 실제로 보내는 구매자 알림(구매 추천·보류 전환, 평균 시세
+ * 5% 이상 변동, 목표 구매가 도달)만 적는다 — 목표가는 관심 등록 때 비어 있어 따로 정해야 알림이 온다.
+ */
+const conditions = [
+    "AI 분석이 '구매 추천'이나 '구매 보류'로 바뀔 때",
+    "평균 시세가 5% 넘게 오르거나 내릴 때",
+    "목표 구매가를 정해 두면, 가격이 그 아래로 내려갈 때(관심 상품 목록에서 정할 수 있어요)",
+];
+
 export function InterestAddedDialog({
     open,
     onOpenChange,
-    price,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    /** 등록 시점의 상품 가격 — 이보다 내려가면 알림 대상이 된다 */
-    price: number;
 }) {
-    const conditions = [
-        "AI 분석이 '구매 추천'으로 변경될 때",
-        `가격이 ${price.toLocaleString("ko-KR")}원 이하로 내려갈 때`,
-        "판매 상태가 변경될 때",
-    ];
     return (
         <AlertDialog open={open} onOpenChange={onOpenChange}>
             <AlertDialogContent className="flex max-w-[calc(100%-2rem)] flex-col gap-[35px] rounded-2xl border border-[#dee5ed] bg-white p-[33px] ring-0 data-[size=default]:max-w-[420px] data-[size=default]:sm:max-w-[420px]">

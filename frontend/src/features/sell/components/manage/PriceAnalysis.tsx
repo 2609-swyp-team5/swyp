@@ -44,12 +44,20 @@ const formatAnalyzedAt = (value: string | undefined) => {
     )}:${pad(date.getMinutes())}`;
 };
 
+const recommendationLabels: Record<string, string> = {
+    SELL: "판매 추천",
+    HOLD: "판매 대기",
+    BUY: "구매 추천",
+    WAIT: "구매 대기",
+};
+
+// 판매자 기준: 내 가격이 시세보다 비싸면(+) 늦게 팔릴 수 있어 주의(빨강), 싸면(-) 브랜드색
 const getPriceDiffClassName = (value: number | null | undefined) => {
     if (value === null || value === undefined || value === 0) {
         return "text-[#374151]";
     }
 
-    return value > 0 ? "text-[#6653fb]" : "text-[#ef4444]";
+    return value > 0 ? "text-[#ef4444]" : "text-[#6653fb]";
 };
 
 function AnalysisMetric({
@@ -100,10 +108,13 @@ export function PriceAnalysis({
     const confidenceScore =
         marketAnalysis?.summary.type === "WAIT_RECOMMENDATION"
             ? `${marketAnalysis.summary.confidenceScore}%`
-            : EMPTY_VALUE;
+            : marketAnalysis?.confidenceRate !== null &&
+                marketAnalysis?.confidenceRate !== undefined
+              ? `${marketAnalysis.confidenceRate}%`
+              : EMPTY_VALUE;
     const metrics = [
         {
-            label: "시세 대비 차이",
+            label: "내 가격 시세 대비",
             value: marketAnalysis
                 ? formatSignedPercent(marketAnalysis.marketPriceDiffRate)
                 : EMPTY_VALUE,
@@ -177,7 +188,7 @@ export function PriceAnalysis({
                             <span
                                 className={`typography-body-bold w-fit rounded-full px-5 py-2.5 font-semibold text-white ${recommendationBadgeClassName}`}
                             >
-                                {recommendation}
+                                {recommendationLabels[recommendation] ?? recommendation}
                             </span>
                         </div>
                     ) : null}

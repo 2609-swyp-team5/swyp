@@ -176,7 +176,6 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                         <InterestAddedDialog
                             open={interestDialogOpen}
                             onOpenChange={setInterestDialogOpen}
-                            price={product.price}
                         />
                         <div>
                             {product.source === "EXTERNAL" && (

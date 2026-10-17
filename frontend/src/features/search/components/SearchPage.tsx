@@ -48,7 +48,6 @@ export function SearchPage() {
     const interests = useInterestToggle();
     // 관심상품 등록 안내 팝업(검색 상세와 같음) — 닫힐 때 문구가 바뀌지 않도록 가격은 열림 상태와 따로 둔다
     const [interestDialogOpen, setInterestDialogOpen] = useState(false);
-    const [interestDialogPrice, setInterestDialogPrice] = useState(0);
     const handleScrollToTop = useSmoothScroll();
     const isInitialized = useAuthStore((state) => state.isInitialized);
     const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -104,11 +103,7 @@ export function SearchPage() {
                 open={interests.loginNoticeOpen}
                 onOpenChange={interests.onLoginNoticeOpenChange}
             />
-            <InterestAddedDialog
-                open={interestDialogOpen}
-                onOpenChange={setInterestDialogOpen}
-                price={interestDialogPrice}
-            />
+            <InterestAddedDialog open={interestDialogOpen} onOpenChange={setInterestDialogOpen} />
             <SearchBar keyword={keyword} onKeywordChange={setKeyword} onSearch={submitSearch} />
             <div className="layout-container flex flex-col items-start gap-6 py-6 md:gap-8 md:py-[60px] xl:flex-row xl:gap-[60px]">
                 <SearchFilters
@@ -145,10 +140,7 @@ export function SearchPage() {
                                 {
                                     interestId: product.interestId,
                                     // 하트와 함께 바로 띄우고, 등록이 실패하면 닫는다(오류는 위 alert로 표시)
-                                    onAdd: () => {
-                                        setInterestDialogPrice(product.price);
-                                        setInterestDialogOpen(true);
-                                    },
+                                    onAdd: () => setInterestDialogOpen(true),
                                     onAddFailed: () => setInterestDialogOpen(false),
                                 },
                             )
