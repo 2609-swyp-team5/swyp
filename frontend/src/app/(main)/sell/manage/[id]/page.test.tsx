@@ -141,15 +141,22 @@ describe("ProductReviewPage", () => {
     });
 
     it("fills the price analysis card with the market analysis saved at registration", () => {
-        const analysis = createProductMarketAnalysisMock(product.id, "SELL", "SELL");
+        const analysis = {
+            ...createProductMarketAnalysisMock(product.id, "SELL", "SELL"),
+            confidenceRate: 80,
+        };
         useProductAnalysisQuery.mockReturnValue({ data: analysis });
         useProductCompetitionQuery.mockReturnValue({ data: { competition: { count: 24 } } });
 
         render(<ProductReviewPage />);
 
         expect(screen.getByRole("heading", { name: "AI 가격 분석" })).toBeInTheDocument();
-        expect(screen.getByText("SELL")).toBeInTheDocument();
-        expect(screen.getByText("+4.9%")).toBeInTheDocument();
+        // 추천 배지는 한글, 내 가격이 시세보다 비싸면(+) 주의 색
+        expect(screen.getByText("판매 추천")).toBeInTheDocument();
+        expect(screen.getByText("+4.9%")).toHaveClass("text-[#ef4444]");
+        expect(screen.getByText("내 가격 시세 대비")).toBeInTheDocument();
+        // 판매 추천(SELL)에도 서버 신뢰도를 보여 준다(전에는 기다리기 추천일 때만)
+        expect(screen.getByText("80%")).toBeInTheDocument();
         expect(screen.getByText("24개")).toBeInTheDocument();
         expect(screen.getByText("2026.10.02 12:00")).toBeInTheDocument();
         expect(screen.getByText(analysis.description)).toBeInTheDocument();
@@ -187,7 +194,7 @@ describe("ProductReviewPage", () => {
         expect(screen.getByText("body, charging-cable")).toBeInTheDocument();
         expect(screen.getByText("#니콘FM2")).toBeInTheDocument();
         expect(screen.getByRole("heading", { name: "추천 이유" })).toBeInTheDocument();
-        expect(screen.getByText("HOLD")).toBeInTheDocument();
+        expect(screen.getByText("판매 대기")).toBeInTheDocument();
         expect(screen.getByText("분석 결과가 없습니다.", { exact: true })).toBeInTheDocument();
 
         ["가격 분석 자세히 보기", "수정하기", "삭제하기", "판매 상품 목록 보기"].forEach((name) => {
