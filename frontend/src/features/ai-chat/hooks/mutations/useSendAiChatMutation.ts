@@ -69,6 +69,13 @@ export function useSendAiChatMutation(onDone?: (chatId: number) => void) {
             onDone?.(answer.chatId);
             void refresh();
         },
+        // 서버는 질문을 받자마자 대화·질문을 저장하므로 실패해도 목록·대화를 다시 받아 저장된 질문을 바로 보여준다
+        onError: (_error, { chatId }) => {
+            void queryClient.invalidateQueries({ queryKey: aiChatsQueryKey });
+            if (chatId !== null) {
+                void queryClient.invalidateQueries({ queryKey: aiChatQueryKey(chatId) });
+            }
+        },
         onSettled: () => setLive(emptyLive),
     });
 

@@ -52,7 +52,15 @@ export function AiChatPage() {
         setEditingAnswerId(null);
         send.mutate(
             { chatId: activeChatId, question: text, answerId },
-            { onSettled: () => setSending(null) },
+            {
+                onSettled: () => setSending(null),
+                // 새 질문이 실패하면 지운 입력을 되돌린다(그사이 다른 내용을 입력했으면 그대로 둔다)
+                onError: () => {
+                    if (answerId === null && text) {
+                        setDraft((current) => current || text);
+                    }
+                },
+            },
         );
     };
 
