@@ -14,6 +14,7 @@ import { LoginRequiredDialog } from "@/features/auth/components/LoginRequiredDia
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { useSearchProductDetailQuery } from "@/features/search/hooks/queries/useSearchProductDetailQuery";
 import { getApiErrorMessage } from "@/common/lib/api/error";
+import { isOptimizableImageUrl } from "@/common/lib/image/optimizableImage";
 import { formatRelativeCreatedAt } from "@/features/search/utils/formatRelativeCreatedAt";
 import { lastSearchHref } from "@/features/search/utils/lastSearchQuery";
 import { formatConditionText } from "@/features/search/utils/productMetaText";
@@ -214,7 +215,11 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                                                 src={product.imageUrls[imageIndex]}
                                                 alt={`${product.title} 이미지 ${imageIndex + 1}`}
                                                 fill
-                                                unoptimized
+                                                unoptimized={
+                                                    !isOptimizableImageUrl(
+                                                        product.imageUrls[imageIndex],
+                                                    )
+                                                }
                                                 sizes="(max-width: 1023px) 100vw, 50vw"
                                                 className="object-contain"
                                             />
@@ -250,7 +255,7 @@ export function SearchProductDetailPage({ targetId }: { targetId: number }) {
                                                         src={url}
                                                         alt=""
                                                         fill
-                                                        unoptimized
+                                                        unoptimized={!isOptimizableImageUrl(url)}
                                                         sizes="80px"
                                                         className="object-cover"
                                                     />

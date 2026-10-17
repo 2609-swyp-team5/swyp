@@ -8,6 +8,7 @@ import { Badge } from "@/common/components/ui/Badge";
 import { Button } from "@/common/components/ui/Button";
 import { Card, CardContent } from "@/common/components/ui/Card";
 import { cn } from "@/common/lib/utils";
+import { isOptimizableImageUrl } from "@/common/lib/image/optimizableImage";
 import { formatRelativeCreatedAt } from "@/features/search/utils/formatRelativeCreatedAt";
 import { formatConditionText, formatTradeInfoText } from "@/features/search/utils/productMetaText";
 import type { SearchResultItem } from "@/features/search/types";
@@ -73,7 +74,7 @@ export function SearchResultCard({
                         src={product.thumbnailUrl}
                         alt={product.title}
                         fill
-                        unoptimized
+                        unoptimized={!isOptimizableImageUrl(product.thumbnailUrl)}
                         sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 33vw"
                         className="object-cover"
                     />

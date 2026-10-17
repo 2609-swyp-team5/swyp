@@ -15,6 +15,7 @@ import {
     TableCell,
 } from "@/common/components/ui/Table";
 import { cn } from "@/common/lib/utils";
+import { isOptimizableImageUrl } from "@/common/lib/image/optimizableImage";
 import type { MyProduct, MyProductStatus } from "@/features/my/types";
 import { ProductTableSkeletonRows } from "@/features/my/components/products/ProductTableSkeletonRows";
 import { RecommendationBadge } from "@/features/product-management/components/product-list/RecommendationBadge";
@@ -155,7 +156,11 @@ export function ProductTable({
                                                         src={item.thumbnailUrl}
                                                         alt=""
                                                         fill
-                                                        unoptimized
+                                                        unoptimized={
+                                                            !isOptimizableImageUrl(
+                                                                item.thumbnailUrl,
+                                                            )
+                                                        }
                                                         sizes="48px"
                                                         className="object-cover"
                                                     />

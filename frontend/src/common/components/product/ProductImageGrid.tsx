@@ -6,6 +6,7 @@ import { Plus, X } from "lucide-react";
 import { Badge } from "@/common/components/ui/Badge";
 import { Button } from "@/common/components/ui/Button";
 import { cn } from "@/common/lib/utils";
+import { isOptimizableImageUrl } from "@/common/lib/image/optimizableImage";
 
 export type ProductImagePreview = {
     url: string;
@@ -111,7 +112,7 @@ export function ProductImageGrid({
                         src={image.url}
                         alt={image.alt}
                         fill
-                        unoptimized
+                        unoptimized={!isOptimizableImageUrl(image.url)}
                         className="rounded-[inherit] object-cover"
                         sizes={styles.imageSizes}
                     />
