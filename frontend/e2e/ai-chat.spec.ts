@@ -237,3 +237,39 @@ test("keeps the streamed answer while a new chat loads", async ({ page }) => {
         [],
     );
 });
+
+test("keeps the question in the input and refreshes the chat list when the answer fails", async ({
+    page,
+}) => {
+    let listRequests = 0;
+    await page.route(
+        (url) => url.pathname === "/ai/chats",
+        (route) => {
+            if (route.request().method() !== "POST") {
+                listRequests++;
+                return route.fallback();
+            }
+            return route.fulfill({
+                status: 200,
+                contentType: "text/event-stream",
+                body: `data:${JSON.stringify({
+                    success: false,
+                    message: "답변을 만들지 못했어요. 잠시 후 다시 시도해 주세요.",
+                    data: { event: "error", step: "ANSWER" },
+                    error: { code: "INTERNAL_SERVER_ERROR" },
+                })}\n\n`,
+            });
+        },
+    );
+    await page.goto("/ai");
+    const input = page.getByRole("textbox", { name: "AI에게 질문하기" });
+    await input.fill(question);
+    await expect.poll(() => listRequests).toBeGreaterThan(0);
+    const listRequestsBeforeSend = listRequests;
+
+    await page.getByRole("button", { name: "질문하기" }).click();
+
+    // 실패하면 지웠던 질문을 입력창에 되돌려 바로 다시 보낼 수 있고, 서버에 저장된 대화를 보이도록 목록을 다시 받는다
+    await expect(input).toHaveValue(question);
+    await expect.poll(() => listRequests).toBeGreaterThan(listRequestsBeforeSend);
+});
